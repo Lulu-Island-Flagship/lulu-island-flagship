@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Marca Lulu Island Flagship (del logo real) */
+  --brand-navy: #0B1E3D;
+  --brand-navy-light: #14315C;
+  --brand-wave-blue: #2E6E96;
+  --brand-gold: #C9A961;
+  --brand-gold-dark: #A8863F;
+  --brand-ink: #10192B;
+  --brand-ice: #F5F5F5;
+  --brand-white: #FFFFFF;
+
+  /* Estados funcionales */
+  --state-success: #1E7A6E;
+  --state-warning: #B8863F;
+  --state-danger: #C0392B;
+  --state-info: #2E6E96;
+
+  /* Espaciado */
+  --space-unit: 8px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* Radios */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+
+  /* Elevaciones */
+  --elevation-1: 0 1px 3px rgba(11, 30, 61, 0.08);
+  --elevation-2: 0 4px 12px rgba(11, 30, 61, 0.12);
+  --elevation-3: 0 8px 24px rgba(11, 30, 61, 0.16);
+
+  /* Tipografía */
+  --font-latin: 'Inter', sans-serif;
+  --font-cjk: 'Noto Sans SC', sans-serif;
+
+  /* Background/foreground para Tailwind */
+  --background: #ffffff;
+  --foreground: #10192B;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-latin);
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
