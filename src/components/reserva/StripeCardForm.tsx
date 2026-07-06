@@ -6,7 +6,7 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { CreditCard, ShieldCheck } from "lucide-react";
+import { CreditCard, ShieldCheck, MapPin } from "lucide-react";
 
 interface StripeCardFormProps {
   onPaymentMethodReady: (paymentMethodId: string) => void;
@@ -22,18 +22,42 @@ const CARD_ELEMENT_OPTIONS = {
     },
     invalid: { color: "#ef4444" },
   },
-  hidePostalCode: false,
+  hidePostalCode: true,
 };
+
+function formatCanadianPostalCode(value: string): string {
+  // Remove all non-alphanumeric characters
+  const cleaned = value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 6);
+  // Format as ANA NAN (letter-number-letter number-letter-number)
+  if (cleaned.length <= 3) return cleaned;
+  return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
+}
+
+function isValidCanadianPostalCode(code: string): boolean {
+  const pattern = /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/;
+  return pattern.test(code);
+}
 
 export function StripeCardForm({ onPaymentMethodReady, disabled }: StripeCardFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [postalCode, setPostalCode] = useState("");
+
+  const handlePostalCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCanadianPostalCode(e.target.value);
+    setPostalCode(formatted);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stripe || !elements) return;
+
+    if (!isValidCanadianPostalCode(postalCode)) {
+      setError("Please enter a valid Canadian postal code (e.g., V6X 1A1).");
+      return;
+    }
 
     setIsProcessing(true);
     setError("");
@@ -49,6 +73,12 @@ export function StripeCardForm({ onPaymentMethodReady, disabled }: StripeCardFor
       await stripe.createPaymentMethod({
         type: "card",
         card: cardElement,
+        billing_details: {
+          address: {
+            postal_code: postalCode.replace(/\s/g, ""), // Stripe expects no space
+            country: "CA",
+          },
+        },
       });
 
     if (stripeError) {
@@ -73,6 +103,26 @@ export function StripeCardForm({ onPaymentMethodReady, disabled }: StripeCardFor
         <div className="p-4 rounded-lg border border-gray-200 bg-white">
           <CardElement options={CARD_ELEMENT_OPTIONS} />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-brand-ink">
+          Postal Code
+        </label>
+        <div className="relative">
+          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            value={postalCode}
+            onChange={handlePostalCodeChange}
+            placeholder="V6X 1A1"
+            maxLength={7}
+            className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:border-brand-gold focus:ring-1 focus:ring-brand-gold outline-none text-brand-ink uppercase"
+          />
+        </div>
+        <p className="text-xs text-gray-500">
+          Canadian format: letter-number-letter space number-letter-number
+        </p>
       </div>
 
       {error && (
