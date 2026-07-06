@@ -124,6 +124,9 @@ export default function CotizadorPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+
+  // Keep auth listener for UI state (e.g. showing logged-in status)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [user, setUser] = useState<{ id: string } | null>(null);
 
   // Restaurar estado desde localStorage SOLO si venimos de un login pendiente
@@ -290,8 +293,13 @@ export default function CotizadorPage() {
     setSubmitError("");
 
     try {
-      // Determine user ID: explicit param, state, or trigger auth
-      const currentUserId = forcedUserId || user?.id;
+      // Always verify session fresh from Supabase before trusting it
+      let currentUserId = forcedUserId;
+      if (!currentUserId) {
+        const { data: { session } } = await supabase.auth.getSession();
+        currentUserId = session?.user?.id;
+      }
+
       if (!currentUserId) {
         markPendingAuth();
         setShowAuthModal(true);
