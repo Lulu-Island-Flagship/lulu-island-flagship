@@ -18,7 +18,7 @@ export function EmployeeAuthModal({ onClose, onError }: EmployeeAuthModalProps) 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/empleado`,
+          redirectTo: `${window.location.origin}/auth/callback?next=/en/empleado`,
         },
       });
       if (error) throw error;
