@@ -27,16 +27,31 @@ CREATE POLICY "Employees read own profile" ON employees
 CREATE POLICY "Employees update own profile" ON employees
   FOR UPDATE USING (auth.uid() = user_id);
 
--- Supervisores pueden ver todos los empleados
-CREATE POLICY "Supervisors read all employees" ON employees
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM employees e WHERE e.user_id = auth.uid() AND e.role = 'supervisor'
-    )
+-- ============================================================
+-- 2. Función helper para verificar rol de supervisor (SECURITY DEFINER)
+--    Evita recursión infinita en RLS al consultar employees desde employees
+-- ============================================================
+CREATE OR REPLACE FUNCTION is_supervisor(user_uuid UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM employees e WHERE e.user_id = user_uuid AND e.role = 'supervisor'
   );
+END;
+$$;
 
 -- ============================================================
--- 2. Tabla assignments (asignación de servicios a empleados)
+-- 3. Política de supervisor para employees (usa la función, no subconsulta directa)
+-- ============================================================
+CREATE POLICY "Supervisors read all employees" ON employees
+  FOR SELECT USING (is_supervisor(auth.uid()));
+
+-- ============================================================
+-- 4. Tabla assignments (asignación de servicios a empleados)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS assignments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -69,16 +84,12 @@ CREATE POLICY "Employees update own assignments" ON assignments
     employee_id IN (SELECT id FROM employees WHERE user_id = auth.uid())
   );
 
--- Supervisores pueden ver todas las asignaciones
+-- Supervisores pueden ver todas las asignaciones (usa función helper, no recursión)
 CREATE POLICY "Supervisors read all assignments" ON assignments
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM employees e WHERE e.user_id = auth.uid() AND e.role = 'supervisor'
-    )
-  );
+  FOR SELECT USING (is_supervisor(auth.uid()));
 
 -- ============================================================
--- 3. Tabla service_logs (registro de eventos de servicio)
+-- 5. Tabla service_logs (registro de eventos de servicio)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS service_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -110,22 +121,19 @@ CREATE POLICY "Employees insert own logs" ON service_logs
     employee_id IN (SELECT id FROM employees WHERE user_id = auth.uid())
   );
 
+-- Supervisores pueden ver todos los logs (usa función helper, no recursión)
 CREATE POLICY "Supervisors read all logs" ON service_logs
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM employees e WHERE e.user_id = auth.uid() AND e.role = 'supervisor'
-    )
-  );
+  FOR SELECT USING (is_supervisor(auth.uid()));
 
 -- ============================================================
--- 4. Feature flag para Módulo 3
+-- 6. Feature flag para Módulo 3
 -- ============================================================
 INSERT INTO feature_flags (nombre, activo, modulo, descripcion)
 VALUES ('modulo_3_empleado', true, 'Módulo 3', 'PWA del empleado — login, jornada, ejecución de servicios')
 ON CONFLICT (nombre) DO UPDATE SET activo = true;
 
 -- ============================================================
--- 5. Bucket de Storage para fotos de servicio
+-- 7. Bucket de Storage para fotos de servicio
 -- ============================================================
 -- Crear bucket 'service-photos' con políticas de acceso
 -- (Ejecutar en Storage > Buckets de Supabase Dashboard, o usar la API)
