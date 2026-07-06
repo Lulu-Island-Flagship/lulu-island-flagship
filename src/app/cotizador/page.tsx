@@ -82,10 +82,10 @@ function clearStateFromStorage() {
 export default function CotizadorPage() {
   const router = useRouter();
 
-  // Cargar estado guardado al inicio
-  const saved = typeof window !== "undefined" ? loadStateFromStorage() : null;
-  const [stepIndex, setStepIndex] = useState(saved?.stepIndex ?? 0);
-  const [input, setInput] = useState<Partial<QuoteInput>>(saved?.input ?? {});
+  // Estado inicial vacío — localStorage se lee SOLO en useEffect (cliente)
+  const [stepIndex, setStepIndex] = useState(0);
+  const [input, setInput] = useState<Partial<QuoteInput>>({});
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const [quote, setQuote] = useState<QuoteData | null>(null);
   const [priceFrozenUntil, setPriceFrozenUntil] = useState<Date | null>(null);
@@ -98,6 +98,16 @@ export default function CotizadorPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [user, setUser] = useState<{ id: string } | null>(null);
+
+  // Restaurar estado desde localStorage SOLO después del montaje en cliente
+  useEffect(() => {
+    const saved = loadStateFromStorage();
+    if (saved) {
+      setStepIndex(saved.stepIndex);
+      setInput(saved.input);
+    }
+    setIsHydrated(true);
+  }, []);
 
   const step = STEPS[stepIndex];
 
@@ -288,6 +298,18 @@ export default function CotizadorPage() {
   };
 
   const progress = ((stepIndex + 1) / STEPS.length) * 100;
+
+  // Prevent hydration mismatch: render empty/skeleton until client hydration completes
+  if (!isHydrated) {
+    return (
+      <main className="min-h-screen bg-brand-ice flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <div className="w-12 h-12 bg-brand-gold/20 rounded-full" />
+          <div className="h-4 w-32 bg-gray-200 rounded" />
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-brand-ice">
