@@ -1,9 +1,8 @@
 import { getRequestConfig } from 'next-intl/server';
+import { type Locale } from './config';
 
 export default getRequestConfig(async () => {
-  // Note: requestLocale is resolved by the middleware
-  // We use a default here for static rendering during build
-  const locale = 'en';
+  const locale: Locale = 'en';
   return {
     messages: (await import(`../../messages/${locale}.json`)).default,
     locale,
