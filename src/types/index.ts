@@ -43,6 +43,34 @@ export interface QuoteData extends QuoteInput {
   updatedAt?: string;
 }
 
+export type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "completed"
+  | "cancelled"
+  | "no_show";
+
+export interface Order {
+  id: string;
+  quoteId: string;
+  userId: string;
+  serviceDate: string; // ISO date
+  serviceTime: string; // HH:MM
+  serviceDatetime: string; // ISO datetime
+  status: OrderStatus;
+  stripeCustomerId?: string;
+  stripePaymentMethodId?: string;
+  stripeSetupIntentId?: string;
+  paymentOption: "card" | "paypal_first_time";
+  paypalTransactionId?: string;
+  holdAmount: number;
+  holdCapturedAt?: string;
+  holdReleasedAt?: string;
+  cancellationWindowHours: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ClientProfile {
   id: string;
   userId: string;

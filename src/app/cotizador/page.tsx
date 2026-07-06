@@ -252,17 +252,26 @@ export default function CotizadorPage() {
         return;
       }
 
-      // Save quote
-      const { error } = await supabase.from("quotes").insert({
-        ...quote,
-        user_id: user.id,
+      // Save quote via API to get quoteId
+      const response = await fetch("/api/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...quote,
+          user_id: user.id,
+        }),
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Failed to save quote");
+      }
 
-      // Clear saved state and redirect
+      const { quoteId } = await response.json();
+
+      // Clear saved state and redirect to reservation
       clearStateFromStorage();
-      router.push("/confirmacion");
+      router.push(`/reserva/${quoteId}`);
     } catch (err: Error | unknown) {
       setSubmitError(err instanceof Error ? err.message : "Failed to save quote. Please try again.");
     } finally {

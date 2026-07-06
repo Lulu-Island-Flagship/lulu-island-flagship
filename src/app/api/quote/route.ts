@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ quote: data }, { status: 201 });
+    return NextResponse.json({ quote: data, quoteId: data.id }, { status: 201 });
   } catch (err: Error | unknown) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 });
   }
