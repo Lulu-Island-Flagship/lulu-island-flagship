@@ -132,10 +132,12 @@ export default function CotizadorPage() {
     }
   }, [stepIndex, input]);
 
-  // Persistir estado en localStorage
+  // Persistir estado en localStorage — SOLO después de hidratación para no
+  // sobreescribir el estado guardado durante el montaje inicial post-OAuth
   useEffect(() => {
+    if (!isHydrated) return;
     saveStateToStorage(stepIndex, input);
-  }, [stepIndex, input]);
+  }, [stepIndex, input, isHydrated]);
 
   const updateInput = useCallback(
     (updates: Partial<QuoteInput>) => {
