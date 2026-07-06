@@ -111,20 +111,13 @@ export function getRecencyMultiplier(daysSinceCleaning: number): number {
   return 1.3;
 }
 
-// Zonas activas de servicio (solo Richmond, Vancouver, N.Van, W.Van, UBC)
+// Zonas activas de servicio — exactamente 5, una sola vez cada una
 export const ZONES = [
-  { name: "Richmond (Steveston)", surcharge: 0, isActive: true },
-  { name: "Richmond (City Centre)", surcharge: 0, isActive: true },
-  { name: "Richmond (East)", surcharge: 0, isActive: true },
-  { name: "Vancouver (West)", surcharge: 25, isActive: true },
-  { name: "Vancouver (East)", surcharge: 20, isActive: true },
-  { name: "Burnaby", surcharge: 20, isActive: false },
+  { name: "Richmond", surcharge: 0, isActive: true },
+  { name: "Vancouver", surcharge: 20, isActive: true },
   { name: "North Vancouver", surcharge: 30, isActive: true },
   { name: "West Vancouver", surcharge: 30, isActive: true },
   { name: "UBC", surcharge: 25, isActive: true },
-  { name: "Surrey", surcharge: 35, isActive: false },
-  { name: "Delta", surcharge: 25, isActive: false },
-  { name: "New Westminster", surcharge: 20, isActive: false },
 ] as const;
 
 // Solo zonas activas para el selector

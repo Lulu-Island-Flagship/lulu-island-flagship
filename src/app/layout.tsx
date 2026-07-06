@@ -16,7 +16,7 @@ const notoSansSC = Noto_Sans_SC({
 });
 
 export const metadata: Metadata = {
-  title: "Lulu Island Flagship | Premium Cleaning Services | Richmond, BC",
+  title: "Lulu Island Flagship | Cleaning Services | Richmond, BC",
   description:
     "The same trusted team, every time. Verified, insured, and trained to care for your home — not just clean it. Full price from quote, no surprises. Serving Richmond, Vancouver & Metro Vancouver.",
   keywords: [
@@ -26,10 +26,9 @@ export const metadata: Metadata = {
     "Vancouver cleaning",
     "deep cleaning",
     "move-in cleaning",
-    "premium cleaning",
   ],
   openGraph: {
-    title: "Lulu Island Flagship | Premium Cleaning Services",
+    title: "Lulu Island Flagship | Cleaning Services",
     description:
       "The same trusted team, every time. Full price from quote, no surprises.",
     type: "website",

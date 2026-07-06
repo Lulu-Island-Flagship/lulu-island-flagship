@@ -226,9 +226,12 @@ export default function CotizadorPage() {
   };
 
   const handleBack = () => {
-    if (stepIndex > 0) {
-      setStepIndex((prev) => prev - 1);
+    if (stepIndex === 0) {
+      // En el primer paso, volver a la landing page
+      router.push("/");
+      return;
     }
+    setStepIndex((prev) => prev - 1);
   };
 
   const handleSubmit = async () => {
@@ -403,11 +406,10 @@ export default function CotizadorPage() {
         <div className="flex items-center justify-between mt-6">
           <button
             onClick={handleBack}
-            disabled={stepIndex === 0}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-brand-ink hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-brand-ink hover:bg-white transition-colors"
           >
             <ChevronLeft className="w-5 h-5" />
-            Back
+            {stepIndex === 0 ? "Home" : "Back"}
           </button>
 
           {step !== "summary" ? (

@@ -11,7 +11,7 @@ export default function HomePage() {
             <Ship className="w-8 h-8 text-brand-gold" />
             <div>
               <h1 className="text-lg font-bold tracking-tight">Lulu Island Flagship</h1>
-              <p className="text-xs text-brand-wave-blue">Premium Cleaning Services</p>
+              <p className="text-xs text-brand-wave-blue">Cleaning Services</p>
             </div>
           </div>
           <nav className="hidden md:flex items-center gap-6 text-sm">
