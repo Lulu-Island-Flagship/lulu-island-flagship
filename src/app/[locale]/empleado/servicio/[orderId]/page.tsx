@@ -17,10 +17,20 @@ import {
   Phone,
   User,
   AlertTriangle,
+  ClipboardCheck,
+  Tag,
+  AlertOctagon,
+  Palette,
 } from "lucide-react";
 import type { EmployeeService } from "@/types";
+import { ChecklistCierre } from "@/components/empleado/ChecklistCierre";
+import { UpsellSelector } from "@/components/empleado/UpsellSelector";
+import { DiscrepanciaReporter } from "@/components/empleado/DiscrepanciaReporter";
+import { CodigoCromático } from "@/components/empleado/CodigoCromático";
 
 type EventType = "t_in" | "t_start" | "t_out" | "photo" | "note";
+
+type TabKey = "timeline" | "checklist" | "upsell" | "discrepancia" | "cromático";
 
 interface ServiceLog {
   id: string;
@@ -44,6 +54,8 @@ export default function ServicioPage() {
   const [noteText, setNoteText] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>("timeline");
+  const [geofenceStatus, setGeofenceStatus] = useState<"checking" | "inside" | "outside" | "bypass">("checking");
 
   // Load service details
   useEffect(() => {
@@ -54,7 +66,6 @@ export default function ServicioPage() {
   async function loadService() {
     setLoading(true);
     try {
-      // Fetch from the employee services API
       const res = await fetch("/api/empleado/servicios", { credentials: "include" });
       if (!res.ok) {
         if (res.status === 401) router.push("/empleado");
@@ -100,13 +111,40 @@ export default function ServicioPage() {
       navigator.geolocation.getCurrentPosition(
         (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
         () => resolve(null),
-        { timeout: 10000 }
+        { timeout: 10000, enableHighAccuracy: true }
       );
     });
   };
 
+  // For now, simplified geofence: GPS available = assume inside (user confirms visually)
+  // In production: geocode service.address and compare with loc using Haversine formula
+  const checkGeofence = async () => {
+    setGeofenceStatus("checking");
+    const loc = await getCurrentLocation();
+    if (!loc) {
+      // GPS failed — allow bypass with warning
+      setGeofenceStatus("bypass");
+      return false;
+    }
+    // Without exact client coordinates, we can't calculate real distance.
+    // In production: geocode service.address and compare with loc.
+    // For MVP: assume inside if GPS is available (user confirms visually).
+    setGeofenceStatus("inside");
+    return true;
+  };
+
   const handleEvent = async (eventType: EventType) => {
     if (!orderId || isSubmitting) return;
+
+    // For T_in, check geofence first
+    if (eventType === "t_in") {
+      const inside = await checkGeofence();
+      if (!inside && geofenceStatus !== "bypass") {
+        // Show bypass option
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -166,7 +204,6 @@ export default function ServicioPage() {
 
       const photoUrl = publicUrlData.publicUrl;
 
-      // Send photo event
       const loc = await getCurrentLocation();
       const res = await fetch("/api/empleado/servicio", {
         method: "POST",
@@ -238,6 +275,14 @@ export default function ServicioPage() {
 
   const formatTime = (ts: string) =>
     new Date(ts).toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit" });
+
+  const tabs: { key: TabKey; label: string; icon: React.ElementType }[] = [
+    { key: "timeline", label: "Timeline", icon: Clock },
+    { key: "checklist", label: "Checklist", icon: ClipboardCheck },
+    { key: "upsell", label: "Upsell", icon: Tag },
+    { key: "discrepancia", label: "Issue", icon: AlertOctagon },
+    { key: "cromático", label: "Colors", icon: Palette },
+  ];
 
   if (loading) {
     return (
@@ -336,118 +381,35 @@ export default function ServicioPage() {
           </div>
         </div>
 
-        {/* Timeline / Logs */}
-        <div className="bg-white rounded-xl shadow-elevation-1 p-5">
-          <h2 className="font-semibold text-brand-ink mb-4">Service Timeline</h2>
-          {logs.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-4">No events yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {logs.map((log) => (
-                <div key={log.id} className="flex items-start gap-3">
-                  <div className="mt-0.5">
-                    {log.event_type === "t_in" && <MapPin className="w-4 h-4 text-state-success" />}
-                    {log.event_type === "t_start" && <Play className="w-4 h-4 text-brand-navy" />}
-                    {log.event_type === "t_out" && <Flag className="w-4 h-4 text-state-success" />}
-                    {log.event_type === "photo" && <Camera className="w-4 h-4 text-brand-gold" />}
-                    {log.event_type === "note" && <AlertTriangle className="w-4 h-4 text-gray-400" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium capitalize">
-                        {log.event_type.replace(/_/g, " ")}
-                      </span>
-                      <span className="text-xs text-gray-400">{formatTime(log.timestamp)}</span>
-                    </div>
-                    {log.notes && (
-                      <p className="text-xs text-gray-600 mt-0.5">{log.notes}</p>
-                    )}
-                    {log.photo_url && (
-                      <img
-                        src={log.photo_url}
-                        alt="Service photo"
-                        className="mt-2 rounded-lg w-full max-h-40 object-cover"
-                      />
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Photos */}
-        {photos.length > 0 && (
-          <div className="bg-white rounded-xl shadow-elevation-1 p-5">
-            <h2 className="font-semibold text-brand-ink mb-3">Photos</h2>
-            <div className="grid grid-cols-3 gap-2">
-              {photos.map((url, i) => (
-                <img key={i} src={url} alt={`Photo ${i + 1}`} className="rounded-lg aspect-square object-cover" />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        {!isCompleted && (
-          <div className="space-y-3">
-            {nextAction && (
-              <button
-                onClick={() => handleEvent(nextAction.type)}
-                disabled={isSubmitting}
-                className={`w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 ${nextAction.color}`}
-              >
-                {isSubmitting ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <>
-                    <nextAction.icon className="w-5 h-5" />
-                    {nextAction.label}
-                  </>
-                )}
-              </button>
-            )}
-
-            {/* Photo Upload */}
-            <label className="w-full bg-white border-2 border-dashed border-gray-300 rounded-xl py-3 flex items-center justify-center gap-2 text-gray-600 font-medium cursor-pointer hover:border-brand-gold transition-colors">
-              {uploadingPhoto ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
-                  <Camera className="w-4 h-4" />
-                  Add Photo
-                </>
-              )}
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handlePhotoUpload}
-                disabled={uploadingPhoto}
-              />
-            </label>
-
-            {/* Note */}
-            <div className="bg-white rounded-xl shadow-elevation-1 p-4">
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
-                  placeholder="Add a note..."
-                  className="flex-1 text-sm border rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
-                  onKeyDown={(e) => e.key === "Enter" && handleSendNote()}
-                />
+        {/* Action Button (always visible) */}
+        {!isCompleted && nextAction && (
+          <div className="space-y-2">
+            {geofenceStatus === "outside" && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700">
+                <AlertTriangle className="w-4 h-4 inline mr-1" />
+                You appear to be far from the service location. GPS may be inaccurate.
                 <button
-                  onClick={handleSendNote}
-                  disabled={!noteText.trim() || isSubmitting}
-                  className="p-2 bg-brand-navy text-white rounded-lg disabled:opacity-50"
+                  onClick={() => setGeofenceStatus("bypass")}
+                  className="block mt-2 text-xs underline font-medium"
                 >
-                  <Send className="w-4 h-4" />
+                  I am at the location — continue anyway
                 </button>
               </div>
-            </div>
+            )}
+            <button
+              onClick={() => handleEvent(nextAction.type)}
+              disabled={isSubmitting}
+              className={`w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 ${nextAction.color}`}
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <nextAction.icon className="w-5 h-5" />
+                  {nextAction.label}
+                </>
+              )}
+            </button>
           </div>
         )}
 
@@ -465,6 +427,150 @@ export default function ServicioPage() {
             </button>
           </div>
         )}
+
+        {/* Tabs */}
+        <div className="bg-white rounded-xl shadow-elevation-1 overflow-hidden">
+          {/* Tab bar */}
+          <div className="flex overflow-x-auto border-b scrollbar-hide">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex items-center gap-1 px-3 py-3 text-xs font-medium whitespace-nowrap transition-colors ${
+                    activeTab === tab.key
+                      ? "text-brand-navy border-b-2 border-brand-navy bg-brand-navy/5"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Tab content */}
+          <div className="p-4">
+            {activeTab === "timeline" && (
+              <div className="space-y-4">
+                {/* Photos */}
+                {photos.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {photos.map((url, i) => (
+                      <img key={i} src={url} alt={`Photo ${i + 1}`} className="rounded-lg aspect-square object-cover" />
+                    ))}
+                  </div>
+                )}
+
+                {/* Photo Upload */}
+                {!isCompleted && (
+                  <label className="w-full bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg py-3 flex items-center justify-center gap-2 text-gray-600 font-medium cursor-pointer hover:border-brand-gold transition-colors">
+                    {uploadingPhoto ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Camera className="w-4 h-4" />
+                        Add Photo
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={handlePhotoUpload}
+                      disabled={uploadingPhoto}
+                    />
+                  </label>
+                )}
+
+                {/* Timeline */}
+                {logs.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">No events yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {logs.map((log) => (
+                      <div key={log.id} className="flex items-start gap-3">
+                        <div className="mt-0.5">
+                          {log.event_type === "t_in" && <MapPin className="w-4 h-4 text-state-success" />}
+                          {log.event_type === "t_start" && <Play className="w-4 h-4 text-brand-navy" />}
+                          {log.event_type === "t_out" && <Flag className="w-4 h-4 text-state-success" />}
+                          {log.event_type === "photo" && <Camera className="w-4 h-4 text-brand-gold" />}
+                          {log.event_type === "note" && <AlertTriangle className="w-4 h-4 text-gray-400" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium capitalize">
+                              {log.event_type.replace(/_/g, " ")}
+                            </span>
+                            <span className="text-xs text-gray-400">{formatTime(log.timestamp)}</span>
+                          </div>
+                          {log.notes && (
+                            <p className="text-xs text-gray-600 mt-0.5">{log.notes}</p>
+                          )}
+                          {log.photo_url && (
+                            <img
+                              src={log.photo_url}
+                              alt="Service photo"
+                              className="mt-2 rounded-lg w-full max-h-40 object-cover"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Quick Note */}
+                {!isCompleted && (
+                  <div className="flex items-center gap-2 pt-2 border-t">
+                    <input
+                      type="text"
+                      value={noteText}
+                      onChange={(e) => setNoteText(e.target.value)}
+                      placeholder="Add a note..."
+                      className="flex-1 text-sm border rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
+                      onKeyDown={(e) => e.key === "Enter" && handleSendNote()}
+                    />
+                    <button
+                      onClick={handleSendNote}
+                      disabled={!noteText.trim() || isSubmitting}
+                      className="p-2 bg-brand-navy text-white rounded-lg disabled:opacity-50"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "checklist" && (
+              <ChecklistCierre
+                orderId={orderId}
+                serviceSubtype={service.serviceSubtype || "regular"}
+              />
+            )}
+
+            {activeTab === "upsell" && (
+              <UpsellSelector orderId={orderId} onUpsellAdded={() => {}} />
+            )}
+
+            {activeTab === "discrepancia" && (
+              <DiscrepanciaReporter orderId={orderId} onReported={() => setActiveTab("timeline")} />
+            )}
+
+            {activeTab === "cromático" && (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Match color, icon, and text. Never mix RED (acid) with BLUE (ammonia) — chlorine gas risk.
+                </p>
+                <CodigoCromático />
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </main>
   );

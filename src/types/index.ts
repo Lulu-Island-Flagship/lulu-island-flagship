@@ -194,3 +194,71 @@ export interface EmployeeService {
   clientName?: string;
   clientPhone?: string;
 }
+
+// ─── Módulo 4: Ejecución Física ───────────────────────────────────────
+
+export interface SOPChecklistItem {
+  id: string;
+  label: string;
+  required: boolean;
+}
+
+export interface SOPChecklist {
+  id: string;
+  serviceSubtype: string;
+  zone: string;
+  zoneLabel: string;
+  zoneColor: string;
+  zoneIcon: string;
+  items: SOPChecklistItem[];
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ServiceChecklistItem {
+  id: string;
+  orderId: string;
+  employeeId: string;
+  checklistId: string;
+  itemId: string;
+  itemLabel: string;
+  isCompleted: boolean;
+  completedAt?: string;
+  photoUrl?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ServiceUpsell {
+  id: string;
+  orderId: string;
+  employeeId: string;
+  upsellType: string;
+  upsellLabel: string;
+  amount: number;
+  clientApproved?: boolean;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface ChecklistZoneProgress {
+  zone: string;
+  zoneLabel: string;
+  zoneColor: string;
+  zoneIcon: string;
+  totalItems: number;
+  completedItems: number;
+  requiredItems: number;
+  requiredCompleted: number;
+  items: {
+    itemId: string;
+    label: string;
+    required: boolean;
+    isCompleted: boolean;
+    photoUrl?: string;
+    notes?: string;
+  }[];
+}
