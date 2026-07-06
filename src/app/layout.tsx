@@ -27,6 +27,9 @@ export const metadata: Metadata = {
     "deep cleaning",
     "move-in cleaning",
   ],
+  icons: {
+    icon: "/favicon.ico",
+  },
   openGraph: {
     title: "Lulu Island Flagship | Cleaning Services",
     description:

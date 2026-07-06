@@ -244,7 +244,7 @@ export default function CotizadorPage() {
     setStepIndex((prev) => prev - 1);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (forcedUserId?: string) => {
     if (!quote) return;
     if (!consents.tc || !consents.pipa) {
       setSubmitError("Please accept the Terms & Conditions and Privacy consent.");
@@ -255,8 +255,9 @@ export default function CotizadorPage() {
     setSubmitError("");
 
     try {
-      // If not logged in, show auth modal
-      if (!user) {
+      // Determine user ID: explicit param, state, or trigger auth
+      const currentUserId = forcedUserId || user?.id;
+      if (!currentUserId) {
         setShowAuthModal(true);
         setIsSubmitting(false);
         return;
@@ -268,7 +269,7 @@ export default function CotizadorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...quote,
-          user_id: user.id,
+          user_id: currentUserId,
         }),
       });
 
@@ -292,9 +293,11 @@ export default function CotizadorPage() {
   const handleAuthSuccess = async () => {
     setShowAuthModal(false);
     const { data } = await supabase.auth.getUser();
-    if (data.user) setUser({ id: data.user.id });
-    // Retry submit
-    handleSubmit();
+    if (data.user) {
+      setUser({ id: data.user.id });
+      // Pass the user ID directly to avoid stale closure
+      handleSubmit(data.user.id);
+    }
   };
 
   const progress = ((stepIndex + 1) / STEPS.length) * 100;
@@ -454,7 +457,7 @@ export default function CotizadorPage() {
             </button>
           ) : (
             <button
-              onClick={handleSubmit}
+              onClick={() => handleSubmit()}
               disabled={!canProceed() || isSubmitting}
               className="inline-flex items-center gap-2 bg-brand-gold text-brand-navy px-8 py-3 rounded-lg font-semibold hover:bg-brand-gold-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
