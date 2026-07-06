@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { Ship, Shield, Users, Clock, ChevronRight, Star, MapPin } from "lucide-react";
+import { Ship, Shield, Users, Clock, Star, MapPin } from "lucide-react";
+import { QuoteButton } from "@/components/landing/QuoteButton";
 
 export default function HomePage() {
   return (
@@ -44,13 +44,7 @@ export default function HomePage() {
               Full price from quote, no surprises.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link
-                href="/cotizador"
-                className="inline-flex items-center justify-center gap-2 bg-brand-gold text-brand-navy font-semibold px-8 py-4 rounded-lg hover:bg-brand-gold-dark transition-colors text-lg"
-              >
-                Get Your Quote
-                <ChevronRight className="w-5 h-5" />
-              </Link>
+              <QuoteButton variant="primary">Get Your Quote</QuoteButton>
               <p className="text-sm text-gray-400 flex items-center">
                 <Clock className="w-4 h-4 mr-2" />
                 Takes less than 90 seconds
@@ -104,13 +98,7 @@ export default function HomePage() {
           <p className="text-gray-600 mb-8 text-lg">
             Get your personalized quote in under 90 seconds. No hidden fees, no surprises.
           </p>
-          <Link
-            href="/cotizador"
-            className="inline-flex items-center justify-center gap-2 bg-brand-navy text-white font-semibold px-10 py-4 rounded-lg hover:bg-brand-navy-light transition-colors text-lg"
-          >
-            Start Your Quote
-            <ChevronRight className="w-5 h-5" />
-          </Link>
+          <QuoteButton variant="secondary">Start Your Quote</QuoteButton>
         </div>
       </section>
 

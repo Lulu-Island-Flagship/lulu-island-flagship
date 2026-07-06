@@ -43,6 +43,7 @@ const STEP_LABELS: Record<CotizadorStep, string> = {
 };
 
 const LOCAL_STORAGE_KEY = "lulu_cotizador_state";
+const PENDING_AUTH_KEY = "lulu_pending_auth_quote";
 
 function loadStateFromStorage(): { stepIndex: number; input: Partial<QuoteInput> } | null {
   try {
@@ -74,6 +75,32 @@ function saveStateToStorage(stepIndex: number, input: Partial<QuoteInput>) {
 function clearStateFromStorage() {
   try {
     localStorage.removeItem(LOCAL_STORAGE_KEY);
+    localStorage.removeItem(PENDING_AUTH_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+function markPendingAuth() {
+  try {
+    localStorage.setItem(PENDING_AUTH_KEY, "true");
+  } catch {
+    // ignore
+  }
+}
+
+function wasPendingAuth(): boolean {
+  try {
+    const val = localStorage.getItem(PENDING_AUTH_KEY);
+    return val === "true";
+  } catch {
+    return false;
+  }
+}
+
+function clearPendingAuth() {
+  try {
+    localStorage.removeItem(PENDING_AUTH_KEY);
   } catch {
     // ignore
   }
@@ -99,13 +126,19 @@ export default function CotizadorPage() {
   const [submitError, setSubmitError] = useState("");
   const [user, setUser] = useState<{ id: string } | null>(null);
 
-  // Restaurar estado desde localStorage SOLO después del montaje en cliente
+  // Restaurar estado desde localStorage SOLO si venimos de un login pendiente
+  // (pending_auth_quote). Si no, empezamos desde cero (cotización nueva).
   useEffect(() => {
-    const saved = loadStateFromStorage();
-    if (saved) {
-      setStepIndex(saved.stepIndex);
-      setInput(saved.input);
+    const pendingAuth = wasPendingAuth();
+    if (pendingAuth) {
+      const saved = loadStateFromStorage();
+      if (saved) {
+        setStepIndex(saved.stepIndex);
+        setInput(saved.input);
+      }
+      clearPendingAuth();
     }
+    // Si no hay pending_auth, empezamos desde cero (stepIndex=0, input={})
     setIsHydrated(true);
   }, []);
 
@@ -260,6 +293,7 @@ export default function CotizadorPage() {
       // Determine user ID: explicit param, state, or trigger auth
       const currentUserId = forcedUserId || user?.id;
       if (!currentUserId) {
+        markPendingAuth();
         setShowAuthModal(true);
         setIsSubmitting(false);
         return;
