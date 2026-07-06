@@ -1,3 +1,5 @@
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages } from 'next-intl/server';
 import type { Metadata } from "next";
 import { Inter, Noto_Sans_SC } from "next/font/google";
 import "./globals.css";
@@ -38,14 +40,26 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export async function generateStaticParams() {
+  return [{ locale: 'en' }, { locale: 'zh' }, { locale: 'fr' }];
+}
+
+export default async function RootLayout({
   children,
+  params: { locale },
 }: Readonly<{
   children: React.ReactNode;
+  params: { locale: string };
 }>) {
+  const messages = await getMessages();
+
   return (
-    <html lang="en" className={`${inter.variable} ${notoSansSC.variable}`}>
-      <body className="antialiased font-sans">{children}</body>
+    <html lang={locale} className={`${inter.variable} ${notoSansSC.variable}`}>
+      <body className="antialiased font-sans">
+        <NextIntlClientProvider messages={messages} locale={locale}>
+          {children}
+        </NextIntlClientProvider>
+      </body>
     </html>
   );
 }

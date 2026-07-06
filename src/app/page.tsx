@@ -1,7 +1,13 @@
+"use client";
+
+import { useTranslations } from 'next-intl';
 import { Ship, Shield, Users, Clock, Star, MapPin } from "lucide-react";
 import { QuoteButton } from "@/components/landing/QuoteButton";
+import { LanguageSelector } from "@/components/LanguageSelector";
 
 export default function HomePage() {
+  const t = useTranslations();
+
   return (
     <main className="min-h-screen bg-white">
       {/* Header */}
@@ -17,8 +23,9 @@ export default function HomePage() {
           <nav className="hidden md:flex items-center gap-6 text-sm">
             <span className="flex items-center gap-1 text-brand-gold">
               <MapPin className="w-4 h-4" />
-              Richmond, BC
+              {t('nav.location')}
             </span>
+            <LanguageSelector />
           </nav>
         </div>
       </header>
@@ -33,21 +40,20 @@ export default function HomePage() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 bg-brand-gold/20 text-brand-gold px-4 py-1.5 rounded-full text-sm font-medium mb-6">
               <Star className="w-4 h-4 fill-brand-gold" />
-              Serving Richmond & Metro Vancouver
+              {t('hero.badge')}
             </div>
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6">
-              The same trusted team,{" "}
-              <span className="text-brand-gold">every time.</span>
+              {t('hero.title')}{" "}
+              <span className="text-brand-gold">{t('hero.titleHighlight')}</span>
             </h2>
             <p className="text-lg md:text-xl text-gray-300 mb-8 leading-relaxed">
-              Verified, insured, and trained to care for your home — not just clean it. 
-              Full price from quote, no surprises.
+              {t('hero.description')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <QuoteButton variant="primary">Get Your Quote</QuoteButton>
+              <QuoteButton variant="primary">{t('hero.ctaPrimary')}</QuoteButton>
               <p className="text-sm text-gray-400 flex items-center">
                 <Clock className="w-4 h-4 mr-2" />
-                Takes less than 90 seconds
+                {t('hero.timeEstimate')}
               </p>
             </div>
           </div>
@@ -62,28 +68,22 @@ export default function HomePage() {
               <div className="w-12 h-12 bg-brand-navy/10 rounded-lg flex items-center justify-center mb-4">
                 <Shield className="w-6 h-6 text-brand-navy" />
               </div>
-              <h3 className="text-lg font-semibold text-brand-ink mb-2">Verified & Insured</h3>
-              <p className="text-gray-600 text-sm">
-                Every team member is background-checked, bonded, and covered by comprehensive insurance.
-              </p>
+              <h3 className="text-lg font-semibold text-brand-ink mb-2">{t('trust.verifiedTitle')}</h3>
+              <p className="text-gray-600 text-sm">{t('trust.verifiedDesc')}</p>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-elevation-1">
               <div className="w-12 h-12 bg-brand-navy/10 rounded-lg flex items-center justify-center mb-4">
                 <Users className="w-6 h-6 text-brand-navy" />
               </div>
-              <h3 className="text-lg font-semibold text-brand-ink mb-2">Same Team, Always</h3>
-              <p className="text-gray-600 text-sm">
-                No strangers. The same dedicated team returns to your home, knowing your preferences.
-              </p>
+              <h3 className="text-lg font-semibold text-brand-ink mb-2">{t('trust.teamTitle')}</h3>
+              <p className="text-gray-600 text-sm">{t('trust.teamDesc')}</p>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-elevation-1">
               <div className="w-12 h-12 bg-brand-navy/10 rounded-lg flex items-center justify-center mb-4">
                 <Star className="w-6 h-6 text-brand-navy" />
               </div>
-              <h3 className="text-lg font-semibold text-brand-ink mb-2">Premium Guarantee</h3>
-              <p className="text-gray-600 text-sm">
-                Full price shown upfront. Every service backed by photo evidence and our satisfaction guarantee.
-              </p>
+              <h3 className="text-lg font-semibold text-brand-ink mb-2">{t('trust.guaranteeTitle')}</h3>
+              <p className="text-gray-600 text-sm">{t('trust.guaranteeDesc')}</p>
             </div>
           </div>
         </div>
@@ -93,12 +93,12 @@ export default function HomePage() {
       <section className="py-16 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-brand-ink mb-4">
-            Ready for a cleaner home?
+            {t('cta.title')}
           </h2>
           <p className="text-gray-600 mb-8 text-lg">
-            Get your personalized quote in under 90 seconds. No hidden fees, no surprises.
+            {t('cta.description')}
           </p>
-          <QuoteButton variant="secondary">Start Your Quote</QuoteButton>
+          <QuoteButton variant="secondary">{t('hero.ctaSecondary')}</QuoteButton>
         </div>
       </section>
 
@@ -110,7 +110,7 @@ export default function HomePage() {
             <span className="text-white font-semibold">Lulu Island Flagship</span>
           </div>
           <p className="text-sm">
-            © 2026 Lulu Island Flagship Cleaning Services. Richmond, BC, Canada.
+            {t('footer.copyright')}
           </p>
         </div>
       </footer>

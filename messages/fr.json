@@ -1,0 +1,38 @@
+{
+  "meta": {
+    "title": "Lulu Island Flagship | Cleaning Services | Richmond, BC",
+    "description": "The same trusted team, every time. Verified, insured, and trained to care for your home — not just clean it. Full price from quote, no surprises. Serving Richmond, Vancouver & Metro Vancouver."
+  },
+  "nav": {
+    "location": "Richmond, BC"
+  },
+  "hero": {
+    "badge": "Serving Richmond & Metro Vancouver",
+    "title": "The same trusted team,",
+    "titleHighlight": "every time.",
+    "description": "Verified, insured, and trained to care for your home — not just clean it. Full price from quote, no surprises.",
+    "ctaPrimary": "Get Your Quote",
+    "ctaSecondary": "Start Your Quote",
+    "timeEstimate": "Takes less than 90 seconds"
+  },
+  "trust": {
+    "verifiedTitle": "Verified & Insured",
+    "verifiedDesc": "Every team member is background-checked, bonded, and covered by comprehensive insurance.",
+    "teamTitle": "Same Team, Always",
+    "teamDesc": "No strangers. The same dedicated team returns to your home, knowing your preferences.",
+    "guaranteeTitle": "Premium Guarantee",
+    "guaranteeDesc": "Full price shown upfront. Every service backed by photo evidence and our satisfaction guarantee."
+  },
+  "cta": {
+    "title": "Ready for a cleaner home?",
+    "description": "Get your personalized quote in under 90 seconds. No hidden fees, no surprises."
+  },
+  "footer": {
+    "copyright": "© 2026 Lulu Island Flagship Cleaning Services. Richmond, BC, Canada."
+  },
+  "language": {
+    "en": "EN",
+    "zh": "中文",
+    "fr": "FR"
+  }
+}
