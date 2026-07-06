@@ -50,7 +50,7 @@ export async function GET() {
     // Obtener fecha de hoy en formato ISO (YYYY-MM-DD)
     const today = new Date().toISOString().split("T")[0];
 
-    // Buscar asignaciones del empleado para órdenes de hoy o futuras
+    // Paso 1: Buscar asignaciones del empleado para órdenes de hoy o futuras
     const { data: assignments, error: assignError } = await supabase
       .from("assignments")
       .select(`
@@ -58,83 +58,127 @@ export async function GET() {
         order_id,
         status,
         assigned_at,
-        notes,
-        orders:order_id (
-          id,
-          service_date,
-          service_time,
-          status,
-          quotes:quote_id (
-            id,
-            service_subtype,
-            address,
-            zone,
-            square_feet,
-            bedrooms,
-            bathrooms,
-            pets_count,
-            pets_type,
-            residents,
-            total,
-            user_id
-          )
-        )
+        notes
       `)
       .eq("employee_id", employee.id)
-      .gte("orders.service_date", today)
-      .order("orders(service_date)", { ascending: true })
-      .order("orders(service_time)", { ascending: true });
+      .order("created_at", { ascending: true });
 
     if (assignError) {
       console.error("Assignments fetch error:", assignError);
       return NextResponse.json({ error: assignError.message }, { status: 500 });
     }
 
-    // Enriquecer con datos del cliente (nombre/email desde auth.users)
+    if (!assignments || assignments.length === 0) {
+      return NextResponse.json(
+        { services: [], employee: { id: employee.id, name: employee.name, role: employee.role } },
+        { status: 200 }
+      );
+    }
+
+    // Paso 2: Obtener los order_ids y buscar las órdenes con sus quotes
+    const orderIds = assignments.map((a) => a.order_id);
+
+    const { data: orders, error: ordersError } = await supabase
+      .from("orders")
+      .select(`
+        id,
+        service_date,
+        service_time,
+        status,
+        quote_id
+      `)
+      .in("id", orderIds)
+      .gte("service_date", today)
+      .order("service_date", { ascending: true })
+      .order("service_time", { ascending: true });
+
+    if (ordersError) {
+      console.error("Orders fetch error:", ordersError);
+      return NextResponse.json({ error: ordersError.message }, { status: 500 });
+    }
+
+    // Paso 3: Obtener las quotes asociadas
+    const quoteIds = (orders || []).map((o) => o.quote_id).filter(Boolean);
+
+    const { data: quotes, error: quotesError } = await supabase
+      .from("quotes")
+      .select(`
+        id,
+        service_subtype,
+        address,
+        zone,
+        square_feet,
+        bedrooms,
+        bathrooms,
+        pets_count,
+        pets_type,
+        residents,
+        total,
+        user_id
+      `)
+      .in("id", quoteIds);
+
+    if (quotesError) {
+      console.error("Quotes fetch error:", quotesError);
+      return NextResponse.json({ error: quotesError.message }, { status: 500 });
+    }
+
+    // Crear mapas para lookup rápido
+    const orderMap = new Map();
+    for (const o of orders || []) {
+      orderMap.set(o.id, o);
+    }
+
+    const quoteMap = new Map();
+    for (const q of quotes || []) {
+      quoteMap.set(q.id, q);
+    }
+
+    // Paso 4: Enriquecer con datos del cliente (nombre/email desde auth.users)
     const enriched = [];
-    if (assignments) {
-      for (const a of assignments) {
-        const order = a.orders as unknown as Record<string, unknown> | null;
-        const quote = order?.quotes as unknown as Record<string, unknown> | null;
-        const clientUserId = quote?.user_id as string | undefined;
+    for (const a of assignments) {
+      const order = orderMap.get(a.order_id);
+      if (!order) continue; // Skip assignments without matching order (shouldn't happen)
 
-        let clientName = "";
-        let clientPhone = "";
-        if (clientUserId) {
-          const { data: userData } = await supabase
-            .from("profiles")
-            .select("full_name, phone")
-            .eq("id", clientUserId)
-            .single();
-          if (userData) {
-            clientName = (userData.full_name as string) || "";
-            clientPhone = (userData.phone as string) || "";
-          }
+      const quote = order.quote_id ? quoteMap.get(order.quote_id) : null;
+      const clientUserId = quote?.user_id;
+
+      let clientName = "";
+      let clientPhone = "";
+      if (clientUserId) {
+        const { data: userData } = await supabase
+          .from("profiles")
+          .select("full_name, phone")
+          .eq("id", clientUserId)
+          .single();
+        if (userData) {
+          clientName = (userData.full_name as string) || "";
+          clientPhone = (userData.phone as string) || "";
         }
-
-        enriched.push({
-          assignmentId: a.id,
-          orderId: a.order_id,
-          status: a.status,
-          assignedAt: a.assigned_at,
-          notes: a.notes,
-          serviceDate: order?.service_date,
-          serviceTime: order?.service_time,
-          orderStatus: order?.status,
-          serviceSubtype: quote?.service_subtype,
-          address: quote?.address,
-          zone: quote?.zone,
-          squareFeet: quote?.square_feet,
-          bedrooms: quote?.bedrooms,
-          bathrooms: quote?.bathrooms,
-          petsCount: quote?.pets_count,
-          petsType: quote?.pets_type,
-          residents: quote?.residents,
-          total: quote?.total,
-          clientName,
-          clientPhone,
-        });
       }
+
+      enriched.push({
+        assignmentId: a.id,
+        orderId: a.order_id,
+        status: a.status,
+        assignedAt: a.assigned_at,
+        notes: a.notes,
+        serviceDate: order.service_date,
+        serviceTime: order.service_time,
+        orderStatus: order.status,
+        serviceSubtype: quote?.service_subtype,
+        address: quote?.address,
+        zone: quote?.zone,
+        squareFeet: quote?.square_feet,
+        bedrooms: quote?.bedrooms,
+        bathrooms: quote?.bathrooms,
+        petsCount: quote?.pets_count,
+        petsType: quote?.pets_type,
+        residents: quote?.residents,
+        total: quote?.total,
+        clientName,
+        clientPhone,
+      });
     }
 
     return NextResponse.json(
