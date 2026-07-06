@@ -22,6 +22,7 @@ const CARD_ELEMENT_OPTIONS = {
     },
     invalid: { color: "#ef4444" },
   },
+  hidePostalCode: false,
 };
 
 export function StripeCardForm({ onPaymentMethodReady, disabled }: StripeCardFormProps) {

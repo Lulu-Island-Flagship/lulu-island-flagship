@@ -37,7 +37,7 @@ export default function ReservaPage() {
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState("");
 
-  // Fetch quote
+  // Fetch quote from Supabase and map snake_case → camelCase
   useEffect(() => {
     async function loadQuote() {
       if (!quoteId) {
@@ -66,7 +66,48 @@ export default function ReservaPage() {
         return;
       }
 
-      setQuote(data as QuoteData);
+      // Map snake_case fields from Supabase to camelCase QuoteData
+      const mapped: QuoteData = {
+        id: data.id,
+        userId: data.user_id,
+        serviceCategory: data.service_category,
+        serviceSubtype: data.service_subtype,
+        serviceType: data.service_type,
+        bedrooms: data.bedrooms,
+        bathrooms: data.bathrooms,
+        squareFeet: data.square_feet,
+        petsCount: data.pets_count,
+        petsType: data.pets_type,
+        residents: data.residents,
+        daysSinceCleaning: data.days_since_cleaning,
+        address: data.address,
+        zone: data.zone,
+        postalCode: data.postal_code,
+        dayOfWeek: data.day_of_week,
+        isPreferredDay: data.is_preferred_day,
+        basePrice: data.base_price,
+        organicMultiplier: data.organic_multiplier,
+        organicAdjustment: data.organic_adjustment,
+        recencyMultiplier: data.recency_multiplier,
+        recencyAdjustment: data.recency_adjustment,
+        zoneSurcharge: data.zone_surcharge,
+        logisticsSurcharge: data.logistics_surcharge,
+        subtotal: data.subtotal,
+        gst: data.gst,
+        pst: data.pst,
+        total: data.total,
+        holdAmount: data.hold_amount,
+        priceFrozenUntil: data.price_frozen_until,
+        status: data.status,
+        consentTc: data.consent_tc,
+        consentPipa: data.consent_pipa,
+        consentMarketing: data.consent_marketing,
+        clientScore: data.client_score,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+
+      setQuote(mapped);
       setLoading(false);
     }
 
