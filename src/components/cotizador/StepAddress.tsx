@@ -2,7 +2,7 @@
 
 import React from "react";
 import { MapPin } from "lucide-react";
-import { ZONES } from "@/lib/pricing";
+import { ACTIVE_ZONES } from "@/lib/pricing";
 
 interface StepAddressProps {
   address: string;
@@ -16,7 +16,7 @@ export function StepAddress({ address, zone, postalCode, onChange }: StepAddress
     <div className="space-y-8">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-brand-ink mb-2">Where is your home?</h2>
-        <p className="text-gray-600">We serve Richmond and Metro Vancouver.</p>
+        <p className="text-gray-600">We serve Richmond, Vancouver, North Vancouver, West Vancouver, and UBC.</p>
       </div>
 
       {/* Address */}
@@ -38,7 +38,7 @@ export function StepAddress({ address, zone, postalCode, onChange }: StepAddress
       <div className="bg-brand-ice rounded-lg p-6">
         <label className="block font-semibold text-brand-ink mb-3">Area / Zone</label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {ZONES.map((z) => {
+          {ACTIVE_ZONES.map((z) => {
             const isSelected = zone === z.name;
             return (
               <button

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { QuoteInput, QuoteData, CotizadorStep } from "@/types";
 import { calculatePrice, ServiceType } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
+import { StepCategory } from "@/components/cotizador/StepCategory";
 import { StepPurpose } from "@/components/cotizador/StepPurpose";
 import { StepDimensions } from "@/components/cotizador/StepDimensions";
 import { StepOrganic } from "@/components/cotizador/StepOrganic";
@@ -22,6 +23,7 @@ import {
 } from "lucide-react";
 
 const STEPS: CotizadorStep[] = [
+  "category",
   "purpose",
   "dimensions",
   "organic",
@@ -31,6 +33,7 @@ const STEPS: CotizadorStep[] = [
 ];
 
 const STEP_LABELS: Record<CotizadorStep, string> = {
+  category: "Category",
   purpose: "Service Type",
   dimensions: "Dimensions",
   organic: "Household",
@@ -39,10 +42,51 @@ const STEP_LABELS: Record<CotizadorStep, string> = {
   summary: "Summary",
 };
 
+const LOCAL_STORAGE_KEY = "lulu_cotizador_state";
+
+function loadStateFromStorage(): { stepIndex: number; input: Partial<QuoteInput> } | null {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // Validar que no sea más viejo de 1 hora
+    if (parsed.timestamp && Date.now() - parsed.timestamp > 60 * 60 * 1000) {
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      return null;
+    }
+    return { stepIndex: parsed.stepIndex ?? 0, input: parsed.input ?? {} };
+  } catch {
+    return null;
+  }
+}
+
+function saveStateToStorage(stepIndex: number, input: Partial<QuoteInput>) {
+  try {
+    localStorage.setItem(
+      LOCAL_STORAGE_KEY,
+      JSON.stringify({ stepIndex, input, timestamp: Date.now() })
+    );
+  } catch {
+    // ignore
+  }
+}
+
+function clearStateFromStorage() {
+  try {
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export default function CotizadorPage() {
   const router = useRouter();
-  const [stepIndex, setStepIndex] = useState(0);
-  const [input, setInput] = useState<Partial<QuoteInput>>({});
+
+  // Cargar estado guardado al inicio
+  const saved = typeof window !== "undefined" ? loadStateFromStorage() : null;
+  const [stepIndex, setStepIndex] = useState(saved?.stepIndex ?? 0);
+  const [input, setInput] = useState<Partial<QuoteInput>>(saved?.input ?? {});
+
   const [quote, setQuote] = useState<QuoteData | null>(null);
   const [priceFrozenUntil, setPriceFrozenUntil] = useState<Date | null>(null);
   const [consents, setConsents] = useState({
@@ -60,11 +104,11 @@ export default function CotizadorPage() {
   // Check auth status
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
+      if (data.user) setUser({ id: data.user.id });
     });
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        setUser(session?.user ?? null);
+        setUser(session?.user ? { id: session.user.id } : null);
       }
     );
     return () => listener.subscription.unsubscribe();
@@ -78,6 +122,11 @@ export default function CotizadorPage() {
     }
   }, [stepIndex, input]);
 
+  // Persistir estado en localStorage
+  useEffect(() => {
+    saveStateToStorage(stepIndex, input);
+  }, [stepIndex, input]);
+
   const updateInput = useCallback(
     (updates: Partial<QuoteInput>) => {
       setInput((prev) => ({ ...prev, ...updates }));
@@ -89,10 +138,10 @@ export default function CotizadorPage() {
     if (
       !input.serviceType ||
       !input.squareFeet ||
-      !input.petsCount === undefined ||
-      !input.petsType === undefined ||
+      input.petsCount === undefined ||
+      input.petsType === undefined ||
       !input.residents ||
-      !input.daysSinceCleaning === undefined ||
+      input.daysSinceCleaning === undefined ||
       !input.zone
     ) {
       return null;
@@ -100,12 +149,12 @@ export default function CotizadorPage() {
 
     const breakdown = calculatePrice(
       input.serviceType as ServiceType,
-      input.squareFeet ?? 1000,
-      input.petsCount ?? 0,
-      input.petsType ?? "",
-      input.residents ?? 2,
-      input.daysSinceCleaning ?? 30,
-      input.zone ?? "",
+      input.squareFeet,
+      input.petsCount,
+      input.petsType,
+      input.residents,
+      input.daysSinceCleaning,
+      input.zone,
       input.dayOfWeek,
       input.isPreferredDay
     );
@@ -144,8 +193,10 @@ export default function CotizadorPage() {
 
   const canProceed = () => {
     switch (step) {
+      case "category":
+        return !!input.serviceCategory;
       case "purpose":
-        return !!input.serviceType;
+        return !!input.serviceSubtype;
       case "dimensions":
         return (
           input.bedrooms !== undefined &&
@@ -206,7 +257,8 @@ export default function CotizadorPage() {
 
       if (error) throw error;
 
-      // Redirect to confirmation
+      // Clear saved state and redirect
+      clearStateFromStorage();
       router.push("/confirmacion");
     } catch (err: Error | unknown) {
       setSubmitError(err instanceof Error ? err.message : "Failed to save quote. Please try again.");
@@ -217,7 +269,8 @@ export default function CotizadorPage() {
 
   const handleAuthSuccess = async () => {
     setShowAuthModal(false);
-    setUser((await supabase.auth.getUser()).data.user);
+    const { data } = await supabase.auth.getUser();
+    if (data.user) setUser({ id: data.user.id });
     // Retry submit
     handleSubmit();
   };
@@ -271,10 +324,21 @@ export default function CotizadorPage() {
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-elevation-1 p-6 md:p-8">
+          {step === "category" && (
+            <StepCategory
+              value={input.serviceCategory}
+              onChange={(val) => {
+                updateInput({ serviceCategory: val, serviceSubtype: undefined, serviceType: undefined });
+              }}
+            />
+          )}
           {step === "purpose" && (
             <StepPurpose
-              value={input.serviceType as ServiceType}
-              onChange={(val) => updateInput({ serviceType: val })}
+              category={input.serviceCategory}
+              value={input.serviceSubtype}
+              onChange={(subtype, serviceTypeVal) => {
+                updateInput({ serviceSubtype: subtype, serviceType: serviceTypeVal as ServiceType });
+              }}
             />
           )}
           {step === "dimensions" && (

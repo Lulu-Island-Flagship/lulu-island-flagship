@@ -8,15 +8,21 @@ interface StepRecencyProps {
   onChange: (value: number) => void;
 }
 
+// NUNCA mostrar multiplicadores internos al cliente
 const PRESETS = [
-  { label: "Less than 30 days", days: 14, multiplier: "0.85×" },
-  { label: "30 – 60 days", days: 45, multiplier: "1.00×" },
-  { label: "60 – 90 days", days: 75, multiplier: "1.15×" },
-  { label: "More than 90 days", days: 120, multiplier: "1.30×" },
+  { label: "Less than 30 days", days: 14, hint: "Recent maintenance" },
+  { label: "1–2 months", days: 45, hint: "Some buildup expected" },
+  { label: "2–3 months", days: 75, hint: "Moderate buildup" },
+  { label: "More than 3 months", days: 120, hint: "Deep clean recommended" },
 ];
 
 export function StepRecency({ days, onChange }: StepRecencyProps) {
-  const selectedPreset = PRESETS.find((p) => days <= p.days + 15) ?? PRESETS[3];
+  const selectedPreset = PRESETS.find((p) => {
+    if (p.label === "Less than 30 days") return days < 30;
+    if (p.label === "1–2 months") return days >= 30 && days < 60;
+    if (p.label === "2–3 months") return days >= 60 && days < 90;
+    return days >= 90;
+  }) ?? PRESETS[3];
 
   return (
     <div className="space-y-8">
@@ -33,8 +39,8 @@ export function StepRecency({ days, onChange }: StepRecencyProps) {
         <div className="flex items-center gap-3 mb-6">
           <CalendarDays className="w-5 h-5 text-brand-wave-blue" />
           <div>
-            <h3 className="font-semibold text-brand-ink">Days since last cleaning</h3>
-            <p className="text-sm text-gray-500">Approximate is fine</p>
+            <h3 className="font-semibold text-brand-ink">Approximate time since last cleaning</h3>
+            <p className="text-sm text-gray-500">Best estimate is fine</p>
           </div>
         </div>
 
@@ -48,9 +54,15 @@ export function StepRecency({ days, onChange }: StepRecencyProps) {
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-gold"
         />
         <div className="flex justify-between mt-2 text-sm text-gray-500">
-          <span>0 days</span>
-          <span className="font-semibold text-brand-ink text-lg">{days} days</span>
-          <span>180+ days</span>
+          <span>Just cleaned</span>
+          <span className="font-semibold text-brand-ink text-lg">
+            {days < 30
+              ? `${days} days`
+              : days < 60
+              ? `${Math.round(days / 30)} month`
+              : `${Math.round(days / 30)} months`}
+          </span>
+          <span>6+ months</span>
         </div>
       </div>
 
@@ -67,15 +79,9 @@ export function StepRecency({ days, onChange }: StepRecencyProps) {
                   : "border-gray-200 hover:border-brand-wave-blue"
               }`}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col">
                 <span className="font-medium">{preset.label}</span>
-                <span
-                  className={`text-sm font-semibold ${
-                    isSelected ? "text-brand-gold" : "text-gray-400"
-                  }`}
-                >
-                  {preset.multiplier}
-                </span>
+                <span className="text-sm text-gray-500 mt-1">{preset.hint}</span>
               </div>
             </button>
           );

@@ -6,6 +6,29 @@ export const TOTAL_TAX_RATE = GST_RATE + PST_RATE; // 12%
 
 export const PRICE_FREEZE_MINUTES = 10;
 
+// Categorías de servicio para el selector inicial
+export const SERVICE_CATEGORIES = [
+  { key: "home", label: "Home", labelEs: "Hogar", description: "Residential cleaning services" },
+  { key: "commercial", label: "Commercial", labelEs: "Comercial", description: "Office, Airbnb, and construction cleanup" },
+] as const;
+
+export type ServiceCategory = (typeof SERVICE_CATEGORIES)[number]["key"];
+
+// Subtipos de servicio — mapean internamente a los tipos de HHE
+export const SERVICE_SUBTYPES = {
+  home: [
+    { key: "first_time", label: "First Time Cleaning", labelEs: "Primera Limpieza", mapsTo: "deep" as ServiceType },
+    { key: "regular", label: "Regular Cleaning", labelEs: "Limpieza Regular", mapsTo: "regular" as ServiceType },
+    { key: "move_in_out", label: "Move In/Out", labelEs: "Mudanza Entrada/Salida", mapsTo: "move_in_out" as ServiceType },
+  ],
+  commercial: [
+    { key: "office", label: "Office Cleaning", labelEs: "Oficina", mapsTo: "regular" as ServiceType },
+    { key: "airbnb", label: "Airbnb / Short-term Rental", labelEs: "Airbnb / Renta Corta", mapsTo: "regular" as ServiceType },
+    { key: "post_construction", label: "Post-Construction", labelEs: "Post-Construcción", mapsTo: "post_construction" as ServiceType },
+  ],
+} as const;
+
+// Tipos internos para HHE (no visibles al cliente)
 export const SERVICE_TYPES = [
   { key: "regular", label: "Regular Cleaning", labelEs: "Limpieza Regular" },
   { key: "deep", label: "Deep Cleaning", labelEs: "Limpieza Profunda" },
@@ -80,7 +103,7 @@ export function getOrganicMultiplier(
   return 1.0; // default
 }
 
-// Factor de recencia
+// Factor de recencia (interno — NUNCA visible al cliente)
 export function getRecencyMultiplier(daysSinceCleaning: number): number {
   if (daysSinceCleaning < 30) return 0.85;
   if (daysSinceCleaning <= 60) return 1.0;
@@ -88,19 +111,24 @@ export function getRecencyMultiplier(daysSinceCleaning: number): number {
   return 1.3;
 }
 
-// Zonas de Richmond / Metro Vancouver con recargos
+// Zonas activas de servicio (solo Richmond, Vancouver, N.Van, W.Van, UBC)
 export const ZONES = [
-  { name: "Richmond (Steveston)", surcharge: 0 },
-  { name: "Richmond (City Centre)", surcharge: 0 },
-  { name: "Richmond (East)", surcharge: 0 },
-  { name: "Vancouver (West)", surcharge: 25 },
-  { name: "Vancouver (East)", surcharge: 20 },
-  { name: "Burnaby", surcharge: 20 },
-  { name: "North Shore", surcharge: 30 },
-  { name: "Surrey", surcharge: 35 },
-  { name: "Delta", surcharge: 25 },
-  { name: "New Westminster", surcharge: 20 },
+  { name: "Richmond (Steveston)", surcharge: 0, isActive: true },
+  { name: "Richmond (City Centre)", surcharge: 0, isActive: true },
+  { name: "Richmond (East)", surcharge: 0, isActive: true },
+  { name: "Vancouver (West)", surcharge: 25, isActive: true },
+  { name: "Vancouver (East)", surcharge: 20, isActive: true },
+  { name: "Burnaby", surcharge: 20, isActive: false },
+  { name: "North Vancouver", surcharge: 30, isActive: true },
+  { name: "West Vancouver", surcharge: 30, isActive: true },
+  { name: "UBC", surcharge: 25, isActive: true },
+  { name: "Surrey", surcharge: 35, isActive: false },
+  { name: "Delta", surcharge: 25, isActive: false },
+  { name: "New Westminster", surcharge: 20, isActive: false },
 ] as const;
+
+// Solo zonas activas para el selector
+export const ACTIVE_ZONES = ZONES.filter((z) => z.isActive);
 
 export type ZoneName = (typeof ZONES)[number]["name"];
 

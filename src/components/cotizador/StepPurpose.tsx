@@ -1,22 +1,27 @@
 "use client";
 
 import React from "react";
-import { ServiceType, SERVICE_TYPES } from "@/lib/pricing";
-import { Sparkles, Home, Truck, HardHat } from "lucide-react";
+import { SERVICE_SUBTYPES, ServiceCategory } from "@/lib/pricing";
+import { Sparkles, Home, Truck, HardHat, Briefcase, Building } from "lucide-react";
 
 const ICONS: Record<string, React.ReactNode> = {
-  regular: <Sparkles className="w-8 h-8" />,
-  deep: <Home className="w-8 h-8" />,
+  first_time: <Sparkles className="w-8 h-8" />,
+  regular: <Home className="w-8 h-8" />,
   move_in_out: <Truck className="w-8 h-8" />,
+  office: <Briefcase className="w-8 h-8" />,
+  airbnb: <Building className="w-8 h-8" />,
   post_construction: <HardHat className="w-8 h-8" />,
 };
 
 interface StepPurposeProps {
-  value?: ServiceType;
-  onChange: (value: ServiceType) => void;
+  category?: ServiceCategory;
+  value?: string;
+  onChange: (subtype: string, serviceType: string) => void;
 }
 
-export function StepPurpose({ value, onChange }: StepPurposeProps) {
+export function StepPurpose({ category, value, onChange }: StepPurposeProps) {
+  const subtypes = category ? SERVICE_SUBTYPES[category] : [];
+
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -29,12 +34,12 @@ export function StepPurpose({ value, onChange }: StepPurposeProps) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {SERVICE_TYPES.map((type) => {
+        {subtypes.map((type) => {
           const isSelected = value === type.key;
           return (
             <button
               key={type.key}
-              onClick={() => onChange(type.key)}
+              onClick={() => onChange(type.key, type.mapsTo)}
               className={`p-6 rounded-lg border-2 text-left transition-all ${
                 isSelected
                   ? "border-brand-gold bg-brand-gold/10"

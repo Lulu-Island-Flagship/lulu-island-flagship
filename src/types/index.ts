@@ -1,7 +1,9 @@
-import { ServiceType } from "@/lib/pricing";
+import { ServiceType, ServiceCategory } from "@/lib/pricing";
 
 export interface QuoteInput {
-  serviceType: ServiceType;
+  serviceCategory?: ServiceCategory;     // "home" | "commercial"
+  serviceSubtype?: string;              // "first_time", "regular", "move_in_out", "office", "airbnb", "post_construction"
+  serviceType?: ServiceType;              // interno: "regular", "deep", "move_in_out", "post_construction"
   bedrooms: number;
   bathrooms: number;
   squareFeet: number;
@@ -68,7 +70,8 @@ export interface FeatureFlag {
 }
 
 export type CotizadorStep =
-  | "purpose"
+  | "category"      // NUEVO: elegir Home / Commercial
+  | "purpose"       // Subtipo específico
   | "dimensions"
   | "organic"
   | "recency"
