@@ -27,6 +27,7 @@ export default function EmpleadoPage() {
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authError, setAuthError] = useState("");
   const [employeeName, setEmployeeName] = useState("");
   const [employeeRole, setEmployeeRole] = useState("");
 
@@ -35,13 +36,23 @@ export default function EmpleadoPage() {
   const [jornadaStatus, setJornadaStatus] = useState<JornadaStatus>("not_started");
   const [isStartingJornada, setIsStartingJornada] = useState(false);
 
-  // Check auth on mount
+  // Check auth on mount — verify employee authorization
   useEffect(() => {
     async function checkAuth() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        setIsAuthenticated(true);
-        loadEmployeeData();
+        // Verify user is an active employee
+        const authorized = await verifyEmployee(user.email);
+        if (authorized) {
+          setIsAuthenticated(true);
+          loadEmployeeData();
+        } else {
+          // Not an authorized employee — sign out and show error
+          await supabase.auth.signOut();
+          setAuthError("Not authorized — contact your administrator.");
+          setShowAuthModal(true);
+          setLoadingServices(false);
+        }
       } else {
         setShowAuthModal(true);
         setLoadingServices(false);
@@ -49,10 +60,21 @@ export default function EmpleadoPage() {
     }
     checkAuth();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        setIsAuthenticated(true);
-        loadEmployeeData();
+        const authorized = await verifyEmployee(session.user.email);
+        if (authorized) {
+          setIsAuthenticated(true);
+          setAuthError("");
+          loadEmployeeData();
+        } else {
+          await supabase.auth.signOut();
+          setIsAuthenticated(false);
+          setAuthError("Not authorized — contact your administrator.");
+          setShowAuthModal(true);
+          setServices([]);
+          setLoadingServices(false);
+        }
       } else {
         setIsAuthenticated(false);
         setServices([]);
@@ -62,6 +84,22 @@ export default function EmpleadoPage() {
 
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  // Verify if email exists in employees table with is_active = true
+  async function verifyEmployee(email: string | undefined): Promise<boolean> {
+    if (!email) return false;
+    try {
+      const { data, error } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("email", email)
+        .eq("is_active", true)
+        .single();
+      return !error && !!data;
+    } catch {
+      return false;
+    }
+  }
 
   async function loadEmployeeData() {
     setLoadingServices(true);
@@ -108,18 +146,13 @@ export default function EmpleadoPage() {
     }
   }
 
-  const handleAuthSuccess = () => {
-    setShowAuthModal(false);
-    setIsAuthenticated(true);
-    loadEmployeeData();
-  };
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setIsAuthenticated(false);
     setServices([]);
     setEmployeeName("");
     setJornadaStatus("not_started");
+    setAuthError("");
     setShowAuthModal(true);
   };
 
@@ -201,8 +234,15 @@ export default function EmpleadoPage() {
         {showAuthModal && (
           <EmployeeAuthModal
             onClose={() => setShowAuthModal(false)}
-            onSuccess={handleAuthSuccess}
+            onError={(msg) => setAuthError(msg)}
           />
+        )}
+        {authError && (
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white rounded-lg shadow-elevation-2 p-4 max-w-sm w-full mx-4">
+            <div className="p-3 bg-state-danger/10 text-state-danger rounded-lg text-sm text-center">
+              {authError}
+            </div>
+          </div>
         )}
       </main>
     );
