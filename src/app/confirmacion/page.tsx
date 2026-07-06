@@ -42,7 +42,28 @@ function ConfirmacionContent() {
         return;
       }
 
-      setOrder(orderData as Order);
+      // Map snake_case → camelCase for Order
+      const mappedOrder: Order = {
+        id: orderData.id,
+        quoteId: orderData.quote_id,
+        userId: orderData.user_id,
+        serviceDate: orderData.service_date,
+        serviceTime: orderData.service_time,
+        serviceDatetime: orderData.service_datetime,
+        status: orderData.status,
+        stripeCustomerId: orderData.stripe_customer_id,
+        stripePaymentMethodId: orderData.stripe_payment_method_id,
+        stripeSetupIntentId: orderData.stripe_setup_intent_id,
+        paymentOption: orderData.payment_option,
+        paypalTransactionId: orderData.paypal_transaction_id,
+        holdAmount: orderData.hold_amount,
+        holdCapturedAt: orderData.hold_captured_at,
+        holdReleasedAt: orderData.hold_released_at,
+        cancellationWindowHours: orderData.cancellation_window_hours,
+        createdAt: orderData.created_at,
+        updatedAt: orderData.updated_at,
+      };
+      setOrder(mappedOrder);
 
       // Load associated quote
       if (orderData.quote_id) {
@@ -52,7 +73,47 @@ function ConfirmacionContent() {
           .eq("id", orderData.quote_id)
           .single();
         if (quoteData) {
-          setQuote(quoteData as QuoteData);
+          // Map snake_case → camelCase for QuoteData
+          const mappedQuote: QuoteData = {
+            id: quoteData.id,
+            userId: quoteData.user_id,
+            serviceCategory: quoteData.service_category,
+            serviceSubtype: quoteData.service_subtype,
+            serviceType: quoteData.service_type,
+            bedrooms: quoteData.bedrooms,
+            bathrooms: quoteData.bathrooms,
+            squareFeet: quoteData.square_feet,
+            petsCount: quoteData.pets_count,
+            petsType: quoteData.pets_type,
+            residents: quoteData.residents,
+            daysSinceCleaning: quoteData.days_since_cleaning,
+            address: quoteData.address,
+            zone: quoteData.zone,
+            postalCode: quoteData.postal_code,
+            dayOfWeek: quoteData.day_of_week,
+            isPreferredDay: quoteData.is_preferred_day,
+            basePrice: quoteData.base_price,
+            organicMultiplier: quoteData.organic_multiplier,
+            organicAdjustment: quoteData.organic_adjustment,
+            recencyMultiplier: quoteData.recency_multiplier,
+            recencyAdjustment: quoteData.recency_adjustment,
+            zoneSurcharge: quoteData.zone_surcharge,
+            logisticsSurcharge: quoteData.logistics_surcharge,
+            subtotal: quoteData.subtotal,
+            gst: quoteData.gst,
+            pst: quoteData.pst,
+            total: quoteData.total,
+            holdAmount: quoteData.hold_amount,
+            priceFrozenUntil: quoteData.price_frozen_until,
+            status: quoteData.status,
+            consentTc: quoteData.consent_tc,
+            consentPipa: quoteData.consent_pipa,
+            consentMarketing: quoteData.consent_marketing,
+            clientScore: quoteData.client_score,
+            createdAt: quoteData.created_at,
+            updatedAt: quoteData.updated_at,
+          };
+          setQuote(mappedQuote);
         }
       }
 
