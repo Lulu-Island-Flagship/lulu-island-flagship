@@ -113,3 +113,84 @@ export interface CotizadorState {
   quote?: QuoteData;
   priceFrozenUntil?: Date;
 }
+
+// ─── Módulo 3: Empleado ─────────────────────────────────────────────
+
+export type EmployeeRole = "cleaner" | "supervisor" | "driver";
+
+export interface Employee {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: EmployeeRole;
+  dayRate: number;          // $CAD — tarifa diaria (modelo 70/30)
+  languages: string[];      // ej. ["en", "zh"]
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AssignmentStatus =
+  | "pending"
+  | "en_route"
+  | "arrived"
+  | "in_progress"
+  | "completed"
+  | "cancelled"
+  | "no_show";
+
+export interface Assignment {
+  id: string;
+  orderId: string;
+  employeeId: string;
+  assignedAt: string;
+  status: AssignmentStatus;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ServiceLogEvent =
+  | "jornada_start"
+  | "jornada_end"
+  | "t_in"           // Llegada al sitio
+  | "t_start"        // Inicio de limpieza
+  | "t_out"          // Finalización
+  | "photo"          // Foto subida
+  | "note";          // Nota del empleado
+
+export interface ServiceLog {
+  id: string;
+  orderId: string;
+  employeeId: string;
+  eventType: ServiceLogEvent;
+  timestamp: string;
+  locationLat?: number;
+  locationLng?: number;
+  photoUrl?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+// Vista combinada para el empleado (assignment + order + quote)
+export interface EmployeeService {
+  assignmentId: string;
+  orderId: string;
+  status: AssignmentStatus;
+  serviceDate: string;
+  serviceTime: string;
+  address: string;
+  zone: string;
+  serviceSubtype: string;
+  squareFeet: number;
+  bedrooms: number;
+  bathrooms: number;
+  petsCount: number;
+  petsType: string;
+  residents: number;
+  notes?: string;
+  clientName?: string;
+  clientPhone?: string;
+}

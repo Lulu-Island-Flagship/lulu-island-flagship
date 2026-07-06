@@ -34,5 +34,46 @@
     "en": "EN",
     "zh": "中文",
     "fr": "FR"
+  },
+  "employee": {
+    "loginTitle": "Employee Login",
+    "loginSubtitle": "Sign in with your work email",
+    "otpSubtitle": "Enter the code sent to your email",
+    "workEmail": "Work Email",
+    "sendCode": "Send Code",
+    "verifySignIn": "Verify & Sign In",
+    "backToEmail": "Back to email",
+    "sixDigitCode": "6-Digit Code",
+    "goodMorning": "Good morning",
+    "team": "Team",
+    "startShift": "Start Shift",
+    "shiftStarted": "Shift Started",
+    "readyToWork": "Ready to work",
+    "todaysServices": "Today's Services",
+    "noServices": "No services assigned for today.",
+    "openService": "Open Service",
+    "clientBrief": "Client Brief",
+    "serviceTimeline": "Service Timeline",
+    "noEventsYet": "No events yet.",
+    "photos": "Photos",
+    "addPhoto": "Add Photo",
+    "addNote": "Add a note...",
+    "serviceCompleted": "Service Completed",
+    "greatWork": "Great work! This service is finished.",
+    "backToDashboard": "Back to Dashboard",
+    "serviceNotFound": "Service Not Found",
+    "notAssigned": "This service is not assigned to you.",
+    "status": {
+      "pending": "Pending",
+      "en_route": "En Route",
+      "arrived": "Arrived",
+      "in_progress": "In Progress",
+      "completed": "Completed"
+    },
+    "actions": {
+      "iArrived": "I Arrived",
+      "startCleaning": "Start Cleaning",
+      "finishService": "Finish Service"
+    }
   }
 }
