@@ -47,8 +47,14 @@ export async function GET() {
       return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
     }
 
-    // Obtener fecha de hoy en formato ISO (YYYY-MM-DD)
-    const today = new Date().toISOString().split("T")[0];
+    // Calcular "hoy" en la zona horaria del negocio (America/Vancouver)
+    const vancouverDate = new Date().toLocaleString("en-CA", {
+      timeZone: "America/Vancouver",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const today = vancouverDate.split(",")[0];
 
     // Paso 1: Buscar asignaciones del empleado para órdenes de hoy o futuras
     const { data: assignments, error: assignError } = await supabase
