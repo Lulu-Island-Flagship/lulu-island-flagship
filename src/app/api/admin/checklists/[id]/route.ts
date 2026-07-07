@@ -23,7 +23,7 @@ export async function PUT(
     // Para items: preservar IDs existentes, generar nuevos solo para items nuevos
     // Items "eliminados" se marcan con active: false, no se quitan del array
     const processedItems = items?.map((item: { id?: string; label: string; required: boolean; active?: boolean }) => ({
-      id: item.id || `${body.zone || 'item'}_${Math.random().toString(36).substring(2, 9)}`,
+      id: item.id || `${body.zone || 'item'}_${crypto.randomUUID().split('-')[0]}`,
       label: item.label,
       required: item.required ?? false,
       active: item.active !== false, // default true unless explicitly false

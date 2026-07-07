@@ -71,9 +71,13 @@ export default function AdminUpsellsClient() {
       });
       if (res.ok) {
         setUpsells((prev) => prev.filter((u) => u.id !== id));
+      } else {
+        const err = await res.json();
+        setError(err.error || "Failed to mark as reviewed");
       }
     } catch (e) {
       console.error("Review error:", e);
+      setError("Network error while marking as reviewed");
     } finally {
       setReviewing(null);
     }

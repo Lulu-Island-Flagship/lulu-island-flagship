@@ -49,6 +49,12 @@ export default function AdminServicioDetailClient() {
   const params = useParams();
   const orderId = params?.orderId as string;
 
+  const locale = (typeof window !== "undefined" 
+    ? window.location.pathname.split("/")[1] 
+    : "en") as string;
+  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+  const adminPath = `/${safeLocale}/admin`;
+
   const [zones, setZones] = useState<ChecklistZone[]>([]);
   const [progress, setProgress] = useState<ChecklistProgress | null>(null);
   const [loading, setLoading] = useState(true);
@@ -129,7 +135,7 @@ export default function AdminServicioDetailClient() {
         <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
         <p className="text-red-700 font-medium">{error}</p>
         <button
-          onClick={() => router.push("/admin/servicios")}
+          onClick={() => router.push(`${adminPath}/servicios`)}
           className="mt-4 inline-flex items-center gap-2 text-brand-navy font-medium"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -143,7 +149,7 @@ export default function AdminServicioDetailClient() {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <button
-          onClick={() => router.push("/admin/servicios")}
+          onClick={() => router.push(`${adminPath}/servicios`)}
           className="text-gray-500 hover:text-brand-navy"
         >
           <ChevronLeft className="w-5 h-5" />

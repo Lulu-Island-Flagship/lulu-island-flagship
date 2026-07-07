@@ -136,11 +136,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const { data: user } = await supabase.auth.getUser();
+    // Reuse the already-authenticated user from requireSupervisor
     const { data: auditor } = await supabase
       .from("employees")
       .select("id")
-      .eq("user_id", user.user?.id)
+      .eq("user_id", auth.user?.id)
       .single();
 
     if (!auditor?.id) {

@@ -349,7 +349,15 @@ export default function AdminChecklistsClient() {
   };
 
   const handleDeleteServiceType = async (subtype: string) => {
-    const res = await fetch(`/api/admin/checklists/service-type/${encodeURIComponent(subtype)}`, {
+    // Step 1: Check history via GET (not DELETE)
+    await fetch(`/api/admin/checklists/service-type/${encodeURIComponent(subtype)}`, {
+      method: "GET",
+      credentials: "include",
+    });
+    // If GET returns 200 with data, it means the service type exists and has no history
+    // Actually, we need a dedicated check endpoint. For now, use the DELETE with a dry-run param.
+    // Better approach: try a soft-check first
+    const res = await fetch(`/api/admin/checklists/service-type/${encodeURIComponent(subtype)}?dryRun=true`, {
       method: "DELETE",
       credentials: "include",
     });
@@ -357,29 +365,30 @@ export default function AdminChecklistsClient() {
       alert("Cannot delete: this service type has usage history. You can only deactivate all zones.");
       return;
     }
-    if (res.ok) {
-      setConfirmDialog({
-        open: true,
-        title: "Delete Service Type Permanently",
-        message: `This will permanently delete all zones for '${subtype.replace(/_/g, " ")}'. This cannot be undone.`,
-        onConfirm: async () => {
-          const res2 = await fetch(`/api/admin/checklists/service-type/${encodeURIComponent(subtype)}`, {
-            method: "DELETE",
-            credentials: "include",
-          });
-          if (res2.ok) {
-            await loadChecklists();
-          } else {
-            setError("Delete service type failed");
-          }
-          setConfirmDialog(null);
-        },
-        confirmLabel: "Delete Permanently",
-        danger: true,
-      });
-    } else {
+    if (!res.ok && res.status !== 404) {
       setError("Delete service type failed");
+      return;
     }
+    // Show confirmation before actual delete
+    setConfirmDialog({
+      open: true,
+      title: "Delete Service Type Permanently",
+      message: `This will permanently delete all zones for '${subtype.replace(/_/g, " ")}'. This cannot be undone.`,
+      onConfirm: async () => {
+        const res2 = await fetch(`/api/admin/checklists/service-type/${encodeURIComponent(subtype)}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (res2.ok) {
+          await loadChecklists();
+        } else {
+          setError("Delete service type failed");
+        }
+        setConfirmDialog(null);
+      },
+      confirmLabel: "Delete Permanently",
+      danger: true,
+    });
   };
 
   const getColorClass = (color: string) => {

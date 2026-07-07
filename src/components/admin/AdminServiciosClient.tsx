@@ -35,6 +35,12 @@ interface AdminService {
 
 export default function AdminServiciosClient() {
   const router = useRouter();
+  const locale = (typeof window !== "undefined" 
+    ? window.location.pathname.split("/")[1] 
+    : "en") as string;
+  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+  const adminPath = `/${safeLocale}/admin`;
+
   const [services, setServices] = useState<AdminService[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -114,7 +120,7 @@ export default function AdminServiciosClient() {
           {services.map((s) => (
             <button
               key={s.orderId}
-              onClick={() => router.push(`/admin/servicios/${s.orderId}`)}
+              onClick={() => router.push(`${adminPath}/servicios/${s.orderId}`)}
               className="w-full bg-white rounded-xl border p-4 text-left hover:shadow-md transition-shadow"
             >
               <div className="flex items-start justify-between gap-3">

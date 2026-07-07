@@ -71,8 +71,8 @@ export async function POST(request: NextRequest) {
       .eq("id", employeeId)
       .single();
 
-    const isElite = employee?.trust_level === "elite";
-    const isSampled = Math.random() < 0.10; // 10% muestreo
+    const isElite = false; // DISABLED: employee?.trust_level === "elite";
+    const isSampled = false; // DISABLED: Math.random() < 0.10; // 10% muestreo
 
     // TODO: Implementar detección de gaming antes de habilitar auto-approval en producción real.
     // El spec requiere: si >15% de rechazos en muestreo, revocar auto-aprobación,
@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
     // Segunda detección = suspensión documentada.
     // Sin este control, un empleado podría manipular el sistema para mantener auto-approval.
     // BLOQUEANTE antes de usar auto-approval con empleados reales.
+    // FORZAR muro QC para todos hasta que exista detección de gaming.
 
     let reviewStatus = "pending";
     let samplingReason = null;

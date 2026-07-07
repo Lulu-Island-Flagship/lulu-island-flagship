@@ -16,54 +16,60 @@ import {
 export default function AdminDashboardClient() {
   const router = useRouter();
 
+  // Detect locale from pathname for navigation
+  const locale = (typeof window !== "undefined" 
+    ? window.location.pathname.split("/")[1] 
+    : "en") as string;
+  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+
   const cards = [
     {
       title: "Today's Services",
       description: "View all scheduled services for today with checklist progress",
       icon: ClipboardList,
-      href: "/admin/servicios",
+      href: `/${safeLocale}/admin/servicios`,
       color: "bg-blue-50 text-blue-600",
     },
     {
       title: "Employees",
       description: "View all active and inactive employees",
       icon: Users,
-      href: "/admin/empleados",
+      href: `/${safeLocale}/admin/empleados`,
       color: "bg-purple-50 text-purple-600",
     },
     {
       title: "Upsells Review",
       description: "Review upsells proposed by employees",
       icon: Tag,
-      href: "/admin/upsells",
+      href: `/${safeLocale}/admin/upsells`,
       color: "bg-amber-50 text-amber-600",
     },
     {
       title: "Checklists",
       description: "Manage SOP checklist templates by zone and service type",
       icon: ListChecks,
-      href: "/admin/checklists",
+      href: `/${safeLocale}/admin/checklists`,
       color: "bg-green-50 text-green-600",
     },
     {
       title: "Field Audits",
       description: "Evaluate completed services and view audit history",
       icon: Star,
-      href: "/admin/audits",
+      href: `/${safeLocale}/admin/audits`,
       color: "bg-orange-50 text-orange-600",
     },
     {
       title: "QC Review",
       description: "Quality control wall — approve or reject services",
       icon: Shield,
-      href: "/admin/qc",
+      href: `/${safeLocale}/admin/qc`,
       color: "bg-indigo-50 text-indigo-600",
     },
     {
       title: "Tickets",
       description: "Disputes, discrepancies, and consultation queue",
       icon: AlertTriangle,
-      href: "/admin/tickets",
+      href: `/${safeLocale}/admin/tickets`,
       color: "bg-red-50 text-red-600",
     },
   ];

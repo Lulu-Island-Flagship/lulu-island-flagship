@@ -104,19 +104,16 @@ export async function GET() {
       }
     }
 
-    // Obtener plantillas de checklist para calcular totales
+    // Obtener plantillas de checklist para calcular totales por zona (no por service_subtype)
     const { data: checklists } = await supabase
       .from("sop_checklists")
-      .select("service_subtype, items")
+      .select("id, service_subtype, items")
       .eq("is_active", true);
 
-    const checklistTotalBySubtype = new Map<string, number>();
+    const checklistTotalByZone = new Map<string, number>();
     for (const cl of checklists || []) {
-      const count = (cl.items || []).length;
-      checklistTotalBySubtype.set(
-        cl.service_subtype,
-        (checklistTotalBySubtype.get(cl.service_subtype) || 0) + count
-      );
+      const count = (cl.items || []).filter((item: { active?: boolean }) => item.active !== false).length;
+      checklistTotalByZone.set(cl.id, count);
     }
 
     // Enriquecer datos
@@ -127,7 +124,13 @@ export async function GET() {
       const employee = assignment ? employeeMap.get(assignment.employee_id) : null;
       const serviceSubtype = quote?.service_type === "deep" ? "first_time" : (quote?.service_type || "regular");
       const completedItems = completedCountByOrder.get(o.id) || 0;
-      const totalItems = checklistTotalBySubtype.get(serviceSubtype) || 0;
+      // Calculate total from active zones for this service subtype
+      let totalItems = 0;
+      for (const cl of checklists || []) {
+        if (cl.service_subtype === serviceSubtype) {
+          totalItems += (cl.items || []).filter((item: { active?: boolean }) => item.active !== false).length;
+        }
+      }
       const percentComplete = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
       enriched.push({
