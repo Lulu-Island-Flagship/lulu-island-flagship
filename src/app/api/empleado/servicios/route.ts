@@ -104,7 +104,7 @@ export async function GET() {
       .from("quotes")
       .select(`
         id,
-        service_subtype,
+        service_type,
         address,
         zone,
         square_feet,
@@ -166,7 +166,7 @@ export async function GET() {
         serviceDate: order.service_date,
         serviceTime: order.service_time,
         orderStatus: order.status,
-        serviceSubtype: quote?.service_subtype,
+        serviceSubtype: quote?.service_type === 'deep' ? 'first_time' : quote?.service_type,
         address: quote?.address,
         zone: quote?.zone,
         squareFeet: quote?.square_feet,
