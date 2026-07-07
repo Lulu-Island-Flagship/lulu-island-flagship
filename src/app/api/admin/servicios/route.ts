@@ -14,13 +14,14 @@ export async function GET() {
 
   try {
     // Calcular "hoy" en la zona horaria del negocio (America/Vancouver)
+    // toLocaleString con en-CA devuelve YYYY-MM-DD, HH:MM:SS — tomamos solo la parte de fecha
     const vancouverDate = new Date().toLocaleString("en-CA", {
       timeZone: "America/Vancouver",
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
     });
-    const today = vancouverDate; // formato YYYY-MM-DD
+    const today = vancouverDate.split(",")[0]; // formato YYYY-MM-DD
 
     // También devolver la fecha para diagnóstico
     const utcDate = new Date().toISOString().split("T")[0];
