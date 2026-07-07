@@ -17,7 +17,7 @@ ADD COLUMN IF NOT EXISTS trust_level TEXT NOT NULL DEFAULT 'standard'
 --   -10 por cada foto rechazada en QC
 --   Clamp [0, 50]
 CREATE OR REPLACE FUNCTION recalculate_weekly_score(p_employee_id UUID, p_week_start DATE)
-RETURNS TABLE (total_score INTEGER, trust_level TEXT, telemetry_score INTEGER, audit_score INTEGER, peer_score INTEGER)
+RETURNS TABLE (total_score INTEGER, trust_level TEXT, telemetry_score INTEGER, audit_score INTEGER, peer_score INTEGER, services_count INTEGER, disputes_count INTEGER)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
@@ -186,6 +186,6 @@ BEGIN
     ELSE 'suspended'
   END;
 
-  RETURN QUERY SELECT v_total, v_trust, v_telemetry, v_audit, v_peer;
+  RETURN QUERY SELECT v_total, v_trust, v_telemetry, v_audit, v_peer, v_services_count, v_disputes_count;
 END;
 $$;

@@ -35,12 +35,16 @@ export async function POST(
       .eq("user_id", user.user?.id)
       .single();
 
+    if (!reviewer?.id) {
+      return NextResponse.json({ error: "Reviewer not found in employees table" }, { status: 403 });
+    }
+
     const { data, error } = await supabase
       .from("qc_reviews")
       .update({
         status,
         note,
-        reviewer_id: reviewer?.id,
+        reviewer_id: reviewer.id,
         reviewed_at: new Date().toISOString(),
       })
       .eq("order_id", orderId)

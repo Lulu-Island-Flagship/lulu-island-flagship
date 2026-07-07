@@ -26,6 +26,11 @@ function getSupabaseClient() {
   );
 }
 
+// Helper: obtener fecha actual en zona horaria America/Vancouver como string YYYY-MM-DD
+function getVancouverDateString(): string {
+  return new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", year: "numeric", month: "2-digit", day: "2-digit" }).split(",")[0];
+}
+
 // POST /api/client/review — guardar evaluación post-servicio (Fase 8.1)
 export async function POST(request: NextRequest) {
   try {
@@ -62,13 +67,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Order not completed yet" }, { status: 400 });
     }
 
-    // Ventana de 24h para evaluar: service_date + 1 día >= ahora
-    const serviceDate = new Date(order.service_date);
-    const deadline = new Date(serviceDate);
-    deadline.setDate(deadline.getDate() + 1);
-    if (new Date() > deadline) {
+    // Ventana de 24h para evaluar: service_date + 1 día >= hoy en Vancouver
+    // service_date es DATE (sin hora), así que la ventana es service_date + 1 día hasta las 23:59:59
+    const vancouverToday = getVancouverDateString();
+    const serviceDate = order.service_date as string; // YYYY-MM-DD
+    const deadlineDate = new Date(serviceDate + "T00:00:00");
+    deadlineDate.setDate(deadlineDate.getDate() + 1);
+    const deadlineStr = deadlineDate.toISOString().split("T")[0]; // YYYY-MM-DD del día siguiente
+
+    if (vancouverToday > deadlineStr) {
       return NextResponse.json({ error: "Review window expired" }, { status: 410 });
     }
+
+    const deadlineIso = deadlineDate.toISOString();
 
     // Verificar que no haya una review ya existente
     const { data: existingReview } = await supabase
@@ -97,7 +108,7 @@ export async function POST(request: NextRequest) {
         rating,
         comment: comment || null,
         sentiment_score: sentimentScore,
-        expired_at: deadline.toISOString(),
+        expired_at: deadlineIso,
       })
       .select()
       .single();

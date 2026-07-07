@@ -12,6 +12,11 @@ import {
   MessageSquare,
 } from "lucide-react";
 
+// Helper: obtener fecha actual en zona horaria America/Vancouver como string YYYY-MM-DD
+function getVancouverDateString(): string {
+  return new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", year: "numeric", month: "2-digit", day: "2-digit" }).split(",")[0];
+}
+
 export default function EvaluarPage() {
   const router = useRouter();
   const params = useParams();
@@ -51,11 +56,14 @@ export default function EvaluarPage() {
         return;
       }
 
-      // Verificar ventana de 24h: service_date + 1 día >= ahora
-      const serviceDate = new Date(order.service_date);
-      const deadline = new Date(serviceDate);
-      deadline.setDate(deadline.getDate() + 1);
-      if (new Date() > deadline) {
+      // Verificar ventana de 24h: service_date + 1 día >= hoy en Vancouver
+      const vancouverToday = getVancouverDateString();
+      const serviceDate = order.service_date as string;
+      const deadlineDate = new Date(serviceDate + "T00:00:00");
+      deadlineDate.setDate(deadlineDate.getDate() + 1);
+      const deadlineStr = deadlineDate.toISOString().split("T")[0];
+
+      if (vancouverToday > deadlineStr) {
         setError("Review window expired. You can only review within 24 hours of the service date.");
         setLoading(false);
         return;

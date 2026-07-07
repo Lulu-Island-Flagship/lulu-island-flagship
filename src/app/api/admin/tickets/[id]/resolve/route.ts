@@ -35,12 +35,16 @@ export async function POST(
       .eq("user_id", user.user?.id)
       .single();
 
+    if (!resolver?.id) {
+      return NextResponse.json({ error: "Resolver not found in employees table" }, { status: 403 });
+    }
+
     const { data, error } = await supabase
       .from("tickets_disputas")
       .update({
         status,
         resolution_note: resolutionNote,
-        resolved_by: resolver?.id,
+        resolved_by: resolver.id,
         resolved_at: new Date().toISOString(),
       })
       .eq("id", id)

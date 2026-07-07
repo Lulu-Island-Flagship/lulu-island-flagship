@@ -73,6 +73,8 @@ export async function GET(request: NextRequest) {
       const telemetryScore = scoreData?.[0]?.telemetry_score || 0;
       const auditScore = scoreData?.[0]?.audit_score || 0;
       const peerScore = scoreData?.[0]?.peer_score || 0;
+      const servicesCount = scoreData?.[0]?.services_count || 0;
+      const disputesCount = scoreData?.[0]?.disputes_count || 0;
 
       // Upsert en employee_scores
       const { error: upsertError } = await supabase
@@ -85,6 +87,8 @@ export async function GET(request: NextRequest) {
           audit_score: auditScore,
           peer_score: peerScore,
           trust_level: trustLevel,
+          services_count: servicesCount,
+          disputes_count: disputesCount,
         }, { onConflict: "employee_id,week_start" });
 
       if (upsertError) {
