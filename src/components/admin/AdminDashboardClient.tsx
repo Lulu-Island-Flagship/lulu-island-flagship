@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Users,
   Tag,
+  ListChecks,
   ChevronRight,
 } from "lucide-react";
 
@@ -33,6 +34,13 @@ export default function AdminDashboardClient() {
       icon: Tag,
       href: "/admin/upsells",
       color: "bg-amber-50 text-amber-600",
+    },
+    {
+      title: "Checklists",
+      description: "Manage SOP checklist templates by zone and service type",
+      icon: ListChecks,
+      href: "/admin/checklists",
+      color: "bg-green-50 text-green-600",
     },
   ];
 
