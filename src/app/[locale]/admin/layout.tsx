@@ -94,6 +94,7 @@ export default async function AdminLayout({
             <a href="/admin/servicios" className="hover:text-brand-gold transition-colors">Services</a>
             <a href="/admin/empleados" className="hover:text-brand-gold transition-colors">Employees</a>
             <a href="/admin/upsells" className="hover:text-brand-gold transition-colors">Upsells</a>
+            <a href="/admin/checklists" className="hover:text-brand-gold transition-colors">Checklists</a>
           </div>
         </div>
       </nav>
