@@ -172,6 +172,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
     }
 
+    // Verificar que el empleado tiene asignación para este order
+    const { data: assignment, error: assignError } = await supabase
+      .from("assignments")
+      .select("id")
+      .eq("order_id", orderId)
+      .eq("employee_id", employee.id)
+      .single();
+
+    if (assignError || !assignment) {
+      return NextResponse.json({ error: "No assignment found for this service" }, { status: 403 });
+    }
+
     // Verificar si ya existe un registro para este item
     const { data: existing } = await supabase
       .from("service_checklist_items")

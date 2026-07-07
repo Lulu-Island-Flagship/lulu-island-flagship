@@ -99,6 +99,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Employee not found" }, { status: 403 });
     }
 
+    // Verificar que el empleado tiene asignación para este order
+    const { data: assignment, error: assignError } = await supabase
+      .from("assignments")
+      .select("id")
+      .eq("order_id", orderId)
+      .eq("employee_id", employee.id)
+      .single();
+
+    if (assignError || !assignment) {
+      return NextResponse.json({ error: "No assignment found for this service" }, { status: 403 });
+    }
+
     const { data: upsell, error } = await supabase
       .from("service_upsells")
       .insert({

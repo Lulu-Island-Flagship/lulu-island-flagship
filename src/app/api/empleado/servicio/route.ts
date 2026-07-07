@@ -82,16 +82,25 @@ export async function POST(request: NextRequest) {
         .from("assignments")
         .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq("id", assignment.id);
+
+      // Sync orders.status when service completes
+      if (eventType === "t_out") {
+        await supabase
+          .from("orders")
+          .update({ status: "completed", updated_at: new Date().toISOString() })
+          .eq("id", orderId);
+      }
     }
 
     // Insertar log del evento
+    const vancouverTimestamp = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", hour12: false }).replace(", ", "T");
     const { data: log, error: logError } = await supabase
       .from("service_logs")
       .insert({
         order_id: orderId,
         employee_id: employee.id,
         event_type: eventType,
-        timestamp: new Date().toISOString(),
+        timestamp: vancouverTimestamp,
         location_lat: locationLat ?? null,
         location_lng: locationLng ?? null,
         photo_url: photoUrl ?? null,

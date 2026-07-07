@@ -129,7 +129,8 @@ export default function EmpleadoPage() {
 
   async function checkJornadaStatus() {
     try {
-      const today = new Date().toISOString().split("T")[0];
+      const vancouverDate = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver" });
+      const today = vancouverDate.split(",")[0];
       const { data: logs } = await supabase
         .from("service_logs")
         .select("event_type")

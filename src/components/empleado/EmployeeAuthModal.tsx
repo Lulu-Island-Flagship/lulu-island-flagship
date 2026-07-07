@@ -15,10 +15,13 @@ export function EmployeeAuthModal({ onClose, onError }: EmployeeAuthModalProps) 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
+      // Detect current locale from pathname (e.g. /en/empleado or /zh/empleado)
+      const pathLocale = window.location.pathname.split("/")[1];
+      const locale = ["en", "zh", "fr"].includes(pathLocale) ? pathLocale : "en";
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/en/empleado`,
+          redirectTo: `${window.location.origin}/auth/callback?next=/${locale}/empleado`,
         },
       });
       if (error) throw error;

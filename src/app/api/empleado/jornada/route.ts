@@ -57,13 +57,14 @@ export async function POST(request: NextRequest) {
     const eventType = action === "start" ? "jornada_start" : "jornada_end";
 
     // Insertar log de jornada
+    const vancouverTimestamp = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", hour12: false }).replace(", ", "T");
     const { data: log, error: logError } = await supabase
       .from("service_logs")
       .insert({
         order_id: null, // jornada no está ligada a un order específico
         employee_id: employee.id,
         event_type: eventType,
-        timestamp: new Date().toISOString(),
+        timestamp: vancouverTimestamp,
         location_lat: locationLat ?? null,
         location_lng: locationLng ?? null,
       })

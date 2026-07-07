@@ -57,6 +57,27 @@ export async function GET() {
     const today = vancouverDate.split(",")[0];
 
     // Paso 1: Buscar asignaciones del empleado para órdenes de hoy o futuras
+    // Primero obtener order_ids de órdenes de hoy/futuro, luego filtrar assignments
+    const { data: todaysOrders, error: ordersDateError } = await supabase
+      .from("orders")
+      .select("id")
+      .gte("service_date", today)
+      .order("service_date", { ascending: true });
+
+    if (ordersDateError) {
+      console.error("Orders date fetch error:", ordersDateError);
+      return NextResponse.json({ error: ordersDateError.message }, { status: 500 });
+    }
+
+    const todaysOrderIds = (todaysOrders || []).map((o) => o.id);
+
+    if (todaysOrderIds.length === 0) {
+      return NextResponse.json(
+        { services: [], employee: { id: employee.id, name: employee.name, role: employee.role } },
+        { status: 200 }
+      );
+    }
+
     const { data: assignments, error: assignError } = await supabase
       .from("assignments")
       .select(`
@@ -67,6 +88,8 @@ export async function GET() {
         notes
       `)
       .eq("employee_id", employee.id)
+      .in("order_id", todaysOrderIds)
+      .neq("status", "cancelled")
       .order("created_at", { ascending: true });
 
     if (assignError) {
@@ -140,28 +163,33 @@ export async function GET() {
       quoteMap.set(q.id, q);
     }
 
-    // Paso 4: Enriquecer con datos del cliente (nombre/email desde auth.users)
+    // Paso 4: Enriquecer con datos del cliente (nombre/email desde profiles) — batch query, no N+1
+    const clientUserIds: string[] = [];
+    const seen = new Set<string>();
+    for (const q of quotes || []) {
+      if (q.user_id && !seen.has(q.user_id)) {
+        seen.add(q.user_id);
+        clientUserIds.push(q.user_id);
+      }
+    }
+    const profileMap = new Map();
+    if (clientUserIds.length > 0) {
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, full_name, phone")
+        .in("id", clientUserIds);
+      for (const p of profilesData || []) {
+        profileMap.set(p.id, p);
+      }
+    }
+
     const enriched = [];
-    for (const a of assignments) {
+    for (const a of assignments || []) {
       const order = orderMap.get(a.order_id);
-      if (!order) continue; // Skip assignments without matching order (shouldn't happen)
+      if (!order) continue;
 
       const quote = order.quote_id ? quoteMap.get(order.quote_id) : null;
-      const clientUserId = quote?.user_id;
-
-      let clientName = "";
-      let clientPhone = "";
-      if (clientUserId) {
-        const { data: userData } = await supabase
-          .from("profiles")
-          .select("full_name, phone")
-          .eq("id", clientUserId)
-          .single();
-        if (userData) {
-          clientName = (userData.full_name as string) || "";
-          clientPhone = (userData.phone as string) || "";
-        }
-      }
+      const profile = quote?.user_id ? profileMap.get(quote.user_id) : null;
 
       enriched.push({
         assignmentId: a.id,
@@ -182,8 +210,8 @@ export async function GET() {
         petsType: quote?.pets_type,
         residents: quote?.residents,
         total: quote?.total,
-        clientName,
-        clientPhone,
+        clientName: profile?.full_name || "",
+        clientPhone: profile?.phone || "",
       });
     }
 

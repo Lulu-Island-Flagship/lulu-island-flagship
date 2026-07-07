@@ -120,7 +120,7 @@ export function ChecklistCierre({ orderId, serviceSubtype }: ChecklistCierreProp
 
     // Save to server
     try {
-      await fetch("/api/empleado/checklist", {
+      const res = await fetch("/api/empleado/checklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -132,8 +132,44 @@ export function ChecklistCierre({ orderId, serviceSubtype }: ChecklistCierreProp
           isCompleted: newCompleted,
         }),
       });
+      if (!res.ok) {
+        throw new Error(`Server returned ${res.status}`);
+      }
     } catch (e) {
       console.error("Checklist save error:", e);
+      // Rollback: revert to original state
+      setZones((prev) =>
+        prev.map((z) => {
+          if (z.zone !== zone.zone) return z;
+          const newItems = z.items.map((i) =>
+            i.itemId === itemId ? { ...i, isCompleted: !newCompleted } : i
+          );
+          const completedItems = newItems.filter((i) => i.isCompleted).length;
+          const requiredCompleted = newItems.filter((i) => i.required && i.isCompleted).length;
+          return {
+            ...z,
+            completedItems,
+            requiredCompleted,
+            items: newItems,
+          };
+        })
+      );
+      // Recalculate overall progress after rollback
+      setZones((prev) => {
+        const totalItems = prev.reduce((sum, z) => sum + z.totalItems, 0);
+        const completedItems = prev.reduce((sum, z) => sum + z.completedItems, 0);
+        const requiredItems = prev.reduce((sum, z) => sum + z.requiredItems, 0);
+        const requiredCompleted = prev.reduce((sum, z) => sum + z.requiredCompleted, 0);
+        setOverallProgress({
+          totalItems,
+          completedItems,
+          requiredItems,
+          requiredCompleted,
+          percentComplete: totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0,
+          percentRequired: requiredItems > 0 ? Math.round((requiredCompleted / requiredItems) * 100) : 100,
+        });
+        return prev;
+      });
     }
   };
 
