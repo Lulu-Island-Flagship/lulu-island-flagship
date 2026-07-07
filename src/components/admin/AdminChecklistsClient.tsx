@@ -75,6 +75,7 @@ export default function AdminChecklistsClient() {
   const [saving, setSaving] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const [openZoneMenu, setOpenZoneMenu] = useState<string | null>(null);
+  const [isAddingToExisting, setIsAddingToExisting] = useState(false);
 
   // Form state
   const [formServiceSubtype, setFormServiceSubtype] = useState("");
@@ -132,6 +133,7 @@ export default function AdminChecklistsClient() {
   const openNew = (subtype: string = "") => {
     setEditingZone(null);
     setFormServiceSubtype(subtype);
+    setIsAddingToExisting(!!subtype); // true when adding to existing service type
     setFormZone("");
     setFormZoneLabel("");
     setFormZoneColor("red");
@@ -588,20 +590,28 @@ export default function AdminChecklistsClient() {
                 </button>
               </div>
 
-              {/* Service Subtype */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Service Type
-                </label>
-                <input
-                  type="text"
-                  value={formServiceSubtype}
-                  onChange={(e) => setFormServiceSubtype(e.target.value)}
-                  placeholder="e.g. first_time, regular, airbnb"
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
-                  disabled={!!editingZone}
-                />
-              </div>
+              {/* Service Subtype — hidden when adding to existing service type */}
+              {isAddingToExisting ? (
+                <div className="bg-gray-50 rounded-lg p-3 text-sm">
+                  <span className="text-gray-500">Adding to: </span>
+                  <span className="font-medium text-brand-ink capitalize">
+                    {formServiceSubtype.replace(/_/g, " ")}
+                  </span>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Service Type
+                  </label>
+                  <input
+                    type="text"
+                    value={formServiceSubtype}
+                    onChange={(e) => setFormServiceSubtype(e.target.value)}
+                    placeholder="e.g. first_time, regular, airbnb"
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
+                  />
+                </div>
+              )}
 
               {/* Zone code + label */}
               <div className="grid grid-cols-2 gap-3">
