@@ -564,7 +564,7 @@ export default function AdminChecklistsClient() {
 
       {/* Confirmation Dialog */}
       {confirmDialog?.open && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-xl shadow-elevation-2 w-full max-w-sm p-6 space-y-4">
             <h3 className="text-lg font-bold text-brand-ink">{confirmDialog.title}</h3>
             <p className="text-sm text-gray-600">{confirmDialog.message}</p>
