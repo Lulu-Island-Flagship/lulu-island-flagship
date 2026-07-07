@@ -105,6 +105,7 @@ export default function AdminChecklistsClient() {
 
   async function loadChecklists() {
     setLoading(true);
+    setError(""); // Limpiar error previo
     try {
       const res = await fetch("/api/admin/checklists", { credentials: "include" });
       if (!res.ok) {
@@ -294,6 +295,7 @@ export default function AdminChecklistsClient() {
   };
 
   const handleDeleteZone = async (zoneId: string, zoneLabel: string) => {
+    setError(""); // Limpiar error previo
     try {
       const { data: hasHistory, error: rpcError } = await supabase.rpc(
         "check_zone_history",
@@ -734,6 +736,7 @@ export default function AdminChecklistsClient() {
                 </label>
                 <input
                   type="number"
+                  min="0"
                   value={formSortOrder}
                   onChange={(e) => setFormSortOrder(Number(e.target.value))}
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"

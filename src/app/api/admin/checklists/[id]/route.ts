@@ -22,9 +22,15 @@ export async function PUT(
 
     // Para items: preservar IDs existentes, generar nuevos solo para items nuevos
     // Items "eliminados" se marcan con active: false, no se quitan del array
+    // zoneCode se obtiene del body (enviado por frontend) o de la base de datos existente
+    const { data: existingZone } = await supabase
+      .from("sop_checklists")
+      .select("zone")
+      .eq("id", id)
+      .single();
+    const zoneCode = body.zone || existingZone?.zone || "item";
+
     const processedItems = items?.map((item: { id?: string; label: string; required: boolean; active?: boolean }) => {
-      // Fetch the zone code from the existing record if not provided in body
-      const zoneCode = body.zone || id.split("_")[0] || "item";
       return {
         id: item.id || `${zoneCode}_${crypto.randomUUID().split('-')[0]}`,
         label: item.label,

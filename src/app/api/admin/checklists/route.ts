@@ -49,6 +49,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    // Validar que items sea un array no vacío de objetos válidos
+    if (!Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: "Items must be a non-empty array" }, { status: 400 });
+    }
+    for (const item of items) {
+      if (typeof item.label !== "string" || item.label.trim().length === 0) {
+        return NextResponse.json({ error: "Each item must have a non-empty label" }, { status: 400 });
+      }
+    }
+
     // Generar IDs nuevos para todos los items (nunca reutilizar IDs existentes)
     const itemsWithIds = items.map((item: { label: string; required: boolean; id?: string }) => ({
       id: item.id || `${zone}_${crypto.randomUUID().split("-")[0]}`,
