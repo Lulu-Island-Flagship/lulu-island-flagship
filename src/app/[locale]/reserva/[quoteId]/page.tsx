@@ -71,6 +71,13 @@ export default function ReservaPage() {
         return;
       }
 
+      // Check quote is still pending (not already reserved)
+      if (data.status !== "pending") {
+        setError(`This quote has already been ${data.status}. Please generate a new quote.`);
+        setLoading(false);
+        return;
+      }
+
       // Map snake_case fields from Supabase to camelCase QuoteData
       const mapped = mapQuoteFromSupabase(data);
 

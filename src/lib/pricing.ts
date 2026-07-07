@@ -180,7 +180,11 @@ export function calculatePrice(
   dayOfWeek?: number, // 0=Dom, 6=Sab
   isPreferredDay?: boolean
 ): PriceBreakdown {
-  const basePrice = getBasePrice(serviceType, squareFeet);
+  // Validar squareFeet para evitar precios absurdos
+  const MAX_SQUARE_FEET = 10000;
+  const validatedSquareFeet = Math.min(Math.max(300, squareFeet), MAX_SQUARE_FEET);
+
+  const basePrice = getBasePrice(serviceType, validatedSquareFeet);
   const organicMultiplier = getOrganicMultiplier(petsCount, petsType, residents);
   const recencyMultiplier = getRecencyMultiplier(daysSinceCleaning);
   const zoneSurcharge = getZoneSurcharge(zoneName);

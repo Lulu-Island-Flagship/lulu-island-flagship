@@ -70,7 +70,7 @@ export default function EvaluarPage() {
         return;
       }
 
-      // Verificar que no haya review ya
+      // Verificar que no haya review ya (por review_token_used_at o por client_reviews)
       const { data: existing } = await supabase
         .from("client_reviews")
         .select("id")
@@ -79,6 +79,21 @@ export default function EvaluarPage() {
 
       if (existing) {
         setSubmitted(true);
+        setLoading(false);
+        return;
+      }
+
+      // Verificar que el token no haya sido usado ya
+      const { data: orderWithToken } = await supabase
+        .from("orders")
+        .select("review_token_used_at")
+        .eq("id", order.id)
+        .single();
+
+      if (orderWithToken?.review_token_used_at) {
+        setSubmitted(true);
+        setLoading(false);
+        return;
       }
 
       setOrderInfo({

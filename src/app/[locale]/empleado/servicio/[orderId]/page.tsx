@@ -73,16 +73,16 @@ export default function ServicioPage() {
   async function loadService() {
     setLoading(true);
     try {
-      const res = await fetch("/api/empleado/servicios", { credentials: "include" });
+      // Usar endpoint directo para evitar cargar todos los servicios
+      const res = await fetch(`/api/empleado/servicio/${orderId}`, { credentials: "include" });
       if (!res.ok) {
         if (res.status === 401) router.push(empleadoPath);
         setLoading(false);
         return;
       }
       const data = await res.json();
-      const found = data.services?.find((s: EmployeeService) => s.orderId === orderId);
-      if (found) {
-        setService(found);
+      if (data.service) {
+        setService(data.service);
         await loadLogs();
       }
     } catch (e) {

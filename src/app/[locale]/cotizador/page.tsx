@@ -281,8 +281,10 @@ export default function CotizadorPage() {
 
   const handleBack = () => {
     if (stepIndex === 0) {
-      // En el primer paso, volver a la landing page
-      router.push("/");
+      // En el primer paso, volver a la landing page con locale preservado
+      const pathLocale = window.location.pathname.split("/")[1];
+      const locale = ["en", "zh", "fr"].includes(pathLocale) ? pathLocale : "en";
+      router.push(`/${locale}`);
       return;
     }
     setStepIndex((prev) => prev - 1);
