@@ -129,13 +129,16 @@ export default function EmpleadoPage() {
 
   async function checkJornadaStatus() {
     try {
-      const vancouverDate = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver" });
+      // Timestamp en Vancouver con offset explícito para comparar correctamente con TIMESTAMPTZ
+      const vancouverDate = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", timeZoneName: "short" });
       const today = vancouverDate.split(",")[0];
+      const isPDT = vancouverDate.includes("PDT");
+      const offset = isPDT ? "-07:00" : "-08:00";
       const { data: logs } = await supabase
         .from("service_logs")
         .select("event_type")
         .eq("event_type", "jornada_start")
-        .gte("timestamp", `${today}T00:00:00`)
+        .gte("timestamp", `${today}T00:00:00${offset}`)
         .order("timestamp", { ascending: false })
         .limit(1);
 

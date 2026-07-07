@@ -33,7 +33,11 @@ export async function requireSupervisor() {
   }
 
   const { data: isSupervisor, error } = await supabase.rpc("is_supervisor", { user_uuid: user.id });
-  if (error || !isSupervisor) {
+  if (error) {
+    console.error("is_supervisor RPC error:", error);
+    return { error: `Auth check failed: ${error.message}`, status: 500, supabase: null, user: null };
+  }
+  if (!isSupervisor) {
     return { error: "Forbidden — supervisor only", status: 403, supabase: null, user: null };
   }
 

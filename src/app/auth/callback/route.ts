@@ -29,7 +29,15 @@ export async function GET(request: NextRequest) {
         },
       }
     );
-    await supabase.auth.exchangeCodeForSession(code);
+    try {
+      await supabase.auth.exchangeCodeForSession(code);
+    } catch (err) {
+      console.error("Auth callback exchange error:", err);
+      // Redirect to login with error parameter
+      const errorUrl = new URL(next, request.url);
+      errorUrl.searchParams.set("auth_error", "session_exchange_failed");
+      return NextResponse.redirect(errorUrl);
+    }
   }
 
   return NextResponse.redirect(new URL(next, request.url));
