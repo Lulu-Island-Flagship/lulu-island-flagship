@@ -87,17 +87,19 @@ export async function GET(request: NextRequest) {
 
     // Combinar plantilla + respuestas
     const zones = (checklists || []).map((cl) => {
-      const items = (cl.items || []).map((item: { id: string; label: string; required: boolean }) => {
-        const resp = responseMap.get(item.id);
-        return {
-          itemId: item.id,
-          label: item.label,
-          required: item.required,
-          isCompleted: resp?.is_completed || false,
-          photoUrl: resp?.photo_url || undefined,
-          notes: resp?.notes || undefined,
-        };
-      });
+      const items = (cl.items || [])
+        .filter((item: { active?: boolean }) => item.active !== false)
+        .map((item: { id: string; label: string; required: boolean }) => {
+          const resp = responseMap.get(item.id);
+          return {
+            itemId: item.id,
+            label: item.label,
+            required: item.required,
+            isCompleted: resp?.is_completed || false,
+            photoUrl: resp?.photo_url || undefined,
+            notes: resp?.notes || undefined,
+          };
+        });
 
       const totalItems = items.length;
       const completedItems = items.filter((i: { isCompleted: boolean }) => i.isCompleted).length;
