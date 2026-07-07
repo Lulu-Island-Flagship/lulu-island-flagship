@@ -13,7 +13,17 @@ export async function GET() {
   }
 
   try {
-    const today = new Date().toISOString().split("T")[0];
+    // Calcular "hoy" en la zona horaria del negocio (America/Vancouver)
+    const vancouverDate = new Date().toLocaleString("en-CA", {
+      timeZone: "America/Vancouver",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const today = vancouverDate; // formato YYYY-MM-DD
+
+    // También devolver la fecha para diagnóstico
+    const utcDate = new Date().toISOString().split("T")[0];
 
     // Obtener órdenes de hoy con quotes y assignments
     const { data: orders, error: ordersError } = await supabase
@@ -140,7 +150,7 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json({ services: enriched }, { status: 200 });
+    return NextResponse.json({ services: enriched, today, utcDate }, { status: 200 });
   } catch (err: Error | unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("Admin services error:", message);
