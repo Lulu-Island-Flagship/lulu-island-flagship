@@ -36,8 +36,8 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
             <Percent className="w-4 h-4" />
             {quote.organicAdjustment > 0 ? "Heavy organic load" : "Light organic load"}
           </span>
-          <span className="font-medium text-state-warning">
-            {quote.organicAdjustment > 0 ? "+" : ""}${quote.organicAdjustment.toFixed(2)}
+          <span className={`font-medium ${quote.organicAdjustment > 0 ? "text-state-warning" : "text-state-success"}`}>
+            {quote.organicAdjustment > 0 ? "+" : "-"}${Math.abs(quote.organicAdjustment).toFixed(2)}
           </span>
         </div>
       )}
@@ -49,8 +49,8 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
             <Percent className="w-4 h-4" />
             {quote.recencyAdjustment > 0 ? "Long time since last clean" : "Recent cleaning"}
           </span>
-          <span className="font-medium text-state-warning">
-            {quote.recencyAdjustment > 0 ? "+" : ""}${quote.recencyAdjustment.toFixed(2)}
+          <span className={`font-medium ${quote.recencyAdjustment > 0 ? "text-state-warning" : "text-state-success"}`}>
+            {quote.recencyAdjustment > 0 ? "+" : "-"}${Math.abs(quote.recencyAdjustment).toFixed(2)}
           </span>
         </div>
       )}

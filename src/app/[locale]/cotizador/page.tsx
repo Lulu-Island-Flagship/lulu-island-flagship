@@ -160,13 +160,13 @@ export default function CotizadorPage() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // Price freeze: 10 min from last interaction
+  // Price freeze: solo se calcula al llegar al paso summary
   useEffect(() => {
-    if (stepIndex < STEPS.length - 1) {
+    if (step === "summary") {
       const freeze = new Date(Date.now() + 10 * 60 * 1000);
       setPriceFrozenUntil(freeze);
     }
-  }, [stepIndex, input]);
+  }, [step]);
 
   // Persistir estado en localStorage — SOLO después de hidratación para no
   // sobreescribir el estado guardado durante el montaje inicial post-OAuth
@@ -260,7 +260,12 @@ export default function CotizadorPage() {
       case "recency":
         return input.daysSinceCleaning !== undefined;
       case "address":
-        return !!input.address && !!input.zone && !!input.postalCode;
+        return (
+          !!input.address &&
+          !!input.zone &&
+          !!input.postalCode &&
+          /^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/i.test(input.postalCode)
+        );
       case "summary":
         return consents.tc && consents.pipa;
       default:
@@ -340,11 +345,17 @@ export default function CotizadorPage() {
 
   const handleAuthSuccess = async () => {
     setShowAuthModal(false);
-    const { data } = await supabase.auth.getUser();
-    if (data.user) {
-      setUser({ id: data.user.id });
-      // Pass the user ID directly to avoid stale closure
-      handleSubmit(data.user.id);
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      if (data.user) {
+        setUser({ id: data.user.id });
+        // Pass the user ID directly to avoid stale closure
+        handleSubmit(data.user.id);
+      }
+    } catch (err: Error | unknown) {
+      setSubmitError(err instanceof Error ? err.message : "Authentication failed. Please try again.");
+      setShowAuthModal(true);
     }
   };
 

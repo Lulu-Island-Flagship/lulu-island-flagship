@@ -5,19 +5,6 @@ import { NextRequest, NextResponse } from "next/server";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
 
-// Rate limiting: máximo 3 quotes por IP cada 24 horas
-// Nota: en Vercel (serverless) esto se reinicia en cada deploy/cold start.
-// Para producción real, usar Redis o una tabla en Supabase.
-const RATE_LIMIT_MAX = 3;
-const RATE_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 horas
-
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-const rateLimitMap = new Map<string, RateLimitEntry>();
-
 function getClientIp(request: NextRequest): string {
   // Vercel headers primero, luego fallback
   const forwarded = request.headers.get("x-forwarded-for");
@@ -25,24 +12,6 @@ function getClientIp(request: NextRequest): string {
   const realIp = request.headers.get("x-real-ip");
   if (realIp) return realIp;
   return "unknown";
-}
-
-function checkRateLimit(ip: string): { allowed: boolean; remaining: number; resetAt: number } {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-
-  if (!entry || now > entry.resetAt) {
-    // Nueva ventana
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return { allowed: true, remaining: RATE_LIMIT_MAX - 1, resetAt: now + RATE_LIMIT_WINDOW_MS };
-  }
-
-  if (entry.count >= RATE_LIMIT_MAX) {
-    return { allowed: false, remaining: 0, resetAt: entry.resetAt };
-  }
-
-  entry.count++;
-  return { allowed: true, remaining: RATE_LIMIT_MAX - entry.count, resetAt: entry.resetAt };
 }
 
 function getSupabaseClient() {
@@ -68,20 +37,29 @@ function getSupabaseClient() {
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limiting por IP
+    const supabase = getSupabaseClient();
+
+    // Rate limiting por IP usando tabla en Supabase (funciona en Vercel serverless)
     const clientIp = getClientIp(request);
-    const rateLimit = checkRateLimit(clientIp);
-    if (!rateLimit.allowed) {
+    const { data: rateLimitData, error: rateLimitError } = await supabase.rpc(
+      "check_rate_limit",
+      { p_ip_address: clientIp, p_max_requests: 3 }
+    );
+
+    if (rateLimitError) {
+      console.error("Rate limit check error:", rateLimitError);
+      // Si falla el rate limit, permitir pero loggear (fail open para no bloquear usuarios legítimos)
+    } else if (rateLimitData && !rateLimitData[0]?.allowed) {
+      const resetAt = rateLimitData[0]?.reset_at;
       return NextResponse.json(
         { error: "Rate limit exceeded. Maximum 3 quotes per 24 hours." },
-        { status: 429, headers: { "X-RateLimit-Reset": String(rateLimit.resetAt) } }
+        { status: 429, headers: { "X-RateLimit-Reset": resetAt ? String(new Date(resetAt).getTime()) : "" } }
       );
     }
 
     const body = await request.json();
     const { serviceType, bedrooms, bathrooms, squareFeet, petsCount, petsType, residents, daysSinceCleaning, address, zone, postalCode, basePrice, organicMultiplier, organicAdjustment, recencyMultiplier, recencyAdjustment, zoneSurcharge, logisticsSurcharge, subtotal, gst, pst, total, holdAmount, priceFrozenUntil, status, consentTc, consentPipa, consentMarketing, clientScore } = body;
 
-    const supabase = getSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

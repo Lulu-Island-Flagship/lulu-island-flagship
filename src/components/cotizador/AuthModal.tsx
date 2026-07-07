@@ -22,10 +22,11 @@ export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
     setLoading(true);
     setError("");
     try {
+      const currentPath = window.location.pathname;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(currentPath)}`,
         },
       });
       if (error) throw error;
@@ -40,10 +41,11 @@ export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
     setLoading(true);
     setError("");
     try {
+      const currentPath = window.location.pathname;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "apple",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(currentPath)}`,
         },
       });
       if (error) throw error;
