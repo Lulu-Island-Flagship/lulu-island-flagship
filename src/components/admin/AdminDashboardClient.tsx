@@ -9,6 +9,8 @@ import {
   ChevronRight,
   AlertTriangle,
   MessageSquareWarning,
+  ShieldCheck,
+  ClipboardCheck,
 } from "lucide-react";
 
 export default function AdminDashboardClient() {
@@ -46,6 +48,20 @@ export default function AdminDashboardClient() {
       icon: ListChecks,
       href: `/${safeLocale}/admin/checklists`,
       color: "bg-green-50 text-green-600",
+    },
+    {
+      title: "QC Wall",
+      description: "Approve or reject completed services with evidence",
+      icon: ShieldCheck,
+      href: `/${safeLocale}/admin/qc`,
+      color: "bg-indigo-50 text-indigo-600",
+    },
+    {
+      title: "Field Audits",
+      description: "Register field evaluations and view peer vote aggregates",
+      icon: ClipboardCheck,
+      href: `/${safeLocale}/admin/audits`,
+      color: "bg-cyan-50 text-cyan-600",
     },
     {
       title: "Tickets",

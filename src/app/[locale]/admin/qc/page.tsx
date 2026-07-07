@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
-  ChevronLeft,
-  Shield,
   Loader2,
+  AlertCircle,
   CheckCircle2,
+  XCircle,
   ThumbsUp,
   ThumbsDown,
+  User,
+  Calendar,
 } from "lucide-react";
 
 interface QCReview {
@@ -17,120 +17,102 @@ interface QCReview {
   order_id: string;
   employee_id: string;
   status: "pending" | "approved" | "rejected" | "auto";
-  note: string | null;
-  reviewed_at: string | null;
+  note: string;
+  reviewed_at: string;
   created_at: string;
   orders: { service_date: string; service_time: string } | null;
   employees: { name: string; trust_level: string } | null;
 }
 
-export default function AdminQCPage() {
-  const router = useRouter();
-  const [safeLocale, setSafeLocale] = useState("en");
-  const [statusFilter, setStatusFilter] = useState<string>("pending");
+export default function QCPage() {
   const [reviews, setReviews] = useState<QCReview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [statusFilter, setStatusFilter] = useState("pending");
   const [selectedReview, setSelectedReview] = useState<QCReview | null>(null);
   const [reviewNote, setReviewNote] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reviewStatus, setReviewStatus] = useState<"approved" | "rejected">("approved");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    // Extract locale from pathname
-    const pathLocale = window.location.pathname.split("/")[1];
-    if (["en", "zh", "fr"].includes(pathLocale)) {
-      setSafeLocale(pathLocale);
-    }
     loadReviews();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
   async function loadReviews() {
     setLoading(true);
+    setError("");
     try {
       const res = await fetch(`/api/admin/qc?status=${statusFilter}`, { credentials: "include" });
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) {
-          router.push("/en/admin");
-        }
+        const err = await res.json();
+        setError(err.error || "Failed to load QC reviews");
+        setLoading(false);
         return;
       }
       const data = await res.json();
       setReviews(data.reviews || []);
-    } catch (e) {
-      console.error("Load QC error:", e);
+    } catch {
+      setError("Network error");
     } finally {
       setLoading(false);
     }
   }
 
-  async function submitReview(status: "approved" | "rejected") {
-    if (!selectedReview) return;
-    setIsSubmitting(true);
+  async function submitReview(orderId: string) {
+    if (!reviewNote.trim()) {
+      setError("Note is required");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
     try {
-      const res = await fetch(`/api/admin/qc/${selectedReview.order_id}/review`, {
+      const res = await fetch(`/api/admin/qc/${orderId}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ status, note: reviewNote }),
+        body: JSON.stringify({ status: reviewStatus, note: reviewNote.trim() }),
       });
-
-      if (res.ok) {
-        setSelectedReview(null);
-        setReviewNote("");
-        await loadReviews();
+      if (!res.ok) {
+        const err = await res.json();
+        setError(err.error || "Failed to submit review");
+        setSubmitting(false);
+        return;
       }
-    } catch (e) {
-      console.error("Submit review error:", e);
+      setSelectedReview(null);
+      setReviewNote("");
+      loadReviews();
+    } catch {
+      setError("Network error");
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case "pending":
+        return "bg-yellow-100 text-yellow-700";
       case "approved":
-        return <span className="bg-state-success/10 text-state-success text-xs px-2 py-1 rounded-full font-medium">Approved</span>;
-      case "rejected":
-        return <span className="bg-state-danger/10 text-state-danger text-xs px-2 py-1 rounded-full font-medium">Rejected</span>;
       case "auto":
-        return <span className="bg-brand-navy/10 text-brand-navy text-xs px-2 py-1 rounded-full font-medium">Auto-Approved</span>;
+        return "bg-green-100 text-green-700";
+      case "rejected":
+        return "bg-red-100 text-red-700";
       default:
-        return <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded-full font-medium">Pending</span>;
+        return "bg-gray-100 text-gray-700";
     }
   };
 
-  const getTrustBadge = (level: string) => {
-    switch (level) {
-      case "elite":
-        return <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">Elite</span>;
-      case "standard":
-        return <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">Standard</span>;
-      case "observation":
-        return <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">Observation</span>;
-      case "suspended":
-        return <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full">Suspended</span>;
-      default:
-        return null;
-    }
+  const formatStatus = (status: string) => {
+    if (status === "auto") return "Auto-Approved";
+    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
   return (
-    <main className="min-h-screen bg-brand-ice">
-      {/* Header */}
-      <header className="bg-brand-navy text-white">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-3">
-          <button onClick={() => router.push("/en/admin")} className="text-white/70 hover:text-white">
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-brand-gold" />
-            <h1 className="font-semibold">QC Review Wall</h1>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        {/* Filter */}
-        <div className="flex gap-2 mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-brand-ink">QC Wall</h1>
+        <div className="flex gap-2">
           {["pending", "approved", "rejected", "auto"].map((s) => (
             <button
               key={s}
@@ -138,132 +120,155 @@ export default function AdminQCPage() {
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 statusFilter === s
                   ? "bg-brand-navy text-white"
-                  : "bg-white text-gray-600 hover:text-brand-navy"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
+              {s === "auto" ? "Auto" : s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
           ))}
         </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
-          </div>
-        ) : (
-          <>
-            {selectedReview ? (
-              <div className="bg-white rounded-xl shadow-elevation-1 p-6 space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-bold text-brand-ink">QC Review</h2>
-                  <button
-                    onClick={() => { setSelectedReview(null); setReviewNote(""); }}
-                    className="text-sm text-gray-500 hover:text-brand-ink"
-                  >
-                    Back
-                  </button>
-                </div>
-
-                <div className="bg-gray-50 rounded-lg p-4 text-sm space-y-1">
-                  <p><span className="font-medium">Order:</span> {selectedReview.order_id.slice(0, 8)}</p>
-                  <p><span className="font-medium">Employee:</span> {selectedReview.employees?.name || "Unknown"}</p>
-                  <p><span className="font-medium">Trust Level:</span> {getTrustBadge(selectedReview.employees?.trust_level || "")}</p>
-                  <p><span className="font-medium">Date:</span> {selectedReview.orders?.service_date} at {selectedReview.orders?.service_time}</p>
-                  <p><span className="font-medium">Status:</span> {getStatusBadge(selectedReview.status)}</p>
-                  {selectedReview.note && (
-                    <p><span className="font-medium">Note:</span> {selectedReview.note}</p>
-                  )}
-                </div>
-
-                {selectedReview.status === "pending" && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-brand-ink mb-2">Review Note (required)</label>
-                      <textarea
-                        value={reviewNote}
-                        onChange={(e) => setReviewNote(e.target.value)}
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
-                        rows={3}
-                        placeholder="Why are you approving or rejecting this service?"
-                      />
-                    </div>
-
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => submitReview("approved")}
-                        disabled={isSubmitting || !reviewNote.trim()}
-                        className="flex-1 bg-state-success text-white py-3 rounded-xl font-semibold hover:bg-state-success/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                      >
-                        {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <ThumbsUp className="w-5 h-5" />}
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => submitReview("rejected")}
-                        disabled={isSubmitting || !reviewNote.trim()}
-                        className="flex-1 bg-state-danger text-white py-3 rounded-xl font-semibold hover:bg-state-danger/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                      >
-                        {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <ThumbsDown className="w-5 h-5" />}
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {selectedReview.status !== "pending" && (
-                  <div className="bg-gray-50 rounded-lg p-4 text-center">
-                    <CheckCircle2 className="w-8 h-8 text-state-success mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">This review has been {selectedReview.status}.</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <>
-                {reviews.length === 0 ? (
-                  <div className="bg-white rounded-xl shadow-elevation-1 p-8 text-center">
-                    <CheckCircle2 className="w-10 h-10 text-state-success mx-auto mb-3" />
-                    <p className="text-gray-500">No QC reviews in this status.</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {reviews.map((review) => (
-                      <div
-                        key={review.id}
-                        className="bg-white rounded-xl shadow-elevation-1 p-4 hover:shadow-elevation-2 transition-shadow cursor-pointer"
-                        onClick={() => setSelectedReview(review)}
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <p className="font-medium text-brand-ink text-sm">
-                              {review.employees?.name || "Unknown"}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {review.orders?.service_date}
-                            </p>
-                          </div>
-                          {getStatusBadge(review.status)}
-                        </div>
-
-                        <div className="flex items-center gap-2 mb-2">
-                          {getTrustBadge(review.employees?.trust_level || "")}
-                          {review.status === "auto" && (
-                            <span className="text-xs text-gray-400">Elite auto-approval</span>
-                          )}
-                        </div>
-
-                        <p className="text-xs text-gray-500">
-                          <Link href={`/${safeLocale}/admin/servicios/${review.order_id}`} className="text-brand-navy hover:underline">
-                            Order: {review.order_id.slice(0, 8)}...
-                          </Link>
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </>
-        )}
       </div>
-    </main>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        </div>
+      ) : error && !selectedReview ? (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+          <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
+          <p className="text-red-700 font-medium">{error}</p>
+        </div>
+      ) : reviews.length === 0 ? (
+        <div className="bg-white rounded-xl border p-8 text-center">
+          <CheckCircle2 className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+          <p className="text-gray-500">No QC reviews with status &quot;{statusFilter}&quot;.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {reviews.map((review) => (
+            <div
+              key={review.id}
+              className="bg-white rounded-xl border p-4 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getStatusBadge(review.status)}`}>
+                  {formatStatus(review.status)}
+                </span>
+                <span className="text-xs text-gray-400">
+                  {review.orders?.service_date || "—"}
+                </span>
+              </div>
+
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center gap-2 text-sm text-brand-ink">
+                  <User className="w-4 h-4 text-gray-400" />
+                  <span className="font-medium">{review.employees?.name || "Unknown"}</span>
+                  <span className="text-xs text-gray-400 capitalize">
+                    ({review.employees?.trust_level || "standard"})
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Calendar className="w-4 h-4 text-gray-400" />
+                  <span>{review.orders?.service_time || "—"}</span>
+                </div>
+              </div>
+
+              {review.note && (
+                <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-2 mb-3">
+                  {review.note}
+                </p>
+              )}
+
+              {review.status === "pending" && (
+                <button
+                  onClick={() => {
+                    setSelectedReview(review);
+                    setReviewNote("");
+                    setReviewStatus("approved");
+                    setError("");
+                  }}
+                  className="w-full bg-brand-navy text-white py-2 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors"
+                >
+                  Review
+                </button>
+              )}
+
+              {review.status !== "pending" && review.reviewed_at && (
+                <p className="text-xs text-gray-400 text-center">
+                  Reviewed {new Date(review.reviewed_at).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Review Modal */}
+      {selectedReview && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-brand-ink">QC Review</h2>
+              <button
+                onClick={() => setSelectedReview(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-sm">
+              <p><strong>Employee:</strong> {selectedReview.employees?.name}</p>
+              <p><strong>Date:</strong> {selectedReview.orders?.service_date} at {selectedReview.orders?.service_time}</p>
+              <p><strong>Trust Level:</strong> <span className="capitalize">{selectedReview.employees?.trust_level || "standard"}</span></p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setReviewStatus("approved")}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                  reviewStatus === "approved"
+                    ? "bg-green-100 text-green-700 border-2 border-green-300"
+                    : "bg-gray-100 text-gray-600 border-2 border-transparent"
+                }`}
+              >
+                <ThumbsUp className="w-4 h-4" />
+                Approve
+              </button>
+              <button
+                onClick={() => setReviewStatus("rejected")}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                  reviewStatus === "rejected"
+                    ? "bg-red-100 text-red-700 border-2 border-red-300"
+                    : "bg-gray-100 text-gray-600 border-2 border-transparent"
+                }`}
+              >
+                <ThumbsDown className="w-4 h-4" />
+                Reject
+              </button>
+            </div>
+
+            <textarea
+              value={reviewNote}
+              onChange={(e) => setReviewNote(e.target.value)}
+              placeholder="Review note (required)..."
+              className="w-full border rounded-lg p-3 text-sm min-h-[100px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
+            />
+
+            {error && (
+              <p className="text-sm text-red-600">{error}</p>
+            )}
+
+            <button
+              onClick={() => submitReview(selectedReview.order_id)}
+              disabled={submitting}
+              className="w-full bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
+            >
+              {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Submit Review"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

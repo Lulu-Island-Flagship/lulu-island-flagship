@@ -1,14 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import {
-  ChevronLeft,
-  Star,
-  User,
   Loader2,
-  Send,
+  AlertCircle,
+  Star,
   CheckCircle2,
+  Users,
 } from "lucide-react";
 
 interface Peer {
@@ -20,15 +18,15 @@ interface Peer {
 }
 
 export default function EmpleadoVotacionPage() {
-  const router = useRouter();
   const [peers, setPeers] = useState<Peer[]>([]);
   const [weekStart, setWeekStart] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [votingFor, setVotingFor] = useState<string | null>(null);
-  const [rating, setRating] = useState(4);
+  const [rating, setRating] = useState(3);
   const [note, setNote] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState("");
 
   useEffect(() => {
     loadPeers();
@@ -36,169 +34,204 @@ export default function EmpleadoVotacionPage() {
 
   async function loadPeers() {
     setLoading(true);
+    setError("");
     try {
       const res = await fetch("/api/empleado/votacion", { credentials: "include" });
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) {
-          router.push("/empleado");
-        }
+        const err = await res.json();
+        setError(err.error || "Failed to load peers");
+        setLoading(false);
         return;
       }
       const data = await res.json();
       setPeers(data.peers || []);
       setWeekStart(data.weekStart || "");
-    } catch (e) {
-      console.error("Load peers error:", e);
+    } catch {
+      setError("Network error");
     } finally {
       setLoading(false);
     }
   }
 
-  async function submitVote() {
-    if (!votingFor) return;
-    setIsSubmitting(true);
+  async function submitVote(targetEmployeeId: string) {
+    setSubmitting(true);
+    setError("");
+    setSuccess("");
     try {
       const res = await fetch("/api/empleado/votacion", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ targetEmployeeId: votingFor, rating, note }),
+        body: JSON.stringify({ targetEmployeeId, rating, note: note.trim() || null }),
       });
-
-      if (res.ok) {
-        setSubmitted(true);
-        setVotingFor(null);
-        setRating(4);
-        setNote("");
-        await loadPeers();
-        setTimeout(() => setSubmitted(false), 3000);
+      if (!res.ok) {
+        const err = await res.json();
+        setError(err.error || "Failed to submit vote");
+        setSubmitting(false);
+        return;
       }
-    } catch (e) {
-      console.error("Submit vote error:", e);
+      setSuccess("Vote submitted!");
+      setVotingFor(null);
+      setRating(3);
+      setNote("");
+      loadPeers();
+    } catch {
+      setError("Network error");
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   }
+
+  const votedCount = peers.filter((p) => p.alreadyVoted).length;
+  const totalPeers = peers.length;
 
   return (
     <main className="min-h-screen bg-brand-ice">
       {/* Header */}
       <header className="bg-brand-navy text-white">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
-          <button onClick={() => router.push("/empleado")} className="text-white/70 hover:text-white">
-            <ChevronLeft className="w-5 h-5" />
-          </button>
+        <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Star className="w-5 h-5 text-brand-gold" />
-            <h1 className="font-semibold">Peer Vote</h1>
+            <Users className="w-5 h-5 text-brand-gold" />
+            <span className="font-semibold text-sm">Peer Voting</span>
           </div>
+          <a
+            href="/empleado"
+            className="text-sm text-gray-300 hover:text-white transition-colors"
+          >
+            Back
+          </a>
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 py-6">
-        {submitted && (
-          <div className="mb-4 bg-state-success/10 text-state-success rounded-lg p-3 text-sm text-center flex items-center justify-center gap-2">
-            <CheckCircle2 className="w-4 h-4" />
-            Vote submitted successfully!
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+        {/* Progress */}
+        <div className="bg-white rounded-xl shadow-elevation-1 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-brand-ink">Progress</span>
+            <span className="text-sm text-gray-500">{votedCount}/{totalPeers} voted</span>
           </div>
-        )}
-
-        <p className="text-sm text-gray-500 mb-4">
-          Week of {weekStart ? new Date(weekStart).toLocaleDateString("en-CA", { month: "short", day: "numeric" }) : "..."}
-          <br />
-          Rate your peers. Votes are anonymous between peers — only admin sees the aggregate.
-        </p>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-brand-gold h-2 rounded-full transition-all"
+              style={{ width: totalPeers > 0 ? `${(votedCount / totalPeers) * 100}%` : "0%" }}
+            />
+          </div>
+          <p className="text-xs text-gray-400 mt-2">Week of {weekStart || "—"}</p>
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
           </div>
-        ) : (
-          <div className="space-y-3">
-            {peers.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-elevation-1 p-8 text-center">
-                <User className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">No peers to vote for.</p>
-              </div>
-            ) : (
-              peers.map((peer) => (
-                <div key={peer.id} className="bg-white rounded-xl shadow-elevation-1 p-4">
-                  {votingFor === peer.id ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-brand-ink">Rate {peer.name}</span>
-                        <button
-                          onClick={() => { setVotingFor(null); setRating(4); setNote(""); }}
-                          className="text-xs text-gray-500 hover:text-brand-ink"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-
-                      <div className="flex gap-2 justify-center">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <button
-                            key={s}
-                            onClick={() => setRating(s)}
-                            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
-                              rating >= s ? "bg-brand-gold text-white" : "bg-gray-100 text-gray-400"
-                            }`}
-                          >
-                            <Star className="w-5 h-5" />
-                          </button>
-                        ))}
-                      </div>
-
-                      <textarea
-                        value={note}
-                        onChange={(e) => setNote(e.target.value)}
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
-                        rows={2}
-                        placeholder="Optional note (admin only)..."
-                      />
-
-                      <button
-                        onClick={submitVote}
-                        disabled={isSubmitting}
-                        className="w-full bg-brand-navy text-white py-3 rounded-xl font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                      >
-                        {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-4 h-4" />}
-                        Submit Vote
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-brand-ink text-sm">{peer.name}</p>
-                        <p className="text-xs text-gray-400 capitalize">{peer.role}</p>
-                        {peer.alreadyVoted && peer.myRating && (
-                          <div className="flex items-center gap-1 text-brand-gold text-xs mt-1">
-                            <Star className="w-3 h-3 fill-current" />
-                            <span>You rated {peer.myRating}/5</span>
-                          </div>
-                        )}
-                      </div>
-                      {peer.alreadyVoted ? (
-                        <span className="text-xs text-state-success font-medium flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Voted
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => setVotingFor(peer.id)}
-                          className="bg-brand-navy text-white text-sm px-3 py-1.5 rounded-lg hover:bg-brand-navy-light transition-colors"
-                        >
-                          Vote
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+            <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
+            <p className="text-red-700 font-medium">{error}</p>
           </div>
+        ) : (
+          <>
+            {success && (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                <CheckCircle2 className="w-6 h-6 text-green-500 mx-auto mb-1" />
+                <p className="text-green-700 font-medium">{success}</p>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {peers.map((peer) => (
+                <div
+                  key={peer.id}
+                  className="bg-white rounded-xl shadow-elevation-1 p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-brand-ink">{peer.name}</p>
+                      <p className="text-xs text-gray-400 capitalize">{peer.role}</p>
+                    </div>
+                    {peer.alreadyVoted ? (
+                      <div className="flex items-center gap-1 text-green-600">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span className="text-sm font-medium">{peer.myRating}★</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setVotingFor(peer.id);
+                          setRating(3);
+                          setNote("");
+                          setError("");
+                        }}
+                        className="bg-brand-navy text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors"
+                      >
+                        Vote
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
+
+      {/* Vote Modal */}
+      {votingFor && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-brand-ink">
+                Rate {peers.find((p) => p.id === votingFor)?.name}
+              </h2>
+              <button
+                onClick={() => setVotingFor(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex justify-center gap-2">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setRating(n)}
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+                    rating >= n
+                      ? "bg-brand-gold text-white"
+                      : "bg-gray-100 text-gray-400"
+                  }`}
+                >
+                  <Star className="w-5 h-5 fill-current" />
+                </button>
+              ))}
+            </div>
+            <p className="text-center text-sm text-gray-500">
+              {rating === 1 && "Poor"}
+              {rating === 2 && "Fair"}
+              {rating === 3 && "Good"}
+              {rating === 4 && "Very Good"}
+              {rating === 5 && "Excellent"}
+            </p>
+
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Optional note (only visible to admin)..."
+              className="w-full border rounded-lg p-3 text-sm min-h-[80px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
+            />
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+
+            <button
+              onClick={() => submitVote(votingFor)}
+              disabled={submitting}
+              className="w-full bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
+            >
+              {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Submit Vote"}
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

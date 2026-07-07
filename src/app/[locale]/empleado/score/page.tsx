@@ -1,22 +1,20 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import {
-  ChevronLeft,
-  Shield,
   Loader2,
-  TrendingUp,
-  TrendingDown,
-  Minus,
+  AlertCircle,
+  Star,
+  Shield,
   Award,
   AlertTriangle,
-  CheckCircle2,
   XCircle,
-  Star,
+  Minus,
 } from "lucide-react";
 
 interface ScoreRecord {
+  id: string;
+  employee_id: string;
   week_start: string;
   total_score: number;
   telemetry_score: number;
@@ -27,8 +25,9 @@ interface ScoreRecord {
   disputes_count: number;
 }
 
-interface AuditRecord {
+interface Audit {
   id: string;
+  order_id: string;
   score: number;
   criteria: Record<string, number>;
   notes: string;
@@ -37,111 +36,144 @@ interface AuditRecord {
   appeal_reason: string | null;
 }
 
-interface EmployeeData {
-  id: string;
-  name: string;
-  trust_level: string;
+interface RecentService {
+  order_id: string;
+  status: string;
+  created_at: string;
+}
+
+interface EmployeeScoreData {
+  employee: {
+    id: string;
+    name: string;
+    trust_level: string;
+  };
+  scores: ScoreRecord[];
+  audits: Audit[];
+  recentServices: RecentService[];
 }
 
 export default function EmpleadoScorePage() {
-  const router = useRouter();
-  const [employee, setEmployee] = useState<EmployeeData | null>(null);
-  const [scores, setScores] = useState<ScoreRecord[]>([]);
-  const [audits, setAudits] = useState<AuditRecord[]>([]);
+  const [data, setData] = useState<EmployeeScoreData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [appealingAuditId, setAppealingAuditId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
+  const [selectedAudit, setSelectedAudit] = useState<Audit | null>(null);
   const [appealReason, setAppealReason] = useState("");
-  const [appealSubmitting, setAppealSubmitting] = useState(false);
+  const [submittingAppeal, setSubmittingAppeal] = useState(false);
+  const [appealError, setAppealError] = useState("");
+  const [appealSuccess, setAppealSuccess] = useState("");
 
   useEffect(() => {
-    loadData();
+    loadScore();
   }, []);
 
-  async function loadData() {
+  async function loadScore() {
     setLoading(true);
+    setError("");
     try {
       const res = await fetch("/api/empleado/score", { credentials: "include" });
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) {
-          router.push("/empleado");
-        }
+        const err = await res.json();
+        setError(err.error || "Failed to load score");
+        setLoading(false);
         return;
       }
-      const data = await res.json();
-      setEmployee(data.employee);
-      setScores(data.scores || []);
-      setAudits(data.audits || []);
-    } catch (e) {
-      console.error("Load score error:", e);
+      const d = await res.json();
+      setData(d);
+    } catch {
+      setError("Network error");
     } finally {
       setLoading(false);
     }
   }
 
   async function submitAppeal(auditId: string) {
-    if (!appealReason.trim()) return;
-    setAppealSubmitting(true);
+    if (!appealReason.trim()) {
+      setAppealError("Reason is required");
+      return;
+    }
+    setSubmittingAppeal(true);
+    setAppealError("");
+    setAppealSuccess("");
     try {
       const res = await fetch("/api/empleado/appeal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ auditId, reason: appealReason.trim() }),
       });
-      if (res.ok) {
-        setAppealingAuditId(null);
-        setAppealReason("");
-        loadData();
-      } else {
-        const err = await res.json().catch(() => ({}));
-        alert(err.error || "Failed to submit appeal");
+      if (!res.ok) {
+        const err = await res.json();
+        setAppealError(err.error || "Failed to submit appeal");
+        setSubmittingAppeal(false);
+        return;
       }
-    } catch (e) {
-      console.error("Appeal error:", e);
-      alert("Failed to submit appeal");
+      setAppealSuccess("Appeal submitted successfully");
+      setAppealReason("");
+      setSelectedAudit(null);
+      loadScore();
+    } catch {
+      setAppealError("Network error");
     } finally {
-      setAppealSubmitting(false);
+      setSubmittingAppeal(false);
     }
   }
 
-  const getTrustBadge = (level: string) => {
+  const getTrustLevelIcon = (level: string) => {
     switch (level) {
       case "elite":
-        return <span className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1"><Award className="w-3 h-3" />Elite</span>;
+        return <Award className="w-5 h-5 text-purple-600" />;
       case "standard":
-        return <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full font-medium">Standard</span>;
+        return <Shield className="w-5 h-5 text-blue-600" />;
       case "observation":
-        return <span className="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Observation</span>;
+        return <AlertTriangle className="w-5 h-5 text-yellow-600" />;
       case "suspended":
-        return <span className="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1"><XCircle className="w-3 h-3" />Suspended</span>;
+        return <XCircle className="w-5 h-5 text-red-600" />;
       default:
-        return null;
+        return <Minus className="w-5 h-5 text-gray-400" />;
     }
   };
 
-  const getScoreTrend = (current: number, previous: number) => {
-    if (current > previous) return <TrendingUp className="w-4 h-4 text-state-success" />;
-    if (current < previous) return <TrendingDown className="w-4 h-4 text-state-danger" />;
-    return <Minus className="w-4 h-4 text-gray-400" />;
+  const getTrustLevelColor = (level: string) => {
+    switch (level) {
+      case "elite":
+        return "text-purple-600 bg-purple-50";
+      case "standard":
+        return "text-blue-600 bg-blue-50";
+      case "observation":
+        return "text-yellow-600 bg-yellow-50";
+      case "suspended":
+        return "text-red-600 bg-red-50";
+      default:
+        return "text-gray-600 bg-gray-50";
+    }
   };
 
-  const latestScore = scores[0];
-  const previousScore = scores[1];
+  const getScoreColor = (score: number) => {
+    if (score >= 90) return "text-green-600";
+    if (score >= 70) return "text-blue-600";
+    if (score >= 50) return "text-yellow-600";
+    return "text-red-600";
+  };
+
+  const latestScore = data?.scores?.[0];
 
   return (
     <main className="min-h-screen bg-brand-ice">
       {/* Header */}
       <header className="bg-brand-navy text-white">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
-          <button onClick={() => router.push("/empleado")} className="text-white/70 hover:text-white">
-            <ChevronLeft className="w-5 h-5" />
-          </button>
+        <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-brand-gold" />
-            <div>
-              <h1 className="font-semibold">My Score</h1>
-              {employee && <p className="text-xs text-gray-400">{employee.name}</p>}
-            </div>
+            <Star className="w-5 h-5 text-brand-gold" />
+            <span className="font-semibold text-sm">My Score</span>
           </div>
+          <a
+            href="/empleado"
+            className="text-sm text-gray-300 hover:text-white transition-colors"
+          >
+            Back
+          </a>
         </div>
       </header>
 
@@ -150,189 +182,110 @@ export default function EmpleadoScorePage() {
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
           </div>
-        ) : (
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+            <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
+            <p className="text-red-700 font-medium">{error}</p>
+          </div>
+        ) : data ? (
           <>
-            {/* Current Score Card */}
-            {latestScore && (
-              <div className="bg-white rounded-xl shadow-elevation-1 p-6 text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  {getTrustBadge(latestScore.trust_level)}
-                </div>
-                <div className="text-5xl font-bold text-brand-ink mb-1">
-                  {latestScore.total_score}
-                </div>
-                <p className="text-sm text-gray-500 mb-3">out of 100</p>
-                {previousScore && (
-                  <div className="flex items-center justify-center gap-1 text-sm text-gray-500">
-                    {getScoreTrend(latestScore.total_score, previousScore.total_score)}
-                    <span>vs last week ({previousScore.total_score})</span>
-                  </div>
-                )}
+            {/* Score Card */}
+            <div className="bg-white rounded-xl shadow-elevation-1 p-6 text-center">
+              <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium capitalize ${getTrustLevelColor(data.employee.trust_level)}`}>
+                {getTrustLevelIcon(data.employee.trust_level)}
+                {data.employee.trust_level}
               </div>
-            )}
 
-            {/* Score Breakdown */}
-            {latestScore && (
-              <div className="bg-white rounded-xl shadow-elevation-1 p-5 space-y-4">
-                <h2 className="font-semibold text-brand-ink text-sm">Score Breakdown</h2>
-                <div className="space-y-3">
-                  <div>
-                    <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="text-gray-600">Telemetry (50%)</span>
-                      <span className="font-medium">{latestScore.telemetry_score}/50</span>
-                    </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-brand-navy rounded-full transition-all"
-                        style={{ width: `${(latestScore.telemetry_score / 50) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="text-gray-600">Field Audits (30%)</span>
-                      <span className="font-medium">{latestScore.audit_score}/30</span>
-                    </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-brand-gold rounded-full transition-all"
-                        style={{ width: `${(latestScore.audit_score / 30) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="text-gray-600">Peer Votes (20%)</span>
-                      <span className="font-medium">{latestScore.peer_score}/20</span>
-                    </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-state-success rounded-full transition-all"
-                        style={{ width: `${(latestScore.peer_score / 20) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t grid grid-cols-2 gap-3 text-center">
-                  <div>
-                    <p className="text-lg font-bold text-brand-ink">{latestScore.services_count}</p>
-                    <p className="text-xs text-gray-500">Services</p>
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold text-state-danger">{latestScore.disputes_count}</p>
-                    <p className="text-xs text-gray-500">Disputes</p>
-                  </div>
-                </div>
+              <div className="mt-4">
+                <span className={`text-5xl font-bold ${getScoreColor(latestScore?.total_score || 0)}`}>
+                  {latestScore?.total_score || "—"}
+                </span>
+                <p className="text-sm text-gray-500 mt-1">Total Score</p>
               </div>
-            )}
 
-            {/* Trust Level Info */}
-            <div className="bg-white rounded-xl shadow-elevation-1 p-5">
-              <h2 className="font-semibold text-brand-ink text-sm mb-3">Trust Levels</h2>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg">
-                  <Award className="w-4 h-4 text-purple-600" />
-                  <div className="flex-1">
-                    <span className="font-medium text-purple-700">Elite (90-100)</span>
-                    <p className="text-xs text-purple-600">Auto-approval QC, 10% sampling</p>
+              {latestScore && (
+                <div className="grid grid-cols-3 gap-4 mt-6">
+                  <div>
+                    <p className="text-lg font-bold text-brand-navy">{latestScore.telemetry_score}</p>
+                    <p className="text-xs text-gray-500">Telemetry</p>
+                    <p className="text-xs text-gray-400">50%</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-brand-navy">{latestScore.audit_score}</p>
+                    <p className="text-xs text-gray-500">Audits</p>
+                    <p className="text-xs text-gray-400">30%</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-brand-navy">{latestScore.peer_score}</p>
+                    <p className="text-xs text-gray-500">Peers</p>
+                    <p className="text-xs text-gray-400">20%</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg">
-                  <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                  <div className="flex-1">
-                    <span className="font-medium text-blue-700">Standard (70-89)</span>
-                    <p className="text-xs text-blue-600">QC wall required for every service</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg">
-                  <AlertTriangle className="w-4 h-4 text-amber-600" />
-                  <div className="flex-1">
-                    <span className="font-medium text-amber-700">Observation (50-69)</span>
-                    <p className="text-xs text-amber-600">QC + extra photo required</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 p-2 bg-red-50 rounded-lg">
-                  <XCircle className="w-4 h-4 text-red-600" />
-                  <div className="flex-1">
-                    <span className="font-medium text-red-700">Suspended (&lt;50)</span>
-                    <p className="text-xs text-red-600">Re-training required, no solo services</p>
-                  </div>
-                </div>
+              )}
+
+              <div className="mt-4 text-xs text-gray-400">
+                <p>Week of {latestScore?.week_start || "—"}</p>
+                <p>{latestScore?.services_count || 0} services · {latestScore?.disputes_count || 0} disputes</p>
               </div>
             </div>
 
-            {/* Recent Audits */}
-            {audits.length > 0 && (
-              <div className="bg-white rounded-xl shadow-elevation-1 p-5">
-                <h2 className="font-semibold text-brand-ink text-sm mb-3">Recent Field Audits</h2>
-                <div className="space-y-3">
-                  {audits.slice(0, 5).map((audit) => (
-                    <div key={audit.id} className="border rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1">
-                          <Star className={`w-4 h-4 ${audit.score >= 4 ? "text-yellow-400 fill-current" : audit.score >= 3 ? "text-brand-gold" : "text-red-400"}`} />
-                          <span className="font-bold text-sm">{audit.score}/5</span>
-                        </div>
-                        <span className="text-xs text-gray-400">
-                          {new Date(audit.created_at).toLocaleDateString("en-CA")}
-                        </span>
-                      </div>
-                      {audit.criteria && (
-                        <div className="grid grid-cols-2 gap-1 text-xs mb-2">
-                          {Object.entries(audit.criteria).map(([key, val]) => (
-                            <div key={key} className="flex justify-between bg-gray-50 rounded px-2 py-0.5">
-                              <span className="capitalize text-gray-600">{key === "sop" ? "SOP" : key}</span>
-                              <span className="font-medium">{val}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {audit.notes && (
-                        <p className="text-xs text-gray-600">{audit.notes}</p>
-                      )}
-                      {!audit.appealed_at && (
-                        <div className="mt-2">
-                          {appealingAuditId === audit.id ? (
-                            <div className="space-y-2">
-                              <textarea
-                                value={appealReason}
-                                onChange={(e) => setAppealReason(e.target.value)}
-                                placeholder="Explain why this audit is unfair..."
-                                className="w-full text-xs border rounded-lg p-2 resize-none"
-                                rows={2}
-                              />
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => submitAppeal(audit.id)}
-                                  disabled={appealSubmitting || !appealReason.trim()}
-                                  className="text-xs bg-brand-navy text-white px-3 py-1 rounded-lg disabled:opacity-50"
-                                >
-                                  {appealSubmitting ? "Submitting..." : "Submit Appeal"}
-                                </button>
-                                <button
-                                  onClick={() => { setAppealingAuditId(null); setAppealReason(""); }}
-                                  className="text-xs text-gray-500 px-2 py-1"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setAppealingAuditId(audit.id)}
-                              className="text-xs text-brand-navy hover:underline"
-                            >
-                              Appeal this audit
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      {audit.appealed_at && (
-                        <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                          <AlertTriangle className="w-3 h-3" />
-                          Appealed: {audit.appeal_reason}
+            {/* Score History */}
+            {data.scores.length > 1 && (
+              <div>
+                <h2 className="text-lg font-semibold text-brand-ink mb-3">Score History</h2>
+                <div className="space-y-2">
+                  {data.scores.slice(1).map((score) => (
+                    <div key={score.id} className="bg-white rounded-xl shadow-elevation-1 p-4 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-brand-ink">Week of {score.week_start}</p>
+                        <p className="text-xs text-gray-400">
+                          {score.services_count} services · {score.disputes_count} disputes
                         </p>
+                      </div>
+                      <span className={`text-lg font-bold ${getScoreColor(score.total_score)}`}>
+                        {score.total_score}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recent Audits */}
+            {data.audits.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold text-brand-ink mb-3">Recent Audits</h2>
+                <div className="space-y-2">
+                  {data.audits.map((audit) => (
+                    <div key={audit.id} className="bg-white rounded-xl shadow-elevation-1 p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-bold ${getScoreColor(audit.score)}`}>
+                            {audit.score}/100
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {new Date(audit.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {!audit.appealed_at && (
+                          <button
+                            onClick={() => {
+                              setSelectedAudit(audit);
+                              setAppealReason("");
+                              setAppealError("");
+                              setAppealSuccess("");
+                            }}
+                            className="text-xs text-brand-navy font-medium hover:underline"
+                          >
+                            Appeal
+                          </button>
+                        )}
+                        {audit.appealed_at && (
+                          <span className="text-xs text-amber-600 font-medium">Appealed</span>
+                        )}
+                      </div>
+                      {audit.notes && (
+                        <p className="text-sm text-gray-600 mt-2 bg-gray-50 rounded-lg p-2">{audit.notes}</p>
                       )}
                     </div>
                   ))}
@@ -340,28 +293,68 @@ export default function EmpleadoScorePage() {
               </div>
             )}
 
-            {/* Score History */}
-            {scores.length > 1 && (
-              <div className="bg-white rounded-xl shadow-elevation-1 p-5">
-                <h2 className="font-semibold text-brand-ink text-sm mb-3">Score History</h2>
+            {/* Recent Services */}
+            {data.recentServices.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold text-brand-ink mb-3">Recent Services</h2>
                 <div className="space-y-2">
-                  {scores.slice(1).map((s) => (
-                    <div key={s.week_start} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                      <span className="text-sm text-gray-600">
-                        {new Date(s.week_start).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm">{s.total_score}</span>
-                        {getTrustBadge(s.trust_level)}
-                      </div>
+                  {data.recentServices.map((svc) => (
+                    <div key={svc.order_id} className="bg-white rounded-xl shadow-elevation-1 p-4 flex items-center justify-between">
+                      <span className="text-sm text-brand-ink">Order {svc.order_id.slice(0, 8)}...</span>
+                      <span className="text-xs text-gray-400 capitalize">{svc.status.replace(/_/g, " ")}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
           </>
-        )}
+        ) : null}
       </div>
+
+      {/* Appeal Modal */}
+      {selectedAudit && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-brand-ink">Appeal Audit</h2>
+              <button
+                onClick={() => setSelectedAudit(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-600">
+              You have <strong>72 hours</strong> from the audit date to appeal. 
+              The appeal log is immutable and will be reviewed by a supervisor.
+            </p>
+
+            <div className="text-sm bg-gray-50 rounded-lg p-3">
+              <p><strong>Audit Score:</strong> {selectedAudit.score}/100</p>
+              <p><strong>Date:</strong> {new Date(selectedAudit.created_at).toLocaleDateString()}</p>
+            </div>
+
+            <textarea
+              value={appealReason}
+              onChange={(e) => setAppealReason(e.target.value)}
+              placeholder="Explain why you believe this audit is unfair..."
+              className="w-full border rounded-lg p-3 text-sm min-h-[100px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
+            />
+
+            {appealError && <p className="text-sm text-red-600">{appealError}</p>}
+            {appealSuccess && <p className="text-sm text-green-600">{appealSuccess}</p>}
+
+            <button
+              onClick={() => submitAppeal(selectedAudit.id)}
+              disabled={submittingAppeal}
+              className="w-full bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
+            >
+              {submittingAppeal ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Submit Appeal"}
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

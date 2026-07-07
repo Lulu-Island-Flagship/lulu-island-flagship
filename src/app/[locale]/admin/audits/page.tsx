@@ -1,21 +1,26 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import {
-  ChevronLeft,
+  Loader2,
+  CheckCircle2,
   Star,
   ClipboardCheck,
-  AlertTriangle,
-  Loader2,
-  Search,
-  CheckCircle2,
-  Shield,
   User,
-  Calendar,
+  XCircle,
 } from "lucide-react";
 
-interface AuditItem {
+interface PendingOrder {
+  id: string;
+  service_date: string;
+  service_time: string;
+  status: string;
+  quote_id: string;
+  quotes: { address: string; service_type: string } | null;
+  assignments: { employee_id: string; status: string }[];
+}
+
+interface FieldAudit {
   id: string;
   order_id: string;
   employee_id: string;
@@ -25,16 +30,8 @@ interface AuditItem {
   created_at: string;
   appealed_at: string | null;
   appeal_reason: string | null;
+  appeal_resolved_at: string | null;
   employees: { name: string } | null;
-}
-
-interface PendingOrder {
-  id: string;
-  service_date: string;
-  service_time: string;
-  status: string;
-  quotes: { address: string; service_type: string } | null;
-  assignments: { employee_id: string; status: string }[];
 }
 
 interface PeerVoteAggregate {
@@ -43,21 +40,24 @@ interface PeerVoteAggregate {
   name: string;
 }
 
-export default function AdminAuditsPage() {
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"pending" | "history" | "peers">("pending");
+export default function AuditsPage() {
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
-  const [audits, setAudits] = useState<AuditItem[]>([]);
+  const [audits, setAudits] = useState<FieldAudit[]>([]);
   const [peerVotes, setPeerVotes] = useState<Record<string, PeerVoteAggregate>>({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
   const [selectedOrder, setSelectedOrder] = useState<PendingOrder | null>(null);
-  const [auditForm, setAuditForm] = useState({
-    score: 4,
-    criteria: { puntualidad: 4, calidad: 4, actitud: 4, sop: 4 },
-    notes: "",
+  const [auditScore, setAuditScore] = useState(80);
+  const [auditNotes, setAuditNotes] = useState("");
+  const [criteria, setCriteria] = useState<Record<string, number>>({
+    punctuality: 4,
+    thoroughness: 4,
+    professionalism: 4,
+    client_satisfaction: 4,
+    sop_compliance: 4,
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [filterEmployee, setFilterEmployee] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -65,20 +65,21 @@ export default function AdminAuditsPage() {
 
   async function loadData() {
     setLoading(true);
+    setError("");
     try {
       const res = await fetch("/api/admin/audits", { credentials: "include" });
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) {
-          router.push("/en/admin");
-        }
+        const err = await res.json();
+        setError(err.error || "Failed to load audits");
+        setLoading(false);
         return;
       }
       const data = await res.json();
       setPendingOrders(data.pendingOrders || []);
       setAudits(data.audits || []);
       setPeerVotes(data.peerVoteAggregates || {});
-    } catch (e) {
-      console.error("Load audits error:", e);
+    } catch {
+      setError("Network error");
     } finally {
       setLoading(false);
     }
@@ -86,11 +87,15 @@ export default function AdminAuditsPage() {
 
   async function submitAudit() {
     if (!selectedOrder) return;
-    setIsSubmitting(true);
+    setSubmitting(true);
+    setError("");
     try {
       const employeeId = selectedOrder.assignments?.[0]?.employee_id;
-      if (!employeeId) return;
-
+      if (!employeeId) {
+        setError("No employee assigned to this order");
+        setSubmitting(false);
+        return;
+      }
       const res = await fetch("/api/admin/audits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -98,298 +103,265 @@ export default function AdminAuditsPage() {
         body: JSON.stringify({
           orderId: selectedOrder.id,
           employeeId,
-          score: auditForm.score,
-          criteria: auditForm.criteria,
-          notes: auditForm.notes,
+          score: auditScore,
+          criteria,
+          notes: auditNotes.trim() || null,
         }),
       });
-
-      if (res.ok) {
-        setSelectedOrder(null);
-        setAuditForm({ score: 4, criteria: { puntualidad: 4, calidad: 4, actitud: 4, sop: 4 }, notes: "" });
-        await loadData();
+      if (!res.ok) {
+        const err = await res.json();
+        setError(err.error || "Failed to submit audit");
+        setSubmitting(false);
+        return;
       }
-    } catch (e) {
-      console.error("Submit audit error:", e);
+      setSelectedOrder(null);
+      setAuditScore(80);
+      setAuditNotes("");
+      setCriteria({
+        punctuality: 4,
+        thoroughness: 4,
+        professionalism: 4,
+        client_satisfaction: 4,
+        sop_compliance: 4,
+      });
+      loadData();
+    } catch {
+      setError("Network error");
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   }
 
-  const filteredAudits = filterEmployee
-    ? audits.filter((a) => a.employees?.name?.toLowerCase().includes(filterEmployee.toLowerCase()))
-    : audits;
+  function getMovingAverage5(employeeId: string) {
+    const employeeAudits = audits
+      .filter((a) => a.employee_id === employeeId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 5);
+    if (employeeAudits.length === 0) return null;
+    const sum = employeeAudits.reduce((acc, a) => acc + a.score, 0);
+    return Math.round(sum / employeeAudits.length);
+  }
 
-  const getStarColor = (score: number) => {
-    if (score >= 4) return "text-yellow-400";
-    if (score >= 3) return "text-brand-gold";
-    return "text-red-400";
+  const getScoreColor = (score: number) => {
+    if (score >= 90) return "text-green-600";
+    if (score >= 70) return "text-blue-600";
+    if (score >= 50) return "text-yellow-600";
+    return "text-red-600";
   };
 
   return (
-    <main className="min-h-screen bg-brand-ice">
-      {/* Header */}
-      <header className="bg-brand-navy text-white">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-3">
-          <button onClick={() => router.push("/en/admin")} className="text-white/70 hover:text-white">
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-brand-gold" />
-            <h1 className="font-semibold">Field Audits</h1>
-          </div>
-        </div>
-      </header>
+    <div className="space-y-8">
+      <h1 className="text-2xl font-bold text-brand-ink">Field Audits</h1>
 
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          {[
-            { key: "pending" as const, label: "Pending Audits", icon: ClipboardCheck },
-            { key: "history" as const, label: "History", icon: Calendar },
-            { key: "peers" as const, label: "Peer Votes", icon: User },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                activeTab === tab.key
-                  ? "bg-brand-navy text-white"
-                  : "bg-white text-gray-600 hover:text-brand-navy"
-              }`}
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
+      {/* Pending Audits */}
+      <section>
+        <h2 className="text-lg font-semibold text-brand-ink mb-4">Pending Audits (Today&apos;s Completed)</h2>
         {loading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
           </div>
+        ) : pendingOrders.length === 0 ? (
+          <div className="bg-white rounded-xl border p-6 text-center">
+            <CheckCircle2 className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+            <p className="text-gray-500 text-sm">No completed services pending audit for today.</p>
+          </div>
         ) : (
-          <>
-            {/* Pending Audits */}
-            {activeTab === "pending" && (
-              <div className="space-y-4">
-                {selectedOrder ? (
-                  <div className="bg-white rounded-xl shadow-elevation-1 p-6 space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-lg font-bold text-brand-ink">New Audit</h2>
-                      <button
-                        onClick={() => setSelectedOrder(null)}
-                        className="text-sm text-gray-500 hover:text-brand-ink"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-
-                    <div className="bg-gray-50 rounded-lg p-4 text-sm space-y-1">
-                      <p><span className="font-medium">Order:</span> {selectedOrder.id.slice(0, 8)}</p>
-                      <p><span className="font-medium">Date:</span> {selectedOrder.service_date} at {selectedOrder.service_time}</p>
-                      <p><span className="font-medium">Address:</span> {selectedOrder.quotes?.address}</p>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-brand-ink mb-2">Overall Score (1-5)</label>
-                        <div className="flex gap-2">
-                          {[1, 2, 3, 4, 5].map((s) => (
-                            <button
-                              key={s}
-                              onClick={() => setAuditForm({ ...auditForm, score: s })}
-                              className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
-                                auditForm.score >= s ? "bg-brand-navy text-white" : "bg-gray-100 text-gray-400"
-                              }`}
-                            >
-                              <Star className="w-5 h-5" />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {Object.entries(auditForm.criteria).map(([key, value]) => (
-                        <div key={key}>
-                          <label className="block text-sm font-medium text-brand-ink mb-2 capitalize">
-                            {key === "sop" ? "SOP Compliance" : key}
-                          </label>
-                          <div className="flex gap-2">
-                            {[1, 2, 3, 4, 5].map((s) => (
-                              <button
-                                key={s}
-                                onClick={() =>
-                                  setAuditForm({
-                                    ...auditForm,
-                                    criteria: { ...auditForm.criteria, [key]: s },
-                                  })
-                                }
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-colors ${
-                                  value >= s ? "bg-brand-gold text-white" : "bg-gray-100 text-gray-400"
-                                }`}
-                              >
-                                {s}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-
-                      <div>
-                        <label className="block text-sm font-medium text-brand-ink mb-2">Notes</label>
-                        <textarea
-                          value={auditForm.notes}
-                          onChange={(e) => setAuditForm({ ...auditForm, notes: e.target.value })}
-                          className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
-                          rows={3}
-                          placeholder="Observations..."
-                        />
-                      </div>
-
-                      <button
-                        onClick={submitAudit}
-                        disabled={isSubmitting}
-                        className="w-full bg-brand-navy text-white py-3 rounded-xl font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
-                      >
-                        {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Submit Audit"}
-                      </button>
-                    </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {pendingOrders.map((order) => (
+              <div
+                key={order.id}
+                className="bg-white rounded-xl border p-4 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-brand-ink">
+                      {order.quotes?.address || "—"}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {order.service_date} at {order.service_time}
+                    </p>
+                    <p className="text-xs text-gray-400 capitalize">
+                      {order.quotes?.service_type?.replace(/_/g, " ") || "—"}
+                    </p>
                   </div>
-                ) : (
-                  <>
-                    {pendingOrders.length === 0 ? (
-                      <div className="bg-white rounded-xl shadow-elevation-1 p-8 text-center">
-                        <CheckCircle2 className="w-10 h-10 text-state-success mx-auto mb-3" />
-                        <p className="text-gray-500">All completed services have been audited.</p>
-                      </div>
-                    ) : (
-                      <div className="grid gap-4">
-                        {pendingOrders.map((order) => (
-                          <div
-                            key={order.id}
-                            className="bg-white rounded-xl shadow-elevation-1 p-4 hover:shadow-elevation-2 transition-shadow cursor-pointer"
-                            onClick={() => setSelectedOrder(order)}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="space-y-1">
-                                <p className="font-medium text-brand-ink text-sm">
-                                  {order.quotes?.address || "No address"}
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                  {order.service_date} at {order.service_time}
-                                </p>
-                                <p className="text-xs text-gray-400">
-                                  Order: {order.id.slice(0, 8)}
-                                </p>
-                              </div>
-                              <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded-full font-medium">
-                                Pending Audit
-                              </span>
-                            </div>
-                          </div>
-                        ))}
+                  <button
+                    onClick={() => {
+                      setSelectedOrder(order);
+                      setAuditScore(80);
+                      setAuditNotes("");
+                      setCriteria({
+                        punctuality: 4,
+                        thoroughness: 4,
+                        professionalism: 4,
+                        client_satisfaction: 4,
+                        sop_compliance: 4,
+                      });
+                      setError("");
+                    }}
+                    className="bg-brand-navy text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors"
+                  >
+                    Audit
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Audit History */}
+      <section>
+        <h2 className="text-lg font-semibold text-brand-ink mb-4">Audit History</h2>
+        {audits.length === 0 ? (
+          <div className="bg-white rounded-xl border p-6 text-center">
+            <ClipboardCheck className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+            <p className="text-gray-500 text-sm">No audits recorded yet.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {audits.map((audit) => (
+              <div
+                key={audit.id}
+                className="bg-white rounded-xl border p-4 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1 flex-1">
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm font-medium text-brand-ink">
+                        {audit.employees?.name || "Unknown"}
+                      </span>
+                      <span className={`text-sm font-bold ${getScoreColor(audit.score)}`}>
+                        {audit.score}/100
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {new Date(audit.created_at).toLocaleDateString()}
+                    </p>
+                    {audit.notes && (
+                      <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-2">{audit.notes}</p>
+                    )}
+                    {audit.appealed_at && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-sm">
+                        <p className="text-amber-700 font-medium">Appealed</p>
+                        <p className="text-amber-600 text-xs">{audit.appeal_reason}</p>
                       </div>
                     )}
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* History */}
-            {activeTab === "history" && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 bg-white rounded-lg shadow-elevation-1 px-3 py-2">
-                  <Search className="w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={filterEmployee}
-                    onChange={(e) => setFilterEmployee(e.target.value)}
-                    placeholder="Filter by employee name..."
-                    className="flex-1 text-sm outline-none"
-                  />
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-400">5-week avg</p>
+                    <p className={`text-lg font-bold ${getScoreColor(getMovingAverage5(audit.employee_id) || audit.score)}`}>
+                      {getMovingAverage5(audit.employee_id) || audit.score}
+                    </p>
+                  </div>
                 </div>
-
-                {filteredAudits.length === 0 ? (
-                  <div className="bg-white rounded-xl shadow-elevation-1 p-8 text-center">
-                    <ClipboardCheck className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">No audits found.</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-4">
-                    {filteredAudits.map((audit) => (
-                      <div key={audit.id} className="bg-white rounded-xl shadow-elevation-1 p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <p className="font-medium text-brand-ink text-sm">
-                              {audit.employees?.name || "Unknown"}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {new Date(audit.created_at).toLocaleDateString("en-CA")}
-                            </p>
-                          </div>
-                          <div className={`flex items-center gap-1 ${getStarColor(audit.score)}`}>
-                            <Star className="w-4 h-4 fill-current" />
-                            <span className="font-bold text-sm">{audit.score}/5</span>
-                          </div>
-                        </div>
-
-                        {audit.criteria && (
-                          <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-                            {Object.entries(audit.criteria).map(([key, val]) => (
-                              <div key={key} className="flex justify-between bg-gray-50 rounded px-2 py-1">
-                                <span className="capitalize text-gray-600">{key}</span>
-                                <span className="font-medium">{val}/5</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {audit.notes && (
-                          <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-2">{audit.notes}</p>
-                        )}
-
-                        {audit.appealed_at && (
-                          <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
-                            <AlertTriangle className="w-3 h-3 inline mr-1" />
-                            Appealed: {audit.appeal_reason}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-            )}
-
-            {/* Peer Votes */}
-            {activeTab === "peers" && (
-              <div className="space-y-4">
-                {Object.entries(peerVotes).length === 0 ? (
-                  <div className="bg-white rounded-xl shadow-elevation-1 p-8 text-center">
-                    <User className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">No peer votes this week.</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-4">
-                    {Object.entries(peerVotes).map(([empId, vote]) => (
-                      <div key={empId} className="bg-white rounded-xl shadow-elevation-1 p-4">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-brand-ink text-sm">{vote.name || `Employee ${empId.slice(0, 8)}`}</span>
-                          <div className="flex items-center gap-1 text-brand-gold">
-                            <Star className="w-4 h-4 fill-current" />
-                            <span className="font-bold text-sm">{vote.avg.toFixed(1)}</span>
-                            <span className="text-xs text-gray-400">({vote.count} votes)</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </>
+            ))}
+          </div>
         )}
-      </div>
-    </main>
+      </section>
+
+      {/* Peer Votes */}
+      <section>
+        <h2 className="text-lg font-semibold text-brand-ink mb-4">Peer Vote Aggregates (This Week)</h2>
+        {Object.keys(peerVotes).length === 0 ? (
+          <div className="bg-white rounded-xl border p-6 text-center">
+            <Star className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+            <p className="text-gray-500 text-sm">No peer votes recorded for this week.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {Object.entries(peerVotes).map(([employeeId, vote]) => (
+              <div key={employeeId} className="bg-white rounded-xl border p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-brand-ink">{vote.name}</span>
+                  <div className="flex items-center gap-1">
+                    <Star className="w-4 h-4 text-brand-gold fill-brand-gold" />
+                    <span className="text-sm font-bold">{vote.avg.toFixed(1)}</span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">{vote.count} votes</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Audit Modal */}
+      {selectedOrder && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-brand-ink">Field Audit</h2>
+              <button
+                onClick={() => setSelectedOrder(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="text-sm space-y-1">
+              <p><strong>Address:</strong> {selectedOrder.quotes?.address}</p>
+              <p><strong>Date:</strong> {selectedOrder.service_date} at {selectedOrder.service_time}</p>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-brand-ink">Overall Score</label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={auditScore}
+                onChange={(e) => setAuditScore(Number(e.target.value))}
+                className="w-full mt-1"
+              />
+              <div className="text-center text-lg font-bold text-brand-navy">{auditScore}</div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-brand-ink">Criteria (1-5)</label>
+              {Object.entries(criteria).map(([key, value]) => (
+                <div key={key} className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 capitalize">{key.replace(/_/g, " ")}</span>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => setCriteria({ ...criteria, [key]: n })}
+                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                          value >= n
+                            ? "bg-brand-gold text-white"
+                            : "bg-gray-100 text-gray-400"
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <textarea
+              value={auditNotes}
+              onChange={(e) => setAuditNotes(e.target.value)}
+              placeholder="Notes (optional)..."
+              className="w-full border rounded-lg p-3 text-sm min-h-[80px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
+            />
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+
+            <button
+              onClick={submitAudit}
+              disabled={submitting}
+              className="w-full bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
+            >
+              {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Submit Audit"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

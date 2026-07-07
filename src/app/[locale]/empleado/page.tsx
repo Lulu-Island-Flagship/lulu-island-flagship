@@ -17,6 +17,8 @@ import {
   LogOut,
   Navigation,
   AlertCircle,
+  Star,
+  Users,
 } from "lucide-react";
 import type { EmployeeService } from "@/types";
 
@@ -311,6 +313,30 @@ export default function EmpleadoPage() {
             <span className="text-sm ml-auto">Ready to work</span>
           </div>
         )}
+
+        {/* Quick Links */}
+        <div className="grid grid-cols-2 gap-3">
+          <a
+            href="/empleado/score"
+            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Star className="w-4 h-4 text-brand-gold" />
+              <span className="font-medium text-sm text-brand-ink">My Score</span>
+            </div>
+            <p className="text-xs text-gray-400">View trust level & history</p>
+          </a>
+          <a
+            href="/empleado/votacion"
+            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Users className="w-4 h-4 text-brand-navy" />
+              <span className="font-medium text-sm text-brand-ink">Peer Voting</span>
+            </div>
+            <p className="text-xs text-gray-400">Rate your teammates</p>
+          </a>
+        </div>
 
         {/* Services List */}
         <div>
