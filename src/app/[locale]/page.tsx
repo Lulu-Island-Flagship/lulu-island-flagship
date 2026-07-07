@@ -12,7 +12,6 @@ function LocalBusinessSchema() {
     "name": "Lulu Island Flagship Cleaning Services",
     "description": "Verified, insured, and trained to care for your home — not just clean it. Full price from quote, no surprises.",
     "url": "https://luluislandflagship.ca",
-    "telephone": "+1-604-000-0000",
     "email": "hello@luluislandflagship.ca",
     "address": {
       "@type": "PostalAddress",

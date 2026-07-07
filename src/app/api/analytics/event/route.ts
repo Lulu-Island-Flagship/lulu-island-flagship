@@ -26,6 +26,14 @@ function getSupabaseClient() {
   );
 }
 
+function getClientIp(request: NextRequest): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  return request.ip || "unknown";
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -36,6 +44,27 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseClient();
+
+    // Rate limit: max 30 events per IP per day (generous for legitimate tracking)
+    const ip = getClientIp(request);
+    const { data: rateData, error: rateError } = await supabase.rpc(
+      "check_rate_limit",
+      {
+        p_ip_address: ip,
+        p_max_requests: 30,
+      }
+    );
+
+    if (rateError) {
+      console.error("Rate limit error:", rateError);
+      // Don't block on rate limit check failure, just log
+    } else if (rateData && !rateData.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Try again later." },
+        { status: 429 }
+      );
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
 
     // Insert lightweight analytics event

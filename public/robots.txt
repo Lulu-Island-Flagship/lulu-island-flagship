@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /en/admin
+Disallow: /zh/admin
+Disallow: /fr/admin
+Disallow: /en/empleado
+Disallow: /zh/empleado
+Disallow: /fr/empleado
+Disallow: /api/
+
+Sitemap: https://luluislandflagship.ca/sitemap.xml

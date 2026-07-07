@@ -22,14 +22,9 @@ export async function generateMetadata({ params }: { params: { locale: string } 
   return {
     title: t('title'),
     description: t('description'),
-    keywords: [
-      "cleaning services",
-      "house cleaning",
-      "Richmond BC",
-      "Vancouver cleaning",
-      "deep cleaning",
-      "move-in cleaning",
-    ],
+    keywords: t('keywords')
+      .split(',')
+      .map((k: string) => k.trim()),
     icons: {
       icon: "/favicon.ico",
     },
