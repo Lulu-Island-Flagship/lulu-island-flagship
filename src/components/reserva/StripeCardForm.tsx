@@ -11,6 +11,7 @@ import { CreditCard, ShieldCheck, MapPin } from "lucide-react";
 interface StripeCardFormProps {
   onPaymentMethodReady: (paymentMethodId: string) => void;
   disabled?: boolean;
+  clientSecret: string;
 }
 
 const CARD_ELEMENT_OPTIONS = {
@@ -38,7 +39,7 @@ function isValidCanadianPostalCode(code: string): boolean {
   return pattern.test(code);
 }
 
-export function StripeCardForm({ onPaymentMethodReady, disabled }: StripeCardFormProps) {
+export function StripeCardForm({ onPaymentMethodReady, disabled, clientSecret }: StripeCardFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState("");
@@ -69,17 +70,20 @@ export function StripeCardForm({ onPaymentMethodReady, disabled }: StripeCardFor
       return;
     }
 
-    const { error: stripeError, paymentMethod } =
-      await stripe.createPaymentMethod({
-        type: "card",
-        card: cardElement,
-        billing_details: {
-          address: {
-            postal_code: postalCode.replace(/\s/g, ""), // Stripe expects no space
-            country: "CA",
+    const { error: stripeError, setupIntent } = await stripe.confirmCardSetup(
+      clientSecret,
+      {
+        payment_method: {
+          card: cardElement,
+          billing_details: {
+            address: {
+              postal_code: postalCode.replace(/\s/g, ""),
+              country: "CA",
+            },
           },
         },
-      });
+      }
+    );
 
     if (stripeError) {
       setError(stripeError.message || "Card validation failed.");
@@ -87,8 +91,8 @@ export function StripeCardForm({ onPaymentMethodReady, disabled }: StripeCardFor
       return;
     }
 
-    if (paymentMethod) {
-      onPaymentMethodReady(paymentMethod.id);
+    if (setupIntent?.payment_method) {
+      onPaymentMethodReady(setupIntent.payment_method as string);
     }
 
     setIsProcessing(false);

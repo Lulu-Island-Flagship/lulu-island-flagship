@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { loadStripe, Stripe as StripeJS } from "@stripe/stripe-js";
 
 const secretKey = process.env.STRIPE_SECRET_KEY;
 
@@ -15,4 +16,19 @@ export function assertStripe(): Stripe {
     throw new Error("Stripe is not configured. Set STRIPE_SECRET_KEY in .env.local");
   }
   return stripe;
+}
+
+let stripePromise: Promise<StripeJS | null> | null = null;
+
+export function getStripe(): Promise<StripeJS | null> {
+  if (!stripePromise) {
+    const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+    if (!publishableKey) {
+      console.warn("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set.");
+      stripePromise = Promise.resolve(null);
+    } else {
+      stripePromise = loadStripe(publishableKey);
+    }
+  }
+  return stripePromise;
 }

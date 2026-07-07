@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { Elements } from "@stripe/react-stripe-js";
 import { QuoteData } from "@/types";
 import { supabase } from "@/lib/supabase";
-import { getStripe } from "@/lib/stripe-client";
+import { mapQuoteFromSupabase } from "@/lib/supabase-mappers";
 import { DatePicker } from "@/components/reserva/DatePicker";
 import { TimeSlotPicker } from "@/components/reserva/TimeSlotPicker";
 import { StripeCardForm } from "@/components/reserva/StripeCardForm";
@@ -18,6 +18,10 @@ import {
   CheckCircle2,
   Loader2,
 } from "lucide-react";
+
+import { getStripe } from "@/lib/stripe";
+
+const stripePromise = getStripe();
 
 export default function ReservaPage() {
   const router = useRouter();
@@ -33,6 +37,7 @@ export default function ReservaPage() {
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [stripeClientSecret, setStripeClientSecret] = useState("");
   const [stripeCustomerId, setStripeCustomerId] = useState("");
+  const [stripeSetupIntentId, setStripeSetupIntentId] = useState("");
 
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState("");
@@ -67,45 +72,7 @@ export default function ReservaPage() {
       }
 
       // Map snake_case fields from Supabase to camelCase QuoteData
-      const mapped: QuoteData = {
-        id: data.id,
-        userId: data.user_id,
-        serviceCategory: data.service_category,
-        serviceSubtype: data.service_subtype,
-        serviceType: data.service_type,
-        bedrooms: data.bedrooms,
-        bathrooms: data.bathrooms,
-        squareFeet: data.square_feet,
-        petsCount: data.pets_count,
-        petsType: data.pets_type,
-        residents: data.residents,
-        daysSinceCleaning: data.days_since_cleaning,
-        address: data.address,
-        zone: data.zone,
-        postalCode: data.postal_code,
-        dayOfWeek: data.day_of_week,
-        isPreferredDay: data.is_preferred_day,
-        basePrice: data.base_price,
-        organicMultiplier: data.organic_multiplier,
-        organicAdjustment: data.organic_adjustment,
-        recencyMultiplier: data.recency_multiplier,
-        recencyAdjustment: data.recency_adjustment,
-        zoneSurcharge: data.zone_surcharge,
-        logisticsSurcharge: data.logistics_surcharge,
-        subtotal: data.subtotal,
-        gst: data.gst,
-        pst: data.pst,
-        total: data.total,
-        holdAmount: data.hold_amount,
-        priceFrozenUntil: data.price_frozen_until,
-        status: data.status,
-        consentTc: data.consent_tc,
-        consentPipa: data.consent_pipa,
-        consentMarketing: data.consent_marketing,
-        clientScore: data.client_score,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
-      };
+      const mapped = mapQuoteFromSupabase(data);
 
       setQuote(mapped);
       setLoading(false);
@@ -141,9 +108,10 @@ export default function ReservaPage() {
           return;
         }
 
-        const { clientSecret, customerId } = await res.json();
+        const { clientSecret, customerId, setupIntentId } = await res.json();
         setStripeClientSecret(clientSecret);
         setStripeCustomerId(customerId);
+        setStripeSetupIntentId(setupIntentId);
       } catch (e) {
         console.error("Failed to create SetupIntent:", e);
       }
@@ -175,6 +143,7 @@ export default function ReservaPage() {
           serviceTime,
           paymentMethodId,
           stripeCustomerId,
+          stripeSetupIntentId,
           holdAmount: quote.holdAmount,
         }),
       });
@@ -194,8 +163,6 @@ export default function ReservaPage() {
       setIsConfirming(false);
     }
   };
-
-  const stripePromise = getStripe();
 
   if (loading) {
     return (
@@ -277,7 +244,11 @@ export default function ReservaPage() {
               <div className="space-y-4">
                 <DatePicker value={serviceDate} onChange={setServiceDate} />
                 {serviceDate && (
-                  <TimeSlotPicker value={serviceTime} onChange={setServiceTime} />
+                  <TimeSlotPicker
+                    value={serviceTime}
+                    onChange={setServiceTime}
+                    serviceDate={serviceDate}
+                  />
                 )}
               </div>
             </div>
@@ -299,6 +270,7 @@ export default function ReservaPage() {
                   <StripeCardForm
                     onPaymentMethodReady={handlePaymentMethodReady}
                     disabled={isConfirming}
+                    clientSecret={stripeClientSecret}
                   />
                 </Elements>
               </div>

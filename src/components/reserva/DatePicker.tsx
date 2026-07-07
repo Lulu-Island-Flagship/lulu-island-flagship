@@ -11,7 +11,8 @@ interface DatePickerProps {
 }
 
 export function DatePicker({ value, onChange, minDate, maxDate }: DatePickerProps) {
-  const today = new Date();
+  const vancouverToday = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver" });
+  const today = new Date(vancouverToday.split(",")[0]);
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);

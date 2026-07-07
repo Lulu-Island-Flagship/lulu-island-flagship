@@ -15,12 +15,22 @@ export async function POST(request: NextRequest) {
 
     const stripe = assertStripe();
 
-    // Create or retrieve Stripe Customer
-    // In production, you'd look up existing customer by metadata/userId first
-    const customer = await stripe.customers.create({
-      email,
-      metadata: { supabase_user_id: userId },
+    // Buscar customer existente por email (Stripe no permite filtrar por metadata en list)
+    let customer;
+    const existingCustomers = await stripe.customers.list({
+      limit: 1,
+      email: email,
     });
+
+    if (existingCustomers.data.length > 0) {
+      customer = existingCustomers.data[0];
+    } else {
+      // Crear nuevo customer solo si no existe
+      customer = await stripe.customers.create({
+        email,
+        metadata: { supabase_user_id: userId },
+      });
+    }
 
     // Create SetupIntent (tokenization, $0 charge)
     const setupIntent = await stripe.setupIntents.create({

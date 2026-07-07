@@ -25,40 +25,59 @@ CREATE POLICY "No direct client access" ON rate_limits
   FOR ALL USING (false) WITH CHECK (false);
 
 -- Función RPC para verificar y actualizar rate limit de forma atómica
+-- Lógica: ventana deslizante de 24h por IP desde el primer request
+-- Atómica via INSERT ... ON CONFLICT (no SELECT-then-INSERT)
 CREATE OR REPLACE FUNCTION check_rate_limit(p_ip_address TEXT, p_max_requests INTEGER DEFAULT 3)
 RETURNS TABLE(allowed BOOLEAN, remaining INTEGER, reset_at TIMESTAMP WITH TIME ZONE) AS $$
 DECLARE
   v_window_start TIMESTAMP WITH TIME ZONE;
   v_window_end TIMESTAMP WITH TIME ZONE;
   v_count INTEGER;
-  v_existing_id UUID;
 BEGIN
-  v_window_start := DATE_TRUNC('hour', NOW()); -- Ventana de 24h desde el primer request
-  v_window_end := v_window_start + INTERVAL '24 hours';
-
-  -- Buscar entrada existente para esta IP en la ventana actual
-  SELECT id, request_count INTO v_existing_id, v_count
+  -- Buscar la fila más reciente para esta IP
+  SELECT window_start, window_end, request_count
+  INTO v_window_start, v_window_end, v_count
   FROM rate_limits
   WHERE ip_address = p_ip_address
-    AND window_start = v_window_start;
+  ORDER BY window_start DESC
+  LIMIT 1;
 
-  IF v_existing_id IS NULL THEN
-    -- Primera request de esta IP en esta ventana
+  -- Si no existe fila, o la ventana más reciente ya expiró: crear NUEVA ventana
+  IF v_window_start IS NULL OR NOW() > v_window_end THEN
+    v_window_start := NOW();
+    v_window_end := NOW() + INTERVAL '24 hours';
+
+    -- INSERT atómico con ON CONFLICT (maneja race condition si otra request insertó)
     INSERT INTO rate_limits (ip_address, request_count, window_start, window_end)
-    VALUES (p_ip_address, 1, v_window_start, v_window_end);
-    
-    RETURN QUERY SELECT TRUE, p_max_requests - 1, v_window_end;
-  ELSIF v_count >= p_max_requests THEN
-    -- Límite alcanzado
+    VALUES (p_ip_address, 1, v_window_start, v_window_end)
+    ON CONFLICT (ip_address, window_start) DO UPDATE
+      SET request_count = rate_limits.request_count + 1,
+          updated_at = NOW()
+    RETURNING request_count INTO v_count;
+
+    -- Si el INSERT ON CONFLICT incrementó a 1, era nueva ventana -> permitir
+    -- Si incrementó a >1, otra request ganó la carrera -> recalcular remaining
+    IF v_count <= p_max_requests THEN
+      RETURN QUERY SELECT TRUE, p_max_requests - v_count, v_window_end;
+    ELSE
+      RETURN QUERY SELECT FALSE, 0, v_window_end;
+    END IF;
+
+    RETURN;
+  END IF;
+
+  -- Ventana vigente existe: intentar incrementar atómicamente
+  INSERT INTO rate_limits (ip_address, request_count, window_start, window_end)
+  VALUES (p_ip_address, 1, v_window_start, v_window_end)
+  ON CONFLICT (ip_address, window_start) DO UPDATE
+    SET request_count = rate_limits.request_count + 1,
+        updated_at = NOW()
+  RETURNING request_count INTO v_count;
+
+  IF v_count > p_max_requests THEN
     RETURN QUERY SELECT FALSE, 0, v_window_end;
   ELSE
-    -- Incrementar contador
-    UPDATE rate_limits
-    SET request_count = request_count + 1,
-        updated_at = NOW()
-    WHERE id = v_existing_id;
-    
-    RETURN QUERY SELECT TRUE, p_max_requests - (v_count + 1), v_window_end;
+    RETURN QUERY SELECT TRUE, p_max_requests - v_count, v_window_end;
   END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

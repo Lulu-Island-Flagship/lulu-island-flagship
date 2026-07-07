@@ -6,6 +6,7 @@ import { Clock } from "lucide-react";
 interface TimeSlotPickerProps {
   value: string; // HH:MM
   onChange: (time: string) => void;
+  serviceDate?: string; // YYYY-MM-DD, needed for weekend surcharge check
 }
 
 const START_HOUR = 8; // 8:00 AM
@@ -20,8 +21,15 @@ function generateTimeSlots(): string[] {
   return slots;
 }
 
-export function TimeSlotPicker({ value, onChange }: TimeSlotPickerProps) {
+function isWeekend(dateStr: string): boolean {
+  const date = new Date(dateStr + "T00:00:00");
+  const day = date.getDay();
+  return day === 0 || day === 6; // Sunday or Saturday
+}
+
+export function TimeSlotPicker({ value, onChange, serviceDate }: TimeSlotPickerProps) {
   const slots = generateTimeSlots();
+  const weekend = serviceDate ? isWeekend(serviceDate) : false;
 
   return (
     <div className="space-y-3">
@@ -49,6 +57,11 @@ export function TimeSlotPicker({ value, onChange }: TimeSlotPickerProps) {
       </div>
       <p className="text-xs text-gray-500">
         Service window: 8:00 AM – 6:00 PM
+        {weekend && (
+          <span className="block text-brand-gold mt-1">
+            Weekend surcharge applies (Sat/Sun).
+          </span>
+        )}
       </p>
     </div>
   );

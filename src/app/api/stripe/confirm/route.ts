@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { assertStripe } from "@/lib/stripe";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -35,10 +36,11 @@ export async function POST(request: NextRequest) {
       serviceTime,
       paymentMethodId,
       stripeCustomerId,
+      stripeSetupIntentId,
       holdAmount,
     } = body;
 
-    if (!quoteId || !serviceDate || !serviceTime || !paymentMethodId) {
+    if (!quoteId || !serviceDate || !serviceTime || !paymentMethodId || !stripeSetupIntentId) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -95,6 +97,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Verify SetupIntent with Stripe (security: don't trust client-provided paymentMethodId alone)
+    const stripe = assertStripe();
+    const setupIntent = await stripe.setupIntents.retrieve(stripeSetupIntentId);
+
+    if (setupIntent.status !== "succeeded") {
+      return NextResponse.json(
+        { error: "Payment method not verified. Please complete card setup." },
+        { status: 402 }
+      );
+    }
+
+    // Verify the payment method belongs to this SetupIntent
+    if (setupIntent.payment_method !== paymentMethodId) {
+      return NextResponse.json(
+        { error: "Payment method mismatch. Please try again." },
+        { status: 400 }
+      );
+    }
+
     // Create order
     const { data: order, error: orderError } = await supabase
       .from("orders")
@@ -107,6 +128,7 @@ export async function POST(request: NextRequest) {
         status: "confirmed",
         stripe_customer_id: stripeCustomerId || null,
         stripe_payment_method_id: paymentMethodId,
+        stripe_setup_intent_id: stripeSetupIntentId,
         payment_option: "card",
         hold_amount: holdAmount || 0,
         cancellation_window_hours: 72,
