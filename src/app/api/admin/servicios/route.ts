@@ -26,26 +26,10 @@ export async function GET() {
     // También devolver la fecha para diagnóstico
     const utcDate = new Date().toISOString().split("T")[0];
 
-    // Obtener órdenes de hoy con quotes y assignments
+    // Obtener órdenes de hoy
     const { data: orders, error: ordersError } = await supabase
       .from("orders")
-      .select(`
-        id,
-        service_date,
-        service_time,
-        status,
-        quote_id,
-        quotes:quote_id (
-          id,
-          service_type,
-          address,
-          zone,
-          bedrooms,
-          bathrooms,
-          square_feet,
-          total
-        )
-      `)
+      .select("id, service_date, service_time, status, quote_id")
       .eq("service_date", today)
       .order("service_time", { ascending: true });
 
@@ -55,8 +39,24 @@ export async function GET() {
     }
 
     const orderIds = (orders || []).map((o: { id: string }) => o.id);
-    // quoteIds no se necesita directamente — los datos vienen del join en orders.quotes
-    void orderIds;
+    const quoteIds = (orders || [])
+      .map((o: { quote_id: string }) => o.quote_id)
+      .filter(Boolean);
+
+    // Obtener quotes asociadas en query separada (evita problemas de join + RLS)
+    const { data: quotes, error: quotesError } = await supabase
+      .from("quotes")
+      .select("id, service_type, address, zone, bedrooms, bathrooms, square_feet, total")
+      .in("id", quoteIds.length > 0 ? quoteIds : ["00000000-0000-0000-0000-000000000000"]);
+
+    if (quotesError) {
+      console.error("Quotes fetch error:", quotesError);
+    }
+
+    const quoteMap = new Map();
+    for (const q of quotes || []) {
+      quoteMap.set(q.id, q);
+    }
 
     // Obtener assignments para estas órdenes
     const { data: assignments, error: assignError } = await supabase
@@ -113,15 +113,16 @@ export async function GET() {
     const checklistTotalBySubtype = new Map<string, number>();
     for (const cl of checklists || []) {
       const count = (cl.items || []).length;
-      checklistTotalBySubtype.set(cl.service_subtype, count);
+      checklistTotalBySubtype.set(
+        cl.service_subtype,
+        (checklistTotalBySubtype.get(cl.service_subtype) || 0) + count
+      );
     }
 
     // Enriquecer datos
     const enriched = [];
     for (const o of orders || []) {
-      // Supabase join devuelve array, tomamos el primer elemento
-      const quoteArr = o.quotes as Array<{ service_type: string; address: string; zone: string; bedrooms: number; bathrooms: number; square_feet: number; total: number }> | null;
-      const quote = quoteArr && quoteArr.length > 0 ? quoteArr[0] : null;
+      const quote = o.quote_id ? quoteMap.get(o.quote_id) : null;
       const assignment = assignmentMap.get(o.id);
       const employee = assignment ? employeeMap.get(assignment.employee_id) : null;
       const serviceSubtype = quote?.service_type === "deep" ? "first_time" : (quote?.service_type || "regular");
