@@ -90,6 +90,19 @@ export default function AdminChecklistsClient() {
     loadChecklists();
   }, []);
 
+  // Close zone menu when clicking outside
+  useEffect(() => {
+    if (!openZoneMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-zone-menu]")) {
+        setOpenZoneMenu(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openZoneMenu]);
+
   async function loadChecklists() {
     setLoading(true);
     try {
@@ -226,9 +239,16 @@ export default function AdminChecklistsClient() {
   const handleSubmit = async () => {
     if (!formServiceSubtype || !formZone || !formZoneLabel) return;
 
-    // Filter out empty inactive items, keep active ones and inactive ones with history
-    const validItems = formItems.filter((item) => item.label.trim() || item.active !== false);
+    // Filter out empty items (no label or only whitespace), keep active ones and inactive ones with history
+    const validItems = formItems.filter((item) => item.label.trim().length > 0 || item.active === false);
     if (validItems.length === 0) return;
+
+    // Additional validation: reject if any active item has empty label
+    const emptyActiveItems = formItems.filter((item) => item.active !== false && item.label.trim().length === 0);
+    if (emptyActiveItems.length > 0) {
+      setError("All active items must have a description.");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -239,7 +259,7 @@ export default function AdminChecklistsClient() {
         zone_color: formZoneColor,
         zone_icon: formZoneIcon || "📋",
         items: validItems,
-        sort_order: formSortOrder,
+        sort_order: Math.max(0, formSortOrder),
       };
 
       let res;
@@ -532,11 +552,12 @@ export default function AdminChecklistsClient() {
                         onClick={() => setOpenZoneMenu(openZoneMenu === zone.id ? null : zone.id)}
                         className="p-1.5 text-gray-400 hover:text-brand-navy transition-colors"
                         title="More options"
+                        data-zone-menu
                       >
                         <MoreHorizontal className="w-4 h-4" />
                       </button>
                       {openZoneMenu === zone.id && (
-                        <div className="absolute right-0 top-8 bg-white border rounded-lg shadow-lg z-10 w-40">
+                        <div data-zone-menu className="absolute right-0 top-8 bg-white border rounded-lg shadow-lg z-10 w-40">
                           <button
                             onClick={() => {
                               handleDeleteZone(zone.id, zone.zone_label);

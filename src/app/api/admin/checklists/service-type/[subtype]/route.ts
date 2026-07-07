@@ -5,7 +5,7 @@ import { requireSupervisor } from "@/lib/admin";
 // Borra físicamente todas las zonas de un service_subtype,
 // solo si NINGUNA tiene historial en service_checklist_items
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ subtype: string }> }
 ) {
   const auth = await requireSupervisor();
@@ -20,6 +20,8 @@ export async function DELETE(
   try {
     const { subtype } = await params;
     const decodedSubtype = decodeURIComponent(subtype);
+    const { searchParams } = new URL(request.url);
+    const dryRun = searchParams.get("dryRun") === "true";
 
     // 1. Verificar si hay historial para este service_subtype
     const { data: hasHistory, error: histError } = await supabase.rpc(
@@ -40,6 +42,10 @@ export async function DELETE(
         },
         { status: 409 }
       );
+    }
+
+    if (dryRun) {
+      return NextResponse.json({ dryRun: true, canDelete: true }, { status: 200 });
     }
 
     // 2. Borrar físicamente todas las zonas de este service_subtype
