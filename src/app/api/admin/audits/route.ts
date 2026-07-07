@@ -18,7 +18,19 @@ export async function GET(request: NextRequest) {
     const weekStart = searchParams.get("weekStart");
 
     // Servicios completados sin auditoría
-    const { data: pendingOrders, error: pendingError } = await supabase
+    // Primero obtener los order_id ya auditados
+    const { data: auditedOrders, error: auditedError } = await supabase
+      .from("field_audits")
+      .select("order_id");
+
+    if (auditedError) {
+      console.error("Audited orders fetch error:", auditedError);
+      return NextResponse.json({ error: "Failed to fetch audited orders" }, { status: 500 });
+    }
+
+    const auditedIds = (auditedOrders || []).map((a: { order_id: string }) => a.order_id);
+
+    let pendingQuery = supabase
       .from("orders")
       .select(`
         id,
@@ -30,11 +42,14 @@ export async function GET(request: NextRequest) {
         assignments!inner(employee_id, status)
       `)
       .eq("status", "completed")
-      .not("id", "in", (
-        await supabase.from("field_audits").select("order_id")
-      ).data?.map((a: { order_id: string }) => a.order_id) || ["00000000-0000-0000-0000-000000000000"])
       .order("service_date", { ascending: false })
       .limit(50);
+
+    if (auditedIds.length > 0) {
+      pendingQuery = pendingQuery.not("id", "in", auditedIds);
+    }
+
+    const { data: pendingOrders, error: pendingError } = await pendingQuery;
 
     if (pendingError) {
       console.error("Pending audits error:", pendingError);
@@ -128,12 +143,16 @@ export async function POST(request: NextRequest) {
       .eq("user_id", user.user?.id)
       .single();
 
+    if (!auditor?.id) {
+      return NextResponse.json({ error: "Auditor not found in employees table" }, { status: 403 });
+    }
+
     const { data, error } = await supabase
       .from("field_audits")
       .insert({
         order_id: orderId,
         employee_id: employeeId,
-        auditor_id: auditor?.id,
+        auditor_id: auditor.id,
         score,
         criteria: criteria || {},
         notes: notes || null,

@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     const sentimentScore = sentimentError ? 0 : (sentimentData || 0);
 
-    // Insertar review
+    // Insertar review con expired_at
     const { data: review, error: reviewError } = await supabase
       .from("client_reviews")
       .insert({
@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
         rating,
         comment: comment || null,
         sentiment_score: sentimentScore,
+        expired_at: deadline.toISOString(),
       })
       .select()
       .single();

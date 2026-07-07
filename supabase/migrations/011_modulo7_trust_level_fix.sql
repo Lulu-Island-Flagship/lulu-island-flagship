@@ -106,9 +106,10 @@ BEGIN
     AND o.service_date < p_week_start + INTERVAL '7 days';
 
   -- Calcular puntualidad: comparar T_in (primer service_logs t_in) vs service_time
-  -- Llegada <= service_time + 15 min = +10 puntos
-  -- Llegada > service_time + 15 min pero <= +30 min = +5 puntos
-  -- Llegada > service_time + 30 min = -10 puntos
+  -- Usar timestamp completo para evitar problemas con servicios que cruzan medianoche
+  -- Diferencia <= 15 min = +10 puntos
+  -- Diferencia <= 30 min = +5 puntos
+  -- Diferencia > 30 min = -10 puntos
   -- No hay T_in registrado = 0 puntos de puntualidad (no penaliza ni bonifica)
   WITH punctuality_data AS (
     SELECT
@@ -127,12 +128,16 @@ BEGIN
   SELECT COALESCE(
     SUM(CASE
       WHEN t_in IS NULL THEN 0
-      WHEN (t_in::time - service_time::time) <= INTERVAL '15 minutes' THEN 10
-      WHEN (t_in::time - service_time::time) <= INTERVAL '30 minutes' THEN 5
+      WHEN ABS(EXTRACT(EPOCH FROM (t_in::time - service_time::time))) <= 900 THEN 10
+      WHEN ABS(EXTRACT(EPOCH FROM (t_in::time - service_time::time))) <= 1800 THEN 5
       ELSE -10
     END), 0
   ) INTO v_punctuality_bonus
   FROM punctuality_data;
+
+  -- Acotar puntualidad a un rango razonable para no desbalancear telemetry
+  -- Máximo ±20 puntos (equivalente a ~4 servicios perfectos o 2 muy tarde)
+  v_punctuality_bonus := GREATEST(-20, LEAST(20, v_punctuality_bonus));
 
   -- Telemetría (50%): base 50 + bonificaciones - penalizaciones
   v_telemetry := 50

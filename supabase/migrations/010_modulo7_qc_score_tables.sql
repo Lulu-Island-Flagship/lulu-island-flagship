@@ -111,7 +111,8 @@ CREATE TABLE IF NOT EXISTS qc_reviews (
   note TEXT,
   reviewed_at TIMESTAMPTZ,
   sampling_reason TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(order_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_qc_reviews_employee ON qc_reviews(employee_id);
