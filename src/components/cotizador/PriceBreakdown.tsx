@@ -34,10 +34,10 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
         <div className="flex justify-between items-center py-2 border-b border-gray-200">
           <span className="text-gray-600 flex items-center gap-1">
             <Percent className="w-4 h-4" />
-            Organic load ({(quote.organicMultiplier * 100).toFixed(0)}%)
+            {quote.organicAdjustment > 0 ? "Heavy organic load" : "Light organic load"}
           </span>
           <span className="font-medium text-state-warning">
-            +${quote.organicAdjustment.toFixed(2)}
+            {quote.organicAdjustment > 0 ? "+" : ""}${quote.organicAdjustment.toFixed(2)}
           </span>
         </div>
       )}
@@ -47,10 +47,10 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
         <div className="flex justify-between items-center py-2 border-b border-gray-200">
           <span className="text-gray-600 flex items-center gap-1">
             <Percent className="w-4 h-4" />
-            Recency ({(quote.recencyMultiplier * 100).toFixed(0)}%)
+            {quote.recencyAdjustment > 0 ? "Long time since last clean" : "Recent cleaning"}
           </span>
           <span className="font-medium text-state-warning">
-            +${quote.recencyAdjustment.toFixed(2)}
+            {quote.recencyAdjustment > 0 ? "+" : ""}${quote.recencyAdjustment.toFixed(2)}
           </span>
         </div>
       )}

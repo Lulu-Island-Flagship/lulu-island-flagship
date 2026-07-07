@@ -12,6 +12,24 @@ interface StepAddressProps {
 }
 
 export function StepAddress({ address, zone, postalCode, onChange }: StepAddressProps) {
+  const [postalError, setPostalError] = React.useState("");
+
+  // Regex para código postal canadiense: formato A1A 1A1 (con o sin espacio)
+  const isValidCanadianPostal = (code: string): boolean => {
+    const normalized = code.replace(/\s/g, "").toUpperCase();
+    return /^[A-Z]\d[A-Z]\d[A-Z]\d$/.test(normalized);
+  };
+
+  const handlePostalChange = (value: string) => {
+    const upper = value.toUpperCase();
+    onChange({ address, zone, postalCode: upper });
+    if (upper.length >= 6) {
+      setPostalError(isValidCanadianPostal(upper) ? "" : "Invalid format. Use: V6X 1A1");
+    } else {
+      setPostalError("");
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="text-center">
@@ -73,12 +91,13 @@ export function StepAddress({ address, zone, postalCode, onChange }: StepAddress
         <input
           type="text"
           value={postalCode}
-          onChange={(e) =>
-            onChange({ address, zone, postalCode: e.target.value.toUpperCase() })
-          }
+          onChange={(e) => handlePostalChange(e.target.value)}
           placeholder="e.g. V7E 2A1"
           className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none transition-all uppercase"
         />
+        {postalError && (
+          <p className="text-sm text-state-danger mt-2">{postalError}</p>
+        )}
       </div>
     </div>
   );

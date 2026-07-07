@@ -225,12 +225,13 @@ export default function CotizadorPage() {
       holdAmount: breakdown.holdAmount,
       priceFrozenUntil: freeze.toISOString(),
       status: "pending",
-      consentTc: consents.tc,
-      consentPipa: consents.pipa,
-      consentMarketing: consents.marketing,
+      // Los consents no afectan el precio — se agregan solo al guardar
+      consentTc: false,
+      consentPipa: false,
+      consentMarketing: false,
       clientScore: 50,
     } as QuoteData;
-  }, [input, consents]);
+  }, [input]);
 
   useEffect(() => {
     if (step === "summary") {
@@ -314,6 +315,9 @@ export default function CotizadorPage() {
         body: JSON.stringify({
           ...quote,
           user_id: currentUserId,
+          consentTc: consents.tc,
+          consentPipa: consents.pipa,
+          consentMarketing: consents.marketing,
         }),
       });
 
@@ -372,7 +376,8 @@ export default function CotizadorPage() {
             {priceFrozenUntil && step !== "summary" && (
               <span>
                 Price locked until{" "}
-                {priceFrozenUntil.toLocaleTimeString([], {
+                {priceFrozenUntil.toLocaleTimeString("en-CA", {
+                  timeZone: "America/Vancouver",
                   hour: "2-digit",
                   minute: "2-digit",
                 })}

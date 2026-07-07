@@ -61,11 +61,11 @@ export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
     setLoading(true);
     setError("");
     try {
+      // Usar signInWithOtp SIN emailRedirectTo para forzar envío de token (código)
+      // en vez de magic link. El template de Supabase debe usar {{ .Token }}.
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+        // NO incluir options.emailRedirectTo — eso fuerza magic link
       });
       if (error) throw error;
       setOtpSent(true);
