@@ -51,6 +51,16 @@ export default function EvaluarPage() {
         return;
       }
 
+      // Verificar ventana de 24h: service_date + 1 día >= ahora
+      const serviceDate = new Date(order.service_date);
+      const deadline = new Date(serviceDate);
+      deadline.setDate(deadline.getDate() + 1);
+      if (new Date() > deadline) {
+        setError("Review window expired. You can only review within 24 hours of the service date.");
+        setLoading(false);
+        return;
+      }
+
       // Verificar que no haya review ya
       const { data: existing } = await supabase
         .from("client_reviews")

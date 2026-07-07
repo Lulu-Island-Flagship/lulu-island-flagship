@@ -43,10 +43,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing or invalid rating" }, { status: 400 });
     }
 
-    // Verificar que la orden pertenece al usuario y está completada
+    // Verificar que la orden pertenece al usuario, está completada, y no expiró
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("id, status, user_id")
+      .select("id, status, user_id, service_date")
       .eq("id", orderId)
       .single();
 
@@ -60,6 +60,14 @@ export async function POST(request: NextRequest) {
 
     if (order.status !== "completed") {
       return NextResponse.json({ error: "Order not completed yet" }, { status: 400 });
+    }
+
+    // Ventana de 24h para evaluar: service_date + 1 día >= ahora
+    const serviceDate = new Date(order.service_date);
+    const deadline = new Date(serviceDate);
+    deadline.setDate(deadline.getDate() + 1);
+    if (new Date() > deadline) {
+      return NextResponse.json({ error: "Review window expired" }, { status: 410 });
     }
 
     // Verificar que no haya una review ya existente
