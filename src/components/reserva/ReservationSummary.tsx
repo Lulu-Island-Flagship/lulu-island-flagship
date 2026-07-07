@@ -59,6 +59,7 @@ export function ReservationSummary({
                 year: "numeric",
                 month: "long",
                 day: "numeric",
+                timeZone: "America/Vancouver",
               })}{" "}
               at {serviceTime}
             </span>

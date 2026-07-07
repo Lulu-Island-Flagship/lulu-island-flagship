@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Build ISO datetime from date + time
+    // Build ISO datetime from date + time (Vancouver timezone)
     const serviceDatetime = new Date(`${serviceDate}T${serviceTime}:00`);
     if (isNaN(serviceDatetime.getTime())) {
       return NextResponse.json(
@@ -63,12 +63,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Ensure datetime is at least 24h in the future
-    const minDate = new Date();
-    minDate.setHours(minDate.getHours() + 24);
-    if (serviceDatetime < minDate) {
+    // Validate date range using Vancouver timezone
+    const vancouverNowStr = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver" });
+    const vancouverToday = new Date(vancouverNowStr.split(",")[0]);
+    vancouverToday.setHours(0, 0, 0, 0);
+
+    const serviceDateObj = new Date(serviceDate + "T00:00:00");
+    serviceDateObj.setHours(0, 0, 0, 0);
+
+    const tomorrow = new Date(vancouverToday);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const oneYearLater = new Date(vancouverToday);
+    oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+
+    if (serviceDateObj < tomorrow) {
       return NextResponse.json(
-        { error: "Service must be scheduled at least 24 hours in advance" },
+        { error: "Service must be scheduled at least 1 day in advance" },
+        { status: 400 }
+      );
+    }
+
+    if (serviceDateObj > oneYearLater) {
+      return NextResponse.json(
+        { error: "Service cannot be scheduled more than 1 year in advance" },
         { status: 400 }
       );
     }
@@ -94,6 +112,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Quote has expired. Please generate a new quote." },
         { status: 410 }
+      );
+    }
+
+    // Check for existing order (prevent double-submit)
+    const { data: existingOrder } = await supabase
+      .from("orders")
+      .select("id, status")
+      .eq("quote_id", quoteId)
+      .neq("status", "cancelled")
+      .maybeSingle();
+
+    if (existingOrder) {
+      return NextResponse.json(
+        { orderId: existingOrder.id, status: existingOrder.status, message: "Order already exists for this quote" },
+        { status: 409 }
       );
     }
 
