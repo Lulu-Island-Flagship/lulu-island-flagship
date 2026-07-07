@@ -26,41 +26,60 @@ function getSupabaseClient() {
   );
 }
 
+function getClientIp(request: NextRequest): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  return request.ip || "unknown";
+}
+
 // Helper: obtener fecha actual en zona horaria America/Vancouver como string YYYY-MM-DD
 function getVancouverDateString(): string {
   return new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", year: "numeric", month: "2-digit", day: "2-digit" }).split(",")[0];
 }
 
 // POST /api/client/review — guardar evaluación post-servicio (Fase 8.1)
+// Autenticación por token (review_token) — no requiere login de usuario
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await request.json();
-    const { orderId, rating, comment } = body;
+    const { token, rating, comment } = body;
 
-    if (!orderId || !rating || rating < 1 || rating > 5) {
-      return NextResponse.json({ error: "Missing or invalid rating" }, { status: 400 });
+    if (!token || !rating || rating < 1 || rating > 5) {
+      return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
     }
 
-    // Verificar que la orden pertenece al usuario, está completada, y no expiró
+    const supabase = getSupabaseClient();
+
+    // Rate limit: max 5 reviews per IP per day
+    const ip = getClientIp(request);
+    const { data: rateData, error: rateError } = await supabase.rpc(
+      "check_rate_limit",
+      {
+        p_ip_address: `review_${ip}`,
+        p_max_requests: 5,
+      }
+    );
+
+    if (rateError) {
+      console.error("Rate limit error:", rateError);
+    } else if (rateData && !rateData.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Try again later." },
+        { status: 429 }
+      );
+    }
+
+    // Verificar orden por review_token (no por orderId directo)
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .select("id, status, user_id, service_date")
-      .eq("id", orderId)
+      .eq("review_token", token)
       .single();
 
     if (orderError || !order) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    }
-
-    if (order.user_id !== user.id) {
-      return NextResponse.json({ error: "Not your order" }, { status: 403 });
+      return NextResponse.json({ error: "Invalid or expired review link" }, { status: 404 });
     }
 
     if (order.status !== "completed") {
@@ -68,12 +87,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Ventana de 24h para evaluar: service_date + 1 día >= hoy en Vancouver
-    // service_date es DATE (sin hora), así que la ventana es service_date + 1 día hasta las 23:59:59
     const vancouverToday = getVancouverDateString();
-    const serviceDate = order.service_date as string; // YYYY-MM-DD
+    const serviceDate = order.service_date as string;
     const deadlineDate = new Date(serviceDate + "T00:00:00");
     deadlineDate.setDate(deadlineDate.getDate() + 1);
-    const deadlineStr = deadlineDate.toISOString().split("T")[0]; // YYYY-MM-DD del día siguiente
+    const deadlineStr = deadlineDate.toISOString().split("T")[0];
 
     if (vancouverToday > deadlineStr) {
       return NextResponse.json({ error: "Review window expired" }, { status: 410 });
@@ -81,12 +99,11 @@ export async function POST(request: NextRequest) {
 
     const deadlineIso = deadlineDate.toISOString();
 
-    // Verificar que no haya una review ya existente
+    // Verificar que no haya una review ya existente para esta orden
     const { data: existingReview } = await supabase
       .from("client_reviews")
       .select("id")
-      .eq("order_id", orderId)
-      .eq("user_id", user.id)
+      .eq("order_id", order.id)
       .single();
 
     if (existingReview) {
@@ -99,16 +116,16 @@ export async function POST(request: NextRequest) {
 
     const sentimentScore = sentimentError ? 0 : (sentimentData || 0);
 
-    // Insertar review con expired_at
+    // Insertar review con review_window_expires_at (antes: expired_at)
     const { data: review, error: reviewError } = await supabase
       .from("client_reviews")
       .insert({
-        order_id: orderId,
-        user_id: user.id,
+        order_id: order.id,
+        user_id: order.user_id,
         rating,
         comment: comment || null,
         sentiment_score: sentimentScore,
-        expired_at: deadlineIso,
+        review_window_expires_at: deadlineIso,
       })
       .select()
       .single();
@@ -127,6 +144,12 @@ export async function POST(request: NextRequest) {
           status: "pending",
         });
     }
+
+    // Invalidar el token para evitar re-uso
+    await supabase
+      .from("orders")
+      .update({ review_token: null })
+      .eq("id", order.id);
 
     return NextResponse.json({ review }, { status: 201 });
   } catch (err: Error | unknown) {

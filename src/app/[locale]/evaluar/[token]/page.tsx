@@ -37,11 +37,11 @@ export default function EvaluarPage() {
   async function verifyToken() {
     setLoading(true);
     try {
-      // El token es el orderId — verificar que la orden existe y está completada
+      // El token es review_token — buscar orden por ese token
       const { data: order, error: orderError } = await supabase
         .from("orders")
-        .select("id, service_date, status, quote_id, quotes:quote_id (address)")
-        .eq("id", token)
+        .select("id, service_date, status, quote_id, review_token, quotes:quote_id (address)")
+        .eq("review_token", token)
         .single();
 
       if (orderError || !order) {
@@ -73,7 +73,7 @@ export default function EvaluarPage() {
       const { data: existing } = await supabase
         .from("client_reviews")
         .select("id")
-        .eq("order_id", token)
+        .eq("order_id", order.id)
         .single();
 
       if (existing) {
@@ -105,8 +105,7 @@ export default function EvaluarPage() {
       const res = await fetch("/api/client/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ orderId: token, rating, comment }),
+        body: JSON.stringify({ token, rating, comment }),
       });
 
       const data = await res.json();
