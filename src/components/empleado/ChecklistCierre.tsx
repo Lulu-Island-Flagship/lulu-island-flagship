@@ -210,7 +210,7 @@ export function ChecklistCierre({ orderId, serviceSubtype }: ChecklistCierreProp
       // Save to server
       const item = zone.items.find((i) => i.itemId === itemId);
       if (item) {
-        await fetch("/api/empleado/checklist", {
+        const res = await fetch("/api/empleado/checklist", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -223,9 +223,24 @@ export function ChecklistCierre({ orderId, serviceSubtype }: ChecklistCierreProp
             photoUrl,
           }),
         });
+        if (!res.ok) {
+          throw new Error(`Server returned ${res.status}`);
+        }
       }
     } catch (e) {
       console.error("Item photo error:", e);
+      // Rollback: remove photo from local state
+      setZones((prev) =>
+        prev.map((z) => {
+          if (z.zone !== zone.zone) return z;
+          return {
+            ...z,
+            items: z.items.map((i) =>
+              i.itemId === itemId ? { ...i, photoUrl: undefined } : i
+            ),
+          };
+        })
+      );
     } finally {
       setUploadingItem(null);
     }

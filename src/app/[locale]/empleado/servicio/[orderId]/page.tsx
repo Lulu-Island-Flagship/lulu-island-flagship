@@ -47,6 +47,13 @@ export default function ServicioPage() {
   const params = useParams();
   const orderId = params?.orderId as string;
 
+  // Detect locale from pathname for navigation
+  const locale = (typeof window !== "undefined" 
+    ? window.location.pathname.split("/")[1] 
+    : "en") as string;
+  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+  const empleadoPath = `/${safeLocale}/empleado`;
+
   const [service, setService] = useState<EmployeeService | null>(null);
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState<ServiceLog[]>([]);
@@ -68,7 +75,7 @@ export default function ServicioPage() {
     try {
       const res = await fetch("/api/empleado/servicios", { credentials: "include" });
       if (!res.ok) {
-        if (res.status === 401) router.push("/empleado");
+        if (res.status === 401) router.push(empleadoPath);
         setLoading(false);
         return;
       }
@@ -300,7 +307,7 @@ export default function ServicioPage() {
           <h2 className="text-lg font-bold text-brand-ink mb-2">Service Not Found</h2>
           <p className="text-sm text-gray-500 mb-4">This service is not assigned to you.</p>
           <button
-            onClick={() => router.push("/empleado")}
+            onClick={() => router.push(empleadoPath)}
             className="inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg font-semibold"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -419,7 +426,7 @@ export default function ServicioPage() {
             <p className="font-semibold">Service Completed</p>
             <p className="text-sm mt-1">Great work! This service is finished.</p>
             <button
-              onClick={() => router.push("/empleado")}
+              onClick={() => router.push(empleadoPath)}
               className="mt-4 inline-flex items-center gap-2 bg-state-success text-white px-4 py-2 rounded-lg font-medium"
             >
               <ChevronLeft className="w-4 h-4" />

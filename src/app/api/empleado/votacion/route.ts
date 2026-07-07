@@ -121,6 +121,34 @@ export async function POST(request: NextRequest) {
     monday.setDate(today.getDate() - today.getDay() + 1);
     const weekStart = monday.toISOString().split("T")[0];
 
+    // Verificar si ya votó por este compañero esta semana
+    const { data: existingVote, error: checkError } = await supabase
+      .from("peer_votes")
+      .select("id")
+      .eq("voter_employee_id", me.id)
+      .eq("target_employee_id", targetEmployeeId)
+      .eq("week_start", weekStart)
+      .single();
+
+    if (checkError && checkError.code !== "PGRST116") {
+      return NextResponse.json({ error: checkError.message }, { status: 500 });
+    }
+    if (existingVote) {
+      return NextResponse.json({ error: "Already voted for this peer this week" }, { status: 409 });
+    }
+
+    // Verificar que el target existe y es activo
+    const { data: targetEmployee, error: targetError } = await supabase
+      .from("employees")
+      .select("id")
+      .eq("id", targetEmployeeId)
+      .eq("is_active", true)
+      .single();
+
+    if (targetError || !targetEmployee) {
+      return NextResponse.json({ error: "Target employee not found or inactive" }, { status: 400 });
+    }
+
     const { data, error } = await supabase
       .from("peer_votes")
       .insert({

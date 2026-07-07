@@ -42,7 +42,7 @@ export default function EmpleadoPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         // Verify user is an active employee
-        const authorized = await verifyEmployee(user.email);
+        const authorized = await verifyEmployee(user.id);
         if (authorized) {
           setIsAuthenticated(true);
           loadEmployeeData();
@@ -62,7 +62,7 @@ export default function EmpleadoPage() {
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        const authorized = await verifyEmployee(session.user.email);
+        const authorized = await verifyEmployee(session.user.id);
         if (authorized) {
           setIsAuthenticated(true);
           setAuthError("");
@@ -85,14 +85,14 @@ export default function EmpleadoPage() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // Verify if email exists in employees table with is_active = true
-  async function verifyEmployee(email: string | undefined): Promise<boolean> {
-    if (!email) return false;
+  // Verify if user_id exists in employees table with is_active = true
+  async function verifyEmployee(userId: string | undefined): Promise<boolean> {
+    if (!userId) return false;
     try {
       const { data, error } = await supabase
         .from("employees")
         .select("id")
-        .eq("email", email)
+        .eq("user_id", userId)
         .eq("is_active", true)
         .single();
       return !error && !!data;

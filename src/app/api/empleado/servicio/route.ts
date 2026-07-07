@@ -71,13 +71,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No assignment found for this service" }, { status: 403 });
     }
 
-    // Actualizar status de la asignación según el evento
+    // Actualizar status de la asignación según el evento (solo para eventos de progreso)
     let newStatus = assignment.status;
     if (eventType === "t_in") newStatus = "arrived";
     if (eventType === "t_start") newStatus = "in_progress";
     if (eventType === "t_out") newStatus = "completed";
 
-    if (newStatus !== assignment.status) {
+    // Validar secuencia: no permitir t_start sin t_in, ni t_out sin t_start
+    if (eventType === "t_start" && assignment.status !== "arrived") {
+      return NextResponse.json({ error: "Must check in (T_in) before starting service" }, { status: 400 });
+    }
+    if (eventType === "t_out" && assignment.status !== "in_progress") {
+      return NextResponse.json({ error: "Must start service (T_start) before finishing" }, { status: 400 });
+    }
+
+    if (newStatus !== assignment.status && ["t_in", "t_start", "t_out"].includes(eventType)) {
       await supabase
         .from("assignments")
         .update({ status: newStatus, updated_at: new Date().toISOString() })
