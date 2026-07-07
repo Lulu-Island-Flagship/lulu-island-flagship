@@ -105,6 +105,7 @@ export async function GET(request: NextRequest) {
       const requiredCompleted = items.filter((i: { required: boolean; isCompleted: boolean }) => i.required && i.isCompleted).length;
 
       return {
+        checklistId: cl.id,
         zone: cl.zone,
         zoneLabel: cl.zone_label,
         zoneColor: cl.zone_color,

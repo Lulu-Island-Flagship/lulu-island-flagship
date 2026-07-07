@@ -126,7 +126,7 @@ export function ChecklistCierre({ orderId, serviceSubtype }: ChecklistCierreProp
         credentials: "include",
         body: JSON.stringify({
           orderId,
-          checklistId: zone.zone, // We need the actual checklist ID here
+          checklistId: zone.checklistId, // UUID real de sop_checklists
           itemId,
           itemLabel,
           isCompleted: newCompleted,
@@ -180,7 +180,7 @@ export function ChecklistCierre({ orderId, serviceSubtype }: ChecklistCierreProp
           credentials: "include",
           body: JSON.stringify({
             orderId,
-            checklistId: zone.zone,
+            checklistId: zone.checklistId, // UUID real de sop_checklists
             itemId,
             itemLabel: item.label,
             isCompleted: item.isCompleted,

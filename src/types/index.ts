@@ -245,6 +245,7 @@ export interface ServiceUpsell {
 }
 
 export interface ChecklistZoneProgress {
+  checklistId: string;  // UUID de sop_checklists
   zone: string;
   zoneLabel: string;
   zoneColor: string;
