@@ -5,11 +5,54 @@ import { Ship, Shield, Users, Clock, Star, MapPin } from "lucide-react";
 import { QuoteButton } from "@/components/landing/QuoteButton";
 import { LanguageSelector } from "@/components/LanguageSelector";
 
+function LocalBusinessSchema() {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "name": "Lulu Island Flagship Cleaning Services",
+    "description": "Verified, insured, and trained to care for your home — not just clean it. Full price from quote, no surprises.",
+    "url": "https://luluislandflagship.ca",
+    "telephone": "+1-604-000-0000",
+    "email": "hello@luluislandflagship.ca",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Richmond",
+      "addressRegion": "BC",
+      "addressCountry": "CA"
+    },
+    "areaServed": [
+      { "@type": "City", "name": "Richmond" },
+      { "@type": "City", "name": "Vancouver" },
+      { "@type": "City", "name": "North Vancouver" },
+      { "@type": "City", "name": "West Vancouver" },
+      { "@type": "Place", "name": "UBC" }
+    ],
+    "serviceType": [
+      "House Cleaning",
+      "Deep Cleaning",
+      "Move-In/Move-Out Cleaning",
+      "Office Cleaning",
+      "Airbnb Cleaning",
+      "Post-Construction Cleaning"
+    ],
+    "priceRange": "$$"
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
 export default function HomePage() {
   const t = useTranslations();
 
   return (
     <main className="min-h-screen bg-white">
+      <LocalBusinessSchema />
+
       {/* Header */}
       <header className="bg-brand-navy text-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">

@@ -14,6 +14,22 @@ export function QuoteButton({ variant = "primary", children }: QuoteButtonProps)
 
   const handleClick = () => {
     try {
+      // Track CTA click (lightweight, no third-party cookies)
+      fetch("/api/analytics/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "cta_click",
+          variant,
+          timestamp: new Date().toISOString(),
+        }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch {
+      // ignore tracking errors
+    }
+
+    try {
       localStorage.removeItem("lulu_cotizador_state");
       localStorage.removeItem("lulu_pending_auth_quote");
     } catch {

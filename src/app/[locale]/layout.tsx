@@ -1,5 +1,5 @@
 import { NextIntlClientProvider } from 'next-intl';
-import { getMessages } from 'next-intl/server';
+import { getMessages, getTranslations } from 'next-intl/server';
 import type { Metadata } from "next";
 import { Inter, Noto_Sans_SC } from "next/font/google";
 import "../globals.css";
@@ -17,28 +17,29 @@ const notoSansSC = Noto_Sans_SC({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Lulu Island Flagship | Cleaning Services | Richmond, BC",
-  description:
-    "The same trusted team, every time. Verified, insured, and trained to care for your home — not just clean it. Full price from quote, no surprises. Serving Richmond, Vancouver & Metro Vancouver.",
-  keywords: [
-    "cleaning services",
-    "house cleaning",
-    "Richmond BC",
-    "Vancouver cleaning",
-    "deep cleaning",
-    "move-in cleaning",
-  ],
-  icons: {
-    icon: "/favicon.ico",
-  },
-  openGraph: {
-    title: "Lulu Island Flagship | Cleaning Services",
-    description:
-      "The same trusted team, every time. Full price from quote, no surprises.",
-    type: "website",
-  },
-};
+export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
+  const t = await getTranslations({ locale: params.locale, namespace: 'meta' });
+  return {
+    title: t('title'),
+    description: t('description'),
+    keywords: [
+      "cleaning services",
+      "house cleaning",
+      "Richmond BC",
+      "Vancouver cleaning",
+      "deep cleaning",
+      "move-in cleaning",
+    ],
+    icons: {
+      icon: "/favicon.ico",
+    },
+    openGraph: {
+      title: t('title'),
+      description: t('description'),
+      type: "website",
+    },
+  };
+}
 
 export async function generateStaticParams() {
   return [{ locale: 'en' }, { locale: 'zh' }, { locale: 'fr' }];
