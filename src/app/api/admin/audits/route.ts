@@ -17,7 +17,10 @@ export async function GET(request: NextRequest) {
     const employeeId = searchParams.get("employeeId");
     const weekStart = searchParams.get("weekStart");
 
-    // Servicios completados sin auditoría
+    // Servicios completados sin auditoría (solo de hoy en Vancouver)
+    const vancouverDate = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver" });
+    const today = vancouverDate.split(",")[0];
+
     // Primero obtener los order_id ya auditados
     const { data: auditedOrders, error: auditedError } = await supabase
       .from("field_audits")
@@ -42,6 +45,7 @@ export async function GET(request: NextRequest) {
         assignments!inner(employee_id, status)
       `)
       .eq("status", "completed")
+      .eq("service_date", today)
       .order("service_date", { ascending: false })
       .limit(50);
 
@@ -85,8 +89,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Votaciones agregadas de la semana actual
-    const vancouverDate = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver" });
-    const monday = weekStart || vancouverDate.split(",")[0];
+    const monday = weekStart || today;
     const { data: peerVotes, error: votesError } = await supabase
       .from("peer_votes")
       .select("target_employee_id, rating")

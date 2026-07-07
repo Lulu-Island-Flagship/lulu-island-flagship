@@ -116,6 +116,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid vote" }, { status: 400 });
     }
 
+    if (targetEmployeeId === me.id) {
+      return NextResponse.json({ error: "Cannot vote for yourself" }, { status: 400 });
+    }
+
     const today = new Date();
     const monday = new Date(today);
     monday.setDate(today.getDate() - today.getDay() + 1);

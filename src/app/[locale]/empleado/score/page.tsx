@@ -49,6 +49,9 @@ export default function EmpleadoScorePage() {
   const [scores, setScores] = useState<ScoreRecord[]>([]);
   const [audits, setAudits] = useState<AuditRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [appealingAuditId, setAppealingAuditId] = useState<string | null>(null);
+  const [appealReason, setAppealReason] = useState("");
+  const [appealSubmitting, setAppealSubmitting] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -72,6 +75,31 @@ export default function EmpleadoScorePage() {
       console.error("Load score error:", e);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function submitAppeal(auditId: string) {
+    if (!appealReason.trim()) return;
+    setAppealSubmitting(true);
+    try {
+      const res = await fetch("/api/empleado/appeal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auditId, reason: appealReason.trim() }),
+      });
+      if (res.ok) {
+        setAppealingAuditId(null);
+        setAppealReason("");
+        loadData();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Failed to submit appeal");
+      }
+    } catch (e) {
+      console.error("Appeal error:", e);
+      alert("Failed to submit appeal");
+    } finally {
+      setAppealSubmitting(false);
     }
   }
 
@@ -262,6 +290,43 @@ export default function EmpleadoScorePage() {
                       )}
                       {audit.notes && (
                         <p className="text-xs text-gray-600">{audit.notes}</p>
+                      )}
+                      {!audit.appealed_at && (
+                        <div className="mt-2">
+                          {appealingAuditId === audit.id ? (
+                            <div className="space-y-2">
+                              <textarea
+                                value={appealReason}
+                                onChange={(e) => setAppealReason(e.target.value)}
+                                placeholder="Explain why this audit is unfair..."
+                                className="w-full text-xs border rounded-lg p-2 resize-none"
+                                rows={2}
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => submitAppeal(audit.id)}
+                                  disabled={appealSubmitting || !appealReason.trim()}
+                                  className="text-xs bg-brand-navy text-white px-3 py-1 rounded-lg disabled:opacity-50"
+                                >
+                                  {appealSubmitting ? "Submitting..." : "Submit Appeal"}
+                                </button>
+                                <button
+                                  onClick={() => { setAppealingAuditId(null); setAppealReason(""); }}
+                                  className="text-xs text-gray-500 px-2 py-1"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setAppealingAuditId(audit.id)}
+                              className="text-xs text-brand-navy hover:underline"
+                            >
+                              Appeal this audit
+                            </button>
+                          )}
+                        </div>
                       )}
                       {audit.appealed_at && (
                         <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">

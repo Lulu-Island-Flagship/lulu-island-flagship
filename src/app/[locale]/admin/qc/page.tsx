@@ -25,6 +25,7 @@ interface QCReview {
 
 export default function AdminQCPage() {
   const router = useRouter();
+  const [safeLocale, setSafeLocale] = useState("en");
   const [statusFilter, setStatusFilter] = useState<string>("pending");
   const [reviews, setReviews] = useState<QCReview[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +34,11 @@ export default function AdminQCPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    // Extract locale from pathname
+    const pathLocale = window.location.pathname.split("/")[1];
+    if (["en", "zh", "fr"].includes(pathLocale)) {
+      setSafeLocale(pathLocale);
+    }
     loadReviews();
   }, [statusFilter]);
 
@@ -244,7 +250,9 @@ export default function AdminQCPage() {
                         </div>
 
                         <p className="text-xs text-gray-500">
-                          Order: {review.order_id.slice(0, 8)}
+                          <a href={`/${safeLocale}/admin/servicios/${review.order_id}`} className="text-brand-navy hover:underline">
+                            Order: {review.order_id.slice(0, 8)}...
+                          </a>
                         </p>
                       </div>
                     ))}
