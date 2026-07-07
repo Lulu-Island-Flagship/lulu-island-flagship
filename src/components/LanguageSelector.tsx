@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Globe } from "lucide-react";
 
@@ -14,19 +14,19 @@ const LOCALES = [
 export function LanguageSelector() {
   const router = useRouter();
   const pathname = usePathname();
-  const [currentLocale, setCurrentLocale] = useState("en");
-
-  // Read saved preference on mount
-  useEffect(() => {
+  // Read locale from pathname on initial render, fallback to localStorage
+  const pathLocale = pathname.match(/^\/(en|zh|fr)(\/|$)/);
+  const [currentLocale, setCurrentLocale] = useState(() => {
     try {
       const saved = localStorage.getItem(LANG_KEY);
       if (saved && LOCALES.some((l) => l.code === saved)) {
-        setCurrentLocale(saved);
+        return saved;
       }
     } catch {
       // ignore
     }
-  }, []);
+    return pathLocale ? pathLocale[1] : "en";
+  });
 
   const switchLanguage = (locale: string) => {
     setCurrentLocale(locale);

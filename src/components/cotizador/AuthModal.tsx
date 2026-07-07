@@ -103,6 +103,15 @@ export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
       setError("Please enter the 6-digit code");
       return;
     }
+    // Validate email/phone is still present
+    if (mode === "email" && (!email || !email.includes("@"))) {
+      setError("Email is required. Please go back and enter your email.");
+      return;
+    }
+    if (mode === "phone" && (!phone || phone.length < 10)) {
+      setError("Phone number is required. Please go back and enter your phone.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
