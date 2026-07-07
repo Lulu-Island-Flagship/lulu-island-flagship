@@ -72,14 +72,21 @@ export default async function AdminLayout({
     <div className="min-h-screen bg-gray-50">
       {/* Admin Nav */}
       <nav className="bg-brand-navy text-white">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6">
-          <a href={adminPath} className="font-bold text-lg">Admin</a>
-          <div className="flex items-center gap-4 text-sm">
-            <a href={`${adminPath}/servicios`} className="hover:text-brand-gold transition-colors">Services</a>
-            <a href={`${adminPath}/empleados`} className="hover:text-brand-gold transition-colors">Employees</a>
-            <a href={`${adminPath}/upsells`} className="hover:text-brand-gold transition-colors">Upsells</a>
-            <a href={`${adminPath}/checklists`} className="hover:text-brand-gold transition-colors">Checklists</a>
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <a href={adminPath} className="font-bold text-lg">Admin</a>
+            <div className="flex items-center gap-4 text-sm">
+              <a href={`${adminPath}/servicios`} className="hover:text-brand-gold transition-colors">Services</a>
+              <a href={`${adminPath}/empleados`} className="hover:text-brand-gold transition-colors">Employees</a>
+              <a href={`${adminPath}/upsells`} className="hover:text-brand-gold transition-colors">Upsells</a>
+              <a href={`${adminPath}/checklists`} className="hover:text-brand-gold transition-colors">Checklists</a>
+            </div>
           </div>
+          <form action="/auth/signout" method="post">
+            <button type="submit" className="text-sm text-white/70 hover:text-white transition-colors">
+              Sign Out
+            </button>
+          </form>
         </div>
       </nav>
       <main className="max-w-6xl mx-auto px-4 py-6">{children}</main>

@@ -7,12 +7,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireSupervisor();
-  if (auth.error) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
-  const { supabase } = auth;
-  if (!supabase) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (auth.error || !auth.supabase) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
 
   try {
@@ -28,8 +24,30 @@ export async function POST(
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
+    // Verificar que el ticket esté abierto o en revisión antes de resolver
+    const { data: existingTicket, error: fetchError } = await auth.supabase
+      .from("tickets_disputas")
+      .select("status")
+      .eq("id", id)
+      .single();
+
+    if (fetchError) {
+      return NextResponse.json({ error: fetchError.message }, { status: 500 });
+    }
+
+    if (!existingTicket) {
+      return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
+    }
+
+    if (!["open", "in_review"].includes(existingTicket.status)) {
+      return NextResponse.json(
+        { error: `Cannot resolve: ticket is already ${existingTicket.status}` },
+        { status: 409 }
+      );
+    }
+
     // Reuse the already-authenticated user from requireSupervisor
-    const { data: resolver } = await supabase
+    const { data: resolver } = await auth.supabase
       .from("employees")
       .select("id")
       .eq("user_id", auth.user?.id)
@@ -39,7 +57,7 @@ export async function POST(
       return NextResponse.json({ error: "Resolver not found in employees table" }, { status: 403 });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await auth.supabase
       .from("tickets_disputas")
       .update({
         status,

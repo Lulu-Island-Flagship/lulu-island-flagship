@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
 import {
   ClipboardList,
   Users,
@@ -12,8 +11,6 @@ import {
 } from "lucide-react";
 
 export default function AdminDashboardClient() {
-  const router = useRouter();
-
   // Detect locale from pathname for navigation
   const locale = (typeof window !== "undefined" 
     ? window.location.pathname.split("/")[1] 
@@ -66,10 +63,10 @@ export default function AdminDashboardClient() {
         {cards.map((card) => {
           const Icon = card.icon;
           return (
-            <button
+            <a
               key={card.title}
-              onClick={() => router.push(card.href)}
-              className="bg-white rounded-xl border p-5 text-left hover:shadow-md transition-shadow group"
+              href={card.href}
+              className="bg-white rounded-xl border p-5 text-left hover:shadow-md transition-shadow group block"
             >
               <div className="flex items-start justify-between">
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${card.color}`}>
@@ -79,7 +76,7 @@ export default function AdminDashboardClient() {
               </div>
               <h2 className="mt-3 font-semibold text-brand-ink">{card.title}</h2>
               <p className="mt-1 text-sm text-gray-500">{card.description}</p>
-            </button>
+            </a>
           );
         })}
       </div>

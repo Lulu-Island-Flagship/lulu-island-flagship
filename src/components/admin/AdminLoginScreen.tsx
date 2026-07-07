@@ -12,10 +12,13 @@ export default function AdminLoginScreen() {
     setIsLoading(true);
     setError("");
     try {
+      const currentPath = window.location.pathname;
+      const locale = currentPath.split("/")[1] || "en";
+      const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/en/admin`,
+          redirectTo: `${window.location.origin}/auth/callback?next=/${safeLocale}/admin`,
         },
       });
       if (error) throw error;

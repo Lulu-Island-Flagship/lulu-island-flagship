@@ -4,16 +4,12 @@ import { requireSupervisor } from "@/lib/admin";
 // GET /api/admin/empleados — lista de todos los empleados
 export async function GET() {
   const auth = await requireSupervisor();
-  if (auth.error) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
-  const { supabase } = auth;
-  if (!supabase) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (auth.error || !auth.supabase) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await auth.supabase
       .from("employees")
       .select("id, name, email, role, phone, is_active, day_rate, languages, created_at")
       .order("name", { ascending: true });

@@ -7,18 +7,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireSupervisor();
-  if (auth.error) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
-  const { supabase } = auth;
-  if (!supabase) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (auth.error || !auth.supabase) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
 
   try {
     const { id } = await params;
 
-    const { data, error } = await supabase
+    const { data, error } = await auth.supabase
       .from("service_upsells")
       .update({ reviewed_by_admin: true })
       .eq("id", id)

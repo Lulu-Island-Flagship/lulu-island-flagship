@@ -4,17 +4,13 @@ import { requireSupervisor } from "@/lib/admin";
 // GET /api/admin/upsells — upsells pendientes de revisión (reviewed_by_admin = false)
 export async function GET() {
   const auth = await requireSupervisor();
-  if (auth.error) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
-  const { supabase } = auth;
-  if (!supabase) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (auth.error || !auth.supabase) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
 
   try {
     // Fetch upsells with orders (separate from quotes to avoid nested join issues)
-    const { data: upsells, error } = await supabase
+    const { data: upsells, error } = await auth.supabase
       .from("service_upsells")
       .select(`
         id,
@@ -50,7 +46,7 @@ export async function GET() {
 
     const quoteMap = new Map<string, { address: string }>();
     if (quoteIds.length > 0) {
-      const { data: quotes } = await supabase
+      const { data: quotes } = await auth.supabase
         .from("quotes")
         .select("id, address")
         .in("id", quoteIds);

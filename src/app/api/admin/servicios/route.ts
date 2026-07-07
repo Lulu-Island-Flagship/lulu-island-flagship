@@ -4,12 +4,8 @@ import { requireSupervisor } from "@/lib/admin";
 // GET /api/admin/servicios — servicios de hoy con % de checklist completado
 export async function GET() {
   const auth = await requireSupervisor();
-  if (auth.error) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
-  const { supabase } = auth;
-  if (!supabase) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (auth.error || !auth.supabase) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
 
   try {
@@ -27,7 +23,7 @@ export async function GET() {
     const utcDate = new Date().toISOString().split("T")[0];
 
     // Obtener órdenes de hoy
-    const { data: orders, error: ordersError } = await supabase
+    const { data: orders, error: ordersError } = await auth.supabase
       .from("orders")
       .select("id, service_date, service_time, status, quote_id")
       .eq("service_date", today)
@@ -44,7 +40,7 @@ export async function GET() {
       .filter(Boolean);
 
     // Obtener quotes asociadas en query separada (evita problemas de join + RLS)
-    const { data: quotes, error: quotesError } = await supabase
+    const { data: quotes, error: quotesError } = await auth.supabase
       .from("quotes")
       .select("id, service_type, address, zone, bedrooms, bathrooms, square_feet, total")
       .in("id", quoteIds.length > 0 ? quoteIds : ["00000000-0000-0000-0000-000000000000"]);
@@ -59,7 +55,7 @@ export async function GET() {
     }
 
     // Obtener assignments para estas órdenes
-    const { data: assignments, error: assignError } = await supabase
+    const { data: assignments, error: assignError } = await auth.supabase
       .from("assignments")
       .select("id, order_id, employee_id, status, assigned_at, notes")
       .in("order_id", orderIds);
@@ -73,7 +69,7 @@ export async function GET() {
       .map((a: { employee_id: string }) => a.employee_id)
       .filter(Boolean);
 
-    const { data: employees } = await supabase
+    const { data: employees } = await auth.supabase
       .from("employees")
       .select("id, name, email")
       .in("id", employeeIds.length > 0 ? employeeIds : ["00000000-0000-0000-0000-000000000000"]);
@@ -89,7 +85,7 @@ export async function GET() {
     }
 
     // Obtener checklists completados por orden
-    const { data: checklistItems } = await supabase
+    const { data: checklistItems } = await auth.supabase
       .from("service_checklist_items")
       .select("order_id, is_completed")
       .in("order_id", orderIds.length > 0 ? orderIds : ["00000000-0000-0000-0000-000000000000"]);
@@ -105,7 +101,7 @@ export async function GET() {
     }
 
     // Obtener plantillas de checklist para calcular totales por service_subtype
-    const { data: checklists } = await supabase
+    const { data: checklists } = await auth.supabase
       .from("sop_checklists")
       .select("id, service_subtype, items")
       .eq("is_active", true);
@@ -125,7 +121,7 @@ export async function GET() {
           totalItems += (cl.items || []).filter((item: { active?: boolean }) => item.active !== false).length;
         }
       }
-      const percentComplete = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+      const percentComplete = totalItems > 0 ? Math.min(100, Math.round((completedItems / totalItems) * 100)) : 0;
 
       enriched.push({
         orderId: o.id,
