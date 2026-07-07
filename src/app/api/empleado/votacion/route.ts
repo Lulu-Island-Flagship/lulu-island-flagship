@@ -46,10 +46,11 @@ export async function GET() {
       return NextResponse.json({ error: "Employee not found" }, { status: 403 });
     }
 
-    // Lunes de esta semana
-    const today = new Date();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - today.getDay() + 1);
+    // Lunes de esta semana en Vancouver
+    const vancouverDate = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", year: "numeric", month: "2-digit", day: "2-digit" });
+    const vancouverToday = new Date(vancouverDate + "T12:00:00-07:00");
+    const monday = new Date(vancouverToday);
+    monday.setDate(vancouverToday.getDate() - vancouverToday.getDay() + 1);
     const weekStart = monday.toISOString().split("T")[0];
 
     // Compañeros activos (excluyendo uno mismo)
@@ -120,9 +121,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Cannot vote for yourself" }, { status: 400 });
     }
 
-    const today = new Date();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - today.getDay() + 1);
+    // Lunes de esta semana en Vancouver (también en POST)
+    const vancouverDate = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", year: "numeric", month: "2-digit", day: "2-digit" });
+    const vancouverToday = new Date(vancouverDate + "T12:00:00-07:00");
+    const monday = new Date(vancouverToday);
+    monday.setDate(vancouverToday.getDate() - vancouverToday.getDay() + 1);
     const weekStart = monday.toISOString().split("T")[0];
 
     // Verificar si ya votó por este compañero esta semana

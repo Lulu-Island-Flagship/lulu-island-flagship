@@ -60,8 +60,8 @@ export default function EvaluarPage() {
       // Verificar ventana de 24h: service_date + 1 día >= hoy en Vancouver
       const vancouverToday = getVancouverDateString();
       const serviceDate = order.service_date as string;
-      const deadlineDate = new Date(serviceDate + "T00:00:00");
-      deadlineDate.setDate(deadlineDate.getDate() + 1);
+      // Crear fecha en timezone Vancouver explícito para evitar desfases del browser
+      const deadlineDate = new Date(serviceDate + "T23:59:59-07:00"); // PST (Vancouver)
       const deadlineStr = deadlineDate.toISOString().split("T")[0];
 
       if (vancouverToday > deadlineStr) {

@@ -56,8 +56,10 @@ export async function POST(request: NextRequest) {
 
     const eventType = action === "start" ? "jornada_start" : "jornada_end";
 
-    // Insertar log de jornada
-    const vancouverTimestamp = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", hour12: false }).replace(", ", "T");
+    // Insertar log de jornada con timestamp ISO explícito en Vancouver
+    const now = new Date();
+    const vancouverOffset = now.toLocaleString("en-CA", { timeZone: "America/Vancouver", timeZoneName: "short" }).includes("PDT") ? "-07:00" : "-08:00";
+    const vancouverTimestamp = now.toLocaleString("en-CA", { timeZone: "America/Vancouver", hour12: false }).replace(", ", "T") + vancouverOffset;
     const { data: log, error: logError } = await supabase
       .from("service_logs")
       .insert({

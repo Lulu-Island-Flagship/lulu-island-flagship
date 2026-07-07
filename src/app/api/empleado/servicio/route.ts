@@ -100,8 +100,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Insertar log del evento
-    const vancouverTimestamp = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", hour12: false }).replace(", ", "T");
+    // Insertar log del evento con timestamp ISO explícito en Vancouver
+    // toLocaleString sin timezone offset produce string ambiguo para Postgres TIMESTAMPTZ
+    // Usamos formato ISO con offset -07:00 (PST) o -08:00 (PDT) según la fecha
+    const now = new Date();
+    const vancouverOffset = now.toLocaleString("en-CA", { timeZone: "America/Vancouver", timeZoneName: "short" }).includes("PDT") ? "-07:00" : "-08:00";
+    const vancouverTimestamp = now.toLocaleString("en-CA", { timeZone: "America/Vancouver", hour12: false }).replace(", ", "T") + vancouverOffset;
     const { data: log, error: logError } = await supabase
       .from("service_logs")
       .insert({
