@@ -104,17 +104,11 @@ export async function GET() {
       }
     }
 
-    // Obtener plantillas de checklist para calcular totales por zona (no por service_subtype)
+    // Obtener plantillas de checklist para calcular totales por service_subtype
     const { data: checklists } = await supabase
       .from("sop_checklists")
       .select("id, service_subtype, items")
       .eq("is_active", true);
-
-    const checklistTotalByZone = new Map<string, number>();
-    for (const cl of checklists || []) {
-      const count = (cl.items || []).filter((item: { active?: boolean }) => item.active !== false).length;
-      checklistTotalByZone.set(cl.id, count);
-    }
 
     // Enriquecer datos
     const enriched = [];

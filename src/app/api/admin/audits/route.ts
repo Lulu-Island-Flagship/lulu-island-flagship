@@ -85,7 +85,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Votaciones agregadas de la semana actual
-    const monday = weekStart || new Date().toISOString().split("T")[0];
+    const vancouverDate = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver" });
+    const monday = weekStart || vancouverDate.split(",")[0];
     const { data: peerVotes, error: votesError } = await supabase
       .from("peer_votes")
       .select("target_employee_id, rating")

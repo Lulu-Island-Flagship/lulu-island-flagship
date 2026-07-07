@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || "pending";
-    const limit = Number(searchParams.get("limit") || "50");
+    const limit = Math.min(Math.max(Number(searchParams.get("limit") || "50"), 1), 200);
 
     const { data, error } = await supabase
       .from("qc_reviews")
@@ -64,12 +64,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Verificar nivel de confianza del empleado
-    const { data: employee } = await supabase
-      .from("employees")
-      .select("trust_level")
-      .eq("id", employeeId)
-      .single();
+    // Verificar nivel de confianza del empleado (deshabilitado hasta detección de gaming)
+    // const { data: employee } = await supabase
+    //   .from("employees")
+    //   .select("trust_level")
+    //   .eq("id", employeeId)
+    //   .single();
 
     const isElite = false; // DISABLED: employee?.trust_level === "elite";
     const isSampled = false; // DISABLED: Math.random() < 0.10; // 10% muestreo

@@ -349,14 +349,7 @@ export default function AdminChecklistsClient() {
   };
 
   const handleDeleteServiceType = async (subtype: string) => {
-    // Step 1: Check history via GET (not DELETE)
-    await fetch(`/api/admin/checklists/service-type/${encodeURIComponent(subtype)}`, {
-      method: "GET",
-      credentials: "include",
-    });
-    // If GET returns 200 with data, it means the service type exists and has no history
-    // Actually, we need a dedicated check endpoint. For now, use the DELETE with a dry-run param.
-    // Better approach: try a soft-check first
+    // Check history first (soft-check via DELETE with dry-run)
     const res = await fetch(`/api/admin/checklists/service-type/${encodeURIComponent(subtype)}?dryRun=true`, {
       method: "DELETE",
       credentials: "include",

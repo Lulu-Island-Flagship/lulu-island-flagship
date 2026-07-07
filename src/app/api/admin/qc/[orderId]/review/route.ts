@@ -28,11 +28,11 @@ export async function POST(
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
-    const { data: user } = await supabase.auth.getUser();
+    // Reuse the already-authenticated user from requireSupervisor
     const { data: reviewer } = await supabase
       .from("employees")
       .select("id")
-      .eq("user_id", user.user?.id)
+      .eq("user_id", auth.user?.id)
       .single();
 
     if (!reviewer?.id) {

@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { headers } from "next/headers";
 import AdminLoginScreen from "@/components/admin/AdminLoginScreen";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
@@ -60,17 +61,24 @@ export default async function AdminLayout({
     );
   }
 
+  // Detect locale from request headers for navigation links
+  const headersList = headers();
+  const pathname = headersList.get("x-invoke-path") || headersList.get("x-pathname") || "/en/admin";
+  const locale = pathname.split("/")[1] || "en";
+  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+  const adminPath = `/${safeLocale}/admin`;
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Admin Nav */}
       <nav className="bg-brand-navy text-white">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6">
-          <a href="/admin" className="font-bold text-lg">Admin</a>
+          <a href={adminPath} className="font-bold text-lg">Admin</a>
           <div className="flex items-center gap-4 text-sm">
-            <a href="/admin/servicios" className="hover:text-brand-gold transition-colors">Services</a>
-            <a href="/admin/empleados" className="hover:text-brand-gold transition-colors">Employees</a>
-            <a href="/admin/upsells" className="hover:text-brand-gold transition-colors">Upsells</a>
-            <a href="/admin/checklists" className="hover:text-brand-gold transition-colors">Checklists</a>
+            <a href={`${adminPath}/servicios`} className="hover:text-brand-gold transition-colors">Services</a>
+            <a href={`${adminPath}/empleados`} className="hover:text-brand-gold transition-colors">Employees</a>
+            <a href={`${adminPath}/upsells`} className="hover:text-brand-gold transition-colors">Upsells</a>
+            <a href={`${adminPath}/checklists`} className="hover:text-brand-gold transition-colors">Checklists</a>
           </div>
         </div>
       </nav>

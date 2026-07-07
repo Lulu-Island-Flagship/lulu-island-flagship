@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     // Generar IDs nuevos para todos los items (nunca reutilizar IDs existentes)
     const itemsWithIds = items.map((item: { label: string; required: boolean; id?: string }) => ({
-      id: item.id || generateItemId(zone),
+      id: item.id || `${zone}_${crypto.randomUUID().split("-")[0]}`,
       label: item.label,
       required: item.required ?? false,
       active: true,
