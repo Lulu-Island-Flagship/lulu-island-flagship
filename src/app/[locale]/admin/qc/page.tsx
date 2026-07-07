@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ChevronLeft,
   Shield,
@@ -250,9 +251,9 @@ export default function AdminQCPage() {
                         </div>
 
                         <p className="text-xs text-gray-500">
-                          <a href={`/${safeLocale}/admin/servicios/${review.order_id}`} className="text-brand-navy hover:underline">
+                          <Link href={`/${safeLocale}/admin/servicios/${review.order_id}`} className="text-brand-navy hover:underline">
                             Order: {review.order_id.slice(0, 8)}...
-                          </a>
+                          </Link>
                         </p>
                       </div>
                     ))}

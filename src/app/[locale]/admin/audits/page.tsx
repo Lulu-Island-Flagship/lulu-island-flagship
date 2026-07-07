@@ -40,6 +40,7 @@ interface PendingOrder {
 interface PeerVoteAggregate {
   count: number;
   avg: number;
+  name: string;
 }
 
 export default function AdminAuditsPage() {
@@ -373,7 +374,7 @@ export default function AdminAuditsPage() {
                     {Object.entries(peerVotes).map(([empId, vote]) => (
                       <div key={empId} className="bg-white rounded-xl shadow-elevation-1 p-4">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-brand-ink text-sm">Employee {empId.slice(0, 8)}</span>
+                          <span className="font-medium text-brand-ink text-sm">{vote.name || `Employee ${empId.slice(0, 8)}`}</span>
                           <div className="flex items-center gap-1 text-brand-gold">
                             <Star className="w-4 h-4 fill-current" />
                             <span className="font-bold text-sm">{vote.avg.toFixed(1)}</span>

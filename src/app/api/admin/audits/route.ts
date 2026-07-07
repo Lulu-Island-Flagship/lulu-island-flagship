@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
       console.error("Audits fetch error:", auditsError);
     }
 
-    // Votaciones agregadas de la semana actual
+    // Votaciones agregadas de la semana actual + nombres de empleados
     const monday = weekStart || today;
     const { data: peerVotes, error: votesError } = await supabase
       .from("peer_votes")
@@ -99,14 +99,33 @@ export async function GET(request: NextRequest) {
       console.error("Peer votes error:", votesError);
     }
 
-    const voteMap = new Map<string, { count: number; avg: number }>();
+    // Obtener nombres de empleados para las votaciones
+    const targetIds = Array.from(new Set((peerVotes || []).map((v: { target_employee_id: string }) => v.target_employee_id)));
+    const { data: peerEmployees, error: peerEmpError } = targetIds.length > 0
+      ? await supabase
+          .from("employees")
+          .select("id, name")
+          .in("id", targetIds)
+      : { data: [], error: null };
+
+    if (peerEmpError) {
+      console.error("Peer employees error:", peerEmpError);
+    }
+
+    const employeeNameMap = new Map((peerEmployees || []).map((e) => [e.id, e.name]));
+
+    const voteMap = new Map<string, { count: number; avg: number; name: string }>();
     for (const v of peerVotes || []) {
       const existing = voteMap.get(v.target_employee_id);
       if (existing) {
         existing.count += 1;
         existing.avg = (existing.avg * (existing.count - 1) + v.rating) / existing.count;
       } else {
-        voteMap.set(v.target_employee_id, { count: 1, avg: v.rating });
+        voteMap.set(v.target_employee_id, {
+          count: 1,
+          avg: v.rating,
+          name: employeeNameMap.get(v.target_employee_id) || "Unknown",
+        });
       }
     }
 

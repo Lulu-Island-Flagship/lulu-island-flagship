@@ -32,6 +32,7 @@ export default function EvaluarPage() {
 
   useEffect(() => {
     verifyToken();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   async function verifyToken() {
