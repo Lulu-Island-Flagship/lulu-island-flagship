@@ -37,11 +37,14 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = getSupabaseClient();
 
-    // Lunes de esta semana
-    const today = new Date();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - today.getDay() + 1);
-    const weekStart = monday.toISOString().split("T")[0];
+    // Lunes de esta semana en zona horaria del negocio (America/Vancouver)
+    const vancouverDate = new Date().toLocaleString("en-CA", {
+      timeZone: "America/Vancouver",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const weekStart = vancouverDate.split(",")[0]; // formato YYYY-MM-DD
 
     // Empleados activos
     const { data: employees, error: empError } = await supabase

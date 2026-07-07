@@ -45,6 +45,7 @@ export default function AdminUpsellsClient() {
 
   async function loadUpsells() {
     setLoading(true);
+    setError("");
     try {
       const res = await fetch("/api/admin/upsells", { credentials: "include" });
       if (!res.ok) {
@@ -83,8 +84,15 @@ export default function AdminUpsellsClient() {
     }
   }
 
-  const formatDate = (date: string) =>
-    new Date(date).toLocaleDateString("en-CA", { month: "short", day: "numeric" });
+  const formatDate = (date: string) => {
+    const vancouverDate = new Date(date).toLocaleString("en-CA", {
+      timeZone: "America/Vancouver",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    return vancouverDate.split(",")[0]; // YYYY-MM-DD
+  };
 
   if (loading) {
     return (

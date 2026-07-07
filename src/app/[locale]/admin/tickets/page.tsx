@@ -38,6 +38,7 @@ export default function AdminTicketsPage() {
   const [resolutionNote, setResolutionNote] = useState("");
   const [resolveStatus, setResolveStatus] = useState<"resolved" | "escalated">("resolved");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     loadTickets();
@@ -45,11 +46,14 @@ export default function AdminTicketsPage() {
 
   async function loadTickets() {
     setLoading(true);
+    setError("");
     try {
       const res = await fetch(`/api/admin/tickets?status=${statusFilter}`, { credentials: "include" });
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
           router.push("/en/admin");
+        } else {
+          setError("Failed to load tickets");
         }
         return;
       }
@@ -57,6 +61,7 @@ export default function AdminTicketsPage() {
       setTickets(data.tickets || []);
     } catch (e) {
       console.error("Load tickets error:", e);
+      setError("Network error");
     } finally {
       setLoading(false);
     }
@@ -155,6 +160,12 @@ export default function AdminTicketsPage() {
             </button>
           ))}
         </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+            <p className="text-red-700 text-sm font-medium">{error}</p>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-12">

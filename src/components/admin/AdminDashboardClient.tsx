@@ -8,8 +8,6 @@ import {
   Tag,
   ListChecks,
   ChevronRight,
-  Shield,
-  Star,
   AlertTriangle,
 } from "lucide-react";
 
@@ -50,20 +48,6 @@ export default function AdminDashboardClient() {
       icon: ListChecks,
       href: `/${safeLocale}/admin/checklists`,
       color: "bg-green-50 text-green-600",
-    },
-    {
-      title: "Field Audits",
-      description: "Evaluate completed services and view audit history",
-      icon: Star,
-      href: `/${safeLocale}/admin/audits`,
-      color: "bg-orange-50 text-orange-600",
-    },
-    {
-      title: "QC Review",
-      description: "Quality control wall — approve or reject services",
-      icon: Shield,
-      href: `/${safeLocale}/admin/qc`,
-      color: "bg-indigo-50 text-indigo-600",
     },
     {
       title: "Tickets",

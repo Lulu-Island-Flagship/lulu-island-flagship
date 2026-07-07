@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import {
   Loader2,
   MapPin,
@@ -34,13 +33,6 @@ interface AdminService {
 }
 
 export default function AdminServiciosClient() {
-  const router = useRouter();
-  const locale = (typeof window !== "undefined" 
-    ? window.location.pathname.split("/")[1] 
-    : "en") as string;
-  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
-  const adminPath = `/${safeLocale}/admin`;
-
   const [services, setServices] = useState<AdminService[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -51,6 +43,7 @@ export default function AdminServiciosClient() {
 
   async function loadServices() {
     setLoading(true);
+    setError("");
     try {
       const res = await fetch("/api/admin/servicios", { credentials: "include" });
       if (!res.ok) {
@@ -118,9 +111,8 @@ export default function AdminServiciosClient() {
       ) : (
         <div className="space-y-3">
           {services.map((s) => (
-            <button
+            <div
               key={s.orderId}
-              onClick={() => router.push(`${adminPath}/servicios/${s.orderId}`)}
               className="w-full bg-white rounded-xl border p-4 text-left hover:shadow-md transition-shadow"
             >
               <div className="flex items-start justify-between gap-3">
@@ -163,7 +155,7 @@ export default function AdminServiciosClient() {
                 </div>
                 <ChevronRight className="w-5 h-5 text-gray-300 mt-1" />
               </div>
-            </button>
+            </div>
           ))}
         </div>
       )}

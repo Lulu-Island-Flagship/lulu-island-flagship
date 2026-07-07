@@ -13,7 +13,8 @@ export async function GET() {
   }
 
   try {
-    const { data, error } = await supabase
+    // Fetch upsells with orders (separate from quotes to avoid nested join issues)
+    const { data: upsells, error } = await supabase
       .from("service_upsells")
       .select(`
         id,
@@ -29,7 +30,7 @@ export async function GET() {
         orders:order_id (
           service_date,
           service_time,
-          quotes:quote_id (address)
+          quote_id
         ),
         employees:employee_id (name, email)
       `)
@@ -41,7 +42,34 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ upsells: data || [] }, { status: 200 });
+    // Fetch quote addresses separately
+    // Supabase returns orders as an array (even for single relation), so we access [0]
+    const quoteIds = (upsells || [])
+      .map((u: { orders?: { quote_id?: string }[] | null }) => u.orders?.[0]?.quote_id)
+      .filter(Boolean);
+
+    const quoteMap = new Map<string, { address: string }>();
+    if (quoteIds.length > 0) {
+      const { data: quotes } = await supabase
+        .from("quotes")
+        .select("id, address")
+        .in("id", quoteIds);
+
+      for (const q of quotes || []) {
+        quoteMap.set(q.id, q);
+      }
+    }
+
+    // Enrich upsells with quote address
+    const enriched = (upsells || []).map((u: { orders?: { quote_id?: string }[] | null }) => ({
+      ...u,
+      orders: u.orders?.[0] ? {
+        ...u.orders[0],
+        quotes: u.orders[0].quote_id ? { address: quoteMap.get(u.orders[0].quote_id)?.address || "" } : null,
+      } : null,
+    }));
+
+    return NextResponse.json({ upsells: enriched }, { status: 200 });
   } catch (err: Error | unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("Admin upsells error:", message);

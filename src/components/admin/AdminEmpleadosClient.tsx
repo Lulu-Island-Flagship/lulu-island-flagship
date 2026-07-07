@@ -34,6 +34,7 @@ export default function AdminEmpleadosClient() {
 
   async function loadEmployees() {
     setLoading(true);
+    setError("");
     try {
       const res = await fetch("/api/admin/empleados", { credentials: "include" });
       if (!res.ok) {
