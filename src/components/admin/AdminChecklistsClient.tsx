@@ -273,53 +273,78 @@ export default function AdminChecklistsClient() {
     }
   };
 
-  const handleDeactivate = async (id: string) => {
-    if (!confirm("Deactivate this zone? It will remain in the database for historical records.")) return;
+  const handleDeleteZone = async (zoneId: string, zoneLabel: string) => {
     try {
-      const res = await fetch(`/api/admin/checklists/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (res.ok) {
-        await loadChecklists();
+      const { data: hasHistory, error: rpcError } = await supabase.rpc(
+        "check_zone_history",
+        { p_checklist_id: zoneId }
+      );
+
+      if (rpcError) {
+        setError("History check failed");
+        return;
+      }
+
+      if (hasHistory) {
+        // Zone has usage history — only deactivation allowed
+        setConfirmDialog({
+          open: true,
+          title: "Deactivate Zone",
+          message: `This zone has usage history and can only be deactivated.`,
+          onConfirm: async () => {
+            const res = await fetch(`/api/admin/checklists/${zoneId}`, {
+              method: "DELETE",
+              credentials: "include",
+            });
+            if (res.ok) {
+              await loadChecklists();
+            } else {
+              setError("Deactivate failed");
+            }
+            setConfirmDialog(null);
+          },
+          confirmLabel: "Deactivate",
+        });
+      } else {
+        // No history — offer both deactivate and permanent delete
+        setConfirmDialog({
+          open: true,
+          title: "Delete Zone",
+          message: `Zone "${zoneLabel}" has no usage history.`,
+          onConfirm: async () => {
+            // Deactivate (soft delete)
+            const res = await fetch(`/api/admin/checklists/${zoneId}`, {
+              method: "DELETE",
+              credentials: "include",
+            });
+            if (res.ok) {
+              await loadChecklists();
+            } else {
+              setError("Deactivate failed");
+            }
+            setConfirmDialog(null);
+          },
+          confirmLabel: "Deactivate",
+          extraAction: {
+            label: "Delete Permanently",
+            onClick: async () => {
+              const res = await fetch(`/api/admin/checklists/${zoneId}?force=true`, {
+                method: "DELETE",
+                credentials: "include",
+              });
+              if (res.ok) {
+                await loadChecklists();
+              } else {
+                setError("Hard delete failed");
+              }
+              setConfirmDialog(null);
+              setOpenZoneMenu(null);
+            },
+          },
+        });
       }
     } catch {
-      setError("Deactivate failed");
-    }
-  };
-
-  const handleHardDeleteZone = async (zoneId: string) => {
-    const res = await fetch(`/api/admin/checklists/${zoneId}?force=true`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-    if (res.status === 409) {
-      alert("Cannot delete: this zone has usage history. Only deactivation is allowed.");
-      return;
-    }
-    if (res.ok) {
-      setConfirmDialog({
-        open: true,
-        title: "Delete Zone Permanently",
-        message: "This will permanently delete this zone. This cannot be undone.",
-        onConfirm: async () => {
-          const res2 = await fetch(`/api/admin/checklists/${zoneId}?force=true`, {
-            method: "DELETE",
-            credentials: "include",
-          });
-          if (res2.ok) {
-            await loadChecklists();
-          } else {
-            setError("Hard delete failed");
-          }
-          setConfirmDialog(null);
-          setOpenZoneMenu(null);
-        },
-        confirmLabel: "Delete Permanently",
-        danger: true,
-      });
-    } else {
-      setError("Hard delete failed");
+      setError("Delete zone failed");
     }
   };
 
@@ -494,7 +519,7 @@ export default function AdminChecklistsClient() {
                       </button>
                       {zone.is_active && (
                         <button
-                          onClick={() => handleDeactivate(zone.id)}
+                          onClick={() => handleDeleteZone(zone.id, zone.zone_label)}
                           className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
                           title="Deactivate"
                         >
@@ -512,12 +537,12 @@ export default function AdminChecklistsClient() {
                         <div className="absolute right-0 top-8 bg-white border rounded-lg shadow-lg z-10 w-40">
                           <button
                             onClick={() => {
-                              handleHardDeleteZone(zone.id);
+                              handleDeleteZone(zone.id, zone.zone_label);
                               setOpenZoneMenu(null);
                             }}
                             className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
                           >
-                            Delete Permanently
+                            Delete
                           </button>
                         </div>
                       )}
