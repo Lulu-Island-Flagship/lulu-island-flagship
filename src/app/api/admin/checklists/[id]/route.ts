@@ -56,9 +56,11 @@ export async function PUT(
   }
 }
 
-// DELETE /api/admin/checklists/[id] — desactivar zona (no borrar físicamente)
+// DELETE /api/admin/checklists/[id]
+// Si force=true en el body → borrado físico (solo si no hay historial)
+// Si no → soft-delete (is_active = false)
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireSupervisor();
@@ -72,7 +74,41 @@ export async function DELETE(
 
   try {
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const force = searchParams.get("force") === "true";
 
+    if (force) {
+      // Verificar historial antes de borrar físicamente
+      const { data: hasHistory, error: histError } = await supabase.rpc(
+        "check_zone_history",
+        { p_checklist_id: id }
+      );
+
+      if (histError) {
+        return NextResponse.json({ error: histError.message }, { status: 500 });
+      }
+
+      if (hasHistory) {
+        return NextResponse.json(
+          { error: "Cannot delete: this zone has usage history" },
+          { status: 409 }
+        );
+      }
+
+      // Borrado físico
+      const { error } = await supabase
+        .from("sop_checklists")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      return NextResponse.json({ success: true, hardDeleted: true }, { status: 200 });
+    }
+
+    // Soft-delete por defecto
     const { data, error } = await supabase
       .from("sop_checklists")
       .update({ is_active: false, updated_at: new Date().toISOString() })

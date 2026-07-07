@@ -15,7 +15,9 @@ import {
   Palette,
   Smile,
   ListChecks,
+  MoreHorizontal,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 interface ChecklistItem {
   id: string;
@@ -35,6 +37,19 @@ interface ChecklistZone {
   sort_order: number;
   is_active: boolean;
   created_at: string;
+}
+
+interface ConfirmDialogState {
+  open: boolean;
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  confirmLabel?: string;
+  danger?: boolean;
+  extraAction?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 const COLORS = [
@@ -58,6 +73,8 @@ export default function AdminChecklistsClient() {
   const [showModal, setShowModal] = useState(false);
   const [editingZone, setEditingZone] = useState<ChecklistZone | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
+  const [openZoneMenu, setOpenZoneMenu] = useState<string | null>(null);
 
   // Form state
   const [formServiceSubtype, setFormServiceSubtype] = useState("");
@@ -149,10 +166,53 @@ export default function AdminChecklistsClient() {
     );
   };
 
-  const removeItem = (index: number) => {
-    setFormItems((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, active: false } : item))
-    );
+  const removeItem = async (index: number) => {
+    const item = formItems[index];
+    // New items without real IDs can be removed directly
+    if (!item.id || item.id.startsWith("temp-")) {
+      setFormItems((prev) => prev.filter((_, i) => i !== index));
+      return;
+    }
+
+    // Existing items: check history first
+    if (!editingZone) {
+      setFormItems((prev) =>
+        prev.map((it, i) => (i === index ? { ...it, active: false } : it))
+      );
+      return;
+    }
+
+    const { data: hasHistory } = await supabase.rpc("check_item_history", {
+      p_item_id: item.id,
+      p_checklist_id: editingZone.id,
+    });
+
+    if (hasHistory) {
+      setFormItems((prev) =>
+        prev.map((it, i) => (i === index ? { ...it, active: false } : it))
+      );
+    } else {
+      setConfirmDialog({
+        open: true,
+        title: "Delete Item",
+        message: "Delete this item permanently? This cannot be undone.",
+        onConfirm: () => {
+          setFormItems((prev) => prev.filter((_, i) => i !== index));
+          setConfirmDialog(null);
+        },
+        confirmLabel: "Delete Permanently",
+        danger: true,
+        extraAction: {
+          label: "Deactivate",
+          onClick: () => {
+            setFormItems((prev) =>
+              prev.map((it, i) => (i === index ? { ...it, active: false } : it))
+            );
+            setConfirmDialog(null);
+          },
+        },
+      });
+    }
   };
 
   const restoreItem = (index: number) => {
@@ -226,6 +286,75 @@ export default function AdminChecklistsClient() {
     }
   };
 
+  const handleHardDeleteZone = async (zoneId: string) => {
+    const res = await fetch(`/api/admin/checklists/${zoneId}?force=true`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (res.status === 409) {
+      alert("Cannot delete: this zone has usage history. Only deactivation is allowed.");
+      return;
+    }
+    if (res.ok) {
+      setConfirmDialog({
+        open: true,
+        title: "Delete Zone Permanently",
+        message: "This will permanently delete this zone. This cannot be undone.",
+        onConfirm: async () => {
+          const res2 = await fetch(`/api/admin/checklists/${zoneId}?force=true`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+          if (res2.ok) {
+            await loadChecklists();
+          } else {
+            setError("Hard delete failed");
+          }
+          setConfirmDialog(null);
+          setOpenZoneMenu(null);
+        },
+        confirmLabel: "Delete Permanently",
+        danger: true,
+      });
+    } else {
+      setError("Hard delete failed");
+    }
+  };
+
+  const handleDeleteServiceType = async (subtype: string) => {
+    const res = await fetch(`/api/admin/checklists/service-type/${encodeURIComponent(subtype)}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (res.status === 409) {
+      alert("Cannot delete: this service type has usage history. You can only deactivate all zones.");
+      return;
+    }
+    if (res.ok) {
+      setConfirmDialog({
+        open: true,
+        title: "Delete Service Type Permanently",
+        message: `This will permanently delete all zones for '${subtype.replace(/_/g, " ")}'. This cannot be undone.`,
+        onConfirm: async () => {
+          const res2 = await fetch(`/api/admin/checklists/service-type/${encodeURIComponent(subtype)}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+          if (res2.ok) {
+            await loadChecklists();
+          } else {
+            setError("Delete service type failed");
+          }
+          setConfirmDialog(null);
+        },
+        confirmLabel: "Delete Permanently",
+        danger: true,
+      });
+    } else {
+      setError("Delete service type failed");
+    }
+  };
+
   const getColorClass = (color: string) => {
     const c = COLORS.find((c) => c.key === color);
     return c?.class || "bg-gray-300";
@@ -291,6 +420,15 @@ export default function AdminChecklistsClient() {
                 >
                   Add Zone
                 </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteServiceType(subtype);
+                  }}
+                  className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
+                >
+                  Delete Permanently
+                </button>
                 {isExpanded ? (
                   <ChevronUp className="w-5 h-5 text-gray-400" />
                 ) : (
@@ -345,7 +483,7 @@ export default function AdminChecklistsClient() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 relative">
                       <button
                         onClick={() => openEdit(zone)}
                         className="p-1.5 text-gray-400 hover:text-brand-navy transition-colors"
@@ -356,9 +494,30 @@ export default function AdminChecklistsClient() {
                         <button
                           onClick={() => handleDeactivate(zone.id)}
                           className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                          title="Deactivate"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
+                      )}
+                      <button
+                        onClick={() => setOpenZoneMenu(openZoneMenu === zone.id ? null : zone.id)}
+                        className="p-1.5 text-gray-400 hover:text-brand-navy transition-colors"
+                        title="More options"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                      {openZoneMenu === zone.id && (
+                        <div className="absolute right-0 top-8 bg-white border rounded-lg shadow-lg z-10 w-40">
+                          <button
+                            onClick={() => {
+                              handleHardDeleteZone(zone.id);
+                              setOpenZoneMenu(null);
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
+                          >
+                            Delete Permanently
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -373,6 +532,42 @@ export default function AdminChecklistsClient() {
         <div className="bg-white rounded-xl border p-8 text-center">
           <ListChecks className="w-10 h-10 text-gray-300 mx-auto mb-2" />
           <p className="text-gray-500">No checklists found. Create your first one.</p>
+        </div>
+      )}
+
+      {/* Confirmation Dialog */}
+      {confirmDialog?.open && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-elevation-2 w-full max-w-sm p-6 space-y-4">
+            <h3 className="text-lg font-bold text-brand-ink">{confirmDialog.title}</h3>
+            <p className="text-sm text-gray-600">{confirmDialog.message}</p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+              {confirmDialog.extraAction && (
+                <button
+                  onClick={confirmDialog.extraAction.onClick}
+                  className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                >
+                  {confirmDialog.extraAction.label}
+                </button>
+              )}
+              <button
+                onClick={confirmDialog.onConfirm}
+                className={`px-4 py-2 text-sm rounded-lg font-medium ${
+                  confirmDialog.danger
+                    ? "bg-red-600 text-white hover:bg-red-700"
+                    : "bg-brand-navy text-white hover:bg-brand-navy/90"
+                }`}
+              >
+                {confirmDialog.confirmLabel || "Confirm"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
