@@ -1,9 +1,9 @@
--- Migración: Módulo 8 — Renombrar expired_at y agregar palabras multi-idioma a sentiment
+-- Migración: Módulo 8 — calculate_sentiment con word boundaries (regex) + índice review_window_expires_at
 
--- 1. Renombrar expired_at a review_window_expires_at en client_reviews
-ALTER TABLE client_reviews RENAME COLUMN expired_at TO review_window_expires_at;
+-- 1. Índice en review_window_expires_at para queries de ventana
+CREATE INDEX IF NOT EXISTS idx_client_reviews_window_expires ON client_reviews(review_window_expires_at);
 
--- 2. Actualizar la función calculate_sentiment con palabras en español y francés
+-- 2. Función calculate_sentiment con word boundaries (\y en PostgreSQL regex)
 CREATE OR REPLACE FUNCTION calculate_sentiment(p_comment TEXT)
 RETURNS DOUBLE PRECISION
 LANGUAGE plpgsql
@@ -12,39 +12,33 @@ SET search_path = public
 AS $$
 DECLARE
   positive_words TEXT[] := ARRAY[
-    -- English
     'good','great','excellent','amazing','perfect','love','happy','satisfied',
     'recommend','clean','professional','punctual','friendly','thorough','spotless',
     'impressed','wonderful','fantastic','best','quality','awesome','outstanding',
-    -- Español
-    'bueno','buena','excelente','increíble','perfecto','perfecta','encanta','encantó',
+    'bueno','buena','excelente','increible','perfecto','perfecta','encanta','encanto',
     'feliz','satisfecho','satisfecha','recomiendo','limpio','limpia','profesional',
     'puntual','amable','amigable','minucioso','impecable','impresionado','impresionada',
-    'maravilloso','maravillosa','fantástico','fantástica','mejor','calidad','genial',
-    -- Français
+    'maravilloso','maravillosa','fantastico','fantastica','mejor','calidad','genial',
     'bon','bonne','excellent','excellente','incroyable','parfait','parfaite','adore',
     'heureux','heureuse','satisfait','satisfaite','recommande','propre','professionnel',
     'professionnelle','ponctuel','ponctuelle','aimable','minutieux','minutieuse',
-    'impeccable','impressionné','impressionnée','merveilleux','merveilleuse',
-    'fantastique','meilleur','meilleure','qualité'
+    'impeccable','impressionne','impressionnee','merveilleux','merveilleuse',
+    'fantastique','meilleur','meilleure','qualite'
   ];
   negative_words TEXT[] := ARRAY[
-    -- English
     'bad','terrible','awful','horrible','hate','angry','disappointed','dirty','late',
     'rude','unprofessional','poor','worst','broken','damaged','missed','incomplete',
-    'rough','sloppy','careless','worst','disgusting','unhappy','frustrated','never',
-    -- Español
+    'rough','sloppy','careless','disgusting','unhappy','frustrated','never',
     'malo','mala','terrible','horrible','odio','enojado','enojada','decepcionado',
     'decepcionada','sucio','sucia','tarde','grosero','grosera','improfesional',
-    'pésimo','pésima','peor','roto','rota','dañado','dañada','perdido','perdida',
+    'pesimo','pesima','peor','roto','rota','danado','danada','perdido','perdida',
     'incompleto','incompleta','descuidado','descuidada','desordenado','desordenada',
     'nunca','descontento','descontenta','frustrado','frustrada',
-    -- Français
-    'mauvais','mauvaise','terrible','horrible','déteste','énervé','énervée',
-    'déçu','déçue','sale','en retard','grossier','grossière','non professionnel',
-    'non professionnelle','pire','cassé','cassée','endommagé','endommagée',
-    'manqué','manquée','incomplet','incomplète','négligé','négligée','désordonné',
-    'désordonnée','jamais','mécontent','mécontente','frustré','frustrée'
+    'mauvais','mauvaise','terrible','horrible','deteste','enerve','enervee',
+    'decu','decue','sale','en retard','grossier','grossiere','non professionnel',
+    'non professionnelle','pire','casse','cassee','endommage','endommagee',
+    'manque','manquee','incomplet','incomplete','neglige','negligee','desordonne',
+    'desordonnee','jamais','mecontent','mecontente','frustre','frustree'
   ];
   word TEXT;
   score DOUBLE PRECISION := 0;
@@ -58,14 +52,15 @@ BEGIN
   
   FOREACH word IN ARRAY positive_words
   LOOP
-    IF comment_lower LIKE '%' || word || '%' THEN
+    -- Word boundary: \yword\y en PostgreSQL regex
+    IF comment_lower ~ ('\y' || word || '\y') THEN
       score := score + 0.15;
     END IF;
   END LOOP;
   
   FOREACH word IN ARRAY negative_words
   LOOP
-    IF comment_lower LIKE '%' || word || '%' THEN
+    IF comment_lower ~ ('\y' || word || '\y') THEN
       score := score - 0.25;
     END IF;
   END LOOP;

@@ -8,6 +8,7 @@ import {
   ListChecks,
   ChevronRight,
   AlertTriangle,
+  MessageSquareWarning,
 } from "lucide-react";
 
 export default function AdminDashboardClient() {
@@ -52,6 +53,14 @@ export default function AdminDashboardClient() {
       icon: AlertTriangle,
       href: `/${safeLocale}/admin/tickets`,
       color: "bg-red-50 text-red-600",
+    },
+    {
+      title: "Sentiment Alerts",
+      description: "Negative review alerts from client feedback (NLP)",
+      icon: MessageSquareWarning,
+      href: `/${safeLocale}/admin/sentiment-alerts`,
+      color: "bg-rose-50 text-rose-600",
+      badge: true,
     },
   ];
 

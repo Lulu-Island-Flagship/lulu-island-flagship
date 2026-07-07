@@ -74,12 +74,16 @@ export async function POST(request: NextRequest) {
     // Verificar orden por review_token (no por orderId directo)
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("id, status, user_id, service_date")
+      .select("id, status, user_id, service_date, review_token_used_at")
       .eq("review_token", token)
       .single();
 
     if (orderError || !order) {
       return NextResponse.json({ error: "Invalid or expired review link" }, { status: 404 });
+    }
+
+    if (order.review_token_used_at) {
+      return NextResponse.json({ error: "Review link already used" }, { status: 410 });
     }
 
     if (order.status !== "completed") {
@@ -145,10 +149,10 @@ export async function POST(request: NextRequest) {
         });
     }
 
-    // Invalidar el token para evitar re-uso
+    // Marcar token como usado (pero mantenerlo para referencia)
     await supabase
       .from("orders")
-      .update({ review_token: null })
+      .update({ review_token_used_at: new Date().toISOString() })
       .eq("id", order.id);
 
     return NextResponse.json({ review }, { status: 201 });
