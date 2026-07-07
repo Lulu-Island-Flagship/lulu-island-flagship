@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No assignment found for this service" }, { status: 403 });
     }
 
-    // Verificar si ya existe un registro para este item
+    // Verificar si ya existe un registro para este item (con RLS, solo ve los del empleado)
     const { data: existing } = await supabase
       .from("service_checklist_items")
       .select("id")
@@ -192,11 +192,11 @@ export async function POST(request: NextRequest) {
       .eq("employee_id", employee.id)
       .eq("checklist_id", checklistId)
       .eq("item_id", itemId)
-      .single();
+      .maybeSingle();
 
     let result;
     if (existing) {
-      // Actualizar
+      // Actualizar con verificación de ownership implícita por RLS
       result = await supabase
         .from("service_checklist_items")
         .update({
@@ -207,6 +207,7 @@ export async function POST(request: NextRequest) {
           updated_at: new Date().toISOString(),
         })
         .eq("id", existing.id)
+        .eq("employee_id", employee.id) // Doble verificación: RLS + query explícita
         .select()
         .single();
     } else {

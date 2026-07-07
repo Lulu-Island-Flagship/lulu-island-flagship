@@ -335,9 +335,11 @@ export default function CotizadorPage() {
 
       const { quoteId } = await response.json();
 
-      // Clear saved state and redirect to reservation
+      // Clear saved state and redirect to reservation with locale
       clearStateFromStorage();
-      router.push(`/reserva/${quoteId}`);
+      const pathLocale = window.location.pathname.split("/")[1];
+      const locale = ["en", "zh", "fr"].includes(pathLocale) ? pathLocale : "en";
+      router.push(`/${locale}/reserva/${quoteId}`);
     } catch (err: Error | unknown) {
       setSubmitError(err instanceof Error ? err.message : "Failed to save quote. Please try again.");
     } finally {

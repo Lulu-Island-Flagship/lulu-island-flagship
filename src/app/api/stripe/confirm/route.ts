@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Build ISO datetime from date + time (Vancouver timezone)
-    const serviceDatetime = new Date(`${serviceDate}T${serviceTime}:00`);
+    const serviceDatetime = new Date(`${serviceDate}T${serviceTime}:00-07:00`); // PST (Vancouver)
     if (isNaN(serviceDatetime.getTime())) {
       return NextResponse.json(
         { error: "Invalid date or time" },
@@ -64,11 +64,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate date range using Vancouver timezone
-    const vancouverNowStr = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver" });
-    const vancouverToday = new Date(vancouverNowStr.split(",")[0]);
+    const vancouverNowStr = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", year: "numeric", month: "2-digit", day: "2-digit" });
+    const vancouverToday = new Date(vancouverNowStr.split(",")[0] + "T12:00:00-07:00");
     vancouverToday.setHours(0, 0, 0, 0);
 
-    const serviceDateObj = new Date(serviceDate + "T00:00:00");
+    const serviceDateObj = new Date(serviceDate + "T12:00:00-07:00");
     serviceDateObj.setHours(0, 0, 0, 0);
 
     const tomorrow = new Date(vancouverToday);

@@ -161,7 +161,9 @@ export default function ReservaPage() {
       }
 
       const { orderId } = await res.json();
-      router.push(`/confirmacion?orderId=${orderId}`);
+      const pathLocale = window.location.pathname.split("/")[1];
+      const locale = ["en", "zh", "fr"].includes(pathLocale) ? pathLocale : "en";
+      router.push(`/${locale}/confirmacion?orderId=${orderId}`);
     } catch (err: Error | unknown) {
       setConfirmError(
         err instanceof Error ? err.message : "Failed to confirm reservation."
