@@ -152,7 +152,12 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Exclusión del batch: reclamo de garantía abierto
+      // v8.3 B.2.2 (decisión del dueño 2026-07-09): el cobro es a las 7PM, FIJO.
+      // La garantía es relacional a EVIDENCIA, no a reloj: un reclamo abierto NO
+      // congela el pago — se resuelve post-cobro con ajuste/reembolso contra las
+      // fotos de cierre. La única exclusión válida será "evidencia fotográfica
+      // contradictoria" cuando E4 aporte las fotos de cierre (hoy no existe).
+      // Se registra el reclamo abierto como nota informativa, sin excluir:
       const { data: openClaims } = await supabase
         .from("warranty_claims")
         .select("id")
@@ -160,10 +165,12 @@ export async function POST(request: NextRequest) {
         .eq("status", "open")
         .limit(1);
 
-      if (openClaims && openClaims.length > 0) {
-        results.skipped++;
-        results.errors.push({ orderId: order.id, error: "Open warranty claim" });
-        continue;
+      const hasOpenClaim = !!(openClaims && openClaims.length > 0);
+      if (hasOpenClaim) {
+        results.errors.push({
+          orderId: order.id,
+          error: "INFO: open warranty claim — charged per v8.3 B.2.2; resolve post-charge against evidence",
+        });
       }
 
       try {
