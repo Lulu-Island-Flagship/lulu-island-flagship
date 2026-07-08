@@ -93,10 +93,23 @@ export async function POST(request: NextRequest) {
 
       // Sync orders.status when service completes
       if (eventType === "t_out") {
+        const { data: order } = await supabase
+          .from("orders")
+          .select("user_id")
+          .eq("id", orderId)
+          .single();
+
         await supabase
           .from("orders")
           .update({ status: "completed", updated_at: new Date().toISOString() })
           .eq("id", orderId);
+
+        // Incrementar contador de servicios completados del cliente
+        if (order?.user_id) {
+          await supabase.rpc("increment_client_services_count", {
+            target_user_id: order.user_id,
+          });
+        }
       }
     }
 

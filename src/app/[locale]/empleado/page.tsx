@@ -168,6 +168,27 @@ export default function EmpleadoPage() {
     setShowAuthModal(true);
   };
 
+  async function sendVehicleLocation() {
+    if (!navigator.geolocation) return;
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: true });
+      });
+      await fetch("/api/empleado/vehicle-tracking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          source: "driver_app",
+        }),
+      });
+    } catch {
+      // Silencioso: el tracking de vehículo es opcional si no hay vehículo asignado
+    }
+  }
+
   const handleStartJornada = async () => {
     setIsStartingJornada(true);
     try {
@@ -197,6 +218,11 @@ export default function EmpleadoPage() {
         const err = await res.json();
         console.error("Jornada start error:", err.error);
         return;
+      }
+
+      // Registrar ubicación del vehículo al inicio de jornada
+      if (locationLat !== undefined && locationLng !== undefined) {
+        await sendVehicleLocation();
       }
 
       setJornadaStatus("started");

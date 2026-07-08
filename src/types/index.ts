@@ -1,4 +1,6 @@
 import { ServiceType, ServiceCategory } from "@/lib/pricing";
+import { AppliedRule } from "@/lib/rules";
+export type { AppliedRule } from "@/lib/rules";
 
 export interface QuoteInput {
   serviceCategory?: ServiceCategory;     // "home" | "commercial"
@@ -16,6 +18,11 @@ export interface QuoteInput {
   postalCode: string;
   dayOfWeek?: number;
   isPreferredDay?: boolean;
+  addressLat?: number;
+  addressLng?: number;
+  consentPhotoMarketing?: boolean;
+  consentPipa?: boolean;
+  purchaseOrder?: string;
 }
 
 export interface QuoteData extends QuoteInput {
@@ -28,16 +35,32 @@ export interface QuoteData extends QuoteInput {
   recencyAdjustment: number;
   zoneSurcharge: number;
   logisticsSurcharge: number;
+  ruleAdjustment: number;
+  appliedRules: AppliedRule[];
   subtotal: number;
   gst: number;
   pst: number;
   total: number;
   holdAmount: number;
+  estimatedLaborCost: number;
+  estimatedMarginContribution: number;
+  adminReviewRequired: boolean;
+  adminReviewReason?: string;
   priceFrozenUntil: string;
   status: "pending" | "reserved" | "expired";
+  accountType?: "b2c" | "b2b" | "government";
   consentTc: boolean;
   consentPipa: boolean;
   consentMarketing: boolean;
+  consentPhotoMarketing: boolean;
+  pipaAltRequiresAudit?: boolean;
+  purchaseOrder?: string;
+  tcVersion: string;
+  pipaVersion: string;
+  marketingVersion: string;
+  photoMarketingVersion: string;
+  consentIp?: string;
+  consentAcceptedAt?: string;
   clientScore: number;
   createdAt?: string;
   updatedAt?: string;
@@ -62,11 +85,25 @@ export interface Order {
   stripePaymentMethodId?: string;
   stripeSetupIntentId?: string;
   paymentOption: "card" | "paypal_first_time";
-  paypalTransactionId?: string;
   holdAmount: number;
+  holdAuthorizedAmount: number;
   holdCapturedAt?: string;
   holdReleasedAt?: string;
+  stripeHoldPaymentIntentId?: string;
+  paypalTransactionId?: string;
+  paypalPayerEmail?: string;
+  paypalAdvanceAmount: number;
+  warrantyStatus: WarrantyStatus;
+  warrantyResolvedAt?: string;
+  warrantyResolutionNotes?: string;
+  walletAmountUsed: number;
+  cardAmountCharged: number;
+  totalPaid: number;
+  addressLat?: number;
+  addressLng?: number;
   cancellationWindowHours: number;
+  pipaAltRequiresAudit?: boolean;
+  purchaseOrder?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -78,6 +115,24 @@ export interface ClientProfile {
   servicesCount: number;
   disputesCount: number;
   noShowCount: number;
+  accountType: "b2c" | "b2b" | "government";
+  companyName?: string;
+  paymentTerms?: string;
+  consentPhotoMarketing: boolean;
+  photoMarketingVersion: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClientProperty {
+  id: string;
+  clientProfileId: string;
+  nickname?: string;
+  address: string;
+  zone: string;
+  postalCode?: string;
+  squareFeet?: number;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -95,6 +150,31 @@ export interface FeatureFlag {
   activo: boolean;
   modulo: string;
   descripcion: string;
+}
+
+export interface PricingRule {
+  id: string;
+  name: string;
+  description?: string;
+  conditionJson: Record<string, unknown>;
+  actionType: "price_multiplier" | "price_add" | "price_set" | "block" | "flag_for_review";
+  actionValue?: number;
+  priority: number;
+  maxApplicable: boolean;
+  isActive: boolean;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RuleAuditLog {
+  id: string;
+  ruleId?: string;
+  previousRule?: Record<string, unknown>;
+  newRule?: Record<string, unknown>;
+  changedBy?: string;
+  reason: string;
+  createdAt: string;
 }
 
 export type CotizadorStep =
@@ -117,6 +197,7 @@ export interface CotizadorState {
 // ─── Módulo 3: Empleado ─────────────────────────────────────────────
 
 export type EmployeeRole = "cleaner" | "supervisor" | "driver";
+export type TrustLevel = "elite" | "standard" | "probation";
 
 export interface Employee {
   id: string;
@@ -128,8 +209,104 @@ export interface Employee {
   dayRate: number;          // $CAD — tarifa diaria (modelo 70/30)
   languages: string[];      // ej. ["en", "zh"]
   isActive: boolean;
+  baseScheduleMinutes: number; // horario base (modelo 70/30)
+  contingencyMinutes: number;  // contingencia (modelo 70/30)
+  homeZone?: string;
+  trustLevel: TrustLevel;
+  vehicleId?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Vehicle {
+  id: string;
+  name: string;
+  plate?: string;
+  isActive: boolean;
+  currentLat?: number;
+  currentLng?: number;
+  lastLocationAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VehicleTracking {
+  id: string;
+  vehicleId: string;
+  lat: number;
+  lng: number;
+  recordedAt: string;
+  source: "driver_app" | "gps_device" | "manual";
+  metadata: Record<string, unknown>;
+}
+
+export type SlotType = "blocked" | "flexible" | "contingency";
+
+export interface CapacitySlot {
+  id: string;
+  serviceDate: string;
+  startTime: string;
+  endTime: string;
+  zone?: string;
+  slotType: SlotType;
+  maxTeams: number;
+  committedTeams: number;
+  blockedReason?: string;
+  isPublished: boolean;
+  publishedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type DispatchRunPhase = "proposal" | "cutoff" | "published" | "simulation" | "crisis_fallback";
+
+export interface DispatchRun {
+  id: string;
+  runDate: string;
+  phase: DispatchRunPhase;
+  triggeredAt: string;
+  completedAt?: string;
+  autoApproved: boolean;
+  teamsAvailable: number;
+  ordersProcessed: number;
+  ordersAssigned: number;
+  notes?: string;
+  createdAt: string;
+}
+
+export type NoShowStatus = "waiting" | "recovered" | "unrecovered" | "cancelled";
+
+export interface NoShowLog {
+  id: string;
+  orderId: string;
+  employeeId?: string;
+  detectedAt: string;
+  graceUntil: string;
+  recoveredAt?: string;
+  recoveryAssignmentId?: string;
+  clientNotifiedAt?: string;
+  status: NoShowStatus;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FieldAudit {
+  id: string;
+  orderId: string;
+  employeeId: string;
+  auditorId: string;
+  score: number;
+  criteria: Record<string, unknown>;
+  notes?: string;
+  photoUrl?: string;
+  dispatchProbability: number;
+  clientAnnounced: boolean;
+  clientAnnouncedAt?: string;
+  createdAt: string;
+  appealedAt?: string;
+  appealReason?: string;
+  appealResolvedAt?: string;
 }
 
 export type AssignmentStatus =
@@ -193,6 +370,8 @@ export interface EmployeeService {
   notes?: string;
   clientName?: string;
   clientPhone?: string;
+  addressLat?: number;
+  addressLng?: number;
 }
 
 // ─── Módulo 4: Ejecución Física ───────────────────────────────────────
@@ -262,4 +441,199 @@ export interface ChecklistZoneProgress {
     photoUrl?: string;
     notes?: string;
   }[];
+}
+
+// ─── Módulo 2: Viaje del Dinero y Garantía ────────────────────────────
+
+export type WarrantyStatus =
+  | "none"
+  | "open"
+  | "resolved_client"
+  | "resolved_lulu"
+  | "escalated"
+  | "dismissed";
+
+export interface WarrantyClaim {
+  id: string;
+  orderId: string;
+  userId: string;
+  reason: string;
+  description?: string;
+  status: "open" | "resolved_client" | "resolved_lulu" | "escalated" | "dismissed";
+  openedAt: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  resolutionNotes?: string;
+  autoResolved: boolean;
+  refundAmount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WarrantyPhotoEvidence {
+  id: string;
+  warrantyClaimId: string;
+  serviceChecklistItemId?: string;
+  photoUrl: string;
+  photoType: "before" | "after" | "client";
+  zone?: string;
+  itemLabel?: string;
+  createdAt: string;
+}
+
+export interface PayrollEntry {
+  id: string;
+  employeeId: string;
+  orderId: string;
+  assignmentId?: string;
+  dayRate: number;
+  estimatedServiceMinutes: number;
+  reworkMinutes: number;
+  qcScore?: number;
+  baseAmount: number;
+  qcBonusAmount: number;
+  qcPenaltyAmount: number;
+  reworkPaidMinutes: number;
+  reworkAmount: number;
+  hourlyEquivalent: number;
+  minimumWageAdjustment: number;
+  grossAmount: number;
+  status: "pending" | "approved" | "paid" | "disputed" | "cancelled";
+  approvedBy?: string;
+  approvedAt?: string;
+  paidAt?: string;
+  paymentReference?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PayrollSettings {
+  id: string;
+  bcMinWageHourly: number;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmployeeWithPayroll extends Employee {
+  minWageFloorEnabled: boolean;
+  qcScoreThreshold: number;
+  qcBonusPerPoint: number;
+  maxReworkMinutes: number;
+}
+
+export type ContractFrequency = "weekly" | "biweekly" | "monthly" | "quarterly";
+
+export interface ServiceContract {
+  id: string;
+  userId: string;
+  quoteId?: string;
+  propertyId?: string;
+  serviceSubtype: string;
+  frequency: ContractFrequency;
+  dayOfWeek: number;
+  preferredTime?: string;
+  basePrice: number;
+  total: number;
+  holdAmount: number;
+  currency: string;
+  status: "active" | "paused" | "cancelled" | "completed";
+  startDate: string;
+  endDate?: string;
+  nextScheduledDate?: string;
+  paymentOption: "card" | "paypal_first_time";
+  stripeCustomerId?: string;
+  stripePaymentMethodId?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContractInstance {
+  id: string;
+  contractId: string;
+  orderId?: string;
+  quoteId?: string;
+  scheduledDate: string;
+  status: "scheduled" | "confirmed" | "completed" | "cancelled" | "skipped";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface QboExport {
+  id: string;
+  exportDate: string;
+  status: "pending" | "exported" | "reconciled" | "failed";
+  fileUrl?: string;
+  totalTransactions: number;
+  totalGross: number;
+  totalFees: number;
+  totalNet: number;
+  notes?: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface QboExportLine {
+  id: string;
+  exportId: string;
+  orderId?: string;
+  paymentIntentId?: string;
+  transactionType: "capture" | "refund" | "chargeback" | "fee";
+  transactionDate: string;
+  grossAmount: number;
+  feeAmount: number;
+  netAmount: number;
+  description?: string;
+  qboReference?: string;
+  createdAt: string;
+}
+
+export interface ChargebackReserve {
+  id: string;
+  orderId: string;
+  paymentIntentId?: string;
+  capturedAmount: number;
+  reservePercentage: number;
+  reserveAmount: number;
+  releasedAmount: number;
+  status: "held" | "partially_released" | "released" | "applied";
+  releaseDate?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChargebackSettings {
+  id: string;
+  reservePercentage: number;
+  reserveCapAmount?: number;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClientWallet {
+  id: string;
+  userId: string;
+  balance: number;
+  currency: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WalletTransaction {
+  id: string;
+  walletId: string;
+  userId: string;
+  orderId?: string;
+  type: "credit" | "debit" | "refund" | "promo" | "payout";
+  amount: number;
+  balanceAfter: number;
+  description?: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
 }

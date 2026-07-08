@@ -50,14 +50,17 @@ export default function AuditsPage() {
   const [selectedOrder, setSelectedOrder] = useState<PendingOrder | null>(null);
   const [auditScore, setAuditScore] = useState(80);
   const [auditNotes, setAuditNotes] = useState("");
+  const [announceToClient, setAnnounceToClient] = useState(false);
   const [criteria, setCriteria] = useState<Record<string, number>>({
     punctuality: 4,
     thoroughness: 4,
     professionalism: 4,
     client_satisfaction: 4,
-    sop_compliance: 4,
+    sop_compliance: 5,
   });
   const [submitting, setSubmitting] = useState(false);
+
+  const dispatchProbability = Math.max(0, Math.min(1, (auditScore / 100) * (Object.values(criteria).reduce((a, b) => a + b, 0) / Object.values(criteria).length / 5)));
 
   useEffect(() => {
     loadData();
@@ -106,6 +109,7 @@ export default function AuditsPage() {
           score: auditScore,
           criteria,
           notes: auditNotes.trim() || null,
+          announceToClient,
         }),
       });
       if (!res.ok) {
@@ -349,6 +353,27 @@ export default function AuditsPage() {
               placeholder="Notes (optional)..."
               className="w-full border rounded-lg p-3 text-sm min-h-[80px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
             />
+
+            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-brand-ink">Dispatch probability</span>
+                <span className={`text-sm font-bold ${dispatchProbability >= 0.8 ? "text-green-600" : dispatchProbability >= 0.5 ? "text-blue-600" : "text-amber-600"}`}>
+                  {(dispatchProbability * 100).toFixed(0)}%
+                </span>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-brand-ink cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={announceToClient}
+                  onChange={(e) => setAnnounceToClient(e.target.checked)}
+                  className="rounded border-gray-300 text-brand-navy focus:ring-brand-navy"
+                />
+                Announce audit result to client
+              </label>
+              <p className="text-xs text-gray-500">
+                Auto-announcement is enabled when probability is ≥ 80%.
+              </p>
+            </div>
 
             {error && <p className="text-sm text-red-600">{error}</p>}
 

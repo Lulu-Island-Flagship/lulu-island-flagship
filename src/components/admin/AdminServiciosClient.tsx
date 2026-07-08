@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   AlertCircle,
   ChevronRight,
+  Users,
+  X,
 } from "lucide-react";
 
 interface AdminService {
@@ -32,13 +34,28 @@ interface AdminService {
   percentComplete: number;
 }
 
+interface Employee {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  is_active: boolean;
+}
+
 export default function AdminServiciosClient() {
   const [services, setServices] = useState<AdminService[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [dispatchOrderId, setDispatchOrderId] = useState<string | null>(null);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+  const [dispatchLoading, setDispatchLoading] = useState(false);
+  const [dispatchError, setDispatchError] = useState("");
+
   useEffect(() => {
     loadServices();
+    loadEmployees();
   }, []);
 
   async function loadServices() {
@@ -58,6 +75,54 @@ export default function AdminServiciosClient() {
       setError("Network error");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadEmployees() {
+    try {
+      const res = await fetch("/api/admin/empleados", { credentials: "include" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setEmployees((data.employees || []).filter((e: Employee) => e.is_active));
+    } catch {
+      // Non-blocking: dispatch fallback will show empty list
+    }
+  }
+
+  async function handleDispatch(orderId: string) {
+    if (selectedEmployeeIds.length === 0) {
+      setDispatchError("Select at least one employee");
+      return;
+    }
+
+    setDispatchLoading(true);
+    setDispatchError("");
+
+    try {
+      const res = await fetch("/api/admin/dispatch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          orderId,
+          employeeIds: selectedEmployeeIds,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setDispatchError(data.error || "Dispatch failed");
+        setDispatchLoading(false);
+        return;
+      }
+
+      setDispatchOrderId(null);
+      setSelectedEmployeeIds([]);
+      await loadServices();
+    } catch {
+      setDispatchError("Network error");
+    } finally {
+      setDispatchLoading(false);
     }
   }
 
@@ -153,10 +218,106 @@ export default function AdminServiciosClient() {
                     </div>
                   )}
                 </div>
-                <ChevronRight className="w-5 h-5 text-gray-300 mt-1" />
+                <div className="flex flex-col items-end gap-2">
+                  <a
+                    href={`./servicios/${s.orderId}`}
+                    className="p-2 text-gray-400 hover:text-brand-navy transition-colors"
+                    title="View details"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </a>
+                  <button
+                    onClick={() => {
+                      setDispatchOrderId(s.orderId);
+                      setSelectedEmployeeIds([]);
+                      setDispatchError("");
+                    }}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-brand-navy hover:text-brand-navy-light bg-brand-navy/5 hover:bg-brand-navy/10 px-2 py-1 rounded transition-colors"
+                    title="Assign team"
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    Assign
+                  </button>
+                </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Dispatch Modal */}
+      {dispatchOrderId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white rounded-xl shadow-elevation-2 w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-brand-ink">Assign Team</h2>
+              <button
+                onClick={() => setDispatchOrderId(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-600">
+              Select employees for order{" "}
+              <span className="font-mono text-xs">{dispatchOrderId.slice(0, 8)}</span>
+            </p>
+
+            {employees.length === 0 ? (
+              <p className="text-sm text-gray-500">No active employees available.</p>
+            ) : (
+              <div className="max-h-64 overflow-y-auto border rounded-lg divide-y">
+                {employees.map((emp) => (
+                  <label
+                    key={emp.id}
+                    className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 text-brand-navy rounded"
+                      checked={selectedEmployeeIds.includes(emp.id)}
+                      onChange={(e) => {
+                        setSelectedEmployeeIds((prev) =>
+                          e.target.checked
+                            ? [...prev, emp.id]
+                            : prev.filter((id) => id !== emp.id)
+                        );
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-brand-ink truncate">{emp.name}</p>
+                      <p className="text-xs text-gray-500 truncate">{emp.email}</p>
+                    </div>
+                    <span className="text-xs text-gray-400 capitalize">{emp.role}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {dispatchError && (
+              <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3">
+                {dispatchError}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => setDispatchOrderId(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDispatch(dispatchOrderId)}
+                disabled={dispatchLoading || selectedEmployeeIds.length === 0}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-brand-navy text-white rounded-lg hover:bg-brand-navy-light transition-colors disabled:opacity-50"
+              >
+                {dispatchLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                Assign Team
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

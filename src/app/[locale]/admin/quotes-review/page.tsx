@@ -1,0 +1,173 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { Loader2, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+
+interface PendingQuote {
+  id: string;
+  service_category: string;
+  service_subtype: string;
+  bedrooms: number;
+  bathrooms: number;
+  square_feet: number;
+  address: string;
+  zone: string;
+  subtotal: number;
+  total: number;
+  hold_amount: number;
+  estimated_margin_contribution: number;
+  admin_review_reason: string;
+  client_score: number;
+  created_at: string;
+}
+
+export default function QuotesReviewPage() {
+  const [quotes, setQuotes] = useState<PendingQuote[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  async function loadQuotes() {
+    setLoading(true);
+    setError("");
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      const res = await fetch("/api/admin/quotes?review=true", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setError(err.error || "Failed to load quotes");
+        return;
+      }
+      const data = await res.json();
+      setQuotes(data.quotes || []);
+    } catch {
+      setError("Network error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadQuotes();
+  }, []);
+
+  async function handleReview(quoteId: string, action: "approve" | "reject") {
+    setProcessingId(quoteId);
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      const res = await fetch(`/api/admin/quotes/${quoteId}/review`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+        body: JSON.stringify({ action, reason: action === "approve" ? "Approved by admin" : "Rejected by admin" }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setError(err.error || "Review failed");
+        return;
+      }
+      await loadQuotes();
+    } catch {
+      setError("Network error during review");
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  const formatCurrency = (n: number) =>
+    new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(n);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-brand-ink">Quote Reviews</h1>
+        <span className="text-sm text-gray-500">{quotes.length} pending</span>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-red-500" />
+          <p className="text-red-700 text-sm">{error}</p>
+        </div>
+      )}
+
+      {quotes.length === 0 ? (
+        <div className="bg-white rounded-xl border p-8 text-center">
+          <CheckCircle2 className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+          <p className="text-gray-500">No quotes pending admin review.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {quotes.map((q) => (
+            <div key={q.id} className="bg-white rounded-xl border p-5">
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                      Review Required
+                    </span>
+                    <span className="text-xs text-gray-400">{q.service_subtype.replace(/_/g, " ")}</span>
+                  </div>
+                  <p className="text-sm text-brand-ink font-medium">
+                    {q.address}, {q.zone}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {q.bedrooms} bed · {q.bathrooms} bath · {q.square_feet} ft²
+                  </p>
+                  <p className="text-xs text-red-600 mt-1">{q.admin_review_reason}</p>
+                  <p className="text-xs text-gray-400">Client score: {q.client_score}</p>
+                </div>
+
+                <div className="text-right space-y-1 min-w-[140px]">
+                  <p className="text-lg font-bold text-brand-ink">{formatCurrency(q.total)}</p>
+                  <p className="text-xs text-gray-500">Hold: {formatCurrency(q.hold_amount)}</p>
+                  <p className="text-xs text-gray-500">
+                    Margin: {((q.estimated_margin_contribution || 0) * 100).toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 mt-4 pt-4 border-t">
+                <button
+                  onClick={() => handleReview(q.id, "reject")}
+                  disabled={processingId === q.id}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Reject
+                </button>
+                <button
+                  onClick={() => handleReview(q.id, "approve")}
+                  disabled={processingId === q.id}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-brand-navy hover:bg-brand-navy-light rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {processingId === q.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4" />
+                  )}
+                  Approve
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

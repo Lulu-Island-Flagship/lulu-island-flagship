@@ -153,9 +153,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { orderId, employeeId, score, criteria, notes, photoUrl } = body;
+    const { orderId, employeeId, score, criteria, notes, photoUrl, announceToClient } = body;
 
-    if (!orderId || !employeeId || !score) {
+    if (!orderId || !employeeId || score === undefined) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
@@ -170,6 +170,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Auditor not found in employees table" }, { status: 403 });
     }
 
+    // Calcular probabilidad de re-despacho basada en score y criterios
+    const criteriaValues = Object.values((criteria as Record<string, unknown>) || {})
+      .map((v) => Number(v))
+      .filter((n) => !isNaN(n));
+    const avgCriteria = criteriaValues.length > 0
+      ? criteriaValues.reduce((a, b) => a + b, 0) / criteriaValues.length
+      : 3;
+    const dispatchProbability = Math.max(0, Math.min(1, Number((score / 100) * (avgCriteria / 5))));
+    const shouldAnnounce = announceToClient === true || dispatchProbability >= 0.8;
+
     const { data, error } = await supabase
       .from("field_audits")
       .insert({
@@ -180,6 +190,9 @@ export async function POST(request: NextRequest) {
         criteria: criteria || {},
         notes: notes || null,
         photo_url: photoUrl || null,
+        dispatch_probability: dispatchProbability,
+        client_announced: shouldAnnounce,
+        client_announced_at: shouldAnnounce ? new Date().toISOString() : null,
       })
       .select()
       .single();
@@ -188,7 +201,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ audit: data }, { status: 201 });
+    return NextResponse.json({
+      audit: data,
+      dispatchProbability,
+      clientAnnounced: shouldAnnounce,
+    }, { status: 201 });
   } catch (err: Error | unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

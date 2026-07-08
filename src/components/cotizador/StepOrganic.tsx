@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Cat, Dog, PawPrint, Users } from "lucide-react";
+import { PET_TYPES, PetType } from "@/lib/pricing";
 
 interface StepOrganicProps {
   petsCount: number;
@@ -10,12 +11,12 @@ interface StepOrganicProps {
   onChange: (vals: { petsCount: number; petsType: string; residents: number }) => void;
 }
 
-const PET_TYPES = [
-  { key: "none", label: "No pets", icon: <PawPrint className="w-5 h-5" /> },
-  { key: "short_hair", label: "Short hair (cat/dog)", icon: <Cat className="w-5 h-5" /> },
-  { key: "long_hair", label: "Long hair (cat/dog)", icon: <Dog className="w-5 h-5" /> },
-  { key: "multiple", label: "Multiple / Other", icon: <PawPrint className="w-5 h-5" /> },
-];
+const PET_TYPE_META: Record<PetType, { label: string; icon: React.ReactNode }> = {
+  none: { label: "No pets", icon: <PawPrint className="w-5 h-5" /> },
+  short_hair: { label: "Short hair (cat/dog)", icon: <Cat className="w-5 h-5" /> },
+  long_hair: { label: "Long hair (cat/dog)", icon: <Dog className="w-5 h-5" /> },
+  multiple: { label: "Multiple / Other", icon: <PawPrint className="w-5 h-5" /> },
+};
 
 export function StepOrganic({ petsCount, petsType, residents, onChange }: StepOrganicProps) {
   return (
@@ -33,14 +34,15 @@ export function StepOrganic({ petsCount, petsType, residents, onChange }: StepOr
         </h3>
         <div className="grid grid-cols-2 gap-3">
           {PET_TYPES.map((type) => {
-            const isSelected = petsType === type.key;
+            const isSelected = petsType === type;
+            const meta = PET_TYPE_META[type];
             return (
               <button
-                key={type.key}
+                key={type}
                 onClick={() =>
                   onChange({
-                    petsCount: type.key === "none" ? 0 : Math.max(1, petsCount),
-                    petsType: type.key,
+                    petsCount: type === "none" ? 0 : Math.max(1, petsCount),
+                    petsType: type,
                     residents,
                   })
                 }
@@ -51,9 +53,9 @@ export function StepOrganic({ petsCount, petsType, residents, onChange }: StepOr
                 }`}
               >
                 <div className={`mb-2 ${isSelected ? "text-brand-gold" : "text-brand-navy"}`}>
-                  {type.icon}
+                  {meta.icon}
                 </div>
-                <span className="text-sm font-medium">{type.label}</span>
+                <span className="text-sm font-medium">{meta.label}</span>
               </button>
             );
           })}

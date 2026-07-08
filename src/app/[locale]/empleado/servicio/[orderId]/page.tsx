@@ -23,6 +23,7 @@ import {
   Palette,
 } from "lucide-react";
 import type { EmployeeService } from "@/types";
+import { haversineDistance, GEOFENCE_RADIUS_METERS } from "@/lib/geocode";
 import { ChecklistCierre } from "@/components/empleado/ChecklistCierre";
 import { UpsellSelector } from "@/components/empleado/UpsellSelector";
 import { DiscrepanciaReporter } from "@/components/empleado/DiscrepanciaReporter";
@@ -63,6 +64,7 @@ export default function ServicioPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("timeline");
   const [geofenceStatus, setGeofenceStatus] = useState<"checking" | "inside" | "outside" | "bypass">("checking");
+  const [bypassReason, setBypassReason] = useState("");
 
   // Load service details
   useEffect(() => {
@@ -123,21 +125,39 @@ export default function ServicioPage() {
     });
   };
 
-  // For now, simplified geofence: GPS available = assume inside (user confirms visually)
-  // In production: geocode service.address and compare with loc using Haversine formula
+  // Geocerca real: compara la ubicación del empleado con las coordenadas
+  // geocodificadas de la orden. Si no hay coordenadas o falla el GPS,
+  // permite bypass manual con advertencia (fallback operacional).
   const checkGeofence = async () => {
     setGeofenceStatus("checking");
     const loc = await getCurrentLocation();
     if (!loc) {
-      // GPS failed — allow bypass with warning
       setGeofenceStatus("bypass");
       return false;
     }
-    // Without exact client coordinates, we can't calculate real distance.
-    // In production: geocode service.address and compare with loc.
-    // For MVP: assume inside if GPS is available (user confirms visually).
-    setGeofenceStatus("inside");
-    return true;
+
+    if (
+      !service ||
+      service.addressLat === undefined ||
+      service.addressLng === undefined
+    ) {
+      // Sin coordenadas de referencia: no podemos validar distancia.
+      setGeofenceStatus("bypass");
+      return false;
+    }
+
+    const distance = haversineDistance(
+      { lat: loc.lat, lng: loc.lng },
+      { lat: service.addressLat, lng: service.addressLng }
+    );
+
+    if (distance <= GEOFENCE_RADIUS_METERS) {
+      setGeofenceStatus("inside");
+      return true;
+    }
+
+    setGeofenceStatus("outside");
+    return false;
   };
 
   const handleEvent = async (eventType: EventType) => {
@@ -156,6 +176,20 @@ export default function ServicioPage() {
 
     try {
       const loc = await getCurrentLocation();
+
+      // Si hay bypass de geocerca, registrar nota de auditoría
+      if (eventType === "t_in" && geofenceStatus === "bypass" && bypassReason.trim()) {
+        await fetch("/api/empleado/servicio", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            orderId,
+            eventType: "note",
+            notes: `Geofence bypass: ${bypassReason.trim()}`,
+          }),
+        });
+      }
 
       const res = await fetch("/api/empleado/servicio", {
         method: "POST",
@@ -392,12 +426,25 @@ export default function ServicioPage() {
         {!isCompleted && nextAction && (
           <div className="space-y-2">
             {geofenceStatus === "outside" && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700">
-                <AlertTriangle className="w-4 h-4 inline mr-1" />
-                You appear to be far from the service location. GPS may be inaccurate.
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700 space-y-2">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>You appear to be far from the service location. GPS may be inaccurate.</span>
+                </div>
+                <input
+                  type="text"
+                  value={bypassReason}
+                  onChange={(e) => setBypassReason(e.target.value)}
+                  placeholder="Reason for bypass (required)..."
+                  className="w-full text-sm border border-yellow-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
                 <button
-                  onClick={() => setGeofenceStatus("bypass")}
-                  className="block mt-2 text-xs underline font-medium"
+                  onClick={() => {
+                    if (!bypassReason.trim()) return;
+                    setGeofenceStatus("bypass");
+                  }}
+                  disabled={!bypassReason.trim()}
+                  className="text-xs underline font-medium disabled:opacity-50"
                 >
                   I am at the location — continue anyway
                 </button>

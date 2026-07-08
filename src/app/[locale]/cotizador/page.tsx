@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { QuoteInput, QuoteData, CotizadorStep } from "@/types";
-import { calculatePrice, ServiceType } from "@/lib/pricing";
+import { ServiceType } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
 import { StepCategory } from "@/components/cotizador/StepCategory";
 import { StepPurpose } from "@/components/cotizador/StepPurpose";
@@ -20,6 +20,7 @@ import {
   Shield,
   Clock,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 
 const STEPS: CotizadorStep[] = [
@@ -120,14 +121,17 @@ export default function CotizadorPage() {
     tc: false,
     pipa: false,
     marketing: false,
+    photoMarketing: false,
   });
+  const [purchaseOrder, setPurchaseOrder] = useState("");
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
-  // Keep auth listener for UI state (e.g. showing logged-in status)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [user, setUser] = useState<{ id: string } | null>(null);
+  // B2B review se deriva de la cotización server-side o, en ausencia de ella, de la categoría comercial
+  const b2bReviewRequired =
+    (quote && (quote.accountType === "b2b" || quote.accountType === "government")) ||
+    input.serviceCategory === "commercial";
 
   // Restaurar estado desde localStorage SOLO si venimos de un login pendiente
   // (pending_auth_quote). Si no, empezamos desde cero (cotización nueva).
@@ -140,33 +144,25 @@ export default function CotizadorPage() {
         setInput(saved.input);
       }
       clearPendingAuth();
+    } else {
+      // Inicializar valores default para que el usuario pueda avanzar sin tocar
+      // cada control, pero sigue pudiendo modificarlos.
+      setInput((prev) => ({
+        ...prev,
+        bedrooms: prev.bedrooms ?? 2,
+        bathrooms: prev.bathrooms ?? 1,
+        squareFeet: prev.squareFeet ?? 1000,
+        petsCount: prev.petsCount ?? 0,
+        petsType: prev.petsType ?? "none",
+        residents: prev.residents ?? 2,
+        daysSinceCleaning: prev.daysSinceCleaning ?? 30,
+      }));
     }
     // Si no hay pending_auth, empezamos desde cero (stepIndex=0, input={})
     setIsHydrated(true);
   }, []);
 
   const step = STEPS[stepIndex];
-
-  // Check auth status
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) setUser({ id: data.user.id });
-    });
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ? { id: session.user.id } : null);
-      }
-    );
-    return () => listener.subscription.unsubscribe();
-  }, []);
-
-  // Price freeze: solo se calcula al llegar al paso summary
-  useEffect(() => {
-    if (step === "summary") {
-      const freeze = new Date(Date.now() + 10 * 60 * 1000);
-      setPriceFrozenUntil(freeze);
-    }
-  }, [step]);
 
   // Persistir estado en localStorage — SOLO después de hidratación para no
   // sobreescribir el estado guardado durante el montaje inicial post-OAuth
@@ -182,7 +178,10 @@ export default function CotizadorPage() {
     []
   );
 
-  const calculateQuote = useCallback((): QuoteData | null => {
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState("");
+
+  const fetchPreviewQuote = useCallback(async () => {
     if (
       !input.serviceType ||
       !input.squareFeet ||
@@ -192,53 +191,42 @@ export default function CotizadorPage() {
       input.daysSinceCleaning === undefined ||
       !input.zone
     ) {
-      return null;
+      setQuote(null);
+      return;
     }
 
-    const breakdown = calculatePrice(
-      input.serviceType as ServiceType,
-      input.squareFeet,
-      input.petsCount,
-      input.petsType,
-      input.residents,
-      input.daysSinceCleaning,
-      input.zone,
-      input.dayOfWeek,
-      input.isPreferredDay
-    );
+    setPreviewLoading(true);
+    setPreviewError("");
+    try {
+      const response = await fetch("/api/quote/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
 
-    const freeze = new Date(Date.now() + 10 * 60 * 1000);
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Failed to calculate preview");
+      }
 
-    return {
-      ...input,
-      basePrice: breakdown.basePrice,
-      organicMultiplier: breakdown.organicMultiplier,
-      organicAdjustment: breakdown.organicAdjustment,
-      recencyMultiplier: breakdown.recencyMultiplier,
-      recencyAdjustment: breakdown.recencyAdjustment,
-      zoneSurcharge: breakdown.zoneSurcharge,
-      logisticsSurcharge: breakdown.logisticsSurcharge,
-      subtotal: breakdown.subtotal,
-      gst: breakdown.gst,
-      pst: breakdown.pst,
-      total: breakdown.total,
-      holdAmount: breakdown.holdAmount,
-      priceFrozenUntil: freeze.toISOString(),
-      status: "pending",
-      // Los consents no afectan el precio — se agregan solo al guardar
-      consentTc: false,
-      consentPipa: false,
-      consentMarketing: false,
-      clientScore: 50,
-    } as QuoteData;
+      const data = await response.json();
+      const q = data.quote as QuoteData;
+      setQuote(q);
+      setPriceFrozenUntil(new Date(q.priceFrozenUntil));
+    } catch (err: Error | unknown) {
+      const message = err instanceof Error ? err.message : "Failed to calculate preview";
+      setPreviewError(message);
+      setQuote(null);
+    } finally {
+      setPreviewLoading(false);
+    }
   }, [input]);
 
   useEffect(() => {
     if (step === "summary") {
-      const q = calculateQuote();
-      setQuote(q);
+      fetchPreviewQuote();
     }
-  }, [step, calculateQuote]);
+  }, [step, fetchPreviewQuote]);
 
   const canProceed = () => {
     switch (step) {
@@ -264,10 +252,10 @@ export default function CotizadorPage() {
           !!input.address &&
           !!input.zone &&
           !!input.postalCode &&
-          /^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/i.test(input.postalCode)
+          /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTVWXYZ]\s?\d[ABCEGHJ-NPRSTVWXYZ]\d$/i.test(input.postalCode)
         );
       case "summary":
-        return consents.tc && consents.pipa;
+        return consents.tc && (!b2bReviewRequired || purchaseOrder.trim().length > 0);
       default:
         return false;
     }
@@ -292,8 +280,8 @@ export default function CotizadorPage() {
 
   const handleSubmit = async (forcedUserId?: string) => {
     if (!quote) return;
-    if (!consents.tc || !consents.pipa) {
-      setSubmitError("Please accept the Terms & Conditions and Privacy consent.");
+    if (!consents.tc) {
+      setSubmitError("Please accept the Terms & Conditions to proceed.");
       return;
     }
 
@@ -315,17 +303,34 @@ export default function CotizadorPage() {
         return;
       }
 
-      // Save quote via API to get quoteId
+      // Enviar SOLO inputs brutos + consents. El servidor recalcula todo.
+      const rawInputs = {
+        serviceCategory: input.serviceCategory,
+        serviceSubtype: input.serviceSubtype,
+        serviceType: input.serviceType,
+        bedrooms: input.bedrooms,
+        bathrooms: input.bathrooms,
+        squareFeet: input.squareFeet,
+        petsCount: input.petsCount,
+        petsType: input.petsType,
+        residents: input.residents,
+        daysSinceCleaning: input.daysSinceCleaning,
+        address: input.address,
+        zone: input.zone,
+        postalCode: input.postalCode,
+        dayOfWeek: input.dayOfWeek,
+        isPreferredDay: input.isPreferredDay,
+        consentTc: consents.tc,
+        consentPipa: consents.pipa,
+        consentMarketing: consents.marketing,
+        consentPhotoMarketing: consents.photoMarketing,
+        purchaseOrder: purchaseOrder.trim() || undefined,
+      };
+
       const response = await fetch("/api/quote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...quote,
-          user_id: currentUserId,
-          consentTc: consents.tc,
-          consentPipa: consents.pipa,
-          consentMarketing: consents.marketing,
-        }),
+        body: JSON.stringify(rawInputs),
       });
 
       if (!response.ok) {
@@ -333,7 +338,26 @@ export default function CotizadorPage() {
         throw new Error(err.error || "Failed to save quote");
       }
 
-      const { quoteId } = await response.json();
+      const {
+        quoteId,
+        adminReviewRequired,
+        adminReviewReason,
+        b2bReviewRequired,
+      } = await response.json();
+
+      if (b2bReviewRequired) {
+        setSubmitError(
+          "Commercial / B2B bookings require manual onboarding and PO setup. Our team will contact you shortly."
+        );
+        clearStateFromStorage();
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (adminReviewRequired) {
+        // No bloqueamos la reserva, pero mostramos advertencia y loggeamos
+        console.warn("Quote requires admin review:", adminReviewReason);
+      }
 
       // Clear saved state and redirect to reservation with locale
       clearStateFromStorage();
@@ -353,7 +377,6 @@ export default function CotizadorPage() {
       const { data, error } = await supabase.auth.getUser();
       if (error) throw error;
       if (data.user) {
-        setUser({ id: data.user.id });
         // Pass the user ID directly to avoid stale closure
         handleSubmit(data.user.id);
       }
@@ -447,6 +470,7 @@ export default function CotizadorPage() {
               bedrooms={input.bedrooms ?? 2}
               bathrooms={input.bathrooms ?? 1}
               squareFeet={input.squareFeet ?? 1000}
+              address={input.address}
               onChange={(vals) => updateInput(vals)}
             />
           )}
@@ -472,24 +496,71 @@ export default function CotizadorPage() {
               onChange={(vals) => updateInput(vals)}
             />
           )}
-          {step === "summary" && quote && (
+          {step === "summary" && (
             <div className="space-y-6">
-              <div className="text-center">
-                <CheckCircle2 className="w-12 h-12 text-state-success mx-auto mb-4" />
-                <h2 className="text-2xl font-bold text-brand-ink mb-2">
-                  Your Quote is Ready
-                </h2>
-                <p className="text-gray-600">
-                  Full price upfront — no surprises.
-                </p>
-              </div>
+              {previewLoading && (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+                  <p className="text-sm text-gray-600">Calculating your server-verified quote...</p>
+                </div>
+              )}
 
-              <PriceBreakdown quote={quote} />
+              {!previewLoading && previewError && (
+                <div className="p-4 bg-state-danger/10 text-state-danger rounded-lg text-sm text-center">
+                  {previewError}
+                </div>
+              )}
 
-              <ConsentCheck
-                consents={consents}
-                onChange={setConsents}
-              />
+              {!previewLoading && !previewError && quote && (
+                <>
+                  <div className="text-center">
+                    <CheckCircle2 className="w-12 h-12 text-state-success mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-brand-ink mb-2">
+                      Your Quote is Ready
+                    </h2>
+                    <p className="text-gray-600">
+                      Full price upfront — no surprises.
+                    </p>
+                  </div>
+
+                  {b2bReviewRequired && (
+                    <div className="p-4 bg-state-warning/10 border border-state-warning/20 rounded-lg">
+                      <p className="text-sm font-medium text-state-warning">
+                        Commercial / B2B Quote
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        This quote requires manual onboarding, PO process, and Net-30 setup before booking.
+                        Submitting will notify our sales team.
+                      </p>
+                    </div>
+                  )}
+
+                  <PriceBreakdown quote={quote} />
+
+                  {b2bReviewRequired && (
+                    <div className="p-4 bg-brand-navy/5 border border-brand-navy/10 rounded-lg">
+                      <label className="block text-sm font-medium text-brand-ink mb-1">
+                        Purchase Order (PO) Number *
+                      </label>
+                      <input
+                        type="text"
+                        value={purchaseOrder}
+                        onChange={(e) => setPurchaseOrder(e.target.value)}
+                        placeholder="PO-2026-0001"
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        B2B / Government bookings require a PO before onboarding.
+                      </p>
+                    </div>
+                  )}
+
+                  <ConsentCheck
+                    consents={consents}
+                    onChange={setConsents}
+                  />
+                </>
+              )}
 
               {submitError && (
                 <div className="p-4 bg-state-danger/10 text-state-danger rounded-lg text-sm">
@@ -525,7 +596,7 @@ export default function CotizadorPage() {
               disabled={!canProceed() || isSubmitting}
               className="inline-flex items-center gap-2 bg-brand-gold text-brand-navy px-8 py-3 rounded-lg font-semibold hover:bg-brand-gold-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Saving..." : "Reserve Now"}
+              {isSubmitting ? "Saving..." : b2bReviewRequired ? "Submit for B2B Review" : "Reserve Now"}
               <ChevronRight className="w-5 h-5" />
             </button>
           )}

@@ -1,0 +1,32 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/hold-authorize",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/batch-capture",
+      "schedule": "0 2,3 * * *"
+    },
+    {
+      "path": "/api/cron/no-show",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/dispatch-scheduler",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/weekly-scores",
+      "schedule": "0 9 * * 1"
+    },
+    {
+      "path": "/api/cron/paypal-refunds",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/qbo-sync",
+      "schedule": "0 9,10 * * *"
+    }
+  ]
+}

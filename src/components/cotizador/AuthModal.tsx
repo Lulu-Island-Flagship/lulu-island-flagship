@@ -83,11 +83,13 @@ export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
       setError("Please enter a valid phone number");
       return;
     }
+    // Normalizar a E.164 para Canadá/EE.UU.
+    const normalizedPhone = phone.startsWith("+") ? phone : `+1${phone}`;
     setLoading(true);
     setError("");
     try {
       const { error } = await supabase.auth.signInWithOtp({
-        phone,
+        phone: normalizedPhone,
       });
       if (error) throw error;
       setOtpSent(true);
@@ -123,8 +125,9 @@ export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
           type: "email",
         });
       } else {
+        const normalizedPhone = phone.startsWith("+") ? phone : `+1${phone}`;
         result = await supabase.auth.verifyOtp({
-          phone,
+          phone: normalizedPhone,
           token: otpCode,
           type: "sms",
         });

@@ -3,7 +3,7 @@
 import React from "react";
 import { QuoteData } from "@/types";
 import { SERVICE_TYPES } from "@/lib/pricing";
-import { DollarSign, Percent, MapPin, Truck, Receipt, Shield } from "lucide-react";
+import { DollarSign, Percent, MapPin, Truck, Receipt, Shield, AlertTriangle, Tag } from "lucide-react";
 
 interface PriceBreakdownProps {
   quote: QuoteData;
@@ -78,6 +78,39 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
           <span className="font-medium text-state-warning">
             +${quote.logisticsSurcharge.toFixed(2)}
           </span>
+        </div>
+      )}
+
+      {/* Rule adjustments */}
+      {quote.ruleAdjustment !== 0 && (
+        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+          <span className="text-gray-600 flex items-center gap-1">
+            <Tag className="w-4 h-4" />
+            Pricing rule adjustment
+          </span>
+          <span className={`font-medium ${quote.ruleAdjustment > 0 ? "text-state-warning" : "text-state-success"}`}>
+            {quote.ruleAdjustment > 0 ? "+" : "-"}${Math.abs(quote.ruleAdjustment).toFixed(2)}
+          </span>
+        </div>
+      )}
+
+      {/* Rule note */}
+      {quote.appliedRules.length === 0 && (
+        <p className="text-xs text-gray-500">
+          Final price is calculated server-side. Active pricing rules may adjust this estimate.
+        </p>
+      )}
+
+      {/* Admin review warning */}
+      {quote.adminReviewRequired && (
+        <div className="flex items-start gap-3 p-3 bg-state-danger/10 rounded-lg">
+          <AlertTriangle className="w-5 h-5 text-state-danger flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-state-danger">Admin review required</p>
+            <p className="text-xs text-gray-600 mt-1">
+              {quote.adminReviewReason || "This quote needs manual approval before scheduling."}
+            </p>
+          </div>
         </div>
       )}
 

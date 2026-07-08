@@ -2,6 +2,12 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { assertStripe } from "@/lib/stripe";
+import {
+  getVancouverOffset,
+  getVancouverTodayMidnight,
+  getVancouverTodayString,
+} from "@/lib/date-utils";
+import { verifyPayPalTransaction } from "@/lib/paypal";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -37,15 +43,19 @@ export async function POST(request: NextRequest) {
       paymentMethodId,
       stripeCustomerId,
       stripeSetupIntentId,
-      holdAmount,
+      paymentOption,
+      paypalTransactionId,
+      paypalPayerEmail,
     } = body;
 
-    if (!quoteId || !serviceDate || !serviceTime || !paymentMethodId || !stripeSetupIntentId) {
+    if (!quoteId || !serviceDate || !serviceTime || !paymentMethodId) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
+
+    const requestedOption = paymentOption === "paypal_first_time" ? "paypal_first_time" : "card";
 
     const supabase = getSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -54,8 +64,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Build ISO datetime from date + time (Vancouver timezone)
-    const serviceDatetime = new Date(`${serviceDate}T${serviceTime}:00-07:00`); // PST (Vancouver)
+    // Validar formato de hora HH:MM y rango de servicio 08:00-18:00
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!timeRegex.test(serviceTime)) {
+      return NextResponse.json(
+        { error: "Invalid time format. Use HH:MM" },
+        { status: 400 }
+      );
+    }
+    const [hourStr] = serviceTime.split(":");
+    const hour = parseInt(hourStr, 10);
+    if (hour < 8 || hour >= 18) {
+      return NextResponse.json(
+        { error: "Service time must be between 08:00 and 18:00" },
+        { status: 400 }
+      );
+    }
+
+    // Build ISO datetime from date + time (Vancouver timezone, PST/PDT aware)
+    const offset = getVancouverOffset(serviceDate);
+    const serviceDatetime = new Date(`${serviceDate}T${serviceTime}:00${offset}`);
     if (isNaN(serviceDatetime.getTime())) {
       return NextResponse.json(
         { error: "Invalid date or time" },
@@ -64,12 +92,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate date range using Vancouver timezone
-    const vancouverNowStr = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", year: "numeric", month: "2-digit", day: "2-digit" });
-    const vancouverToday = new Date(vancouverNowStr.split(",")[0] + "T12:00:00-07:00");
-    vancouverToday.setHours(0, 0, 0, 0);
-
-    const serviceDateObj = new Date(serviceDate + "T12:00:00-07:00");
-    serviceDateObj.setHours(0, 0, 0, 0);
+    const vancouverToday = getVancouverTodayMidnight();
+    const serviceDateObj = new Date(`${serviceDate}T00:00:00${offset}`);
 
     const tomorrow = new Date(vancouverToday);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -91,10 +115,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Corte de las 5:00 PM del día anterior para reservas de mañana
+    const todayStr = getVancouverTodayString();
+    const vancouverNowParts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Vancouver",
+      hour: "2-digit",
+      hour12: false,
+    }).formatToParts(new Date());
+    const currentHour = Number(vancouverNowParts.find((p) => p.type === "hour")?.value ?? 0);
+    if (serviceDate > todayStr && currentHour >= 17) {
+      return NextResponse.json(
+        { error: "Bookings for tomorrow close at 5:00 PM. Please select a later date." },
+        { status: 400 }
+      );
+    }
+
     // Verify quote exists and belongs to user
     const { data: quoteRow, error: quoteError } = await supabase
       .from("quotes")
-      .select("id, status, price_frozen_until")
+      .select("id, status, service_subtype, service_type, square_feet, zone, price_frozen_until, total, hold_amount, address_lat, address_lng, admin_review_required, user_id, pipa_alt_requires_audit, purchase_order")
       .eq("id", quoteId)
       .eq("user_id", user.id)
       .single();
@@ -106,6 +145,82 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Revalidación de seguridad: cotizaciones con revisión admin o cuentas B2B/Gob
+    // nunca deben convertirse en órdenes por este flujo B2C.
+    if (quoteRow.admin_review_required) {
+      return NextResponse.json(
+        { error: "Quote requires administrative review. Online booking is not available." },
+        { status: 403 }
+      );
+    }
+
+    const { data: clientProfile } = await supabase
+      .from("client_profiles")
+      .select("account_type, services_count")
+      .eq("user_id", quoteRow.user_id)
+      .single();
+
+    if (clientProfile?.account_type === "b2b" || clientProfile?.account_type === "government") {
+      return NextResponse.json(
+        { error: "Commercial / Government accounts require manual onboarding. Online booking is not available." },
+        { status: 403 }
+      );
+    }
+
+    // Validar opción de pago: PayPal solo para primer servicio
+    const isFirstTimeService =
+      quoteRow.service_subtype === "first_time" || clientProfile?.services_count === 0;
+
+    if (requestedOption === "paypal_first_time" && !isFirstTimeService) {
+      return NextResponse.json(
+        { error: "PayPal is only available for first-time services. Please use card." },
+        { status: 400 }
+      );
+    }
+
+    const selectedPaymentOption: "card" | "paypal_first_time" = requestedOption;
+
+    // SetupIntent de Stripe es obligatorio en AMBAS opciones (spec v8.2).
+    if (!stripeSetupIntentId) {
+      return NextResponse.json(
+        { error: "Card registration is required for all reservations, including PayPal first service." },
+        { status: 400 }
+      );
+    }
+
+    // Para PayPal se requiere transactionId
+    if (selectedPaymentOption === "paypal_first_time" && !paypalTransactionId) {
+      return NextResponse.json(
+        { error: "Missing PayPal transaction ID" },
+        { status: 400 }
+      );
+    }
+    if (selectedPaymentOption === "paypal_first_time") {
+      // Validación básica: formato alfanumérico de 12-20 caracteres
+      const paypalId = String(paypalTransactionId).trim();
+      if (!/^[A-Za-z0-9]{12,20}$/.test(paypalId)) {
+        return NextResponse.json(
+          { error: "Invalid PayPal transaction ID format" },
+          { status: 400 }
+        );
+      }
+
+      // Evitar reutilización del mismo transactionId en otra orden
+      const { data: existingPayPalOrder } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("paypal_transaction_id", paypalId)
+        .neq("status", "cancelled")
+        .maybeSingle();
+
+      if (existingPayPalOrder) {
+        return NextResponse.json(
+          { error: "This PayPal transaction ID has already been used" },
+          { status: 409 }
+        );
+      }
+    }
+
     // Check price freeze
     const frozenUntil = new Date(quoteRow.price_frozen_until);
     if (frozenUntil < new Date()) {
@@ -115,7 +230,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for existing order (prevent double-submit)
+    // Check for existing order (prevent double-submit). La constraint UNIQUE(quote_id)
+    // es la última línea de defensa, pero este check devuelve una respuesta amigable.
     const { data: existingOrder } = await supabase
       .from("orders")
       .select("id, status")
@@ -130,18 +246,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify SetupIntent with Stripe (security: don't trust client-provided paymentMethodId alone)
     const stripe = assertStripe();
-    const setupIntent = await stripe.setupIntents.retrieve(stripeSetupIntentId);
 
+    // Verificar SetupIntent con Stripe (seguridad: no confiar en paymentMethodId del cliente).
+    const setupIntent = await stripe.setupIntents.retrieve(stripeSetupIntentId);
     if (setupIntent.status !== "succeeded") {
       return NextResponse.json(
         { error: "Payment method not verified. Please complete card setup." },
         { status: 402 }
       );
     }
-
-    // Verify the payment method belongs to this SetupIntent
     if (setupIntent.payment_method !== paymentMethodId) {
       return NextResponse.json(
         { error: "Payment method mismatch. Please try again." },
@@ -149,7 +263,86 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Use the server-calculated amounts from the quote; ignore client-provided values.
+    // The quote was recalculated server-side, so this prevents price manipulation.
+    const holdAmount = quoteRow.hold_amount ?? Math.round(Number(quoteRow.total) * 0.4);
+    const paypalAdvanceAmount = Math.round(holdAmount * 0.5);
+
+    // Verificar transacción de PayPal contra la API real (si está configurada).
+    // El anticipo PayPal debe ser igual al 50% del Hold (spec v8.2).
+    if (selectedPaymentOption === "paypal_first_time") {
+      const paypalVerification = await verifyPayPalTransaction(
+        String(paypalTransactionId).trim(),
+        paypalAdvanceAmount
+      );
+
+      if (!paypalVerification.valid) {
+        return NextResponse.json(
+          { error: paypalVerification.error || "PayPal transaction could not be verified" },
+          { status: 402 }
+        );
+      }
+    }
+
+    // En el flujo corregido NO autorizamos el hold en la confirmación.
+    // El cron /api/cron/hold-authorize lo hará T-72h antes del servicio.
+    // Esto evita que los holds expiren para servicios lejanos y cumple el spec.
+
+    // Verificar capacidad real: el slot debe existir, estar publicado y tener cupo
+    let slotRow;
+    const { data: slotData, error: slotError } = await supabase
+      .from("capacity_slots")
+      .select("id, max_teams, committed_teams, slot_type")
+      .eq("service_date", serviceDate)
+      .eq("start_time", serviceTime)
+      .or(`zone.eq."${quoteRow.zone}",zone.is.null`)
+      .eq("is_published", true)
+      .order("zone", { ascending: false }) // preferir slot específico de zona
+      .limit(1)
+      .single();
+    slotRow = slotData;
+
+    // Si no existe slot publicado, crear uno flexible por defecto
+    if (slotError || !slotRow) {
+      const [h, m] = serviceTime.split(":").map(Number);
+      const endH = h + Math.floor((m + 30) / 60);
+      const endM = (m + 30) % 60;
+      const { data: createdSlot, error: createSlotError } = await supabase
+        .from("capacity_slots")
+        .insert({
+          service_date: serviceDate,
+          start_time: serviceTime,
+          end_time: `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`,
+          zone: quoteRow.zone,
+          slot_type: "flexible",
+          max_teams: 1,
+          committed_teams: 0,
+          is_published: true,
+          published_at: new Date().toISOString(),
+        })
+        .select("id, max_teams, committed_teams, slot_type")
+        .single();
+
+      if (createSlotError || !createdSlot) {
+        return NextResponse.json(
+          { error: "Unable to reserve selected time slot. Please try again." },
+          { status: 500 }
+        );
+      }
+      slotRow = createdSlot;
+    }
+
+    const slotAvailable = slotRow.slot_type !== "blocked" && slotRow.committed_teams < slotRow.max_teams;
+    if (!slotAvailable) {
+      return NextResponse.json(
+        { error: "Selected time slot is no longer available. Please choose another time." },
+        { status: 409 }
+      );
+    }
+
     // Create order
+    // Para PayPal primer servicio, la tarjeta (SetupIntent) sigue siendo obligatoria
+    // porque el cobro final del saldo restante siempre corre por Stripe.
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert({
@@ -162,9 +355,17 @@ export async function POST(request: NextRequest) {
         stripe_customer_id: stripeCustomerId || null,
         stripe_payment_method_id: paymentMethodId,
         stripe_setup_intent_id: stripeSetupIntentId,
-        payment_option: "card",
-        hold_amount: holdAmount || 0,
+        payment_option: selectedPaymentOption,
+        paypal_transaction_id: selectedPaymentOption === "paypal_first_time" ? paypalTransactionId || null : null,
+        paypal_payer_email: selectedPaymentOption === "paypal_first_time" ? paypalPayerEmail || null : null,
+        paypal_advance_amount: selectedPaymentOption === "paypal_first_time" ? paypalAdvanceAmount : 0,
+        hold_amount: holdAmount,
+        hold_authorized_amount: 0,
         cancellation_window_hours: 72,
+        address_lat: quoteRow.address_lat ?? null,
+        address_lng: quoteRow.address_lng ?? null,
+        pipa_alt_requires_audit: quoteRow.pipa_alt_requires_audit ?? false,
+        purchase_order: quoteRow.purchase_order ?? null,
       })
       .select()
       .single();
@@ -183,8 +384,24 @@ export async function POST(request: NextRequest) {
       .update({ status: "reserved" })
       .eq("id", quoteId);
 
+    // Comprometer capacidad del slot reservado
+    await supabase
+      .from("capacity_slots")
+      .update({
+        committed_teams: slotRow.committed_teams + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", slotRow.id);
+
     return NextResponse.json(
-      { orderId: order.id, status: "confirmed" },
+      {
+        orderId: order.id,
+        status: "confirmed",
+        holdAuthorized: false,
+        holdScheduled: selectedPaymentOption === "card",
+        paypalAdvanceAmount: selectedPaymentOption === "paypal_first_time" ? paypalAdvanceAmount : 0,
+        paymentOption: selectedPaymentOption,
+      },
       { status: 201 }
     );
   } catch (err: Error | unknown) {

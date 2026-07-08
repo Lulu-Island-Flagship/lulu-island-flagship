@@ -1,56 +1,144 @@
 "use client";
 
-import React from "react";
-import { Clock } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Clock, Loader2, AlertCircle } from "lucide-react";
+
+interface CapacitySlot {
+  id: string;
+  serviceDate: string;
+  startTime: string;
+  endTime: string;
+  slotType: "blocked" | "flexible" | "contingency";
+  maxTeams: number;
+  committedTeams: number;
+  available: boolean;
+  blockedReason?: string | null;
+}
 
 interface TimeSlotPickerProps {
   value: string; // HH:MM
   onChange: (time: string) => void;
-  serviceDate?: string; // YYYY-MM-DD, needed for weekend surcharge check
-}
-
-const START_HOUR = 8; // 8:00 AM
-const END_HOUR = 18; // 6:00 PM
-
-function generateTimeSlots(): string[] {
-  const slots: string[] = [];
-  for (let h = START_HOUR; h < END_HOUR; h++) {
-    slots.push(`${String(h).padStart(2, "0")}:00`);
-    slots.push(`${String(h).padStart(2, "0")}:30`);
-  }
-  return slots;
+  serviceDate?: string; // YYYY-MM-DD
+  zone?: string;
+  serviceType?: string;
+  squareFeet?: number;
 }
 
 function isWeekend(dateStr: string): boolean {
   const date = new Date(dateStr + "T00:00:00");
   const day = date.getDay();
-  return day === 0 || day === 6; // Sunday or Saturday
+  return day === 0 || day === 6;
 }
 
-export function TimeSlotPicker({ value, onChange, serviceDate }: TimeSlotPickerProps) {
-  const slots = generateTimeSlots();
+export function TimeSlotPicker({
+  value,
+  onChange,
+  serviceDate,
+  zone,
+  serviceType,
+  squareFeet,
+}: TimeSlotPickerProps) {
+  const [slots, setSlots] = useState<CapacitySlot[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!serviceDate) {
+      setSlots([]);
+      return;
+    }
+
+    async function loadCapacity() {
+      setLoading(true);
+      setError("");
+      try {
+        const params = new URLSearchParams({ date: serviceDate || "" });
+        if (zone) params.set("zone", zone);
+        if (serviceType) params.set("serviceType", serviceType);
+        if (squareFeet) params.set("squareFeet", String(squareFeet));
+
+        const res = await fetch(`/api/capacity?${params.toString()}`);
+        if (!res.ok) {
+          const err = await res.json();
+          setError(err.error || "Failed to load availability");
+          setSlots([]);
+          return;
+        }
+        const data = await res.json();
+        setSlots(data.slots || []);
+      } catch {
+        setError("Network error");
+        setSlots([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadCapacity();
+  }, [serviceDate, zone, serviceType, squareFeet]);
+
   const weekend = serviceDate ? isWeekend(serviceDate) : false;
+  const hasAvailable = slots.some((s) => s.available);
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-brand-ink">Select Time</label>
+        <div className="flex items-center gap-2 text-sm text-gray-500 py-4">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Checking real-time capacity...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
-      <label className="block text-sm font-medium text-brand-ink">
-        Select Time
-      </label>
+      <label className="block text-sm font-medium text-brand-ink">Select Time</label>
+
+      {error && (
+        <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3">
+          {error}
+        </div>
+      )}
+
+      {!error && slots.length > 0 && !hasAvailable && (
+        <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>No available slots for this date/zone. Please choose another date.</span>
+        </div>
+      )}
+
+      {slots.length === 0 && !error && !loading && (
+        <div className="text-sm text-gray-500 bg-gray-50 rounded-lg p-3">
+          Capacity data not available. Please select a date first.
+        </div>
+      )}
+
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
         {slots.map((slot) => {
-          const isSelected = value === slot;
+          const isSelected = value === slot.startTime;
+          const disabled = !slot.available;
           return (
             <button
-              key={slot}
-              onClick={() => onChange(slot)}
+              key={slot.id}
+              onClick={() => !disabled && onChange(slot.startTime)}
+              disabled={disabled}
+              title={
+                disabled
+                  ? slot.blockedReason || "Slot unavailable"
+                  : `${slot.startTime} – ${slot.endTime}`
+              }
               className={`flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isSelected
                   ? "bg-brand-navy text-white"
+                  : disabled
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-100"
                   : "bg-gray-50 text-brand-ink hover:bg-gray-100 border border-gray-200"
               }`}
             >
               <Clock className="w-3.5 h-3.5" />
-              {slot}
+              {slot.startTime}
             </button>
           );
         })}

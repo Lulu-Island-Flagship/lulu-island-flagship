@@ -1,16 +1,28 @@
 "use client";
 
-import React from "react";
-import { Minus, Plus, Ruler } from "lucide-react";
+import React, { useState } from "react";
+import { Minus, Plus, Ruler, Search, Check, X, AlertCircle, Loader2 } from "lucide-react";
 
 interface StepDimensionsProps {
   bedrooms: number;
   bathrooms: number;
   squareFeet: number;
+  address?: string;
   onChange: (vals: { bedrooms: number; bathrooms: number; squareFeet: number }) => void;
 }
 
-export function StepDimensions({ bedrooms, bathrooms, squareFeet, onChange }: StepDimensionsProps) {
+interface BcAssessmentSuggestion {
+  squareFeet?: number;
+  source: string;
+  confidence: "high" | "medium" | "low" | "unavailable";
+  message?: string;
+}
+
+export function StepDimensions({ bedrooms, bathrooms, squareFeet, address, onChange }: StepDimensionsProps) {
+  const [suggestion, setSuggestion] = useState<BcAssessmentSuggestion | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
+
   const adjust = (key: "bedrooms" | "bathrooms", delta: number) => {
     const current = key === "bedrooms" ? bedrooms : bathrooms;
     const next = Math.max(0, current + delta);
@@ -86,7 +98,7 @@ export function StepDimensions({ bedrooms, bathrooms, squareFeet, onChange }: St
         <input
           type="range"
           min="300"
-          max="5000"
+          max="10000"
           step="100"
           value={squareFeet}
           onChange={(e) => onChange({ bedrooms, bathrooms, squareFeet: parseInt(e.target.value) })}
@@ -95,7 +107,91 @@ export function StepDimensions({ bedrooms, bathrooms, squareFeet, onChange }: St
         <div className="flex justify-between mt-2 text-sm text-gray-500">
           <span>300 ft²</span>
           <span className="font-semibold text-brand-ink text-lg">{squareFeet.toLocaleString()} ft²</span>
-          <span>5,000+ ft²</span>
+          <span>10,000 ft²</span>
+        </div>
+
+        {/* BC Assessment suggestion */}
+        <div className="mt-5 pt-5 border-t border-gray-200">
+          <button
+            type="button"
+            onClick={async () => {
+              if (!address || address.trim().length === 0) {
+                setSearchError("Enter an address first to search BC Assessment.");
+                return;
+              }
+              setSearching(true);
+              setSearchError("");
+              setSuggestion(null);
+              try {
+                const res = await fetch(`/api/bc-assessment?address=${encodeURIComponent(address)}`);
+                const data = (await res.json()) as BcAssessmentSuggestion;
+                if (!res.ok) {
+                  setSearchError("Lookup failed.");
+                  return;
+                }
+                setSuggestion(data);
+              } catch {
+                setSearchError("Network error.");
+              } finally {
+                setSearching(false);
+              }
+            }}
+            disabled={searching}
+            className="inline-flex items-center gap-2 rounded-lg border border-brand-wave-blue px-4 py-2 text-sm font-medium text-brand-wave-blue hover:bg-brand-wave-blue/5 disabled:opacity-60"
+          >
+            {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            Suggest from BC Assessment
+          </button>
+
+          {searchError && (
+            <div className="mt-3 flex items-start gap-2 text-sm text-red-600">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              {searchError}
+            </div>
+          )}
+
+          {suggestion && (
+            <div className="mt-3 rounded-lg border border-brand-gold/30 bg-brand-gold/5 p-4">
+              {suggestion.confidence === "unavailable" || !suggestion.squareFeet ? (
+                <div className="flex items-start gap-2 text-sm text-gray-700">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                  <div>
+                    <p className="font-medium">No suggestion available</p>
+                    <p className="text-gray-500">{suggestion.message || "Please enter square footage manually."}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="text-sm">
+                    <p className="font-medium text-brand-ink">
+                      Suggested: {suggestion.squareFeet.toLocaleString()} ft²
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Confidence: {suggestion.confidence}. Always verify before booking.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onChange({ bedrooms, bathrooms, squareFeet: suggestion.squareFeet || squareFeet })}
+                      className="inline-flex items-center gap-1 rounded-lg bg-brand-navy px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-navy/90"
+                    >
+                      <Check className="w-3 h-3" />
+                      Use
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSuggestion(null)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      <X className="w-3 h-3" />
+                      Ignore
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -79,11 +79,14 @@ export default async function AdminLayout({
             <div className="flex items-center gap-4 text-sm">
               <a href={`${adminPath}/servicios`} className="hover:text-brand-gold transition-colors">Services</a>
               <a href={`${adminPath}/empleados`} className="hover:text-brand-gold transition-colors">Employees</a>
+              <a href={`${adminPath}/vehicles`} className="hover:text-brand-gold transition-colors">Vehicles</a>
               <a href={`${adminPath}/upsells`} className="hover:text-brand-gold transition-colors">Upsells</a>
               <a href={`${adminPath}/checklists`} className="hover:text-brand-gold transition-colors">Checklists</a>
               <a href={`${adminPath}/qc`} className="hover:text-brand-gold transition-colors">QC</a>
               <a href={`${adminPath}/audits`} className="hover:text-brand-gold transition-colors">Audits</a>
               <a href={`${adminPath}/tickets`} className="hover:text-brand-gold transition-colors">Tickets</a>
+              <a href={`${adminPath}/pricing-rules`} className="hover:text-brand-gold transition-colors">Pricing Rules</a>
+              <a href={`${adminPath}/pricing-settings`} className="hover:text-brand-gold transition-colors">Pricing Settings</a>
             </div>
           </div>
           <form action="/auth/signout" method="post">

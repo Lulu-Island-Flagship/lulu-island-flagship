@@ -79,9 +79,11 @@ export async function GET() {
       employeeMap.set(e.id, e);
     }
 
-    const assignmentMap = new Map();
+    const assignmentMap = new Map<string, typeof assignments>();
     for (const a of assignments || []) {
-      assignmentMap.set(a.order_id, a);
+      const list = assignmentMap.get(a.order_id) || [];
+      list.push(a);
+      assignmentMap.set(a.order_id, list);
     }
 
     // Obtener checklists completados por orden
@@ -110,8 +112,18 @@ export async function GET() {
     const enriched = [];
     for (const o of orders || []) {
       const quote = o.quote_id ? quoteMap.get(o.quote_id) : null;
-      const assignment = assignmentMap.get(o.id);
-      const employee = assignment ? employeeMap.get(assignment.employee_id) : null;
+      const orderAssignments = assignmentMap.get(o.id) || [];
+      const employeeNames = orderAssignments.length > 0
+        ? orderAssignments.map((a) => employeeMap.get(a.employee_id)?.name || "Unknown").join(", ")
+        : "Unassigned";
+      const employeeEmails = orderAssignments.length > 0
+        ? orderAssignments.map((a) => employeeMap.get(a.employee_id)?.email || "").filter(Boolean).join(", ")
+        : "";
+      // Status consolidado: si hay múltiples asignaciones, usa el más avanzado
+      const statusPriority = ["completed", "in_progress", "arrived", "en_route", "pending", "cancelled", "no_show"];
+      const assignmentStatus = orderAssignments.length > 0
+        ? statusPriority.find((s) => orderAssignments.some((a) => a.status === s)) || "pending"
+        : "pending";
       const serviceSubtype = quote?.service_type === "deep" ? "first_time" : (quote?.service_type || "regular");
       const completedItems = completedCountByOrder.get(o.id) || 0;
       // Calculate total from active zones for this service subtype
@@ -128,9 +140,9 @@ export async function GET() {
         serviceDate: o.service_date,
         serviceTime: o.service_time,
         orderStatus: o.status,
-        assignmentStatus: assignment?.status || "pending",
-        employeeName: employee?.name || "Unassigned",
-        employeeEmail: employee?.email || "",
+        assignmentStatus,
+        employeeName: employeeNames,
+        employeeEmail: employeeEmails,
         address: quote?.address || "",
         zone: quote?.zone || "",
         serviceType: quote?.service_type || "",
@@ -142,6 +154,14 @@ export async function GET() {
         completedItems,
         totalItems,
         percentComplete,
+        assignments: orderAssignments.map((a) => ({
+          assignmentId: a.id,
+          employeeId: a.employee_id,
+          employeeName: employeeMap.get(a.employee_id)?.name || "Unknown",
+          status: a.status,
+          assignedAt: a.assigned_at,
+          notes: a.notes,
+        })),
       });
     }
 

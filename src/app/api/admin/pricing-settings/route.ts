@@ -1,0 +1,146 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireSupervisor } from "@/lib/admin";
+
+/**
+ * GET /api/admin/pricing-settings
+ *
+ * Devuelve la tarifa objetivo vigente y el historial de cambios.
+ */
+export async function GET() {
+  const auth = await requireSupervisor();
+  if (auth.error || !auth.supabase) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
+  }
+
+  try {
+    const { data: current, error: currentError } = await auth.supabase
+      .from("pricing_settings")
+      .select("id, target_hourly_rate, effective_from, effective_to, reason, created_by, created_at, updated_at")
+      .is("effective_to", null)
+      .order("effective_from", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (currentError) {
+      console.error("Pricing settings fetch error:", currentError);
+      return NextResponse.json({ error: currentError.message }, { status: 500 });
+    }
+
+    const { data: history, error: historyError } = await auth.supabase
+      .from("pricing_settings_audit_logs")
+      .select("id, previous_rate, new_rate, previous_effective_from, new_effective_from, reason, changed_by, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (historyError) {
+      console.error("Pricing settings audit fetch error:", historyError);
+    }
+
+    return NextResponse.json(
+      {
+        current: current || null,
+        history: history || [],
+        fallbackRate: 70.0,
+      },
+      { status: 200 }
+    );
+  } catch (err: Error | unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+/**
+ * PATCH /api/admin/pricing-settings
+ *
+ * Actualiza la tarifa objetivo. La fila vigente se cierra (effective_to = hoy)
+ * y se crea una nueva fila vigente con la nueva tarifa y audit log.
+ */
+export async function PATCH(request: NextRequest) {
+  const auth = await requireSupervisor();
+  if (auth.error || !auth.supabase || !auth.user) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { targetHourlyRate, effectiveFrom, reason } = body;
+
+    if (targetHourlyRate === undefined || typeof targetHourlyRate !== "number" || targetHourlyRate <= 0) {
+      return NextResponse.json({ error: "targetHourlyRate must be a positive number" }, { status: 400 });
+    }
+
+    if (!reason || typeof reason !== "string" || reason.trim().length === 0) {
+      return NextResponse.json({ error: "reason is required for audit log" }, { status: 400 });
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    const newEffectiveFrom = effectiveFrom && /^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom)
+      ? effectiveFrom
+      : today;
+
+    if (newEffectiveFrom < today) {
+      return NextResponse.json({ error: "effectiveFrom cannot be in the past" }, { status: 400 });
+    }
+
+    // Obtener tarifa vigente actual para audit log
+    const { data: previous } = await auth.supabase
+      .from("pricing_settings")
+      .select("id, target_hourly_rate, effective_from")
+      .is("effective_to", null)
+      .order("effective_from", { ascending: false })
+      .limit(1)
+      .single();
+
+    // Cerrar fila vigente previa
+    if (previous) {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+      await auth.supabase
+        .from("pricing_settings")
+        .update({ effective_to: yesterdayStr, updated_at: new Date().toISOString() })
+        .eq("id", previous.id);
+    }
+
+    // Crear nueva fila vigente
+    const { data: newSetting, error: insertError } = await auth.supabase
+      .from("pricing_settings")
+      .insert({
+        target_hourly_rate: targetHourlyRate,
+        effective_from: newEffectiveFrom,
+        reason: reason.trim(),
+        created_by: auth.user.id,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error("Pricing settings insert error:", insertError);
+      return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
+
+    // Audit log
+    await auth.supabase.from("pricing_settings_audit_logs").insert({
+      previous_rate: previous?.target_hourly_rate ?? null,
+      new_rate: targetHourlyRate,
+      previous_effective_from: previous?.effective_from ?? null,
+      new_effective_from: newEffectiveFrom,
+      reason: reason.trim(),
+      changed_by: auth.user.id,
+    });
+
+    return NextResponse.json(
+      {
+        setting: newSetting,
+        previousRate: previous?.target_hourly_rate ?? null,
+        message: `Target hourly rate updated to $${targetHourlyRate}/hr effective ${newEffectiveFrom}.`,
+      },
+      { status: 200 }
+    );
+  } catch (err: Error | unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

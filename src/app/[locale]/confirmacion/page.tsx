@@ -193,16 +193,18 @@ function ConfirmacionContent() {
             <p className="font-medium text-brand-ink">What happens next?</p>
             <ul className="text-gray-600 space-y-1 list-disc list-inside">
               <li>
-                72 hours before service: a security hold of{" "}
+                Total service amount: {formatCurrency(quote.total)}. Charged
+                automatically after service completion at 7:00 PM Vancouver
+                time.
+              </li>
+              <li>
+                72 hours before service: a temporary hold of{" "}
                 {formatCurrency(quote.holdAmount)} will be authorized on your
-                card (not charged).
+                card (not charged). It is only charged if you cancel late or
+                don&apos;t show up.
               </li>
               <li>
                 Day of service: our team arrives at the scheduled time.
-              </li>
-              <li>
-                After service completion: payment is processed automatically at
-                7:00 PM.
               </li>
               <li>
                 You&apos;ll receive a gallery of before/after photos after the

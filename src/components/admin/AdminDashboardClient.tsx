@@ -10,6 +10,9 @@ import {
   AlertTriangle,
   ShieldCheck,
   ClipboardCheck,
+  Settings2,
+  DollarSign,
+  FileSearch,
 } from "lucide-react";
 
 export default function AdminDashboardClient() {
@@ -68,6 +71,27 @@ export default function AdminDashboardClient() {
       icon: AlertTriangle,
       href: `/${safeLocale}/admin/tickets`,
       color: "bg-red-50 text-red-600",
+    },
+    {
+      title: "Quote Reviews",
+      description: "Approve or reject quotes below the 15% margin floor",
+      icon: FileSearch,
+      href: `/${safeLocale}/admin/quotes-review`,
+      color: "bg-rose-50 text-rose-600",
+    },
+    {
+      title: "Pricing Rules",
+      description: "Headless rule engine — active rules and audit log",
+      icon: Settings2,
+      href: `/${safeLocale}/admin/pricing-rules`,
+      color: "bg-slate-50 text-slate-600",
+    },
+    {
+      title: "Pricing Settings",
+      description: "Target hourly rate and HHE table preview",
+      icon: DollarSign,
+      href: `/${safeLocale}/admin/pricing-settings`,
+      color: "bg-emerald-50 text-emerald-600",
     },
   ];
 

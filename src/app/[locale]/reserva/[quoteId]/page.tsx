@@ -41,9 +41,14 @@ export default function ReservaPage() {
   const [serviceDate, setServiceDate] = useState("");
   const [serviceTime, setServiceTime] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState("");
+  const [paymentOption, setPaymentOption] = useState<"card" | "paypal_first_time">("card");
+  const [paypalTransactionId, setPaypalTransactionId] = useState("");
+  const [paypalPayerEmail, setPaypalPayerEmail] = useState("");
   const [stripeClientSecret, setStripeClientSecret] = useState("");
   const [stripeCustomerId, setStripeCustomerId] = useState("");
   const [stripeSetupIntentId, setStripeSetupIntentId] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [paypalEnabled, setPaypalEnabled] = useState(false);
 
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState("");
@@ -87,12 +92,86 @@ export default function ReservaPage() {
       // Map snake_case fields from Supabase to camelCase QuoteData
       const mapped = mapQuoteFromSupabase(data);
 
+      // Bloquear reservas que requieren revisión administrativa o B2B/Gob
+      if (mapped.adminReviewRequired) {
+        setError(
+          "This quote requires administrative review before booking. Our sales team will contact you shortly."
+        );
+        setLoading(false);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("client_profiles")
+        .select("account_type, services_count")
+        .eq("user_id", data.user_id)
+        .single();
+
+      if (profile?.account_type === "b2b" || profile?.account_type === "government") {
+        setError(
+          "Commercial / Government accounts require manual onboarding and PO setup. Please contact our sales team to complete your booking."
+        );
+        setLoading(false);
+        return;
+      }
+
       setQuote(mapped);
+
+      // Verificar feature flag de PayPal
+      const { data: flag } = await supabase
+        .from("feature_flags")
+        .select("activo")
+        .eq("nombre", "paypal_first_service_enabled")
+        .single();
+      setPaypalEnabled(!!flag?.activo);
+
       setLoading(false);
     }
 
     loadQuote();
   }, [quoteId]);
+
+  // Recalcular precio server-side cuando cambia la fecha (weekend surcharge)
+  useEffect(() => {
+    async function recalculateQuote() {
+      if (!serviceDate || !quote) return;
+
+      // Calcular día esperado para evitar loop tras actualizar la quote
+      const selectedDate = new Date(`${serviceDate}T00:00:00`);
+      if (isNaN(selectedDate.getTime())) return;
+      const expectedDayOfWeek = selectedDate.getDay();
+      const expectedIsPreferred = expectedDayOfWeek >= 1 && expectedDayOfWeek <= 5;
+
+      // Si la quote ya refleja esta fecha, no recalcular
+      if (
+        quote.dayOfWeek === expectedDayOfWeek &&
+        quote.isPreferredDay === expectedIsPreferred
+      ) {
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/quote/recalculate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quoteId: quote.id, serviceDate }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          console.error("Quote recalculate error:", err.error);
+          return;
+        }
+
+        const { quote: updatedQuote } = await res.json();
+        setQuote(mapQuoteFromSupabase(updatedQuote));
+      } catch (e) {
+        console.error("Failed to recalculate quote:", e);
+      }
+    }
+
+    recalculateQuote();
+  }, [serviceDate, quote]);
 
   // Create SetupIntent when date/time selected and user authenticated
   useEffect(() => {
@@ -111,7 +190,6 @@ export default function ReservaPage() {
           body: JSON.stringify({
             quoteId: quote.id,
             userId: user.id,
-            email: user.email,
           }),
         });
 
@@ -143,6 +221,11 @@ export default function ReservaPage() {
       return;
     }
 
+    if (paymentOption === "paypal_first_time" && !paypalTransactionId.trim()) {
+      setConfirmError("Please enter your PayPal transaction ID.");
+      return;
+    }
+
     setIsConfirming(true);
     setConfirmError("");
 
@@ -155,6 +238,9 @@ export default function ReservaPage() {
           serviceDate,
           serviceTime,
           paymentMethodId,
+          paymentOption,
+          paypalTransactionId: paymentOption === "paypal_first_time" ? paypalTransactionId : undefined,
+          paypalPayerEmail: paymentOption === "paypal_first_time" ? paypalPayerEmail : undefined,
           stripeCustomerId,
           stripeSetupIntentId,
           holdAmount: quote.holdAmount,
@@ -263,35 +349,97 @@ export default function ReservaPage() {
                     value={serviceTime}
                     onChange={setServiceTime}
                     serviceDate={serviceDate}
+                    zone={quote.zone}
+                    serviceType={quote.serviceType}
+                    squareFeet={quote.squareFeet}
                   />
                 )}
               </div>
             </div>
 
-            {/* Card */}
+            {/* Payment Method */}
             {serviceDate && serviceTime && stripeClientSecret && (
-              <div className="bg-white rounded-lg shadow-elevation-1 p-6">
+              <div className="bg-white rounded-lg shadow-elevation-1 p-6 space-y-4">
                 <h2 className="text-lg font-semibold text-brand-ink mb-4 flex items-center gap-2">
                   <CreditCard className="w-5 h-5 text-brand-gold" />
                   Payment Method
                 </h2>
-                <Elements
-                  stripe={stripePromise}
-                  options={{
-                    clientSecret: stripeClientSecret,
-                    appearance: { theme: "stripe" as const },
-                  }}
-                >
-                  <StripeCardForm
-                    onPaymentMethodReady={handlePaymentMethodReady}
-                    disabled={isConfirming}
-                    clientSecret={stripeClientSecret}
-                  />
-                </Elements>
+
+                {paypalEnabled && quote?.serviceSubtype === "first_time" && (
+                  <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentOption("card");
+                        setPaymentMethodId("");
+                      }}
+                      className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                        paymentOption === "card"
+                          ? "bg-white text-brand-navy shadow-sm"
+                          : "text-gray-600 hover:text-gray-900"
+                      }`}
+                    >
+                      Card
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentOption("paypal_first_time");
+                        setPaymentMethodId("paypal");
+                      }}
+                      className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                        paymentOption === "paypal_first_time"
+                          ? "bg-white text-brand-navy shadow-sm"
+                          : "text-gray-600 hover:text-gray-900"
+                      }`}
+                    >
+                      PayPal (first service only)
+                    </button>
+                  </div>
+                )}
+
+                {paymentOption === "card" && (
+                  <Elements
+                    stripe={stripePromise}
+                    options={{
+                      clientSecret: stripeClientSecret,
+                      appearance: { theme: "stripe" as const },
+                    }}
+                  >
+                    <StripeCardForm
+                      onPaymentMethodReady={handlePaymentMethodReady}
+                      disabled={isConfirming}
+                      clientSecret={stripeClientSecret}
+                    />
+                  </Elements>
+                )}
+
+                {paymentOption === "paypal_first_time" && (
+                  <div className="space-y-3">
+                    <p className="text-sm text-gray-600">
+                      Complete your payment via PayPal and enter the transaction ID below.
+                      This option is only available for first-time services.
+                    </p>
+                    <input
+                      type="text"
+                      value={paypalTransactionId}
+                      onChange={(e) => setPaypalTransactionId(e.target.value)}
+                      placeholder="PayPal Transaction ID"
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold"
+                    />
+                    <input
+                      type="email"
+                      value={paypalPayerEmail}
+                      onChange={(e) => setPaypalPayerEmail(e.target.value)}
+                      placeholder="PayPal payer email (optional)"
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
-            {serviceDate && serviceTime && !stripeClientSecret && (
+            {serviceDate && serviceTime && !stripeClientSecret && paymentOption === "card" && (
               <div className="bg-white rounded-lg shadow-elevation-1 p-6 text-center">
                 <Loader2 className="w-6 h-6 animate-spin text-brand-gold mx-auto mb-2" />
                 <p className="text-sm text-gray-500">Preparing secure checkout...</p>

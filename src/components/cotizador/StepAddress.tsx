@@ -1,8 +1,10 @@
 "use client";
 
-import React from "react";
-import { MapPin } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { MapPin, Home } from "lucide-react";
 import { ACTIVE_ZONES } from "@/lib/pricing";
+import { supabase } from "@/lib/supabase";
+import type { ClientProperty } from "@/types";
 
 interface StepAddressProps {
   address: string;
@@ -13,11 +15,12 @@ interface StepAddressProps {
 
 export function StepAddress({ address, zone, postalCode, onChange }: StepAddressProps) {
   const [postalError, setPostalError] = React.useState("");
+  const [savedProperties, setSavedProperties] = useState<ClientProperty[]>([]);
 
   // Regex para código postal canadiense: formato A1A 1A1 (con o sin espacio)
   const isValidCanadianPostal = (code: string): boolean => {
     const normalized = code.replace(/\s/g, "").toUpperCase();
-    return /^[A-Z]\d[A-Z]\d[A-Z]\d$/.test(normalized);
+    return /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTVWXYZ]\d[ABCEGHJ-NPRSTVWXYZ]\d$/.test(normalized);
   };
 
   const handlePostalChange = (value: string) => {
@@ -30,12 +33,72 @@ export function StepAddress({ address, zone, postalCode, onChange }: StepAddress
     }
   };
 
+  useEffect(() => {
+    async function loadProperties() {
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData.user) {
+          setSavedProperties([]);
+          return;
+        }
+        const { data: profile } = await supabase
+          .from("client_profiles")
+          .select("id")
+          .eq("user_id", authData.user.id)
+          .single();
+        if (!profile) return;
+        const { data: properties } = await supabase
+          .from("client_properties")
+          .select("*")
+          .eq("client_profile_id", profile.id)
+          .eq("is_active", true)
+          .order("created_at", { ascending: false });
+        setSavedProperties((properties || []) as ClientProperty[]);
+      } catch {
+        setSavedProperties([]);
+      }
+    }
+    loadProperties();
+  }, []);
+
   return (
     <div className="space-y-8">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-brand-ink mb-2">Where is your home?</h2>
         <p className="text-gray-600">We serve Richmond, Vancouver, North Vancouver, West Vancouver, and UBC.</p>
       </div>
+
+      {savedProperties.length > 0 && (
+        <div className="bg-brand-ice rounded-lg p-6">
+          <label className="block font-semibold text-brand-ink mb-2 flex items-center gap-2">
+            <Home className="w-5 h-5 text-brand-wave-blue" />
+            Use a saved property
+          </label>
+          <select
+            value=""
+            onChange={(e) => {
+              const property = savedProperties.find((p) => p.id === e.target.value);
+              if (property) {
+                onChange({
+                  address: property.address,
+                  zone: property.zone,
+                  postalCode: property.postalCode || "",
+                });
+              }
+            }}
+            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none transition-all bg-white"
+          >
+            <option value="">Select a saved address...</option>
+            {savedProperties.map((property) => (
+              <option key={property.id} value={property.id}>
+                {property.nickname ? `${property.nickname} — ` : ""}
+                {property.address}
+                {property.squareFeet ? ` (${property.squareFeet} ft²)` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Address */}
       <div className="bg-brand-ice rounded-lg p-6">

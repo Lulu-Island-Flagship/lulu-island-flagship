@@ -73,6 +73,8 @@ export async function GET(
         service_time,
         status,
         quote_id,
+        address_lat,
+        address_lng,
         quotes:quote_id (
           address,
           zone,
@@ -110,6 +112,8 @@ export async function GET(
         petsCount: quote?.pets_count || 0,
         petsType: quote?.pets_type || "",
         residents: quote?.residents || 0,
+        addressLat: order.address_lat ?? undefined,
+        addressLng: order.address_lng ?? undefined,
       },
     }, { status: 200 });
   } catch (err: Error | unknown) {

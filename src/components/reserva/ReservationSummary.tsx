@@ -68,6 +68,15 @@ export function ReservationSummary({
       </div>
 
       <div className="border-t border-gray-200 pt-3 space-y-1 text-sm">
+        {quote.ruleAdjustment !== 0 && (
+          <div className="flex justify-between">
+            <span className="text-gray-600">Pricing rule adjustment</span>
+            <span className={quote.ruleAdjustment > 0 ? "text-state-warning" : "text-state-success"}>
+              {quote.ruleAdjustment > 0 ? "+" : "-"}
+              {formatCurrency(Math.abs(quote.ruleAdjustment))}
+            </span>
+          </div>
+        )}
         <div className="flex justify-between">
           <span className="text-gray-600">Subtotal</span>
           <span>{formatCurrency(quote.subtotal)}</span>
