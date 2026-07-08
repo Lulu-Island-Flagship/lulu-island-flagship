@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSupervisor } from "@/lib/admin";
+import { requireAdminRole } from "@/lib/admin";
 import { calculateTeamRequirements, type ServiceType } from "@/lib/pricing";
 
 /**
@@ -10,7 +10,7 @@ import { calculateTeamRequirements, type ServiceType } from "@/lib/pricing";
  * Valida N mínimo/máximo según HHE.
  */
 export async function POST(request: NextRequest) {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("dispatch", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase || !auth.user) {
     return NextResponse.json(
       { error: auth.error || "Unauthorized" },

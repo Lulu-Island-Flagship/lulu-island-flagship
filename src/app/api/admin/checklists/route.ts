@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSupervisor } from "@/lib/admin";
+import { requireAdminRole } from "@/lib/admin";
 
 // GET /api/admin/checklists — listar todas las plantillas (activas e inactivas)
 export async function GET() {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("checklists_sop");
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -33,7 +33,7 @@ export async function GET() {
 
 // POST /api/admin/checklists — crear nueva zona de checklist
 export async function POST(request: NextRequest) {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("checklists_sop", { method: request.method, url: request.url });
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

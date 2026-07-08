@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSupervisor } from "@/lib/admin";
+import { requireAdminRole } from "@/lib/admin";
 
 /**
  * GET /api/admin/pricing-settings
@@ -7,7 +7,7 @@ import { requireSupervisor } from "@/lib/admin";
  * Devuelve la tarifa objetivo vigente y el historial de cambios.
  */
 export async function GET() {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("pricing_settings");
   if (auth.error || !auth.supabase) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
@@ -57,7 +57,7 @@ export async function GET() {
  * y se crea una nueva fila vigente con la nueva tarifa y audit log.
  */
 export async function PATCH(request: NextRequest) {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("pricing_settings", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase || !auth.user) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }

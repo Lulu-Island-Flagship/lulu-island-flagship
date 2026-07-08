@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSupervisor } from "@/lib/admin";
+import { requireAdminRole } from "@/lib/admin";
 
 // POST /api/admin/tickets/[id]/resolve — resolver ticket
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("tickets", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }

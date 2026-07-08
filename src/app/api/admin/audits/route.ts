@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSupervisor } from "@/lib/admin";
+import { requireAdminRole } from "@/lib/admin";
 
 // GET /api/admin/audits — servicios completados pendientes de auditoría + historial de evaluaciones
 export async function GET(request: NextRequest) {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("field_audits", { method: request.method, url: request.url });
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/admin/audits — registrar evaluación de auditor de campo
 export async function POST(request: NextRequest) {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("field_audits", { method: request.method, url: request.url });
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

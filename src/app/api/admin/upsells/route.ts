@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireSupervisor } from "@/lib/admin";
+import { requireAdminRole } from "@/lib/admin";
 
 // GET /api/admin/upsells — upsells pendientes de revisión (reviewed_by_admin = false)
 export async function GET() {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("upsells_review");
   if (auth.error || !auth.supabase) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }

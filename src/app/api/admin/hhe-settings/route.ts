@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSupervisor } from "@/lib/admin";
+import { requireAdminRole } from "@/lib/admin";
 
 const SERVICE_TYPES = ["regular", "deep", "move_in_out", "post_construction"] as const;
 const RANGE_LABELS = ["≤ 700 ft²", "700 – 1,500 ft²", "1,500 – 2,500 ft²", "2,500 – 3,500 ft²", "> 3,500 ft²"];
@@ -16,7 +16,7 @@ function isValidHHETable(body: unknown): body is Record<string, number[]> {
 }
 
 export async function GET() {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("hhe_settings");
   if (auth.error || !auth.supabase) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
@@ -52,7 +52,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: NextRequest) {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("hhe_settings", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase || !auth.user) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }

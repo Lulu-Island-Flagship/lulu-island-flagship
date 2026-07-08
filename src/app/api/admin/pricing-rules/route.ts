@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSupervisor } from "@/lib/admin";
+import { requireAdminRole } from "@/lib/admin";
 import type { PricingRule } from "@/lib/rules";
 
 const ALLOWED_ACTION_TYPES = [
@@ -75,7 +75,7 @@ function validateRuleBody(body: Record<string, unknown>): { valid: false; error:
 
 // GET /api/admin/pricing-rules — listar reglas activas e históricas
 export async function GET() {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("pricing_rules");
   if (auth.error || !auth.supabase) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
@@ -101,7 +101,7 @@ export async function GET() {
 
 // POST /api/admin/pricing-rules — crear nueva regla
 export async function POST(request: NextRequest) {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("pricing_rules", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase || !auth.user) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
 
 // PATCH /api/admin/pricing-rules — actualizar regla existente
 export async function PATCH(request: NextRequest) {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("pricing_rules", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase || !auth.user) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
@@ -214,7 +214,7 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE /api/admin/pricing-rules — eliminar regla con auditoría
 export async function DELETE(request: NextRequest) {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("pricing_rules", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase || !auth.user) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }

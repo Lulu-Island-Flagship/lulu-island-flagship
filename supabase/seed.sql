@@ -21,7 +21,8 @@ INSERT INTO auth.users (
   ('64e35c23-b883-470b-8f20-23ffb6f40982'::uuid, 'cleaner@example.com',    crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cleaner Test"}'),
   ('ceef1739-57f5-45fc-ae34-e75e7bfb12c7'::uuid, 'driver@example.com',     crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Driver Test"}'),
   ('a8bb80d1-1841-4dbe-a569-42d9f5d50cc3'::uuid, 'client_b2c@example.com', crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cliente B2C"}'),
-  ('93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, 'client_b2b@example.com', crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cliente B2B"}')
+  ('93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, 'client_b2b@example.com', crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cliente B2B"}'),
+  ('7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, 'qc@example.com',         crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"QC Only Test"}')
 ON CONFLICT (id) DO UPDATE SET
   encrypted_password = EXCLUDED.encrypted_password,
   email_confirmed_at = EXCLUDED.email_confirmed_at,
@@ -41,10 +42,21 @@ INSERT INTO auth.identities (
   ('64e35c23-b883-470b-8f20-23ffb6f40982'::uuid, '64e35c23-b883-470b-8f20-23ffb6f40982'::uuid, '{"sub":"64e35c23-b883-470b-8f20-23ffb6f40982","email":"cleaner@example.com"}',    'email', now(), now()),
   ('ceef1739-57f5-45fc-ae34-e75e7bfb12c7'::uuid, 'ceef1739-57f5-45fc-ae34-e75e7bfb12c7'::uuid, '{"sub":"ceef1739-57f5-45fc-ae34-e75e7bfb12c7","email":"driver@example.com"}',     'email', now(), now()),
   ('a8bb80d1-1841-4dbe-a569-42d9f5d50cc3'::uuid, 'a8bb80d1-1841-4dbe-a569-42d9f5d50cc3'::uuid, '{"sub":"a8bb80d1-1841-4dbe-a569-42d9f5d50cc3","email":"client_b2c@example.com"}', 'email', now(), now()),
-  ('93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, '93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, '{"sub":"93e41cd3-7ef5-4892-a144-69da2cf41189","email":"client_b2b@example.com"}', 'email', now(), now())
+  ('93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, '93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, '{"sub":"93e41cd3-7ef5-4892-a144-69da2cf41189","email":"client_b2b@example.com"}', 'email', now(), now()),
+  ('7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, '7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, '{"sub":"7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60","email":"qc@example.com"}',          'email', now(), now())
 ON CONFLICT (id) DO UPDATE SET
   identity_data = EXCLUDED.identity_data,
   updated_at = now();
+
+-- ============================================================
+-- 1b. Roles ADMINISTRATIVOS (v8.3 E0-C3 — RBAC, M0 Fase 0.9)
+-- owner_admin: todo | ops_coordinator: sin finanzas/nómina | qc_only: muro QC
+-- ============================================================
+INSERT INTO admin_roles (user_id, role, granted_by) VALUES
+  ('3e27c46c-c0b3-4583-b33c-a2ca82024232'::uuid, 'owner_admin',     '3e27c46c-c0b3-4583-b33c-a2ca82024232'::uuid),
+  ('9739d2ba-8b59-481f-9325-f6c029ff6763'::uuid, 'ops_coordinator', '3e27c46c-c0b3-4583-b33c-a2ca82024232'::uuid),
+  ('7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, 'qc_only',         '3e27c46c-c0b3-4583-b33c-a2ca82024232'::uuid)
+ON CONFLICT (user_id, role) DO NOTHING;
 
 -- ============================================================
 -- 2. Perfiles y clientes

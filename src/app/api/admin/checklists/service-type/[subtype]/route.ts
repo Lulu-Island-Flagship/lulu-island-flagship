@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSupervisor } from "@/lib/admin";
+import { requireAdminRole } from "@/lib/admin";
 
 // DELETE /api/admin/checklists/service-type/[subtype]
 // Borra físicamente todas las zonas de un service_subtype,
@@ -8,7 +8,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ subtype: string }> }
 ) {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("checklists_sop", { method: request.method, url: request.url });
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

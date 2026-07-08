@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSupervisor } from "@/lib/admin";
+import { requireAdminRole } from "@/lib/admin";
 import {
   simulatePricingRules,
   type PricingRule,
@@ -214,7 +214,7 @@ function quoteToCase(
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("pricing_rules", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }

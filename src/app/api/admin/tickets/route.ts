@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSupervisor } from "@/lib/admin";
+import { requireAdminRole } from "@/lib/admin";
 
 // GET /api/admin/tickets — cola de tickets priorizada
 export async function GET(request: NextRequest) {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("tickets", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/admin/tickets — crear ticket (admin o sistema)
 export async function POST(request: NextRequest) {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("tickets", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }

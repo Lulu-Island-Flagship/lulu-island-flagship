@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSupervisor } from "@/lib/admin";
+import { requireAdminRole } from "@/lib/admin";
 
 // GET /api/admin/checklist?orderId=... — detalle de checklist por servicio (acceso supervisor)
 export async function GET(request: NextRequest) {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("checklists_sop", { method: request.method, url: request.url });
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

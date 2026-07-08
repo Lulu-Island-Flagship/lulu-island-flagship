@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireSupervisor } from "@/lib/admin";
+import { requireAdminRole } from "@/lib/admin";
 
 // GET /api/admin/servicios — servicios de hoy con % de checklist completado
 export async function GET() {
-  const auth = await requireSupervisor();
+  const auth = await requireAdminRole("services");
   if (auth.error || !auth.supabase) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
