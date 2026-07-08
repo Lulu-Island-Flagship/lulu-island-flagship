@@ -272,12 +272,11 @@ ON CONFLICT (id) DO UPDATE SET
 -- ============================================================
 -- 7. QC review manual para la orden completada
 -- ============================================================
-INSERT INTO qc_reviews (id, order_id, employee_id, reviewer_id, status, note, reviewed_at, sampling_reason, created_at, updated_at) VALUES
-  ('ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid, '99999999-9999-9999-9999-999999999999'::uuid, '44444444-4444-4444-4444-444444444444'::uuid, '33333333-3333-3333-3333-333333333333'::uuid, 'approved', 'QC aprobado en seed', now(), 'seed', now(), now())
+INSERT INTO qc_reviews (id, order_id, employee_id, reviewer_id, status, note, reviewed_at, sampling_reason, created_at) VALUES
+  ('ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid, '99999999-9999-9999-9999-999999999999'::uuid, '44444444-4444-4444-4444-444444444444'::uuid, '33333333-3333-3333-3333-333333333333'::uuid, 'approved', 'QC aprobado en seed', now(), 'seed', now())
 ON CONFLICT (order_id) DO UPDATE SET
   status = EXCLUDED.status,
-  reviewed_at = EXCLUDED.reviewed_at,
-  updated_at = now();
+  reviewed_at = EXCLUDED.reviewed_at;
 
 -- ============================================================
 -- 8. Nómina de ejemplo (pendiente)
@@ -307,7 +306,7 @@ ON CONFLICT (id) DO UPDATE SET
 -- ============================================================
 INSERT INTO tickets_disputas (
   id, order_id, employee_id, type, priority, status, context, resolution_note,
-  created_at, updated_at
+  created_at
 ) VALUES
   (
     '00000000-0000-0000-0000-000000000002'::uuid,
@@ -315,8 +314,7 @@ INSERT INTO tickets_disputas (
     '44444444-4444-4444-4444-444444444444'::uuid,
     'consulta', 'medium', 'open',
     '{"subject":"Duda sobre horario","channel":"app"}'::jsonb, NULL,
-    now(), now()
+    now()
   )
 ON CONFLICT (id) DO UPDATE SET
-  status = EXCLUDED.status,
-  updated_at = now();
+  status = EXCLUDED.status;
