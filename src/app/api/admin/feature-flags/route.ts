@@ -40,7 +40,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  let body: { nombre?: string; activo?: boolean };
+  let body: { nombre?: string; activo?: boolean; reason?: string };
   try {
     body = await request.json();
   } catch {
@@ -54,13 +54,29 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  const { data, error } = await auth.supabase
+  // Resolver el id del flag y actualizar vía RPC auditado (E0-C6):
+  // motivo obligatorio + snapshot inmutable + undo posible.
+  const { data: flagRow, error: findError } = await auth.supabase
     .from("feature_flags")
-    .update({ activo: body.activo, updated_by: auth.user.id })
+    .select("id")
     .eq("nombre", body.nombre)
     .is("deleted_at", null)
-    .select("nombre, activo, modulo, es_critico, updated_at")
     .single();
+
+  if (findError || !flagRow) {
+    return NextResponse.json({ error: `Flag '${body.nombre}' no existe` }, { status: 404 });
+  }
+
+  const reason =
+    body.reason?.trim() ||
+    `Panel de flags: '${body.nombre}' ${body.activo ? "encendido" : "apagado"} manualmente`;
+
+  const { data, error } = await auth.supabase.rpc("admin_update_config", {
+    p_table: "feature_flags",
+    p_id: flagRow.id,
+    p_changes: { activo: body.activo, updated_by: auth.user.id },
+    p_reason: reason,
+  });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
