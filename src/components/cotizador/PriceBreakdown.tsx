@@ -108,7 +108,7 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
           <div>
             <p className="text-sm font-medium text-state-danger">Admin review required</p>
             <p className="text-xs text-gray-600 mt-1">
-              {quote.adminReviewReason || "This quote needs manual approval before scheduling."}
+              This quote needs manual approval before scheduling. Our team will contact you shortly.
             </p>
           </div>
         </div>

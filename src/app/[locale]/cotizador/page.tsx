@@ -341,7 +341,6 @@ export default function CotizadorPage() {
       const {
         quoteId,
         adminReviewRequired,
-        adminReviewReason,
         b2bReviewRequired,
       } = await response.json();
 
@@ -356,7 +355,7 @@ export default function CotizadorPage() {
 
       if (adminReviewRequired) {
         // No bloqueamos la reserva, pero mostramos advertencia y loggeamos
-        console.warn("Quote requires admin review:", adminReviewReason);
+        console.warn("Quote requires admin review before scheduling.");
       }
 
       // Clear saved state and redirect to reservation with locale

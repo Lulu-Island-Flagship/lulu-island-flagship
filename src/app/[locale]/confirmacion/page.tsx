@@ -4,6 +4,7 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { mapQuoteFromSupabase, mapOrderFromSupabase } from "@/lib/supabase-mappers";
+import { QUOTE_CLIENT_COLUMNS, ORDER_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
 import { Order, QuoteData } from "@/types";
 import {
   CheckCircle2,
@@ -40,7 +41,7 @@ function ConfirmacionContent() {
 
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
-        .select("*")
+        .select(ORDER_CLIENT_COLUMNS)
         .eq("id", orderId)
         .single();
 
@@ -56,7 +57,7 @@ function ConfirmacionContent() {
       if (orderData.quote_id) {
         const { data: quoteData } = await supabase
           .from("quotes")
-          .select("*")
+          .select(QUOTE_CLIENT_COLUMNS)
           .eq("id", orderData.quote_id)
           .single();
         if (quoteData) {

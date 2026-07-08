@@ -16,6 +16,7 @@ import { applyPricingRules, type RuleContext, type PricingRule } from "@/lib/rul
 import type { QuoteInput } from "@/types";
 import { geocodeAddress } from "@/lib/geocode";
 import { calculateClientScore } from "@/lib/scoring";
+import { QUOTE_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
 import {
   ACTIVE_ZONES,
   SERVICE_CATEGORIES,
@@ -505,7 +506,7 @@ export async function POST(request: NextRequest) {
         consent_accepted_at: acceptedAt,
         client_score: clientProfile.score,
       })
-      .select()
+      .select(QUOTE_CLIENT_COLUMNS)
       .single();
 
     if (error) {
@@ -513,6 +514,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // v8.3 B.2.3: el cliente ve SOLO el booleano de revisión — el motivo
+    // (margen interno, score, etc.) es información interna del negocio.
     return NextResponse.json(
       {
         quote: data,
@@ -520,7 +523,6 @@ export async function POST(request: NextRequest) {
         serverCalculated: true,
         appliedRules: ruleResult.appliedRules,
         adminReviewRequired,
-        adminReviewReason: adminReviewReasons.join("; ") || undefined,
         accountType,
         b2bReviewRequired: accountType === "b2b" || accountType === "government",
       },
@@ -550,7 +552,7 @@ export async function GET(_request: NextRequest) {
 
     const { data, error } = await supabase
       .from("quotes")
-      .select("*")
+      .select(QUOTE_CLIENT_COLUMNS)
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 

@@ -6,6 +6,7 @@ import { Elements } from "@stripe/react-stripe-js";
 import { QuoteData } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { mapQuoteFromSupabase } from "@/lib/supabase-mappers";
+import { QUOTE_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
 import { DatePicker } from "@/components/reserva/DatePicker";
 import { TimeSlotPicker } from "@/components/reserva/TimeSlotPicker";
 import { StripeCardForm } from "@/components/reserva/StripeCardForm";
@@ -64,7 +65,7 @@ export default function ReservaPage() {
 
       const { data, error: supaError } = await supabase
         .from("quotes")
-        .select("*")
+        .select(QUOTE_CLIENT_COLUMNS)
         .eq("id", quoteId)
         .single();
 
