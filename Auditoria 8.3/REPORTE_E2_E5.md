@@ -90,3 +90,15 @@
 3. **Enforcement server-side al guardar reglas (E1-C7, cerrado):** el POST de pricing-rules ahora RECHAZA (400) circularidad y conflictos — antes `detectRuleConflicts` era solo un aviso en la UI y el servidor guardaba cualquier cosa.
 
 ### Actualización de la agenda: al punto 4 (E3) agregar las 4 reglas duras faltantes del motor de asignación como trabajo mío posterior a tus decisiones.
+
+---
+
+## ADENDA 2 (misma noche) — Dos reglas duras de E3 implementadas
+
+4. **Líder obligatorio por equipo (M0-F0.5, cerrado):** nueva `buildTeam()` en `src/lib/dispatch-team.ts` (función pura, 7 tests). Sin supervisor disponible, la orden NO se asigna sola — queda registrada como pendiente en el log de despacho para el admin.
+5. **Match de idioma (B.2.13, cerrado en su capa dura):** migración 044 agrega `client_profiles.preferred_languages` (el dato NO EXISTÍA — por eso el match nunca se implementó). El despacho ahora exige que el líder hable un idioma de la cuenta; sin match, orden pendiente al admin con nota de match parcial si algún miembro sí lo habla. **Pendiente de UI (contigo):** capturar el idioma en el onboarding/cotizador (hoy todo default 'en') y el nivel de fluidez (Fluido/Nativo) del empleado.
+6. Los 4 registros del log de despacho (`dispatch_runs`) ahora incluyen la lista de órdenes pendientes por líder/idioma — visible al admin en cada fase.
+
+**Estado del suite:** 71+ tests (64 previos + 4 circularidad + 7 dispatch-team… verificar con `npm test`), typecheck 0 errores.
+
+**Siguen faltando en E3 (requieren diseño contigo):** modelo 70/30 con contingencia pagada, pausa 30 min / jornada 8-10h en la propuesta, Auditor de Campo (rol + probabilístico 20% + promedio móvil), captura de idioma en onboarding.

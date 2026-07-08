@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { calculateTeamRequirements, getHHEForRange, type ServiceType } from "@/lib/pricing";
+import { buildTeam, type DispatchCandidate } from "@/lib/dispatch-team";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -83,14 +84,14 @@ interface ProposedOrder {
 async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, targetDate: string) {
   const { data: orders, error: ordersError } = await supabase
     .from("orders")
-    .select("id, quote_id, service_time")
+    .select("id, quote_id, user_id, service_time")
     .eq("service_date", targetDate)
     .neq("status", "cancelled")
     .neq("status", "completed")
     .order("service_time", { ascending: true });
 
   if (ordersError) throw ordersError;
-  if (!orders || orders.length === 0) return { proposals: [] as ProposedOrder[], availableTeams: 0 };
+  if (!orders || orders.length === 0) return { proposals: [] as ProposedOrder[], availableTeams: 0, pendingLanguage: [] as string[] };
 
   const quoteIds = orders.map((o) => o.quote_id);
   const { data: quotes } = await supabase
@@ -100,9 +101,19 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
 
   const quoteMap = new Map((quotes || []).map((q) => [q.id, q]));
 
+  // v8.3 B.2.13: idiomas de la cuenta del cliente (migración 044)
+  const userIds = Array.from(new Set(orders.map((o) => o.user_id)));
+  const { data: clientProfiles } = await supabase
+    .from("client_profiles")
+    .select("user_id, preferred_languages")
+    .in("user_id", userIds);
+  const langMap = new Map(
+    (clientProfiles || []).map((p) => [p.user_id, (p.preferred_languages as string[]) ?? ["en"]])
+  );
+
   const { data: employees } = await supabase
     .from("employees")
-    .select("id, role, is_active, home_zone, trust_level, vehicle_id")
+    .select("id, role, is_active, home_zone, trust_level, vehicle_id, languages")
     .eq("is_active", true)
     .in("role", ["cleaner", "supervisor"]);
 
@@ -110,6 +121,7 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
   const availableTeams = availableEmployees.length;
 
   const proposals: ProposedOrder[] = [];
+  const pendingLanguage: string[] = [];
   const assignedEmployeeIds = new Set<string>();
 
   for (const order of orders || []) {
@@ -120,20 +132,32 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
     const squareFeet = quote.square_feet as number;
     const hheHours = getHHEForRange(serviceType, squareFeet);
     const { minTeams, maxTeams } = calculateTeamRequirements(serviceType, squareFeet, "b2c");
-
-    // Asignar empleados disponibles preferentemente de la misma zona
-    const candidates = availableEmployees
-      .filter((e) => !assignedEmployeeIds.has(e.id))
-      .sort((a, b) => {
-        const aSameZone = a.home_zone === quote.zone ? 1 : 0;
-        const bSameZone = b.home_zone === quote.zone ? 1 : 0;
-        const aTrust = a.trust_level === "elite" ? 2 : a.trust_level === "standard" ? 1 : 0;
-        const bTrust = b.trust_level === "elite" ? 2 : b.trust_level === "standard" ? 1 : 0;
-        return bSameZone - aSameZone || bTrust - aTrust;
-      });
-
     const teamSize = Math.min(maxTeams, Math.max(minTeams, 1));
-    const proposed = candidates.slice(0, teamSize);
+
+    // v8.3 E3 — reglas duras: líder obligatorio + match de idioma (buildTeam, testeado)
+    const candidates: DispatchCandidate[] = availableEmployees
+      .filter((e) => !assignedEmployeeIds.has(e.id))
+      .map((e) => ({
+        id: e.id,
+        role: e.role as DispatchCandidate["role"],
+        languages: (e.languages as string[]) ?? ["en"],
+        homeZone: e.home_zone as string | null,
+        trustLevel: (e.trust_level as string) ?? "standard",
+      }));
+
+    const clientLanguages = langMap.get(order.user_id) ?? ["en"];
+    const result = buildTeam(candidates, clientLanguages, teamSize, quote.zone as string);
+
+    if (result.team === null) {
+      // Invariante B.2.13 / M0-F0.5: sin líder o sin match de idioma NO se
+      // asigna solo — la orden queda pendiente para resolución del admin.
+      pendingLanguage.push(
+        `${order.id}: ${result.pendingReason}${result.warnings.length ? ` (${result.warnings[0]})` : ""}`
+      );
+      continue;
+    }
+
+    const proposed = result.team;
 
     for (const e of proposed) {
       assignedEmployeeIds.add(e.id);
@@ -153,7 +177,7 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
     });
   }
 
-  return { proposals, availableTeams };
+  return { proposals, availableTeams, pendingLanguage };
 }
 
 async function persistAssignments(
@@ -195,31 +219,31 @@ export async function GET(request: NextRequest) {
     let result: Record<string, unknown> = { phase, targetDate };
 
     if (phase === "proposal") {
-      const { proposals, availableTeams } = await buildProposals(supabase, targetDate);
+      const { proposals, availableTeams, pendingLanguage } = await buildProposals(supabase, targetDate);
       await supabase.from("dispatch_runs").insert({
         run_date: targetDate,
         phase,
         teams_available: availableTeams,
         orders_processed: proposals.length,
-        notes: `Proposed ${proposals.filter((p) => p.proposedEmployeeIds.length > 0).length} orders`,
+        notes: `Proposed ${proposals.filter((p) => p.proposedEmployeeIds.length > 0).length} orders` + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : ""),
       });
-      result = { ...result, proposals, availableTeams };
+      result = { ...result, proposals, availableTeams, pendingLanguage };
     }
 
     if (phase === "cutoff") {
-      const { proposals, availableTeams } = await buildProposals(supabase, targetDate);
+      const { proposals, availableTeams, pendingLanguage } = await buildProposals(supabase, targetDate);
       await supabase.from("dispatch_runs").insert({
         run_date: targetDate,
         phase,
         teams_available: availableTeams,
         orders_processed: proposals.length,
-        notes: `Cutoff validation: ${proposals.filter((p) => p.proposedEmployeeIds.length > 0).length} orders ready`,
+        notes: `Cutoff validation: ${proposals.filter((p) => p.proposedEmployeeIds.length > 0).length} orders ready` + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : ""),
       });
-      result = { ...result, proposals, availableTeams };
+      result = { ...result, proposals, availableTeams, pendingLanguage };
     }
 
     if (phase === "published") {
-      const { proposals, availableTeams } = await buildProposals(supabase, targetDate);
+      const { proposals, availableTeams, pendingLanguage } = await buildProposals(supabase, targetDate);
       // Autopilot: con 6+ equipos disponibles, auto-aprobar
       const autoApproved = availableTeams >= 6;
       const assigned = await persistAssignments(supabase, proposals, autoApproved);
@@ -230,15 +254,15 @@ export async function GET(request: NextRequest) {
         teams_available: availableTeams,
         orders_processed: proposals.length,
         orders_assigned: assigned,
-        notes: autoApproved ? "Auto-approved (6+ teams available)" : "Published for manual review",
+        notes: (autoApproved ? "Auto-approved (6+ teams available)" : "Published for manual review") + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : ""),
       });
-      result = { ...result, proposals, availableTeams, autoApproved, assigned };
+      result = { ...result, proposals, availableTeams, autoApproved, assigned, pendingLanguage };
     }
 
     if (phase === "simulation") {
       // Simulación 12:00 PM del día del servicio: detectar gaps y reasignar si es posible
       const today = getVancouverNow().toISOString().split("T")[0];
-      const { proposals, availableTeams } = await buildProposals(supabase, today);
+      const { proposals, availableTeams, pendingLanguage } = await buildProposals(supabase, today);
       const unassigned = proposals.filter((p) => p.proposedEmployeeIds.length === 0);
       const assigned = await persistAssignments(supabase, proposals, true);
       await supabase.from("dispatch_runs").insert({
@@ -247,7 +271,7 @@ export async function GET(request: NextRequest) {
         teams_available: availableTeams,
         orders_processed: proposals.length,
         orders_assigned: assigned,
-        notes: `12PM simulation: ${unassigned.length} orders without team`,
+        notes: `12PM simulation: ${unassigned.length} orders without team` + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : ""),
       });
       result = { ...result, proposals, availableTeams, assigned, unassignedCount: unassigned.length };
     }
