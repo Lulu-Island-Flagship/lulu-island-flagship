@@ -27,7 +27,7 @@ export function renderTemplate(
     }
     return String(vars[key]);
   });
-  if (missing.length > 0) throw new MissingVariableError([...new Set(missing)]);
+  if (missing.length > 0) throw new MissingVariableError(Array.from(new Set(missing)));
   return rendered;
 }
 
