@@ -1,5 +1,10 @@
 import type { Config } from "tailwindcss";
+import { BRAND, STATE, ELEVATION, RADIUS, FONT } from "./src/design/tokens";
 
+/**
+ * v8.3 E0-C5: cero valores hex aquí — todo se importa de src/design/tokens.ts
+ * (fuente única de tokens de diseño, Parte D.8 del plan).
+ */
 const config: Config = {
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -12,35 +17,35 @@ const config: Config = {
         background: "var(--background)",
         foreground: "var(--foreground)",
         brand: {
-          navy: "#0B1E3D",
-          "navy-light": "#14315C",
-          "wave-blue": "#2E6E96",
-          gold: "#C9A961",
-          "gold-dark": "#A8863F",
-          ink: "#10192B",
-          ice: "#F5F5F5",
-          white: "#FFFFFF",
+          navy: BRAND.navy,
+          "navy-light": BRAND.navyLight,
+          "wave-blue": BRAND.waveBlue,
+          gold: BRAND.gold,
+          "gold-dark": BRAND.goldDark,
+          ink: BRAND.ink,
+          ice: BRAND.ice,
+          white: BRAND.white,
         },
         state: {
-          success: "#1E7A6E",
-          warning: "#B8863F",
-          danger: "#C0392B",
-          info: "#2E6E96",
+          success: STATE.success,
+          warning: STATE.warning,
+          danger: STATE.danger,
+          info: STATE.info,
         },
       },
       fontFamily: {
-        sans: ["var(--font-latin)", "Inter", "sans-serif"],
-        cjk: ["var(--font-cjk)", "Noto Sans SC", "sans-serif"],
+        sans: ["var(--font-latin)", FONT.latin.replace(/'/g, "")],
+        cjk: ["var(--font-cjk)", FONT.cjk.replace(/'/g, "")],
       },
       boxShadow: {
-        "elevation-1": "0 1px 3px rgba(11, 30, 61, 0.08)",
-        "elevation-2": "0 4px 12px rgba(11, 30, 61, 0.12)",
-        "elevation-3": "0 8px 24px rgba(11, 30, 61, 0.16)",
+        "elevation-1": ELEVATION[1],
+        "elevation-2": ELEVATION[2],
+        "elevation-3": ELEVATION[3],
       },
       borderRadius: {
-        sm: "4px",
-        md: "8px",
-        lg: "16px",
+        sm: RADIUS.sm,
+        md: RADIUS.md,
+        lg: RADIUS.lg,
       },
     },
   },
