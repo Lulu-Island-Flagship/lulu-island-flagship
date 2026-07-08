@@ -248,6 +248,50 @@ export function detectRuleConflicts(rules: PricingRule[]): string[] {
   return conflicts;
 }
 
+/**
+ * v8.3 E1-C7 — Prevención de CIRCULARIDAD.
+ * Una regla es circular si su condición depende de un campo derivado del
+ * precio (subtotal, total, price...) Y su acción a la vez modifica el precio:
+ * el resultado de aplicarla cambia su propia condición (feedback infinito
+ * conceptual). El motor aplica reglas una sola vez, pero una regla así es un
+ * error de diseño del admin y debe rechazarse al GUARDAR.
+ */
+const PRICE_DERIVED_FIELDS = new Set([
+  "subtotal",
+  "total",
+  "price",
+  "base_price",
+  "basePrice",
+  "final_price",
+  "finalPrice",
+  "margin",
+  "margin_contribution",
+  "marginContribution",
+]);
+
+const PRICE_MODIFYING_ACTIONS = new Set<PricingRule["actionType"]>([
+  "price_multiplier",
+  "price_add",
+  "price_set",
+]);
+
+export function detectCircularRules(rules: PricingRule[]): string[] {
+  const errors: string[] = [];
+  for (const rule of rules.filter((r) => r.isActive)) {
+    if (!PRICE_MODIFYING_ACTIONS.has(rule.actionType)) continue;
+    const fields = extractFields(rule.conditionJson);
+    const circularFields = fields.filter((f) => PRICE_DERIVED_FIELDS.has(f));
+    if (circularFields.length > 0) {
+      errors.push(
+        `Rule "${rule.name}" is CIRCULAR: its condition depends on price-derived field(s) [${circularFields.join(
+          ", "
+        )}] while its action modifies the price. Rejected (v8.3 E1-C7).`
+      );
+    }
+  }
+  return errors;
+}
+
 function extractFields(
   condition: RuleCondition | { and?: RuleCondition[]; or?: RuleCondition[] }
 ): string[] {

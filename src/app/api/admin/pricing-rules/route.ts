@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
-import type { PricingRule } from "@/lib/rules";
+import { detectCircularRules, detectRuleConflicts, type PricingRule } from "@/lib/rules";
 
 const ALLOWED_ACTION_TYPES = [
   "price_multiplier",
@@ -114,6 +114,48 @@ export async function POST(request: NextRequest) {
     }
 
     const { name, description, conditionJson, actionType, actionValue, priority, maxApplicable, reason } = body;
+
+    // v8.3 E1-C7: circularidad y conflictos se RECHAZAN al guardar (server-side,
+    // no solo aviso en UI). La circularidad es un error absoluto; el conflicto
+    // se rechaza si la regla nueva participa en él.
+    const candidate: PricingRule = {
+      id: "candidate",
+      name,
+      isActive: true,
+      conditionJson,
+      actionType,
+      actionValue,
+      priority: priority ?? 0,
+      maxApplicable: maxApplicable ?? true,
+    };
+    const circular = detectCircularRules([candidate]);
+    if (circular.length > 0) {
+      return NextResponse.json({ error: circular[0] }, { status: 400 });
+    }
+    const { data: existingRows } = await auth.supabase
+      .from("pricing_rules")
+      .select("id, name, is_active, condition_json, action_type, action_value, priority, max_applicable")
+      .eq("is_active", true)
+      .is("deleted_at", null);
+    const existing: PricingRule[] = (existingRows ?? []).map((r) => ({
+      id: r.id,
+      name: r.name,
+      isActive: r.is_active,
+      conditionJson: r.condition_json,
+      actionType: r.action_type,
+      actionValue: r.action_value,
+      priority: r.priority,
+      maxApplicable: r.max_applicable,
+    }));
+    const conflicts = detectRuleConflicts([...existing, candidate]).filter((c) =>
+      c.includes(`"${name}"`)
+    );
+    if (conflicts.length > 0) {
+      return NextResponse.json(
+        { error: `Regla rechazada por conflicto: ${conflicts[0]}` },
+        { status: 400 }
+      );
+    }
 
     const { data: rule, error } = await auth.supabase
       .from("pricing_rules")

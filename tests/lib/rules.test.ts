@@ -4,6 +4,7 @@ import {
   applyPricingRules,
   simulatePricingRules,
   detectRuleConflicts,
+  detectCircularRules,
   type PricingRule,
   type RuleContext,
 } from "@/lib/rules";
@@ -292,5 +293,56 @@ describe("detectRuleConflicts", () => {
 
     const conflicts = detectRuleConflicts(rules);
     assert.strictEqual(conflicts.length, 0);
+  });
+});
+
+// v8.3 E1-C7 — Prevención de circularidad (agregado en auditoría E1)
+describe("detectCircularRules", () => {
+  const base = { id: "r1", isActive: true, priority: 0, maxApplicable: true };
+
+  it("rechaza regla cuya condición depende del precio y su acción lo modifica", () => {
+    const circular: PricingRule = {
+      ...base,
+      name: "descuento si caro",
+      conditionJson: { field: "subtotal", op: ">", value: 500 },
+      actionType: "price_multiplier",
+      actionValue: 0.9,
+    };
+    const errors = detectCircularRules([circular]);
+    assert.equal(errors.length, 1);
+    assert.match(errors[0], /CIRCULAR/);
+  });
+
+  it("permite regla de precio condicionada por campos NO derivados del precio", () => {
+    const ok: PricingRule = {
+      ...base,
+      name: "recargo sabado north shore",
+      conditionJson: { and: [{ field: "zone", op: "==", value: "North Shore" }, { field: "day_of_week", op: "==", value: 6 }] },
+      actionType: "price_multiplier",
+      actionValue: 1.15,
+    };
+    assert.equal(detectCircularRules([ok]).length, 0);
+  });
+
+  it("permite flag_for_review aunque su condición mire el precio (no lo modifica)", () => {
+    const ok: PricingRule = {
+      ...base,
+      name: "revisar ordenes grandes",
+      conditionJson: { field: "total", op: ">", value: 1000 },
+      actionType: "flag_for_review",
+    };
+    assert.equal(detectCircularRules([ok]).length, 0);
+  });
+
+  it("ignora reglas inactivas", () => {
+    const inactive: PricingRule = {
+      ...base,
+      isActive: false,
+      name: "vieja circular",
+      conditionJson: { field: "total", op: ">", value: 100 },
+      actionType: "price_add",
+      actionValue: 50,
+    };
+    assert.equal(detectCircularRules([inactive]).length, 0);
   });
 });

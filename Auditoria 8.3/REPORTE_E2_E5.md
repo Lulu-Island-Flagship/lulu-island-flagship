@@ -64,3 +64,29 @@
 3. **Verificación en vivo E1 (~20 min):** recorrido <90 seg, tarifa $75, margen bajo, multi-propiedad.
 4. **E3: auditoría profunda** (yo solo, no necesito tu tiempo) → reporte.
 5. **E4: diseño de la PWA offline** — la pieza grande faltante; te presento el plan de arquitectura antes de construir (así lo exige el v8.3 para wireframes de campo).
+
+---
+
+## ADENDA (misma noche) — Auditoría profunda E3 + fixes adicionales
+
+### E3 profundo — dispatch-scheduler leído línea por línea
+
+| Regla v8.3 | Estado | Detalle |
+|---|---|---|
+| Ciclo 4:30 propuesta → 5:00 corte → 5:30 publicación → 12:00 simulación | ✅ PASA | Fases implementadas con ventanas de 15 min en hora Vancouver. |
+| Auto-approve al llegar a 6+ equipos | ✅ PASA | `autoApproved = availableTeams >= 6`. |
+| Tabla N_min/N_max (B2C=3) | ✅ PASA | `calculateTeamRequirements` en pricing.ts con la tabla del spec. |
+| Asignación por zona + trust level | ✅ PASA | Ordenamiento por misma zona y élite>estándar>observación. |
+| **Match de IDIOMA en asignación** | ❌ FALTA | La query ni siquiera selecciona `employees.languages`. Invariante B.2.13: sin match no se asigna sin aprobación. **Hueco serio para el mercado de Richmond (40% chino).** |
+| **Líder obligatorio por equipo** | ❌ FALTA | Propone equipos de N empleados sin exigir que uno sea supervisor/líder. "Sin líder no hay equipo" (M0). |
+| Modelo 70/30 (contingencia pagada) | ❌ FALTA | No existe distinción Horario Base vs. Ventana de Contingencia. |
+| Pausa 30 min tras 5h / jornada 8h-10h | ❌ FALTA | Sin validación de jornada en la propuesta. |
+
+**Conclusión E3:** el esqueleto del ciclo diario es correcto y aprovechable; el motor de asignación necesita 4 reglas duras más (idioma, líder, 70/30, jornada). Es retrofit dirigido, no reconstrucción.
+
+### Fixes adicionales de esta adenda (commiteados)
+
+2. **Circularidad de reglas (E1-C7, cerrado):** nueva `detectCircularRules()` — rechaza reglas cuya condición depende de un campo derivado del precio mientras su acción modifica el precio. 4 tests nuevos (14/14 del suite de reglas pasan).
+3. **Enforcement server-side al guardar reglas (E1-C7, cerrado):** el POST de pricing-rules ahora RECHAZA (400) circularidad y conflictos — antes `detectRuleConflicts` era solo un aviso en la UI y el servidor guardaba cualquier cosa.
+
+### Actualización de la agenda: al punto 4 (E3) agregar las 4 reglas duras faltantes del motor de asignación como trabajo mío posterior a tus decisiones.
