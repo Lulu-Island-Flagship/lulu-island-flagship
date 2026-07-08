@@ -341,3 +341,22 @@ INSERT INTO tickets_disputas (
   )
 ON CONFLICT (id) DO UPDATE SET
   status = EXCLUDED.status;
+
+-- ============================================================
+-- 10. E6 — Plantillas de comunicación iniciales (voz de marca D.8:
+-- cálida y directa; "Tu equipo está en camino", nunca corporativo-genérico)
+-- ============================================================
+INSERT INTO communication_templates (event_key, language, version, body) VALUES
+  ('order_confirmed', 'en', 1, 'Hi {client_name}! Your {service_type} is confirmed for {service_date}, {time_window}. Full price: {total} — charged only after service completion. — {company_name}'),
+  ('order_confirmed', 'es', 1, '¡Hola {client_name}! Tu {service_type} está confirmado para el {service_date}, {time_window}. Precio completo: {total} — se cobra solo al completar el servicio. — {company_name}'),
+  ('order_confirmed', 'zh', 1, '{client_name}您好！您的{service_type}已确认，时间为{service_date} {time_window}。全价：{total} — 服务完成后才收费。— {company_name}'),
+  ('team_en_route', 'en', 1, '{client_name}, your team is on the way! ETA: {eta_minutes} min. Track: {tracking_link}'),
+  ('team_en_route', 'es', 1, '{client_name}, ¡tu equipo está en camino! Llega en {eta_minutes} min. Sigue la ruta: {tracking_link}'),
+  ('team_en_route', 'zh', 1, '{client_name}，您的团队正在路上！预计{eta_minutes}分钟到达。追踪：{tracking_link}'),
+  ('service_completed', 'en', 1, 'All done, {client_name}! See your closing photos: {gallery_link}. Payment processes today at 7:00 PM. Anything not matching the photos? Report it — we review every case against the evidence.'),
+  ('service_completed', 'es', 1, '¡Listo, {client_name}! Mira tus fotos de cierre: {gallery_link}. El pago se procesa hoy a las 7:00 PM. ¿Algo no coincide con las fotos? Repórtalo — revisamos cada caso contra la evidencia.'),
+  ('service_completed', 'zh', 1, '完成了，{client_name}！查看收尾照片：{gallery_link}。款项今天晚上7点处理。如有与照片不符之处请反馈 — 我们逐一核对证据。'),
+  ('review_request', 'en', 1, 'Thank you {client_name}! If you have 30 seconds, a Google review helps our small team a lot: {review_link}'),
+  ('review_request', 'es', 1, '¡Gracias {client_name}! Si tienes 30 segundos, una reseña en Google ayuda muchísimo a nuestro equipo: {review_link}'),
+  ('review_request', 'zh', 1, '谢谢您，{client_name}！如果您有30秒时间，Google评价对我们的小团队帮助很大：{review_link}')
+ON CONFLICT (event_key, language, version) DO NOTHING;
