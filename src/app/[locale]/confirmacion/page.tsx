@@ -21,6 +21,12 @@ function ConfirmacionContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId");
 
+  // Detect locale from pathname for navigation
+  const locale = (typeof window !== "undefined"
+    ? window.location.pathname.split("/")[1]
+    : "en") as string;
+  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+
   const [order, setOrder] = useState<Order | null>(null);
   const [quote, setQuote] = useState<QuoteData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,7 +96,7 @@ function ConfirmacionContent() {
             We couldn&apos;t find your reservation details.
           </p>
           <button
-            onClick={() => router.push("/cotizador")}
+            onClick={() => router.push(`/${safeLocale}/cotizador`)}
             className="inline-flex items-center gap-2 bg-brand-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors"
           >
             Get a Quote
@@ -207,7 +213,7 @@ function ConfirmacionContent() {
 
           <div className="pt-4">
             <button
-              onClick={() => router.push("/")}
+              onClick={() => router.push(`/${safeLocale}`)}
               className="inline-flex items-center gap-2 bg-brand-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors"
             >
               Back to Home

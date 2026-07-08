@@ -169,7 +169,7 @@ export default function EmpleadoScorePage() {
             <span className="font-semibold text-sm">My Score</span>
           </div>
           <a
-            href="/empleado"
+            href={`/${typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en"}/empleado`}
             className="text-sm text-gray-300 hover:text-white transition-colors"
           >
             Back

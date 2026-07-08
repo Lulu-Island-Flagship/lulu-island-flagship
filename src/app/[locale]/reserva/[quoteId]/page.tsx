@@ -28,6 +28,12 @@ export default function ReservaPage() {
   const params = useParams();
   const quoteId = params?.quoteId as string;
 
+  // Detect locale from pathname for navigation
+  const locale = (typeof window !== "undefined"
+    ? window.location.pathname.split("/")[1]
+    : "en") as string;
+  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+
   const [quote, setQuote] = useState<QuoteData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -187,7 +193,7 @@ export default function ReservaPage() {
         <div className="bg-white rounded-lg shadow-elevation-1 p-8 max-w-md w-full text-center">
           <div className="text-state-danger mb-4 font-medium">{error}</div>
           <button
-            onClick={() => router.push("/cotizador")}
+            onClick={() => router.push(`/${safeLocale}/cotizador`)}
             className="inline-flex items-center gap-2 bg-brand-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors"
           >
             <ChevronLeft className="w-5 h-5" />

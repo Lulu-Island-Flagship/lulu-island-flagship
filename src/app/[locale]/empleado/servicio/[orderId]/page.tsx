@@ -48,8 +48,8 @@ export default function ServicioPage() {
   const orderId = params?.orderId as string;
 
   // Detect locale from pathname for navigation
-  const locale = (typeof window !== "undefined" 
-    ? window.location.pathname.split("/")[1] 
+  const locale = (typeof window !== "undefined"
+    ? window.location.pathname.split("/")[1]
     : "en") as string;
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
   const empleadoPath = `/${safeLocale}/empleado`;
@@ -325,7 +325,7 @@ export default function ServicioPage() {
       {/* Header */}
       <header className="bg-brand-navy text-white">
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
-          <button onClick={() => router.push("/empleado")} className="text-white/70 hover:text-white">
+          <button onClick={() => router.push(`/${safeLocale}/empleado`)} className="text-white/70 hover:text-white">
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div className="flex-1 min-w-0">

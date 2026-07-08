@@ -152,6 +152,12 @@ export default function EmpleadoPage() {
     }
   }
 
+  // Detect locale from pathname for navigation
+  const locale = (typeof window !== "undefined"
+    ? window.location.pathname.split("/")[1]
+    : "en") as string;
+  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setIsAuthenticated(false);
@@ -317,7 +323,7 @@ export default function EmpleadoPage() {
         {/* Quick Links */}
         <div className="grid grid-cols-2 gap-3">
           <a
-            href="/empleado/score"
+            href={`/${safeLocale}/empleado/score`}
             className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
           >
             <div className="flex items-center gap-2 mb-1">
@@ -327,7 +333,7 @@ export default function EmpleadoPage() {
             <p className="text-xs text-gray-400">View trust level & history</p>
           </a>
           <a
-            href="/empleado/votacion"
+            href={`/${safeLocale}/empleado/votacion`}
             className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
           >
             <div className="flex items-center gap-2 mb-1">

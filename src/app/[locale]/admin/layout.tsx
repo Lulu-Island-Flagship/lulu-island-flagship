@@ -30,6 +30,12 @@ export default async function AdminLayout({
     }
   );
 
+  // Detect locale from request headers early (needed for both auth error and nav)
+  const headersList = headers();
+  const pathname = headersList.get("x-invoke-path") || headersList.get("x-pathname") || "/en/admin";
+  const locale = pathname.split("/")[1] || "en";
+  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -51,7 +57,7 @@ export default async function AdminLayout({
             Your account does not have supervisor privileges.
           </p>
           <a
-            href="/"
+            href={`/${safeLocale}`}
             className="inline-block bg-brand-navy text-white px-4 py-2 rounded-lg font-medium"
           >
             Go to Home
@@ -61,11 +67,6 @@ export default async function AdminLayout({
     );
   }
 
-  // Detect locale from request headers for navigation links
-  const headersList = headers();
-  const pathname = headersList.get("x-invoke-path") || headersList.get("x-pathname") || "/en/admin";
-  const locale = pathname.split("/")[1] || "en";
-  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
   const adminPath = `/${safeLocale}/admin`;
 
   return (

@@ -22,6 +22,12 @@ export default function EvaluarPage() {
   const params = useParams();
   const token = params?.token as string;
 
+  // Detect locale from pathname for navigation
+  const locale = (typeof window !== "undefined"
+    ? window.location.pathname.split("/")[1]
+    : "en") as string;
+  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -155,7 +161,7 @@ export default function EvaluarPage() {
           <h2 className="text-lg font-bold text-brand-ink mb-2">Review Unavailable</h2>
           <p className="text-sm text-gray-500">{error}</p>
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push(`/${safeLocale}`)}
             className="mt-4 inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg font-medium"
           >
             <Home className="w-4 h-4" />
@@ -174,7 +180,7 @@ export default function EvaluarPage() {
           <h2 className="text-lg font-bold text-brand-ink mb-2">Thank You!</h2>
           <p className="text-sm text-gray-500">Your review has been submitted.</p>
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push(`/${safeLocale}`)}
             className="mt-4 inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg font-medium"
           >
             <Home className="w-4 h-4" />
