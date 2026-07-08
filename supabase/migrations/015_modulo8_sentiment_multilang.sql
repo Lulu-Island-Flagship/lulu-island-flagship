@@ -1,5 +1,26 @@
 -- Migración: Módulo 8 — calculate_sentiment con word boundaries (regex) + índice review_window_expires_at
 
+-- 0. Rename faltante detectado en primer db reset real (E0-C1): el código de la app
+--    usa review_window_expires_at pero la tabla se creó con expired_at (010) y el
+--    rename se hizo a mano en la base vieja, nunca como migración. Idempotente:
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'client_reviews' AND column_name = 'expired_at'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'client_reviews' AND column_name = 'review_window_expires_at'
+  ) THEN
+    ALTER TABLE client_reviews RENAME COLUMN expired_at TO review_window_expires_at;
+  ELSIF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'client_reviews' AND column_name = 'review_window_expires_at'
+  ) THEN
+    ALTER TABLE client_reviews ADD COLUMN review_window_expires_at TIMESTAMPTZ;
+  END IF;
+END $$;
+
 -- 1. Índice en review_window_expires_at para queries de ventana
 CREATE INDEX IF NOT EXISTS idx_client_reviews_window_expires ON client_reviews(review_window_expires_at);
 
