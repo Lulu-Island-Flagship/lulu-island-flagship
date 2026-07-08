@@ -32,9 +32,11 @@ CREATE TABLE IF NOT EXISTS vehicles (
 );
 
 ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Supervisors manage vehicles" ON vehicles
+DROP POLICY IF EXISTS "Supervisors manage vehicles" ON vehicles;
+CREATE POLICY "Supervisors manage vehicles" ON vehicles
   FOR ALL USING (is_supervisor(auth.uid())) WITH CHECK (is_supervisor(auth.uid()));
-CREATE POLICY IF NOT EXISTS "Employees read vehicles" ON vehicles
+DROP POLICY IF EXISTS "Employees read vehicles" ON vehicles;
+CREATE POLICY "Employees read vehicles" ON vehicles
   FOR SELECT USING (true);
 
 ALTER TABLE employees
@@ -59,9 +61,11 @@ CREATE INDEX IF NOT EXISTS idx_vehicle_tracking_vehicle ON vehicle_tracking(vehi
 CREATE INDEX IF NOT EXISTS idx_vehicle_tracking_recorded ON vehicle_tracking(recorded_at);
 
 ALTER TABLE vehicle_tracking ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Supervisors read vehicle tracking" ON vehicle_tracking
+DROP POLICY IF EXISTS "Supervisors read vehicle tracking" ON vehicle_tracking;
+CREATE POLICY "Supervisors read vehicle tracking" ON vehicle_tracking
   FOR SELECT USING (is_supervisor(auth.uid()));
-CREATE POLICY IF NOT EXISTS "Drivers insert own vehicle tracking" ON vehicle_tracking
+DROP POLICY IF EXISTS "Drivers insert own vehicle tracking" ON vehicle_tracking;
+CREATE POLICY "Drivers insert own vehicle tracking" ON vehicle_tracking
   FOR INSERT WITH CHECK (
     vehicle_id IN (SELECT vehicle_id FROM employees WHERE user_id = auth.uid() AND vehicle_id IS NOT NULL)
   );
@@ -92,9 +96,11 @@ CREATE INDEX IF NOT EXISTS idx_capacity_slots_zone ON capacity_slots(zone);
 CREATE INDEX IF NOT EXISTS idx_capacity_slots_published ON capacity_slots(is_published);
 
 ALTER TABLE capacity_slots ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Public read published capacity slots" ON capacity_slots
+DROP POLICY IF EXISTS "Public read published capacity slots" ON capacity_slots;
+CREATE POLICY "Public read published capacity slots" ON capacity_slots
   FOR SELECT USING (is_published = true OR is_supervisor(auth.uid()));
-CREATE POLICY IF NOT EXISTS "Supervisors manage capacity slots" ON capacity_slots
+DROP POLICY IF EXISTS "Supervisors manage capacity slots" ON capacity_slots;
+CREATE POLICY "Supervisors manage capacity slots" ON capacity_slots
   FOR ALL USING (is_supervisor(auth.uid())) WITH CHECK (is_supervisor(auth.uid()));
 
 -- ============================================================
@@ -118,9 +124,11 @@ CREATE TABLE IF NOT EXISTS dispatch_runs (
 CREATE INDEX IF NOT EXISTS idx_dispatch_runs_date_phase ON dispatch_runs(run_date, phase);
 
 ALTER TABLE dispatch_runs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Supervisors read dispatch runs" ON dispatch_runs
+DROP POLICY IF EXISTS "Supervisors read dispatch runs" ON dispatch_runs;
+CREATE POLICY "Supervisors read dispatch runs" ON dispatch_runs
   FOR SELECT USING (is_supervisor(auth.uid()));
-CREATE POLICY IF NOT EXISTS "Service role insert dispatch runs" ON dispatch_runs
+DROP POLICY IF EXISTS "Service role insert dispatch runs" ON dispatch_runs;
+CREATE POLICY "Service role insert dispatch runs" ON dispatch_runs
   FOR INSERT WITH CHECK (true);
 
 -- ============================================================
@@ -146,7 +154,8 @@ CREATE INDEX IF NOT EXISTS idx_no_show_logs_order ON no_show_logs(order_id);
 CREATE INDEX IF NOT EXISTS idx_no_show_logs_status ON no_show_logs(status);
 
 ALTER TABLE no_show_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Supervisors read no show logs" ON no_show_logs
+DROP POLICY IF EXISTS "Supervisors read no show logs" ON no_show_logs;
+CREATE POLICY "Supervisors read no show logs" ON no_show_logs
   FOR SELECT USING (is_supervisor(auth.uid()));
 
 -- ============================================================
@@ -277,7 +286,8 @@ CREATE TRIGGER trg_publish_slots
 -- ============================================================
 -- 10. Actualizar RLS de assignments: supervisores ya pueden gestionar (migración 017)
 -- ============================================================
-CREATE POLICY IF NOT EXISTS "Supervisors manage assignments" ON assignments
+DROP POLICY IF EXISTS "Supervisors manage assignments" ON assignments;
+CREATE POLICY "Supervisors manage assignments" ON assignments
   FOR ALL USING (is_supervisor(auth.uid())) WITH CHECK (is_supervisor(auth.uid()));
 
 -- ============================================================

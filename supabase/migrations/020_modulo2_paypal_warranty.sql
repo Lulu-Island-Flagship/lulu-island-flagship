@@ -43,16 +43,20 @@ CREATE INDEX IF NOT EXISTS idx_warranty_claims_status ON warranty_claims(status)
 
 ALTER TABLE warranty_claims ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Clients read own warranty claims" ON warranty_claims
+DROP POLICY IF EXISTS "Clients read own warranty claims" ON warranty_claims;
+CREATE POLICY "Clients read own warranty claims" ON warranty_claims
   FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY IF NOT EXISTS "Clients insert own warranty claims" ON warranty_claims
+DROP POLICY IF EXISTS "Clients insert own warranty claims" ON warranty_claims;
+CREATE POLICY "Clients insert own warranty claims" ON warranty_claims
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY IF NOT EXISTS "Supervisors read all warranty claims" ON warranty_claims
+DROP POLICY IF EXISTS "Supervisors read all warranty claims" ON warranty_claims;
+CREATE POLICY "Supervisors read all warranty claims" ON warranty_claims
   FOR SELECT USING (is_supervisor(auth.uid()));
 
-CREATE POLICY IF NOT EXISTS "Supervisors update warranty claims" ON warranty_claims
+DROP POLICY IF EXISTS "Supervisors update warranty claims" ON warranty_claims;
+CREATE POLICY "Supervisors update warranty claims" ON warranty_claims
   FOR UPDATE USING (is_supervisor(auth.uid()));
 
 -- ============================================================
@@ -73,15 +77,18 @@ CREATE INDEX IF NOT EXISTS idx_warranty_photo_evidence_claim ON warranty_photo_e
 
 ALTER TABLE warranty_photo_evidence ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Clients read own warranty evidence" ON warranty_photo_evidence
+DROP POLICY IF EXISTS "Clients read own warranty evidence" ON warranty_photo_evidence;
+CREATE POLICY "Clients read own warranty evidence" ON warranty_photo_evidence
   FOR SELECT USING (
     warranty_claim_id IN (SELECT id FROM warranty_claims WHERE user_id = auth.uid())
   );
 
-CREATE POLICY IF NOT EXISTS "Supervisors read all warranty evidence" ON warranty_photo_evidence
+DROP POLICY IF EXISTS "Supervisors read all warranty evidence" ON warranty_photo_evidence;
+CREATE POLICY "Supervisors read all warranty evidence" ON warranty_photo_evidence
   FOR SELECT USING (is_supervisor(auth.uid()));
 
-CREATE POLICY IF NOT EXISTS "Supervisors insert warranty evidence" ON warranty_photo_evidence
+DROP POLICY IF EXISTS "Supervisors insert warranty evidence" ON warranty_photo_evidence;
+CREATE POLICY "Supervisors insert warranty evidence" ON warranty_photo_evidence
   FOR INSERT WITH CHECK (is_supervisor(auth.uid()));
 
 -- ============================================================

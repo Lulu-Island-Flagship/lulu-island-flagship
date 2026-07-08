@@ -44,19 +44,24 @@ CREATE INDEX IF NOT EXISTS idx_service_contracts_next_date
 
 ALTER TABLE service_contracts ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Clients read own contracts" ON service_contracts
+DROP POLICY IF EXISTS "Clients read own contracts" ON service_contracts;
+CREATE POLICY "Clients read own contracts" ON service_contracts
   FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY IF NOT EXISTS "Clients insert own contracts" ON service_contracts
+DROP POLICY IF EXISTS "Clients insert own contracts" ON service_contracts;
+CREATE POLICY "Clients insert own contracts" ON service_contracts
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY IF NOT EXISTS "Clients update own contracts" ON service_contracts
+DROP POLICY IF EXISTS "Clients update own contracts" ON service_contracts;
+CREATE POLICY "Clients update own contracts" ON service_contracts
   FOR UPDATE USING (auth.uid() = user_id);
 
-CREATE POLICY IF NOT EXISTS "Supervisors read all contracts" ON service_contracts
+DROP POLICY IF EXISTS "Supervisors read all contracts" ON service_contracts;
+CREATE POLICY "Supervisors read all contracts" ON service_contracts
   FOR SELECT USING (is_supervisor(auth.uid()));
 
-CREATE POLICY IF NOT EXISTS "Supervisors manage contracts" ON service_contracts
+DROP POLICY IF EXISTS "Supervisors manage contracts" ON service_contracts;
+CREATE POLICY "Supervisors manage contracts" ON service_contracts
   FOR ALL USING (is_supervisor(auth.uid()));
 
 -- ============================================================
@@ -80,15 +85,18 @@ CREATE INDEX IF NOT EXISTS idx_contract_instances_status ON contract_instances(s
 
 ALTER TABLE contract_instances ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Clients read own contract instances" ON contract_instances
+DROP POLICY IF EXISTS "Clients read own contract instances" ON contract_instances;
+CREATE POLICY "Clients read own contract instances" ON contract_instances
   FOR SELECT USING (
     contract_id IN (SELECT id FROM service_contracts WHERE user_id = auth.uid())
   );
 
-CREATE POLICY IF NOT EXISTS "Supervisors read all contract instances" ON contract_instances
+DROP POLICY IF EXISTS "Supervisors read all contract instances" ON contract_instances;
+CREATE POLICY "Supervisors read all contract instances" ON contract_instances
   FOR SELECT USING (is_supervisor(auth.uid()));
 
-CREATE POLICY IF NOT EXISTS "System insert contract instances" ON contract_instances
+DROP POLICY IF EXISTS "System insert contract instances" ON contract_instances;
+CREATE POLICY "System insert contract instances" ON contract_instances
   FOR INSERT WITH CHECK (true);
 
 -- ============================================================

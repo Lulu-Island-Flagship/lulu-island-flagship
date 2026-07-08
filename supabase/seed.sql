@@ -2,6 +2,10 @@
 -- Ejecuta automáticamente con `supabase db reset` después de las migraciones.
 -- Contraseña por defecto de todos los usuarios de prueba: "password"
 
+-- crypt()/gen_salt() viven en la extensión pgcrypto (schema extensions en Supabase)
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+SET search_path TO public, extensions;
+
 -- ============================================================
 -- 1. Usuarios de prueba (auth.users)
 -- ============================================================

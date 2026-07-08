@@ -10,11 +10,13 @@ ALTER TABLE IF EXISTS orders ENABLE ROW LEVEL SECURITY;
 -- 2. Políticas para orders
 -- ============================================================
 -- Clientes pueden leer sus propias órdenes
-CREATE POLICY IF NOT EXISTS "Clients read own orders" ON orders
+DROP POLICY IF EXISTS "Clients read own orders" ON orders;
+CREATE POLICY "Clients read own orders" ON orders
   FOR SELECT USING (auth.uid() = user_id);
 
 -- Supervisores pueden leer todas las órdenes
-CREATE POLICY IF NOT EXISTS "Supervisors read all orders" ON orders
+DROP POLICY IF EXISTS "Supervisors read all orders" ON orders;
+CREATE POLICY "Supervisors read all orders" ON orders
   FOR SELECT USING (is_supervisor(auth.uid()));
 
 -- ============================================================
@@ -26,9 +28,11 @@ ALTER TABLE IF EXISTS quotes ENABLE ROW LEVEL SECURITY;
 -- 4. Políticas para quotes
 -- ============================================================
 -- Clientes pueden leer sus propias cotizaciones
-CREATE POLICY IF NOT EXISTS "Clients read own quotes" ON quotes
+DROP POLICY IF EXISTS "Clients read own quotes" ON quotes;
+CREATE POLICY "Clients read own quotes" ON quotes
   FOR SELECT USING (auth.uid() = user_id);
 
 -- Supervisores pueden leer todas las cotizaciones
-CREATE POLICY IF NOT EXISTS "Supervisors read all quotes" ON quotes
+DROP POLICY IF EXISTS "Supervisors read all quotes" ON quotes;
+CREATE POLICY "Supervisors read all quotes" ON quotes
   FOR SELECT USING (is_supervisor(auth.uid()));

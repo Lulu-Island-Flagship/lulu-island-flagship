@@ -24,10 +24,12 @@ CREATE INDEX IF NOT EXISTS idx_qbo_exports_status ON qbo_exports(status);
 
 ALTER TABLE qbo_exports ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Supervisors read qbo exports" ON qbo_exports
+DROP POLICY IF EXISTS "Supervisors read qbo exports" ON qbo_exports;
+CREATE POLICY "Supervisors read qbo exports" ON qbo_exports
   FOR SELECT USING (is_supervisor(auth.uid()));
 
-CREATE POLICY IF NOT EXISTS "Supervisors manage qbo exports" ON qbo_exports
+DROP POLICY IF EXISTS "Supervisors manage qbo exports" ON qbo_exports;
+CREATE POLICY "Supervisors manage qbo exports" ON qbo_exports
   FOR ALL USING (is_supervisor(auth.uid()));
 
 -- ============================================================
@@ -55,7 +57,8 @@ CREATE INDEX IF NOT EXISTS idx_qbo_export_lines_pi ON qbo_export_lines(payment_i
 
 ALTER TABLE qbo_export_lines ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Supervisors read qbo export lines" ON qbo_export_lines
+DROP POLICY IF EXISTS "Supervisors read qbo export lines" ON qbo_export_lines;
+CREATE POLICY "Supervisors read qbo export lines" ON qbo_export_lines
   FOR SELECT USING (is_supervisor(auth.uid()));
 
 -- ============================================================

@@ -214,59 +214,76 @@ END;
 $$;
 
 -- Feature flags: lectura pública
-CREATE POLICY IF NOT EXISTS "Public read feature flags" ON feature_flags
+DROP POLICY IF EXISTS "Public read feature flags" ON feature_flags;
+CREATE POLICY "Public read feature flags" ON feature_flags
   FOR SELECT USING (true);
 
 -- Profiles: usuarios propios
-CREATE POLICY IF NOT EXISTS "Users read own profile" ON profiles
+DROP POLICY IF EXISTS "Users read own profile" ON profiles;
+CREATE POLICY "Users read own profile" ON profiles
   FOR SELECT USING (auth.uid() = id);
-CREATE POLICY IF NOT EXISTS "Users update own profile" ON profiles
+DROP POLICY IF EXISTS "Users update own profile" ON profiles;
+CREATE POLICY "Users update own profile" ON profiles
   FOR UPDATE USING (auth.uid() = id);
 
 -- Client profiles: usuarios propios, supervisores todos
-CREATE POLICY IF NOT EXISTS "Users read own client profile" ON client_profiles
+DROP POLICY IF EXISTS "Users read own client profile" ON client_profiles;
+CREATE POLICY "Users read own client profile" ON client_profiles
   FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY IF NOT EXISTS "Supervisors read all client profiles" ON client_profiles
+DROP POLICY IF EXISTS "Supervisors read all client profiles" ON client_profiles;
+CREATE POLICY "Supervisors read all client profiles" ON client_profiles
   FOR SELECT USING (is_supervisor(auth.uid()));
 
 -- Client properties: usuarios propios a través de su perfil, supervisores todos
-CREATE POLICY IF NOT EXISTS "Users read own properties" ON client_properties
+DROP POLICY IF EXISTS "Users read own properties" ON client_properties;
+CREATE POLICY "Users read own properties" ON client_properties
   FOR SELECT USING (
     client_profile_id IN (SELECT id FROM client_profiles WHERE user_id = auth.uid())
   );
-CREATE POLICY IF NOT EXISTS "Users insert own properties" ON client_properties
+DROP POLICY IF EXISTS "Users insert own properties" ON client_properties;
+CREATE POLICY "Users insert own properties" ON client_properties
   FOR INSERT WITH CHECK (
     client_profile_id IN (SELECT id FROM client_profiles WHERE user_id = auth.uid())
   );
-CREATE POLICY IF NOT EXISTS "Users update own properties" ON client_properties
+DROP POLICY IF EXISTS "Users update own properties" ON client_properties;
+CREATE POLICY "Users update own properties" ON client_properties
   FOR UPDATE USING (
     client_profile_id IN (SELECT id FROM client_profiles WHERE user_id = auth.uid())
   );
-CREATE POLICY IF NOT EXISTS "Supervisors read all properties" ON client_properties
+DROP POLICY IF EXISTS "Supervisors read all properties" ON client_properties;
+CREATE POLICY "Supervisors read all properties" ON client_properties
   FOR SELECT USING (is_supervisor(auth.uid()));
 
 -- Orders: repetido también en 008, pero necesario para entornos frescos
-CREATE POLICY IF NOT EXISTS "Clients read own orders" ON orders
+DROP POLICY IF EXISTS "Clients read own orders" ON orders;
+CREATE POLICY "Clients read own orders" ON orders
   FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY IF NOT EXISTS "Supervisors read all orders" ON orders
+DROP POLICY IF EXISTS "Supervisors read all orders" ON orders;
+CREATE POLICY "Supervisors read all orders" ON orders
   FOR SELECT USING (is_supervisor(auth.uid()));
 
 -- Quotes: usuarios propios, supervisores todos
-CREATE POLICY IF NOT EXISTS "Clients read own quotes" ON quotes
+DROP POLICY IF EXISTS "Clients read own quotes" ON quotes;
+CREATE POLICY "Clients read own quotes" ON quotes
   FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY IF NOT EXISTS "Supervisors read all quotes" ON quotes
+DROP POLICY IF EXISTS "Supervisors read all quotes" ON quotes;
+CREATE POLICY "Supervisors read all quotes" ON quotes
   FOR SELECT USING (is_supervisor(auth.uid()));
 
 -- Pricing rules: lectura pública para active, escritura solo supervisor
-CREATE POLICY IF NOT EXISTS "Public read active pricing rules" ON pricing_rules
+DROP POLICY IF EXISTS "Public read active pricing rules" ON pricing_rules;
+CREATE POLICY "Public read active pricing rules" ON pricing_rules
   FOR SELECT USING (is_active = true);
-CREATE POLICY IF NOT EXISTS "Supervisors manage pricing rules" ON pricing_rules
+DROP POLICY IF EXISTS "Supervisors manage pricing rules" ON pricing_rules;
+CREATE POLICY "Supervisors manage pricing rules" ON pricing_rules
   FOR ALL USING (is_supervisor(auth.uid()));
 
 -- Rule audit logs: solo supervisores
-CREATE POLICY IF NOT EXISTS "Supervisors read rule audit logs" ON rule_audit_logs
+DROP POLICY IF EXISTS "Supervisors read rule audit logs" ON rule_audit_logs;
+CREATE POLICY "Supervisors read rule audit logs" ON rule_audit_logs
   FOR SELECT USING (is_supervisor(auth.uid()));
-CREATE POLICY IF NOT EXISTS "Supervisors insert rule audit logs" ON rule_audit_logs
+DROP POLICY IF EXISTS "Supervisors insert rule audit logs" ON rule_audit_logs;
+CREATE POLICY "Supervisors insert rule audit logs" ON rule_audit_logs
   FOR INSERT WITH CHECK (is_supervisor(auth.uid()));
 
 -- Seed: feature flag para Módulo 1

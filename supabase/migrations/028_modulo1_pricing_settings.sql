@@ -26,10 +26,12 @@ CREATE INDEX IF NOT EXISTS idx_pricing_settings_effective
 
 ALTER TABLE pricing_settings ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Supervisors read pricing settings" ON pricing_settings
+DROP POLICY IF EXISTS "Supervisors read pricing settings" ON pricing_settings;
+CREATE POLICY "Supervisors read pricing settings" ON pricing_settings
   FOR SELECT USING (is_supervisor(auth.uid()));
 
-CREATE POLICY IF NOT EXISTS "Supervisors manage pricing settings" ON pricing_settings
+DROP POLICY IF EXISTS "Supervisors manage pricing settings" ON pricing_settings;
+CREATE POLICY "Supervisors manage pricing settings" ON pricing_settings
   FOR ALL USING (is_supervisor(auth.uid())) WITH CHECK (is_supervisor(auth.uid()));
 
 -- Seed: tarifa objetivo inicial de $70.00/hr vigente desde 2026-06-01
@@ -56,10 +58,12 @@ CREATE INDEX IF NOT EXISTS idx_pricing_settings_audit_created
 
 ALTER TABLE pricing_settings_audit_logs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Supervisors read pricing settings audit" ON pricing_settings_audit_logs
+DROP POLICY IF EXISTS "Supervisors read pricing settings audit" ON pricing_settings_audit_logs;
+CREATE POLICY "Supervisors read pricing settings audit" ON pricing_settings_audit_logs
   FOR SELECT USING (is_supervisor(auth.uid()));
 
-CREATE POLICY IF NOT EXISTS "Supervisors insert pricing settings audit" ON pricing_settings_audit_logs
+DROP POLICY IF EXISTS "Supervisors insert pricing settings audit" ON pricing_settings_audit_logs;
+CREATE POLICY "Supervisors insert pricing settings audit" ON pricing_settings_audit_logs
   FOR INSERT WITH CHECK (is_supervisor(auth.uid()));
 
 -- ============================================================

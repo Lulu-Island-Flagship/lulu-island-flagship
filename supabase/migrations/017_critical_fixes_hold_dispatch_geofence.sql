@@ -29,6 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_hold_status
 -- ============================================================
 -- 4. Política RLS para supervisores gestionando assignments
 -- ============================================================
-CREATE POLICY IF NOT EXISTS "Supervisors manage assignments" ON assignments
+DROP POLICY IF EXISTS "Supervisors manage assignments" ON assignments;
+CREATE POLICY "Supervisors manage assignments" ON assignments
   FOR ALL USING (is_supervisor(auth.uid()))
   WITH CHECK (is_supervisor(auth.uid()));

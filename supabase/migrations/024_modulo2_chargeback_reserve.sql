@@ -16,10 +16,12 @@ CREATE TABLE IF NOT EXISTS chargeback_settings (
 
 ALTER TABLE chargeback_settings ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Supervisors read chargeback settings" ON chargeback_settings
+DROP POLICY IF EXISTS "Supervisors read chargeback settings" ON chargeback_settings;
+CREATE POLICY "Supervisors read chargeback settings" ON chargeback_settings
   FOR SELECT USING (is_supervisor(auth.uid()));
 
-CREATE POLICY IF NOT EXISTS "Supervisors manage chargeback settings" ON chargeback_settings
+DROP POLICY IF EXISTS "Supervisors manage chargeback settings" ON chargeback_settings;
+CREATE POLICY "Supervisors manage chargeback settings" ON chargeback_settings
   FOR ALL USING (is_supervisor(auth.uid()));
 
 INSERT INTO chargeback_settings (reserve_percentage, effective_from)
@@ -52,13 +54,16 @@ CREATE INDEX IF NOT EXISTS idx_chargeback_reserves_release_date
 
 ALTER TABLE chargeback_reserves ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Supervisors read chargeback reserves" ON chargeback_reserves
+DROP POLICY IF EXISTS "Supervisors read chargeback reserves" ON chargeback_reserves;
+CREATE POLICY "Supervisors read chargeback reserves" ON chargeback_reserves
   FOR SELECT USING (is_supervisor(auth.uid()));
 
-CREATE POLICY IF NOT EXISTS "System insert chargeback reserves" ON chargeback_reserves
+DROP POLICY IF EXISTS "System insert chargeback reserves" ON chargeback_reserves;
+CREATE POLICY "System insert chargeback reserves" ON chargeback_reserves
   FOR INSERT WITH CHECK (true);
 
-CREATE POLICY IF NOT EXISTS "Supervisors update chargeback reserves" ON chargeback_reserves
+DROP POLICY IF EXISTS "Supervisors update chargeback reserves" ON chargeback_reserves;
+CREATE POLICY "Supervisors update chargeback reserves" ON chargeback_reserves
   FOR UPDATE USING (is_supervisor(auth.uid()));
 
 -- ============================================================

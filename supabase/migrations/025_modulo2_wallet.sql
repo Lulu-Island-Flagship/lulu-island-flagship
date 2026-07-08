@@ -14,10 +14,12 @@ CREATE TABLE IF NOT EXISTS client_wallets (
 
 ALTER TABLE client_wallets ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Clients read own wallet" ON client_wallets
+DROP POLICY IF EXISTS "Clients read own wallet" ON client_wallets;
+CREATE POLICY "Clients read own wallet" ON client_wallets
   FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY IF NOT EXISTS "Supervisors read all wallets" ON client_wallets
+DROP POLICY IF EXISTS "Supervisors read all wallets" ON client_wallets;
+CREATE POLICY "Supervisors read all wallets" ON client_wallets
   FOR SELECT USING (is_supervisor(auth.uid()));
 
 -- ============================================================
@@ -43,13 +45,16 @@ CREATE INDEX IF NOT EXISTS idx_wallet_transactions_order ON wallet_transactions(
 
 ALTER TABLE wallet_transactions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Clients read own wallet transactions" ON wallet_transactions
+DROP POLICY IF EXISTS "Clients read own wallet transactions" ON wallet_transactions;
+CREATE POLICY "Clients read own wallet transactions" ON wallet_transactions
   FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY IF NOT EXISTS "Supervisors read all wallet transactions" ON wallet_transactions
+DROP POLICY IF EXISTS "Supervisors read all wallet transactions" ON wallet_transactions;
+CREATE POLICY "Supervisors read all wallet transactions" ON wallet_transactions
   FOR SELECT USING (is_supervisor(auth.uid()));
 
-CREATE POLICY IF NOT EXISTS "System insert wallet transactions" ON wallet_transactions
+DROP POLICY IF EXISTS "System insert wallet transactions" ON wallet_transactions;
+CREATE POLICY "System insert wallet transactions" ON wallet_transactions
   FOR INSERT WITH CHECK (true);
 
 -- ============================================================

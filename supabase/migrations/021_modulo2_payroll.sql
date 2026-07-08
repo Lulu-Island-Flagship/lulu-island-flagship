@@ -59,18 +59,22 @@ CREATE INDEX IF NOT EXISTS idx_payroll_entries_pending
 
 ALTER TABLE payroll_entries ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Employees read own payroll" ON payroll_entries
+DROP POLICY IF EXISTS "Employees read own payroll" ON payroll_entries;
+CREATE POLICY "Employees read own payroll" ON payroll_entries
   FOR SELECT USING (
     employee_id IN (SELECT id FROM employees WHERE user_id = auth.uid())
   );
 
-CREATE POLICY IF NOT EXISTS "Supervisors read all payroll" ON payroll_entries
+DROP POLICY IF EXISTS "Supervisors read all payroll" ON payroll_entries;
+CREATE POLICY "Supervisors read all payroll" ON payroll_entries
   FOR SELECT USING (is_supervisor(auth.uid()));
 
-CREATE POLICY IF NOT EXISTS "Supervisors update payroll" ON payroll_entries
+DROP POLICY IF EXISTS "Supervisors update payroll" ON payroll_entries;
+CREATE POLICY "Supervisors update payroll" ON payroll_entries
   FOR UPDATE USING (is_supervisor(auth.uid()));
 
-CREATE POLICY IF NOT EXISTS "System insert payroll" ON payroll_entries
+DROP POLICY IF EXISTS "System insert payroll" ON payroll_entries;
+CREATE POLICY "System insert payroll" ON payroll_entries
   FOR INSERT WITH CHECK (true);
 
 -- ============================================================
@@ -87,10 +91,12 @@ CREATE TABLE IF NOT EXISTS payroll_settings (
 
 ALTER TABLE payroll_settings ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Supervisors read payroll settings" ON payroll_settings
+DROP POLICY IF EXISTS "Supervisors read payroll settings" ON payroll_settings;
+CREATE POLICY "Supervisors read payroll settings" ON payroll_settings
   FOR SELECT USING (is_supervisor(auth.uid()));
 
-CREATE POLICY IF NOT EXISTS "Supervisors manage payroll settings" ON payroll_settings
+DROP POLICY IF EXISTS "Supervisors manage payroll settings" ON payroll_settings;
+CREATE POLICY "Supervisors manage payroll settings" ON payroll_settings
   FOR ALL USING (is_supervisor(auth.uid()));
 
 INSERT INTO payroll_settings (bc_min_wage_hourly, effective_from)

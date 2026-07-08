@@ -12,26 +12,36 @@ ALTER TABLE client_profiles
 -- ============================================================
 -- 1. quotes: usuarios propios pueden insertar y actualizar
 -- ============================================================
-CREATE POLICY IF NOT EXISTS "Users insert own quotes" ON quotes
+DROP POLICY IF EXISTS "Users insert own quotes" ON quotes;
+CREATE POLICY "Users insert own quotes" ON quotes
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY IF NOT EXISTS "Users update own quotes" ON quotes
+DROP POLICY IF EXISTS "Users update own quotes" ON quotes;
+CREATE POLICY "Users update own quotes" ON quotes
   FOR UPDATE USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
 -- ============================================================
 -- 2. orders: usuarios propios pueden insertar y actualizar
 -- ============================================================
-CREATE POLICY IF NOT EXISTS "Users insert own orders" ON orders
+DROP POLICY IF EXISTS "Users insert own orders" ON orders;
+CREATE POLICY "Users insert own orders" ON orders
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY IF NOT EXISTS "Users update own orders" ON orders
+DROP POLICY IF EXISTS "Users update own orders" ON orders;
+CREATE POLICY "Users update own orders" ON orders
   FOR UPDATE USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
 -- ============================================================
 -- 3. Prevenir órdenes duplicadas por quote (doble-submit)
 -- ============================================================
-ALTER TABLE orders
-  ADD CONSTRAINT IF NOT EXISTS "orders_quote_id_unique"
-  UNIQUE (quote_id);
+-- (ADD CONSTRAINT no soporta IF NOT EXISTS en PostgreSQL — patrón idempotente con DO)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'orders_quote_id_unique'
+  ) THEN
+    ALTER TABLE orders ADD CONSTRAINT "orders_quote_id_unique" UNIQUE (quote_id);
+  END IF;
+END $$;
