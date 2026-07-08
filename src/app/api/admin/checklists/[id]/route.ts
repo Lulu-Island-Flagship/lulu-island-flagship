@@ -26,6 +26,7 @@ export async function PUT(
     const { data: existingZone } = await supabase
       .from("sop_checklists")
       .select("zone")
+      .is("deleted_at", null)
       .eq("id", id)
       .single();
     const zoneCode = body.zone || existingZone?.zone || "item";

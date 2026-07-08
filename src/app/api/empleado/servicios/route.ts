@@ -87,6 +87,7 @@ export async function GET() {
         assigned_at,
         notes
       `)
+      .is("deleted_at", null)
       .eq("employee_id", employee.id)
       .in("order_id", todaysOrderIds)
       .neq("status", "cancelled")

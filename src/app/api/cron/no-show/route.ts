@@ -207,6 +207,7 @@ export async function GET(request: NextRequest) {
         const { data: assignments } = await supabase
           .from("assignments")
           .select("id, employee_id")
+          .is("deleted_at", null)
           .eq("order_id", order.id)
           .limit(1);
         const assignment = assignments?.[0];

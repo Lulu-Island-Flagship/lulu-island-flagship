@@ -16,6 +16,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from("sop_checklists")
       .select("*")
+      .is("deleted_at", null)
       .order("service_subtype", { ascending: true })
       .order("sort_order", { ascending: true });
 

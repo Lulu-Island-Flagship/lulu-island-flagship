@@ -56,6 +56,7 @@ export async function GET(
     const { data: assignment, error: assignError } = await supabase
       .from("assignments")
       .select("id, status, order_id, employee_id")
+      .is("deleted_at", null)
       .eq("order_id", orderId)
       .eq("employee_id", employee.id)
       .single();

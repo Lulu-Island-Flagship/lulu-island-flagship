@@ -74,6 +74,7 @@ export async function GET() {
     const { data: recentServices, error: servicesError } = await supabase
       .from("assignments")
       .select("order_id, status, created_at")
+      .is("deleted_at", null)
       .eq("employee_id", me.id)
       .order("created_at", { ascending: false })
       .limit(5);

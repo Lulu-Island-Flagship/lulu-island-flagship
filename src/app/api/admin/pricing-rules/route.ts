@@ -84,6 +84,7 @@ export async function GET() {
     const { data: rules, error } = await auth.supabase
       .from("pricing_rules")
       .select("*")
+      .is("deleted_at", null)
       .order("priority", { ascending: false });
 
     if (error) {
@@ -177,6 +178,7 @@ export async function PATCH(request: NextRequest) {
     const { data: previous } = await auth.supabase
       .from("pricing_rules")
       .select("*")
+      .is("deleted_at", null)
       .eq("id", id)
       .single();
 
@@ -232,6 +234,7 @@ export async function DELETE(request: NextRequest) {
     const { data: previous } = await auth.supabase
       .from("pricing_rules")
       .select("*")
+      .is("deleted_at", null)
       .eq("id", id)
       .single();
 

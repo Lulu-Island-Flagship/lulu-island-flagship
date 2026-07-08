@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
     const { data: checklists, error: checklistError } = await supabase
       .from("sop_checklists")
       .select("*")
+      .is("deleted_at", null)
       .eq("service_subtype", serviceSubtype)
       .eq("is_active", true)
       .order("sort_order", { ascending: true });

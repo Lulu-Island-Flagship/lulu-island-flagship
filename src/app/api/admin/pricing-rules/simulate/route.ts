@@ -231,6 +231,7 @@ export async function POST(request: NextRequest) {
     const { data: activeRulesRows, error: activeError } = await auth.supabase
       .from("pricing_rules")
       .select("*")
+      .is("deleted_at", null)
       .eq("is_active", true)
       .order("priority", { ascending: false });
 

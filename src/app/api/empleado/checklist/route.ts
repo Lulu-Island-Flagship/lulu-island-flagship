@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
     const { data: checklists, error: checklistError } = await supabase
       .from("sop_checklists")
       .select("*")
+      .is("deleted_at", null)
       .eq("service_subtype", serviceSubtype)
       .eq("is_active", true)
       .order("sort_order", { ascending: true });
@@ -176,6 +177,7 @@ export async function POST(request: NextRequest) {
     const { data: assignment, error: assignError } = await supabase
       .from("assignments")
       .select("id")
+      .is("deleted_at", null)
       .eq("order_id", orderId)
       .eq("employee_id", employee.id)
       .single();

@@ -264,7 +264,8 @@ export async function GET(request: NextRequest) {
 
       const orderIds = (unassignedOrders || []).map((o) => o.id);
       const { data: existingAssignments } = orderIds.length > 0
-        ? await supabase.from("assignments").select("order_id").in("order_id", orderIds)
+        ? await supabase.from("assignments").select("order_id")
+        .is("deleted_at", null).in("order_id", orderIds)
         : { data: [] };
 
       const assignedOrderIds = new Set((existingAssignments || []).map((a) => a.order_id));

@@ -237,6 +237,7 @@ export async function POST(request: NextRequest) {
     const { data: rulesData } = await supabase
       .from("pricing_rules")
       .select("id, name, description, condition_json, action_type, action_value, priority, max_applicable, is_active")
+      .is("deleted_at", null)
       .eq("is_active", true);
 
     const rules: PricingRule[] = (rulesData || []).map((r) => ({

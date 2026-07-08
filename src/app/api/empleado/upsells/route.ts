@@ -103,6 +103,7 @@ export async function POST(request: NextRequest) {
     const { data: assignment, error: assignError } = await supabase
       .from("assignments")
       .select("id")
+      .is("deleted_at", null)
       .eq("order_id", orderId)
       .eq("employee_id", employee.id)
       .single();

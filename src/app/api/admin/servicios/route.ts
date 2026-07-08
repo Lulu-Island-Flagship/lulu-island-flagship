@@ -58,6 +58,7 @@ export async function GET() {
     const { data: assignments, error: assignError } = await auth.supabase
       .from("assignments")
       .select("id, order_id, employee_id, status, assigned_at, notes")
+      .is("deleted_at", null)
       .in("order_id", orderIds);
 
     if (assignError) {
@@ -106,6 +107,7 @@ export async function GET() {
     const { data: checklists } = await auth.supabase
       .from("sop_checklists")
       .select("id, service_subtype, items")
+      .is("deleted_at", null)
       .eq("is_active", true);
 
     // Enriquecer datos
