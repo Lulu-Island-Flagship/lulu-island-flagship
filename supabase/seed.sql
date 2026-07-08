@@ -6,6 +6,10 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path TO public, extensions;
 
+-- El trigger de snapshots (E0-C6) exige motivo en todo UPDATE de tablas de
+-- configuración — el seed lo declara para toda la sesión:
+SELECT set_config('app.change_reason', 'db reset: seed de staging v8.3', false);
+
 -- ============================================================
 -- 1. Usuarios de prueba (auth.users)
 -- ============================================================
