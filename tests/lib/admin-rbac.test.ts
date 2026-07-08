@@ -13,6 +13,7 @@ const FINANCE_RESOURCES: AdminResource[] = [
   "payroll",
   "employees_admin",
   "finance",
+  "feature_flags",
 ];
 
 const OPS_RESOURCES: AdminResource[] = [

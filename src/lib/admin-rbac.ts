@@ -20,6 +20,7 @@ export type AdminResource =
   | "payroll"
   | "employees_admin" // contiene Day Rate y datos de nómina
   | "finance"
+  | "feature_flags" // interruptores del sistema — solo el dueño
   // Operación — owner_admin + ops_coordinator
   | "dispatch"
   | "services"
@@ -39,6 +40,7 @@ const MATRIX: Record<AdminResource, AdminRole[]> = {
   payroll: ["owner_admin"],
   employees_admin: ["owner_admin"],
   finance: ["owner_admin"],
+  feature_flags: ["owner_admin"],
   dispatch: ["owner_admin", "ops_coordinator"],
   services: ["owner_admin", "ops_coordinator"],
   quotes_review: ["owner_admin", "ops_coordinator"],
