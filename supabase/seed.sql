@@ -33,21 +33,24 @@ ON CONFLICT (id) DO UPDATE SET
   updated_at = now();
 
 -- Identidades de auth para cada usuario (requerido por Supabase Auth)
+-- provider_id es NOT NULL en versiones recientes de Supabase Auth: para el
+-- provider 'email' equivale al sub (id del usuario) en texto.
 INSERT INTO auth.identities (
   id,
   user_id,
+  provider_id,
   identity_data,
   provider,
   created_at,
   updated_at
 ) VALUES
-  ('3e27c46c-c0b3-4583-b33c-a2ca82024232'::uuid, '3e27c46c-c0b3-4583-b33c-a2ca82024232'::uuid, '{"sub":"3e27c46c-c0b3-4583-b33c-a2ca82024232","email":"owner@example.com"}',      'email', now(), now()),
-  ('9739d2ba-8b59-481f-9325-f6c029ff6763'::uuid, '9739d2ba-8b59-481f-9325-f6c029ff6763'::uuid, '{"sub":"9739d2ba-8b59-481f-9325-f6c029ff6763","email":"supervisor@example.com"}', 'email', now(), now()),
-  ('64e35c23-b883-470b-8f20-23ffb6f40982'::uuid, '64e35c23-b883-470b-8f20-23ffb6f40982'::uuid, '{"sub":"64e35c23-b883-470b-8f20-23ffb6f40982","email":"cleaner@example.com"}',    'email', now(), now()),
-  ('ceef1739-57f5-45fc-ae34-e75e7bfb12c7'::uuid, 'ceef1739-57f5-45fc-ae34-e75e7bfb12c7'::uuid, '{"sub":"ceef1739-57f5-45fc-ae34-e75e7bfb12c7","email":"driver@example.com"}',     'email', now(), now()),
-  ('a8bb80d1-1841-4dbe-a569-42d9f5d50cc3'::uuid, 'a8bb80d1-1841-4dbe-a569-42d9f5d50cc3'::uuid, '{"sub":"a8bb80d1-1841-4dbe-a569-42d9f5d50cc3","email":"client_b2c@example.com"}', 'email', now(), now()),
-  ('93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, '93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, '{"sub":"93e41cd3-7ef5-4892-a144-69da2cf41189","email":"client_b2b@example.com"}', 'email', now(), now()),
-  ('7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, '7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, '{"sub":"7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60","email":"qc@example.com"}',          'email', now(), now())
+  ('3e27c46c-c0b3-4583-b33c-a2ca82024232'::uuid, '3e27c46c-c0b3-4583-b33c-a2ca82024232'::uuid, '3e27c46c-c0b3-4583-b33c-a2ca82024232', '{"sub":"3e27c46c-c0b3-4583-b33c-a2ca82024232","email":"owner@example.com"}',      'email', now(), now()),
+  ('9739d2ba-8b59-481f-9325-f6c029ff6763'::uuid, '9739d2ba-8b59-481f-9325-f6c029ff6763'::uuid, '9739d2ba-8b59-481f-9325-f6c029ff6763', '{"sub":"9739d2ba-8b59-481f-9325-f6c029ff6763","email":"supervisor@example.com"}', 'email', now(), now()),
+  ('64e35c23-b883-470b-8f20-23ffb6f40982'::uuid, '64e35c23-b883-470b-8f20-23ffb6f40982'::uuid, '64e35c23-b883-470b-8f20-23ffb6f40982', '{"sub":"64e35c23-b883-470b-8f20-23ffb6f40982","email":"cleaner@example.com"}',    'email', now(), now()),
+  ('ceef1739-57f5-45fc-ae34-e75e7bfb12c7'::uuid, 'ceef1739-57f5-45fc-ae34-e75e7bfb12c7'::uuid, 'ceef1739-57f5-45fc-ae34-e75e7bfb12c7', '{"sub":"ceef1739-57f5-45fc-ae34-e75e7bfb12c7","email":"driver@example.com"}',     'email', now(), now()),
+  ('a8bb80d1-1841-4dbe-a569-42d9f5d50cc3'::uuid, 'a8bb80d1-1841-4dbe-a569-42d9f5d50cc3'::uuid, 'a8bb80d1-1841-4dbe-a569-42d9f5d50cc3', '{"sub":"a8bb80d1-1841-4dbe-a569-42d9f5d50cc3","email":"client_b2c@example.com"}', 'email', now(), now()),
+  ('93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, '93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, '93e41cd3-7ef5-4892-a144-69da2cf41189', '{"sub":"93e41cd3-7ef5-4892-a144-69da2cf41189","email":"client_b2b@example.com"}', 'email', now(), now()),
+  ('7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, '7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, '7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60', '{"sub":"7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60","email":"qc@example.com"}',          'email', now(), now())
 ON CONFLICT (id) DO UPDATE SET
   identity_data = EXCLUDED.identity_data,
   updated_at = now();
