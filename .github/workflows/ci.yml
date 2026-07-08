@@ -1,0 +1,36 @@
+# v8.3 E0 — CI mínimo: nada entra a main sin typecheck y tests verdes.
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Tests
+        run: npm test
+      - name: Tokens de diseño — cero hex de marca fuera de la fuente única
+        run: |
+          if grep -rln -iE "#0B1E3D|#14315C|#2E6E96|#C9A961|#A8863F|#10192B" src/ tailwind.config.ts \
+            --include="*.ts" --include="*.tsx" --include="*.css" \
+            | grep -v "src/design/tokens.ts" | grep -v "src/app/tokens.css"; then
+            echo "::error::Hex de marca fuera de src/design/tokens.ts (invariante E0-C5)"; exit 1
+          fi
+      - name: Privacidad — sin select(*) en páginas del cliente sobre quotes/orders
+        run: |
+          if grep -rn 'from("quotes")' src/app/\[locale\]/ -A2 | grep 'select("\*")'; then
+            echo "::error::select(*) sobre quotes en página de cliente (invariante B.2.3)"; exit 1
+          fi
+          if grep -rn 'from("orders")' src/app/\[locale\]/ -A2 | grep 'select("\*")'; then
+            echo "::error::select(*) sobre orders en página de cliente (invariante B.2.3)"; exit 1
+          fi
