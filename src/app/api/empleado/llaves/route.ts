@@ -1,0 +1,99 @@
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
+import { validateKeyLog, type KeyMethod } from "@/lib/key-handling";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+
+function getSupabaseClient() {
+  const cookieStore = cookies();
+  return createServerClient(supabaseUrl, supabaseKey, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value;
+      },
+      set(name: string, value: string, options: CookieOptions) {
+        cookieStore.set({ name, value, ...options });
+      },
+      remove(name: string, options: CookieOptions) {
+        cookieStore.set({ name, value: "", ...options });
+      },
+    },
+  });
+}
+
+// GET /api/empleado/llaves?orderId=... — historial de manejo de llaves de una orden
+export async function GET(request: NextRequest) {
+  const supabase = getSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { searchParams } = new URL(request.url);
+  const orderId = searchParams.get("orderId");
+  if (!orderId) return NextResponse.json({ error: "orderId requerido" }, { status: 400 });
+
+  const { data, error } = await supabase
+    .from("key_handling_log")
+    .select("id, method, lockbox_code, confirmed_returned, signature_url, closing_photo_url, escalated_at, escalation_resolved_as, created_at")
+    .eq("order_id", orderId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ logs: data || [] }, { status: 200 });
+}
+
+// POST /api/empleado/llaves — registrar manejo de llaves (v8.3 D.7.5)
+export async function POST(request: NextRequest) {
+  const supabase = getSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data: employee } = await supabase.from("employees").select("id").eq("user_id", user.id).single();
+  if (!employee) return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
+
+  try {
+    const body = await request.json();
+    const { orderId, method, lockboxCode, confirmedReturned, signatureUrl, closingPhotoUrl } = body as {
+      orderId: string; method: KeyMethod; lockboxCode?: string; confirmedReturned?: boolean;
+      signatureUrl?: string; closingPhotoUrl?: string;
+    };
+
+    if (!orderId || !method) {
+      return NextResponse.json({ error: "orderId y method son requeridos" }, { status: 400 });
+    }
+
+    // "problem" no exige campos (se resuelve por escalacion), el resto si.
+    const missing = validateKeyLog(method, { lockboxCode, confirmedReturned, signatureUrl, closingPhotoUrl });
+    if (missing.length > 0) {
+      return NextResponse.json(
+        { error: `Faltan campos requeridos para el método '${method}': ${missing.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    const { data, error } = await supabase
+      .from("key_handling_log")
+      .insert({
+        order_id: orderId,
+        method,
+        lockbox_code: lockboxCode || null,
+        confirmed_returned: confirmedReturned === true,
+        signature_url: signatureUrl || null,
+        closing_photo_url: closingPhotoUrl || null,
+        escalated_at: method === "problem" ? new Date().toISOString() : null,
+        escalation_resolved_as: method === "problem" ? "pending" : null,
+        recorded_by: employee.id,
+      })
+      .select()
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json({ log: data }, { status: 201 });
+  } catch (err: Error | unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

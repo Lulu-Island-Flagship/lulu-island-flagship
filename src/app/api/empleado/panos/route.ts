@@ -1,0 +1,87 @@
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+
+function getSupabaseClient() {
+  const cookieStore = cookies();
+  return createServerClient(supabaseUrl, supabaseKey, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value;
+      },
+      set(name: string, value: string, options: CookieOptions) {
+        cookieStore.set({ name, value, ...options });
+      },
+      remove(name: string, options: CookieOptions) {
+        cookieStore.set({ name, value: "", ...options });
+      },
+    },
+  });
+}
+
+const VALID_COLORS = ["red", "blue", "green", "yellow", "white", "black"];
+const VALID_STAGES = ["clean", "in_use", "dirty", "washing", "warehouse", "vehicle"];
+
+// GET /api/empleado/panos — ultimo conteo registrado por color+etapa (hoy)
+export async function GET() {
+  const supabase = getSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const today = new Date().toISOString().split("T")[0];
+  const { data, error } = await supabase
+    .from("towel_cycle_log")
+    .select("id, color, stage, count, vehicle_id, recorded_at")
+    .gte("recorded_at", today)
+    .order("recorded_at", { ascending: false });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ logs: data || [] }, { status: 200 });
+}
+
+// POST /api/empleado/panos — v8.3 D.7.3: conteo simple por COLOR, nunca por unidad.
+export async function POST(request: NextRequest) {
+  const supabase = getSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data: employee } = await supabase.from("employees").select("id").eq("user_id", user.id).single();
+  if (!employee) return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
+
+  try {
+    const body = await request.json();
+    const { color, stage, count, vehicleId } = body;
+
+    if (!VALID_COLORS.includes(color)) {
+      return NextResponse.json({ error: `color inválido. Debe ser uno de: ${VALID_COLORS.join(", ")}` }, { status: 400 });
+    }
+    if (!VALID_STAGES.includes(stage)) {
+      return NextResponse.json({ error: `stage inválido. Debe ser uno de: ${VALID_STAGES.join(", ")}` }, { status: 400 });
+    }
+    if (typeof count !== "number" || count < 0) {
+      return NextResponse.json({ error: "count debe ser un número >= 0" }, { status: 400 });
+    }
+
+    const { data, error } = await supabase
+      .from("towel_cycle_log")
+      .insert({
+        color,
+        stage,
+        count,
+        vehicle_id: vehicleId || null,
+        recorded_by: employee.id,
+      })
+      .select()
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json({ log: data }, { status: 201 });
+  } catch (err: Error | unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
