@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Package, Truck, Plus, Loader2, AlertTriangle } from "lucide-react";
+import { Package, Truck, Plus, Loader2, AlertTriangle, ShoppingCart, Check } from "lucide-react";
 
 interface Supplier {
   id: string;
@@ -28,6 +28,14 @@ interface ReorderSuggestion {
   deficit: number;
 }
 
+interface PurchaseOrder {
+  id: string;
+  status: string;
+  generated_reason: string | null;
+  created_at: string;
+  purchase_order_lines: { id: string; inventory_item_id: string; quantity: number }[];
+}
+
 const CATEGORIES = [
   { value: "chemical", label: "Químico" },
   { value: "cloth", label: "Paño" },
@@ -41,7 +49,9 @@ export default function InventarioPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [suggestions, setSuggestions] = useState<ReorderSuggestion[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [poBusy, setPoBusy] = useState(false);
 
   const [itemForm, setItemForm] = useState({
     name: "", category: "chemical", unit: "L", currentStock: "", reorderThreshold: "",
@@ -58,9 +68,10 @@ export default function InventarioPage() {
   async function load() {
     setLoading(true);
     try {
-      const [itemsRes, suppliersRes] = await Promise.all([
+      const [itemsRes, suppliersRes, poRes] = await Promise.all([
         fetch("/api/admin/inventory-items", { credentials: "include" }),
         fetch("/api/admin/suppliers", { credentials: "include" }),
+        fetch("/api/admin/purchase-orders", { credentials: "include" }),
       ]);
       if (itemsRes.ok) {
         const d = await itemsRes.json();
@@ -71,8 +82,37 @@ export default function InventarioPage() {
         const d = await suppliersRes.json();
         setSuppliers(d.suppliers || []);
       }
+      if (poRes.ok) {
+        const d = await poRes.json();
+        setPurchaseOrders(d.purchaseOrders || []);
+      }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function generatePO() {
+    setPoBusy(true);
+    try {
+      const res = await fetch("/api/admin/purchase-orders", { method: "POST", credentials: "include" });
+      const d = await res.json();
+      if (!res.ok) {
+        alert(d.error || "No se pudo generar la orden de compra.");
+        return;
+      }
+      await load();
+    } finally {
+      setPoBusy(false);
+    }
+  }
+
+  async function approvePO(id: string) {
+    setPoBusy(true);
+    try {
+      const res = await fetch(`/api/admin/purchase-orders/${id}/approve`, { method: "POST", credentials: "include" });
+      if (res.ok) await load();
+    } finally {
+      setPoBusy(false);
     }
   }
 
@@ -153,11 +193,48 @@ export default function InventarioPage() {
 
         {suggestions.length > 0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-sm text-yellow-800">
-            <div className="flex items-center gap-2 font-semibold mb-1">
-              <AlertTriangle className="w-4 h-4" /> {suggestions.length} producto(s) bajo el umbral
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="flex items-center gap-2 font-semibold">
+                <AlertTriangle className="w-4 h-4" /> {suggestions.length} producto(s) bajo el umbral
+              </div>
+              <button
+                onClick={generatePO}
+                disabled={poBusy}
+                className="flex items-center gap-1 bg-brand-navy text-white px-2.5 py-1 rounded-lg text-xs font-medium disabled:opacity-50"
+              >
+                <ShoppingCart className="w-3.5 h-3.5" /> Generar orden de compra
+              </button>
             </div>
             {suggestions.map((s) => (
               <p key={s.itemId}>{s.itemName}: {s.currentStock} (umbral {s.reorderThreshold})</p>
+            ))}
+          </div>
+        )}
+
+        {purchaseOrders.length > 0 && (
+          <div className="bg-white rounded-xl shadow-elevation-1 divide-y mb-4">
+            <div className="p-3 text-sm font-semibold text-brand-ink flex items-center gap-2">
+              <ShoppingCart className="w-4 h-4" /> Órdenes de compra
+            </div>
+            {purchaseOrders.map((po) => (
+              <div key={po.id} className="p-3 text-sm flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs text-gray-500">{new Date(po.created_at).toLocaleDateString("en-CA")}</p>
+                  <p className="text-gray-700">{po.generated_reason}</p>
+                  <p className="text-xs mt-1">
+                    Estado: <span className="font-medium">{po.status}</span>
+                  </p>
+                </div>
+                {po.status === "pending_approval" && (
+                  <button
+                    onClick={() => approvePO(po.id)}
+                    disabled={poBusy}
+                    className="flex items-center gap-1 bg-state-success text-white px-2.5 py-1 rounded-lg text-xs font-medium disabled:opacity-50 flex-shrink-0"
+                  >
+                    <Check className="w-3.5 h-3.5" /> Aprobar
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         )}
