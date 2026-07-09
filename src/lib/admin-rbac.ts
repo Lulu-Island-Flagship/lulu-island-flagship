@@ -33,6 +33,7 @@ export type AdminResource =
   | "risk_assessments"
   | "near_misses"
   | "inventory"
+  | "wellbeing"
   // QC — owner_admin + ops_coordinator + qc_only
   | "qc_wall";
 
@@ -55,6 +56,7 @@ const MATRIX: Record<AdminResource, AdminRole[]> = {
   risk_assessments: ["owner_admin", "ops_coordinator"],
   near_misses: ["owner_admin", "ops_coordinator"],
   inventory: ["owner_admin", "ops_coordinator"],
+  wellbeing: ["owner_admin", "ops_coordinator"],
   qc_wall: ["owner_admin", "ops_coordinator", "qc_only"],
 };
 
