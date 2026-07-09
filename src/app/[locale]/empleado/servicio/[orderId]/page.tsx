@@ -22,8 +22,9 @@ import {
   AlertOctagon,
   Palette,
 } from "lucide-react";
-import type { EmployeeService } from "@/types";
+import type { EmployeeService, AssignmentStatus } from "@/types";
 import { haversineDistance, GEOFENCE_RADIUS_METERS } from "@/lib/geocode";
+import { submitServiceEventOrQueue } from "@/lib/offline-sync-client";
 import { ChecklistCierre } from "@/components/empleado/ChecklistCierre";
 import { UpsellSelector } from "@/components/empleado/UpsellSelector";
 import { DiscrepanciaReporter } from "@/components/empleado/DiscrepanciaReporter";
@@ -177,43 +178,38 @@ export default function ServicioPage() {
     try {
       const loc = await getCurrentLocation();
 
-      // Si hay bypass de geocerca, registrar nota de auditoría
+      // Si hay bypass de geocerca, registrar nota de auditoría (encola si no hay señal)
       if (eventType === "t_in" && geofenceStatus === "bypass" && bypassReason.trim()) {
-        await fetch("/api/empleado/servicio", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            orderId,
-            eventType: "note",
-            notes: `Geofence bypass: ${bypassReason.trim()}`,
-          }),
+        await submitServiceEventOrQueue(orderId, "note", {
+          notes: `Geofence bypass: ${bypassReason.trim()}`,
         });
       }
 
-      const res = await fetch("/api/empleado/servicio", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          orderId,
-          eventType,
-          locationLat: loc?.lat,
-          locationLng: loc?.lng,
-        }),
+      const result = await submitServiceEventOrQueue(orderId, eventType, {
+        locationLat: loc?.lat,
+        locationLng: loc?.lng,
       });
 
-      if (!res.ok) {
-        const err = await res.json();
-        console.error("Service event error:", err.error);
+      if (!result.ok) {
+        console.error("Service event error:", result.error);
         return;
       }
 
-      const result = await res.json();
-      if (service) {
-        setService({ ...service, status: result.assignmentStatus });
+      if (result.queued) {
+        // Sin señal: actualizamos el estado local de forma optimista (D.10 #1
+        // "no bloqueante") — el servidor confirmará cuando sincronice.
+        const optimisticStatus =
+          eventType === "t_in" ? "arrived" : eventType === "t_start" ? "in_progress" : eventType === "t_out" ? "completed" : service?.status;
+        if (service && optimisticStatus) {
+          setService({ ...service, status: optimisticStatus });
+        }
+      } else {
+        const data = result.data as { assignmentStatus?: AssignmentStatus } | undefined;
+        if (service && data?.assignmentStatus) {
+          setService({ ...service, status: data.assignmentStatus });
+        }
+        await loadLogs();
       }
-      await loadLogs();
     } catch (e) {
       console.error("Event error:", e);
     } finally {
