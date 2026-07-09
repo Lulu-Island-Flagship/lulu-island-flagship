@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { isAuditSampleSelected } from "@/lib/field-audit-sampling";
 
 // GET /api/admin/audits — servicios completados pendientes de auditoría + historial de evaluaciones
 export async function GET(request: NextRequest) {
@@ -58,6 +59,14 @@ export async function GET(request: NextRequest) {
     if (pendingError) {
       console.error("Pending audits error:", pendingError);
     }
+
+    // v8.3 E5: muestreo aleatorio ~20% (determinístico por dia) — no reemplaza
+    // la eleccion manual del auditor, solo marca una muestra objetiva sugerida
+    // para que la auditoria de campo no dependa solo de lo que "parece sospechoso".
+    const pendingOrdersWithSample = (pendingOrders || []).map((o: { id: string }) => ({
+      ...o,
+      suggestedForAudit: isAuditSampleSelected(o.id, today),
+    }));
 
     // Evaluaciones existentes
     let auditsQuery = supabase
@@ -130,7 +139,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      pendingOrders: pendingOrders || [],
+      pendingOrders: pendingOrdersWithSample,
       audits: audits || [],
       peerVoteAggregates: Object.fromEntries(voteMap),
     }, { status: 200 });
