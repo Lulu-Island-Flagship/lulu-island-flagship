@@ -12,14 +12,20 @@
  * reproducible si hay que explicar una decisión después.
  */
 
-/** Hash FNV-1a simple, suficiente para distribuir uniformemente sin dependencias externas. */
-function fnv1aHash(input: string): number {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return hash >>> 0; // uint32
+import { createHash } from "crypto";
+
+/**
+ * Hash criptográfico (SHA-256, primeros 4 bytes como uint32). Se reemplazó un
+ * FNV-1a casero que en la práctica NO distribuía bien strings casi idénticos
+ * (ej. "order-fixed::2026-07-01" vs "...-02"): en una prueba real, el mismo
+ * order_id nunca cayó en el 20% durante los 30 días de julio. SHA-256 tiene
+ * efecto avalancha garantizado — un solo caracter distinto cambia por completo
+ * el hash — que es exactamente lo que se necesita para que "salt = fecha" sí
+ * cambie la muestra día a día.
+ */
+function stableHash(input: string): number {
+  const digest = createHash("sha256").update(input).digest();
+  return digest.readUInt32BE(0);
 }
 
 /**
@@ -35,7 +41,7 @@ export function isAuditSampleSelected(
 ): boolean {
   if (rate <= 0) return false;
   if (rate >= 1) return true;
-  const h = fnv1aHash(`${orderId}::${dateSalt}`);
+  const h = stableHash(`${orderId}::${dateSalt}`);
   const bucket = h / 0xffffffff; // normaliza a [0,1)
   return bucket < rate;
 }
