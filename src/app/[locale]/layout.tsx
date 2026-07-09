@@ -28,6 +28,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
     icons: {
       icon: "/favicon.ico",
     },
+    manifest: "/manifest.json",
     openGraph: {
       title: t('title'),
       description: t('description'),
