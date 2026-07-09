@@ -3,6 +3,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { calculateTeamRequirements, getHHEForRange, type ServiceType } from "@/lib/pricing";
 import { buildTeam, type DispatchCandidate } from "@/lib/dispatch-team";
+import { evaluateWorkday } from "@/lib/workday";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -154,6 +155,15 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
       pendingLanguage.push(
         `${order.id}: ${result.pendingReason}${result.warnings.length ? ` (${result.warnings[0]})` : ""}`
       );
+      continue;
+    }
+
+    // v8.3 B.2.14/15: validar jornada del bloque propuesto (T_bloqueo D.3:
+    // HHE/N + buffers 15+15+15). >10h = no se asigna solo; >8h = nota admin.
+    const perPersonMinutes = Math.round(((hheHours / result.team.length) * 60) + 45);
+    const workday = evaluateWorkday([{ serviceMinutes: perPersonMinutes, transitMinutes: 30 }]);
+    if (workday.status === "blocked") {
+      pendingLanguage.push(`${order.id}: workday_blocked (${workday.reasons.join("; ")})`);
       continue;
     }
 
