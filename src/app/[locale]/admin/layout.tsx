@@ -91,6 +91,12 @@ export default async function AdminLayout({
               <a href={`${adminPath}/near-misses`} className="hover:text-brand-gold transition-colors">Near-Misses</a>
               <a href={`${adminPath}/riesgo`} className="hover:text-brand-gold transition-colors">Riesgo</a>
               <a href={`${adminPath}/sos`} className="hover:text-brand-gold transition-colors">SOS</a>
+              <a href={`${adminPath}/team-ranking`} className="hover:text-brand-gold transition-colors">Team Ranking</a>
+              <a href={`${adminPath}/competencia`} className="hover:text-brand-gold transition-colors">Competencia</a>
+              <a href={`${adminPath}/marketing`} className="hover:text-brand-gold transition-colors">Marketing</a>
+              <a href={`${adminPath}/contabilidad`} className="hover:text-brand-gold transition-colors">Contabilidad</a>
+              <a href={`${adminPath}/ajustes-hhe`} className="hover:text-brand-gold transition-colors">Ajustes HHE</a>
+              <a href={`${adminPath}/recuperacion-desastres`} className="hover:text-brand-gold transition-colors">Disaster Recovery</a>
             </div>
           </div>
           <form action="/auth/signout" method="post">

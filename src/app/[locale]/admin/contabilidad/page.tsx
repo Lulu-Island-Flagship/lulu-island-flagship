@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { DollarSign, Loader2, TrendingUp, TrendingDown } from "lucide-react";
+import { DollarSign, Loader2, TrendingUp, TrendingDown, Download } from "lucide-react";
 
 interface GroupSummary {
   key: string;
@@ -82,12 +82,23 @@ function GroupTable({ title, rows }: { title: string; rows: GroupSummary[] }) {
   );
 }
 
+function downloadExport(month: string, format: "csv" | "json") {
+  const url = `/api/admin/export?month=${encodeURIComponent(month)}&format=${format}`;
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `export_universal_${month}.${format}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 export default function ContabilidadPage() {
   const [data, setData] = useState<AccountingResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [exportMonth, setExportMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -136,6 +147,33 @@ export default function ContabilidadPage() {
         <button onClick={load} className="px-3 py-1.5 bg-gray-900 text-white rounded text-sm">
           Filtrar
         </button>
+      </div>
+
+      <div className="flex items-end gap-3 mb-6 border-t pt-4">
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Exportación universal (mes)</label>
+          <input
+            type="month"
+            value={exportMonth}
+            onChange={(e) => setExportMonth(e.target.value)}
+            className="border rounded px-2 py-1 text-sm"
+          />
+        </div>
+        <button
+          onClick={() => downloadExport(exportMonth, "csv")}
+          className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-900 rounded text-sm hover:bg-gray-50"
+        >
+          <Download className="w-3.5 h-3.5" /> CSV
+        </button>
+        <button
+          onClick={() => downloadExport(exportMonth, "json")}
+          className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-900 rounded text-sm hover:bg-gray-50"
+        >
+          <Download className="w-3.5 h-3.5" /> JSON
+        </button>
+        <span className="text-xs text-gray-400">
+          Sin dependencia de QBO — ingresos, nómina, comisiones, regalos y reservas de impuestos del mes (D.9.5).
+        </span>
       </div>
 
       {loading && (
