@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Loader2, Truck, Plus, X, MapPin } from "lucide-react";
+import { Loader2, Truck, Plus, X, MapPin, AlertTriangle, ShieldAlert } from "lucide-react";
+import { isVehicleInsuranceExpired, isVehicleInsuranceExpiringSoon } from "@/lib/vehicle-insurance";
 
 interface Vehicle {
   id: string;
@@ -11,6 +12,11 @@ interface Vehicle {
   current_lat?: number;
   current_lng?: number;
   last_location_at?: string;
+  insurance_expiry_date?: string | null;
+}
+
+function todayIso(): string {
+  return new Date().toISOString().split("T")[0];
 }
 
 export default function VehiclesPage() {
@@ -20,7 +26,10 @@ export default function VehiclesPage() {
   const [showForm, setShowForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newPlate, setNewPlate] = useState("");
+  const [newInsuranceExpiry, setNewInsuranceExpiry] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editingInsuranceId, setEditingInsuranceId] = useState<string | null>(null);
+  const [editInsuranceValue, setEditInsuranceValue] = useState("");
 
   useEffect(() => {
     loadVehicles();
@@ -54,7 +63,11 @@ export default function VehiclesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ name: newName.trim(), plate: newPlate.trim() || undefined }),
+        body: JSON.stringify({
+          name: newName.trim(),
+          plate: newPlate.trim() || undefined,
+          insuranceExpiryDate: newInsuranceExpiry || undefined,
+        }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -63,7 +76,32 @@ export default function VehiclesPage() {
       }
       setNewName("");
       setNewPlate("");
+      setNewInsuranceExpiry("");
       setShowForm(false);
+      loadVehicles();
+    } catch {
+      setError("Network error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveInsuranceExpiry(vehicleId: string) {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/vehicles/${vehicleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ insuranceExpiryDate: editInsuranceValue || null }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setError(err.error || "Failed to update insurance date");
+        return;
+      }
+      setEditingInsuranceId(null);
+      setEditInsuranceValue("");
       loadVehicles();
     } catch {
       setError("Network error");
@@ -123,6 +161,15 @@ export default function VehiclesPage() {
               placeholder="License plate (optional)"
               className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-navy outline-none"
             />
+            <div className="sm:col-span-2">
+              <label className="text-xs text-gray-500 block mb-1">Insurance expiry date (optional)</label>
+              <input
+                type="date"
+                value={newInsuranceExpiry}
+                onChange={(e) => setNewInsuranceExpiry(e.target.value)}
+                className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-navy outline-none w-full"
+              />
+            </div>
           </div>
           <button
             type="submit"
@@ -169,6 +216,58 @@ export default function VehiclesPage() {
                 <p className="text-xs text-gray-400">
                   Last seen: {new Date(v.last_location_at).toLocaleString("en-CA", { timeZone: "America/Vancouver" })}
                 </p>
+              )}
+
+              {/* v8.3 E7 — aviso preventivo de seguro. El bloqueo REAL de
+                  asignación vive en el trigger SQL (migración 047); esto es
+                  solo advertencia anticipada en la UI de despacho. */}
+              {editingInsuranceId === v.id ? (
+                <div className="flex items-center gap-2 pt-1 border-t">
+                  <input
+                    type="date"
+                    value={editInsuranceValue}
+                    onChange={(e) => setEditInsuranceValue(e.target.value)}
+                    className="border rounded-lg px-2 py-1 text-xs flex-1"
+                  />
+                  <button
+                    onClick={() => saveInsuranceExpiry(v.id)}
+                    disabled={saving}
+                    className="text-xs bg-brand-navy text-white px-2 py-1 rounded-lg disabled:opacity-50"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setEditingInsuranceId(null)}
+                    className="text-xs text-gray-500"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between pt-1 border-t">
+                  {isVehicleInsuranceExpired(v.insurance_expiry_date, todayIso()) ? (
+                    <span className="flex items-center gap-1 text-xs text-state-danger font-medium">
+                      <ShieldAlert className="w-3.5 h-3.5" /> Insurance EXPIRED ({v.insurance_expiry_date}) — cannot be assigned
+                    </span>
+                  ) : isVehicleInsuranceExpiringSoon(v.insurance_expiry_date, todayIso()) ? (
+                    <span className="flex items-center gap-1 text-xs text-state-warning font-medium">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Insurance expires soon ({v.insurance_expiry_date})
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-400">
+                      Insurance: {v.insurance_expiry_date || "not on file"}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => {
+                      setEditingInsuranceId(v.id);
+                      setEditInsuranceValue(v.insurance_expiry_date || "");
+                    }}
+                    className="text-xs text-brand-navy font-medium"
+                  >
+                    Edit
+                  </button>
+                </div>
               )}
             </div>
           ))}

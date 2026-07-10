@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { calculateTeamRequirements, getHHEForRange, type ServiceType } from "@/lib/pricing";
 import { buildTeam, type DispatchCandidate } from "@/lib/dispatch-team";
 import { evaluateWorkday } from "@/lib/workday";
+import { isVehicleInsuranceExpired } from "@/lib/vehicle-insurance";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -118,12 +119,45 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
     .eq("is_active", true)
     .in("role", ["cleaner", "supervisor"]);
 
-  const availableEmployees = (employees || []).filter((e) => e.is_active);
+  // v8.3 E7 — el trigger SQL prevent_expired_vehicle_assignment (migración 047)
+  // bloquea ASIGNAR un vehículo con seguro vencido a employees.vehicle_id, pero
+  // NO bloqueo retroactivamente si el seguro vence DESPUÉS de la asignación ya
+  // existente. El despacho diario es el punto real de riesgo: un empleado con
+  // un vehículo cuyo seguro ya venció no debe recibir servicios nuevos hoy.
+  const vehicleIds = Array.from(
+    new Set((employees || []).map((e) => e.vehicle_id).filter((v): v is string => !!v))
+  );
+  const vehicleInsuranceExpiryById = new Map<string, string | null>();
+  if (vehicleIds.length > 0) {
+    const { data: vehicles } = await supabase
+      .from("vehicles")
+      .select("id, insurance_expiry_date")
+      .in("id", vehicleIds);
+    for (const v of vehicles || []) {
+      vehicleInsuranceExpiryById.set(v.id, v.insurance_expiry_date as string | null);
+    }
+  }
+  const todayIso = getVancouverNow().toISOString().split("T")[0];
+  const expiredInsuranceEmployeeIds = new Set(
+    (employees || [])
+      .filter((e) => e.vehicle_id && isVehicleInsuranceExpired(vehicleInsuranceExpiryById.get(e.vehicle_id) ?? null, todayIso))
+      .map((e) => e.id)
+  );
+
+  const availableEmployees = (employees || []).filter(
+    (e) => e.is_active && !expiredInsuranceEmployeeIds.has(e.id)
+  );
   const availableTeams = availableEmployees.length;
 
   const proposals: ProposedOrder[] = [];
   const pendingLanguage: string[] = [];
   const assignedEmployeeIds = new Set<string>();
+
+  if (expiredInsuranceEmployeeIds.size > 0) {
+    pendingLanguage.push(
+      `${expiredInsuranceEmployeeIds.size} empleado(s) excluido(s) del despacho: seguro de su vehículo vencido (v8.3 E7).`
+    );
+  }
 
   for (const order of orders || []) {
     const quote = quoteMap.get(order.quote_id);

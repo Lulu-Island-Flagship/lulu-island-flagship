@@ -11,7 +11,9 @@ export async function GET() {
   try {
     const { data, error } = await auth.supabase
       .from("vehicles")
-      .select("id, name, plate, is_active, current_lat, current_lng, last_location_at, created_at")
+      .select(
+        "id, name, plate, is_active, current_lat, current_lng, last_location_at, insurance_expiry_date, registration_expiry_date, next_maintenance_due_date, created_at"
+      )
       .order("name", { ascending: true });
 
     if (error) {
@@ -36,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, plate, isActive } = body;
+    const { name, plate, isActive, insuranceExpiryDate } = body;
 
     if (!name) {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
@@ -48,6 +50,7 @@ export async function POST(request: NextRequest) {
         name,
         plate: plate || null,
         is_active: isActive ?? true,
+        insurance_expiry_date: insuranceExpiryDate || null,
       })
       .select()
       .single();
