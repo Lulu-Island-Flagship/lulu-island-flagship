@@ -20,7 +20,10 @@
 CREATE TABLE IF NOT EXISTS rto_targets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   data_type TEXT NOT NULL UNIQUE,
-  rto_hours NUMERIC NOT NULL CHECK (rto_hours > 0),
+  -- >= 0, no > 0: 'owner_incapacitated' declara RTO=0 a propósito (activación
+  -- inmediata de Modo Sucesión, sin ventana de espera diseñada — ver INSERT
+  -- más abajo). Un CHECK > 0 rechazaría ese valor real y válido.
+  rto_hours NUMERIC NOT NULL CHECK (rto_hours >= 0),
   recovery_method TEXT NOT NULL,
   is_example BOOLEAN NOT NULL DEFAULT true,
   source TEXT NOT NULL DEFAULT 'v8.3_PLAN_DE_CONSTRUCCION.md E11.3',
