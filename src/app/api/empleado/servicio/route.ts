@@ -6,6 +6,8 @@ import {
   type ZoneClosureStatus,
   type ExternalConfirmationType,
 } from "@/lib/closure-protocol";
+import { dispatchCommunication } from "@/lib/send-communication";
+import { buildReviewLink, buildReviewQrSvg, hasOpenCriticalDispute } from "@/lib/review-delivery";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -98,6 +100,92 @@ async function checkClosureProtocol(
     zones,
     implementsConfirmed: closure?.implementos_confirmed || false,
     externalConfirmation: (closure?.external_confirmation_type as ExternalConfirmationType) || null,
+  });
+}
+
+/**
+ * v8.3 E6 Sesión H — dispara las comunicaciones reales del cierre de
+ * servicio: (1) confirmación de cierre con galería (evento
+ * 'service_completed'), y (2) solicitud de reseña con link + QR (evento
+ * 'review_request', invariante B.2.18) para TODOS los cierres completos,
+ * salvo la única excepción documentada: discrepancia crítica aún abierta
+ * (hasOpenCriticalDispute, src/lib/review-delivery.ts).
+ */
+async function sendClosureCommunications(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  orderId: string,
+  userId: string
+): Promise<void> {
+  const { data: order } = await supabase
+    .from("orders")
+    .select("id, review_token")
+    .eq("id", orderId)
+    .single();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const { data: clientProfile } = await supabase
+    .from("client_profiles")
+    .select("preferred_languages")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const language = ((clientProfile?.preferred_languages as string[] | undefined)?.[0] ||
+    "en") as "en" | "es" | "zh";
+  const clientName = profile?.full_name || "cliente";
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://app.luluisland.ca").replace(/\/$/, "");
+
+  await dispatchCommunication(supabase, {
+    eventKey: "service_completed",
+    userId,
+    orderId,
+    language,
+    vars: {
+      client_name: clientName,
+      gallery_link: `${baseUrl}/orders/${orderId}/galeria`,
+    },
+  });
+
+  // Invariante B.2.18 (anti-gating Google/FTC): se solicita a TODOS los
+  // servicios completos. Única exclusión: discrepancia crítica aún abierta.
+  const { data: openTickets } = await supabase
+    .from("tickets_disputas")
+    .select("type, priority, status")
+    .eq("order_id", orderId)
+    .in("status", ["open", "in_review"]);
+
+  if (hasOpenCriticalDispute(openTickets || [])) {
+    console.log(
+      `[review_request] Omitido para orden ${orderId}: discrepancia crítica abierta ` +
+        `(excepción documentada de B.2.18, tickets_disputas).`
+    );
+    return;
+  }
+
+  if (!order?.review_token) {
+    console.error(`[review_request] Orden ${orderId} completada sin review_token — revisar trigger de migración 014.`);
+    return;
+  }
+
+  const reviewLink = buildReviewLink(order.review_token, baseUrl);
+  const qrSvg = await buildReviewQrSvg(order.review_token, baseUrl);
+
+  await supabase.from("orders").update({ review_qr_svg: qrSvg }).eq("id", orderId);
+
+  await dispatchCommunication(supabase, {
+    eventKey: "review_request",
+    userId,
+    orderId,
+    language,
+    vars: {
+      client_name: clientName,
+      review_link: reviewLink,
+    },
   });
 }
 
@@ -201,6 +289,20 @@ export async function POST(request: NextRequest) {
           await supabase.rpc("increment_client_services_count", {
             target_user_id: order.user_id,
           });
+        }
+
+        // E6 Sesión H — confirmación de cierre de servicio + entrega real de
+        // reseña (B.2.18 anti-gating). El UPDATE de arriba ya disparó
+        // generate_review_token_trigger (migración 014), así que releemos la
+        // orden para obtener el review_token recién generado. Un fallo de
+        // comunicaciones nunca debe revertir un T_out ya válido — por eso va
+        // en su propio try/catch, después de que el cierre quedó confirmado.
+        if (order?.user_id) {
+          try {
+            await sendClosureCommunications(supabase, orderId, order.user_id);
+          } catch (commErr) {
+            console.error("Error disparando comunicaciones de cierre (T_out):", commErr);
+          }
         }
       }
     }
