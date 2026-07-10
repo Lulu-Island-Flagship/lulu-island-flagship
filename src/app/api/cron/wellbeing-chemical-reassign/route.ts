@@ -1,51 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { isChemicalAlertTimerExpired } from "@/lib/wellbeing";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options });
-      },
-    },
-  });
-}
+import { createClient } from "@supabase/supabase-js";
+import { isChemicalAlertTimerExpired, resolveChemicalReassignment } from "@/lib/wellbeing";
 
 // GET /api/cron/wellbeing-chemical-reassign — v8.3 E8 regla dura: timer de
-// 10 min sin respuesta admin => marca la alerta como auto_reassigned.
+// 10 min sin respuesta admin => reasignación REAL, no solo detección.
 //
-// LIMITACION HONESTA: este cron detecta el vencimiento del timer y marca la
-// alerta, pero NO ejecuta todavia la reasignacion real del empleado a una
-// tarea de bajo riesgo (eso requiere integrarse con buildTeam()/dispatch-
-// scheduler y una nocion de "nivel de riesgo por tarea" que hoy no existe
-// en el esquema de assignments). Se deja marcado explicitamente en el
-// registro (auto_reassigned_at) para que un admin actue manualmente hasta
-// que se construya esa integracion.
+// Antes de esta versión, este cron solo marcaba resolution=auto_reassigned
+// sin tocar ninguna asignación real (ver historial de esta migración/commit
+// para el comentario original que lo admitía explícitamente).
+//
+// Reasignación real, con el esquema actual (assignments es por ORDEN, no
+// hay "nivel de riesgo por tarea"):
+//   1. El empleado reportado queda restringido a tareas de bajo riesgo el
+//      resto de la jornada (assignments.restricted_to_low_risk_at).
+//   2. Un compañero YA asignado a la misma orden asume la responsabilidad
+//      química, elegido con el mismo criterio de prioridad que
+//      dispatch-team.ts::buildTeam (supervisor > trust level) — ver
+//      resolveChemicalReassignment en src/lib/wellbeing.ts (no se duplica
+//      la lógica de selección, se reutiliza el mismo criterio de afinidad).
+//   3. Si no hay compañero en la orden (asignación de una sola persona), se
+//      escala al admin de inmediato vía tickets_disputas — regla
+//      pre-aprobada del fallback de 10 min (B.2.12), logueada.
+//
+// Usa SUPABASE_SERVICE_ROLE_KEY (igual que el resto de los crons, ej.
+// no-show, batch-capture) porque esta ruta corre server-to-server sin
+// sesión de usuario: con el cliente anon+cookies anterior, is_supervisor
+// (auth.uid()) evaluaba NULL y la RLS de wellbeing_chemical_alerts
+// bloqueaba silenciosamente cualquier UPDATE.
 export async function GET(request: NextRequest) {
   const cronSecret = request.headers.get("authorization")?.replace("Bearer ", "");
   if (cronSecret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return NextResponse.json(
+      { error: "Supabase service credentials not configured" },
+      { status: 500 }
+    );
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
   try {
-    const supabase = getSupabaseClient();
     const now = new Date().toISOString();
 
     const { data: pending, error } = await supabase
       .from("wellbeing_chemical_alerts")
-      .select("id, reported_at, admin_responded_at")
+      .select("id, employee_id, assignment_id, reported_at, admin_responded_at")
       .or("resolution.eq.pending,resolution.is.null");
 
     if (error) {
@@ -56,14 +60,104 @@ export async function GET(request: NextRequest) {
       isChemicalAlertTimerExpired(a.reported_at, now, a.admin_responded_at)
     );
 
+    let reassignedWithBackup = 0;
+    let escalatedNoBackup = 0;
+    let skippedNoAssignment = 0;
+
     for (const alert of expired) {
+      if (!alert.assignment_id) {
+        // Alerta sin asignación vinculada (posible en el checklist matutino
+        // antes de que el empleado tenga orden asignada del día): no hay
+        // orden sobre la cual reasignar nada. Se marca resuelto igual para
+        // no dejarlo colgado en la cola, pero sin backup posible.
+        await supabase
+          .from("wellbeing_chemical_alerts")
+          .update({ resolution: "auto_reassigned", auto_reassigned_at: now, escalated_no_backup: true })
+          .eq("id", alert.id);
+        skippedNoAssignment++;
+        continue;
+      }
+
+      const { data: flaggedAssignment } = await supabase
+        .from("assignments")
+        .select("id, order_id, employee_id")
+        .eq("id", alert.assignment_id)
+        .single();
+
+      if (!flaggedAssignment) {
+        await supabase
+          .from("wellbeing_chemical_alerts")
+          .update({ resolution: "auto_reassigned", auto_reassigned_at: now, escalated_no_backup: true })
+          .eq("id", alert.id);
+        skippedNoAssignment++;
+        continue;
+      }
+
+      const { data: teammateAssignments } = await supabase
+        .from("assignments")
+        .select("employee_id, employees(role, trust_level)")
+        .eq("order_id", flaggedAssignment.order_id)
+        .not("status", "in", ["cancelled", "no_show"]);
+
+      type EmployeeJoin = { role: string; trust_level: string } | { role: string; trust_level: string }[] | null;
+      const teammates = (teammateAssignments || []).map((a) => {
+        const empJoin = a.employees as EmployeeJoin;
+        const emp = Array.isArray(empJoin) ? empJoin[0] : empJoin;
+        return {
+          employeeId: a.employee_id as string,
+          role: (emp?.role ?? "cleaner") as "cleaner" | "supervisor" | "driver",
+          trustLevel: emp?.trust_level ?? "standard",
+        };
+      });
+
+      const resolution = resolveChemicalReassignment(teammates, flaggedAssignment.employee_id);
+
+      // 1. Restringir al empleado reportado a tareas de bajo riesgo el resto de la jornada.
+      await supabase
+        .from("assignments")
+        .update({ restricted_to_low_risk_at: now })
+        .eq("id", flaggedAssignment.id);
+
+      if (resolution.escalateToAdmin) {
+        // 3. Sin compañero disponible: escalar al admin de inmediato (fallback pre-aprobado).
+        await supabase.from("tickets_disputas").insert({
+          order_id: flaggedAssignment.order_id,
+          employee_id: flaggedAssignment.employee_id,
+          type: "wellbeing_no_backup",
+          priority: "high",
+          status: "open",
+          context: {
+            wellbeingChemicalAlertId: alert.id,
+            reason:
+              "Alerta de bienestar químico vencida a los 10 min sin respuesta admin y sin compañero disponible en la orden para asumir la tarea de riesgo.",
+          },
+        });
+        escalatedNoBackup++;
+      } else {
+        reassignedWithBackup++;
+      }
+
       await supabase
         .from("wellbeing_chemical_alerts")
-        .update({ resolution: "auto_reassigned", auto_reassigned_at: now })
+        .update({
+          resolution: "auto_reassigned",
+          auto_reassigned_at: now,
+          reassigned_employee_id: resolution.backupEmployeeId,
+          escalated_no_backup: resolution.escalateToAdmin,
+        })
         .eq("id", alert.id);
     }
 
-    return NextResponse.json({ processed: expired.length, checked: (pending || []).length }, { status: 200 });
+    return NextResponse.json(
+      {
+        processed: expired.length,
+        checked: (pending || []).length,
+        reassignedWithBackup,
+        escalatedNoBackup,
+        skippedNoAssignment,
+      },
+      { status: 200 }
+    );
   } catch (err: Error | unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

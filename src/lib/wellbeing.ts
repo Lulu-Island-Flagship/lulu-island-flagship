@@ -46,6 +46,63 @@ export function shouldTriggerChemicalWellbeingAlert(
 }
 
 // ------------------------------------------------------------
+// 1b. Reasignación real al vencer el timer (v8.3 E8 punto 2)
+// ------------------------------------------------------------
+//
+// LIMITACIÓN HEREDADA Y ACEPTADA: el esquema hoy asigna riesgo químico a
+// nivel de ORDEN/ASIGNACIÓN, no de tarea individual (no existe "nivel de
+// riesgo por tarea"). La reasignación real posible con este esquema es:
+// (a) restringir al empleado reportado a tareas de bajo riesgo por el resto
+// de la jornada, y (b) traspasar la responsabilidad química de esa orden a
+// un compañero de equipo YA asignado a la misma orden, siguiendo la misma
+// prioridad que buildTeam() (dispatch-team.ts): supervisor > trust level.
+// Si no hay compañero disponible (asignación de una sola persona), se
+// escala al admin de inmediato — es la regla pre-aprobada del fallback de
+// 10 min (B.2.12), no un caso sin resolver.
+
+export interface ChemicalReassignmentCandidate {
+  employeeId: string;
+  role: "cleaner" | "supervisor" | "driver";
+  trustLevel: "elite" | "standard" | "observation" | string;
+}
+
+export interface ChemicalReassignmentResult {
+  /** empleado que queda restringido a tareas de bajo riesgo el resto de la jornada */
+  restrictedEmployeeId: string;
+  /** compañero que asume la responsabilidad química de la orden, si hay alguno disponible */
+  backupEmployeeId: string | null;
+  /** true si no había compañero disponible y se debe escalar al admin de inmediato */
+  escalateToAdmin: boolean;
+}
+
+function chemicalBackupRank(t: string): number {
+  return t === "elite" ? 2 : t === "standard" ? 1 : 0;
+}
+
+/**
+ * Elige quién asume la tarea de riesgo químico cuando el timer de 10 min
+ * expira sin respuesta del admin. Prioriza supervisor sobre cleaner/driver,
+ * luego trust level (mismo criterio de afinidad que buildTeam).
+ */
+export function resolveChemicalReassignment(
+  teammates: ChemicalReassignmentCandidate[],
+  restrictedEmployeeId: string
+): ChemicalReassignmentResult {
+  const available = teammates.filter((t) => t.employeeId !== restrictedEmployeeId);
+
+  if (available.length === 0) {
+    return { restrictedEmployeeId, backupEmployeeId: null, escalateToAdmin: true };
+  }
+
+  const sorted = [...available].sort((a, b) => {
+    const role = (b.role === "supervisor" ? 1 : 0) - (a.role === "supervisor" ? 1 : 0);
+    return role || chemicalBackupRank(b.trustLevel) - chemicalBackupRank(a.trustLevel);
+  });
+
+  return { restrictedEmployeeId, backupEmployeeId: sorted[0].employeeId, escalateToAdmin: false };
+}
+
+// ------------------------------------------------------------
 // 2. Modo "No estoy listo"
 // ------------------------------------------------------------
 

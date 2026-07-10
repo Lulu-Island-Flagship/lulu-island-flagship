@@ -9,6 +9,7 @@ import {
   evaluateReadinessRequest,
   detectAbusePattern,
   shouldSuggestTeamCheckin,
+  resolveChemicalReassignment,
 } from "../../src/lib/wellbeing";
 
 describe("shouldTriggerChemicalWellbeingAlert", () => {
@@ -44,6 +45,44 @@ describe("isChemicalAlertTimerExpired", () => {
       isChemicalAlertTimerExpired("2026-07-09T10:00:00Z", "2026-07-09T11:00:00Z", "2026-07-09T10:02:00Z"),
       false
     );
+  });
+});
+
+describe("resolveChemicalReassignment — reasignación real al vencer el timer (v8.3 E8)", () => {
+  it("con compañero supervisor disponible, el supervisor asume la tarea química", () => {
+    const r = resolveChemicalReassignment(
+      [
+        { employeeId: "flagged", role: "cleaner", trustLevel: "standard" },
+        { employeeId: "sup-1", role: "supervisor", trustLevel: "standard" },
+        { employeeId: "cleaner-2", role: "cleaner", trustLevel: "elite" },
+      ],
+      "flagged"
+    );
+    assert.equal(r.restrictedEmployeeId, "flagged");
+    assert.equal(r.backupEmployeeId, "sup-1");
+    assert.equal(r.escalateToAdmin, false);
+  });
+
+  it("sin supervisor, prioriza al compañero de mayor trust level", () => {
+    const r = resolveChemicalReassignment(
+      [
+        { employeeId: "flagged", role: "cleaner", trustLevel: "standard" },
+        { employeeId: "cleaner-obs", role: "cleaner", trustLevel: "observation" },
+        { employeeId: "cleaner-elite", role: "cleaner", trustLevel: "elite" },
+      ],
+      "flagged"
+    );
+    assert.equal(r.backupEmployeeId, "cleaner-elite");
+    assert.equal(r.escalateToAdmin, false);
+  });
+
+  it("sin ningún compañero en la orden, escala al admin (fallback pre-aprobado, no un caso sin resolver)", () => {
+    const r = resolveChemicalReassignment(
+      [{ employeeId: "flagged", role: "cleaner", trustLevel: "standard" }],
+      "flagged"
+    );
+    assert.equal(r.backupEmployeeId, null);
+    assert.equal(r.escalateToAdmin, true);
   });
 });
 
