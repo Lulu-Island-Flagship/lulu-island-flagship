@@ -1,0 +1,306 @@
+/**
+ * v8.3 E6 — Motor de despacho de comunicaciones (Sesión H).
+ *
+ * El catálogo de eventos + plantillas (migración 045/057) y el árbitro de
+ * throttle (renderTemplate/arbitrateThrottle en src/lib/communications.ts)
+ * ya existían pero ningún punto real del sistema los invocaba. Este módulo
+ * es el punto único de conexión: dado un event_key + destinatario + idioma
+ * + variables, (1) busca la plantilla vigente, (2) la renderiza, (3) la
+ * pasa por arbitrateThrottle, (4) si gana el arbitraje, envía por el canal
+ * default del evento (hoy solo SMS tiene adaptador real, src/lib/sms.ts) y
+ * (5) siempre deja rastro en communication_log (timeline de la orden).
+ *
+ * Diseño: `decideDispatch` es pura y testeable sin Supabase — concentra la
+ * lógica de negocio (incluida la garantía de que arbitrateThrottle está
+ * realmente en el camino). `dispatchCommunication` es el orquestador async
+ * que hace I/O y llama a `decideDispatch`.
+ */
+import {
+  renderTemplate,
+  arbitrateThrottle,
+  MissingVariableError,
+  type ProposedMessage,
+} from "./communications";
+import { sendSms } from "./sms";
+import { getVancouverTodayString, getVancouverOffset } from "./date-utils";
+
+export interface CommunicationEventRow {
+  event_key: string;
+  category: "transactional" | "marketing";
+  priority: "urgent" | "normal";
+  default_channel: "sms" | "email" | "whatsapp" | "call";
+  is_active: boolean;
+}
+
+export interface CommunicationTemplateRow {
+  body: string;
+  language: string;
+}
+
+export interface DecideDispatchInput {
+  event: CommunicationEventRow;
+  template: CommunicationTemplateRow;
+  vars: Record<string, string | number>;
+  userId: string;
+  eventKey: string;
+  /** ¿este userId ya recibió un mensaje de marketing 'sent' esta semana ISO (Vancouver)? */
+  marketingSentThisWeek: boolean;
+  marketingWeight?: number;
+}
+
+export type DispatchDecision =
+  | { action: "send"; renderedBody: string; channel: CommunicationEventRow["default_channel"] }
+  | { action: "postpone"; reason: string }
+  | { action: "failed"; reason: string };
+
+/**
+ * Lógica pura: decide si un mensaje se envía, se pospone o falla. Reutiliza
+ * arbitrateThrottle exactamente como está testeado en communications.test.ts
+ * — no reimplementa la regla "un cliente nunca recibe trigger físico y
+ * campaña la misma semana" (M13 F13.3 / D.4 E6).
+ */
+export function decideDispatch(input: DecideDispatchInput): DispatchDecision {
+  if (!input.event.is_active) {
+    return { action: "failed", reason: `Evento '${input.event.event_key}' está desactivado (feature flag / is_active=false)` };
+  }
+
+  let renderedBody: string;
+  try {
+    renderedBody = renderTemplate(input.template.body, input.vars);
+  } catch (e) {
+    if (e instanceof MissingVariableError) {
+      return { action: "failed", reason: e.message };
+    }
+    throw e;
+  }
+
+  const proposed: ProposedMessage = {
+    id: `${input.userId}:${input.eventKey}`,
+    userId: input.userId,
+    eventKey: input.eventKey,
+    category: input.event.category,
+    priority: input.event.priority,
+    marketingWeight: input.marketingWeight,
+  };
+
+  const marketingSentThisWeek = new Set<string>(
+    input.marketingSentThisWeek ? [input.userId] : []
+  );
+
+  const { send, postponed } = arbitrateThrottle([proposed], marketingSentThisWeek);
+
+  if (send.length === 1) {
+    return { action: "send", renderedBody, channel: input.event.default_channel };
+  }
+
+  return {
+    action: "postpone",
+    reason: postponed[0]?.reason ?? "Pospuesto por arbitraje de throttle (arbitrateThrottle)",
+  };
+}
+
+/** Lunes 00:00 hora Vancouver de la semana ISO actual, como ISO string UTC. */
+export function vancouverWeekStartIso(referenceDateStr?: string): string {
+  const todayStr = referenceDateStr ?? getVancouverTodayString();
+  const offset = getVancouverOffset(todayStr);
+  const today = new Date(`${todayStr}T00:00:00${offset}`);
+  const isoDay = today.getUTCDay() === 0 ? 7 : today.getUTCDay(); // 1=lunes ... 7=domingo
+  const monday = new Date(today);
+  monday.setUTCDate(monday.getUTCDate() - (isoDay - 1));
+  return monday.toISOString();
+}
+
+export interface DispatchCommunicationParams {
+  eventKey: string;
+  userId: string;
+  orderId?: string | null;
+  language: "en" | "es" | "zh";
+  vars: Record<string, string | number>;
+  marketingWeight?: number;
+}
+
+export type DispatchCommunicationStatus =
+  | "sent"
+  | "queued"
+  | "postponed"
+  | "failed"
+  | "skipped_no_event"
+  | "skipped_no_template";
+
+export interface DispatchCommunicationResult {
+  status: DispatchCommunicationStatus;
+  detail?: string;
+}
+
+/**
+ * Orquestador con I/O. Nunca lanza — cada estado (incluyendo errores) se
+ * refleja en communication_log para que el timeline de la orden (E6.3) sea
+ * completo, y para que el caller (rutas de API) pueda seguir su flujo
+ * principal sin que un fallo de comunicaciones tumbe una reserva o un cierre
+ * de servicio ya válidos.
+ */
+export async function dispatchCommunication(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  params: DispatchCommunicationParams
+): Promise<DispatchCommunicationResult> {
+  try {
+    const { data: event } = await supabase
+      .from("communication_events")
+      .select("event_key, category, priority, default_channel, is_active")
+      .eq("event_key", params.eventKey)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (!event) {
+      return { status: "skipped_no_event", detail: `Evento '${params.eventKey}' no está en el catálogo (communication_events)` };
+    }
+
+    let template: CommunicationTemplateRow | null = null;
+    const { data: templateInLanguage } = await supabase
+      .from("communication_templates")
+      .select("body, language")
+      .eq("event_key", params.eventKey)
+      .eq("language", params.language)
+      .eq("is_current", true)
+      .is("deleted_at", null)
+      .maybeSingle();
+    template = templateInLanguage ?? null;
+
+    if (!template && params.language !== "en") {
+      const { data: fallback } = await supabase
+        .from("communication_templates")
+        .select("body, language")
+        .eq("event_key", params.eventKey)
+        .eq("language", "en")
+        .eq("is_current", true)
+        .is("deleted_at", null)
+        .maybeSingle();
+      template = fallback ?? null;
+    }
+
+    if (!template) {
+      return { status: "skipped_no_template", detail: `Sin plantilla vigente para '${params.eventKey}' (ni en ${params.language} ni en en)` };
+    }
+
+    let marketingSentThisWeek = false;
+    if (event.category === "marketing") {
+      const weekStart = vancouverWeekStartIso();
+      const { data: sentThisWeek } = await supabase
+        .from("communication_log")
+        .select("id")
+        .eq("user_id", params.userId)
+        .eq("category", "marketing")
+        .eq("status", "sent")
+        .gte("created_at", weekStart)
+        .limit(1);
+      marketingSentThisWeek = !!(sentThisWeek && sentThisWeek.length > 0);
+    }
+
+    const decision = decideDispatch({
+      event,
+      template,
+      vars: params.vars,
+      userId: params.userId,
+      eventKey: params.eventKey,
+      marketingSentThisWeek,
+      marketingWeight: params.marketingWeight,
+    });
+
+    if (decision.action === "postpone") {
+      await supabase.from("communication_log").insert({
+        order_id: params.orderId ?? null,
+        user_id: params.userId,
+        event_key: params.eventKey,
+        category: event.category,
+        channel: event.default_channel,
+        language: params.language,
+        body_rendered: "",
+        status: "postponed",
+        postponed_reason: decision.reason,
+      });
+      return { status: "postponed", detail: decision.reason };
+    }
+
+    if (decision.action === "failed") {
+      await supabase.from("communication_log").insert({
+        order_id: params.orderId ?? null,
+        user_id: params.userId,
+        event_key: params.eventKey,
+        category: event.category,
+        channel: event.default_channel,
+        language: params.language,
+        body_rendered: "",
+        status: "failed",
+        postponed_reason: decision.reason,
+      });
+      return { status: "failed", detail: decision.reason };
+    }
+
+    // decision.action === "send"
+    if (decision.channel !== "sms") {
+      // Solo SMS tiene adaptador real hoy (E2, src/lib/sms.ts). Email/WhatsApp/
+      // llamada quedan explícitamente pendientes — se registran como 'queued',
+      // nunca se fingen enviados.
+      await supabase.from("communication_log").insert({
+        order_id: params.orderId ?? null,
+        user_id: params.userId,
+        event_key: params.eventKey,
+        category: event.category,
+        channel: decision.channel,
+        language: params.language,
+        body_rendered: decision.renderedBody,
+        status: "queued",
+        postponed_reason: `Canal '${decision.channel}' sin adaptador real todavía (TODO E6)`,
+      });
+      return { status: "queued", detail: `Canal '${decision.channel}' pendiente de adaptador` };
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("phone")
+      .eq("id", params.userId)
+      .maybeSingle();
+
+    if (!profile?.phone) {
+      await supabase.from("communication_log").insert({
+        order_id: params.orderId ?? null,
+        user_id: params.userId,
+        event_key: params.eventKey,
+        category: event.category,
+        channel: "sms",
+        language: params.language,
+        body_rendered: decision.renderedBody,
+        status: "queued",
+        postponed_reason: "Cliente sin teléfono registrado",
+      });
+      return { status: "queued", detail: "Cliente sin teléfono registrado" };
+    }
+
+    const smsResult = await sendSms({ phoneNumber: profile.phone, body: decision.renderedBody });
+    const logStatus: "sent" | "failed" | "queued" =
+      smsResult.status === "sent" ? "sent" : smsResult.status === "failed" ? "failed" : "queued";
+
+    await supabase.from("communication_log").insert({
+      order_id: params.orderId ?? null,
+      user_id: params.userId,
+      event_key: params.eventKey,
+      category: event.category,
+      channel: "sms",
+      language: params.language,
+      body_rendered: decision.renderedBody,
+      status: logStatus,
+      postponed_reason:
+        smsResult.status === "not_configured" ? "Proveedor SMS aún no configurado (TODO E2/E6)" : null,
+      sent_at: logStatus === "sent" ? new Date().toISOString() : null,
+    });
+
+    return { status: logStatus };
+  } catch (err) {
+    // Nunca dejamos que un fallo de comunicaciones rompa el flujo principal
+    // (reserva, cierre de servicio, resolución de disputa) que ya es válido.
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[dispatchCommunication] Error despachando '${params.eventKey}':`, message);
+    return { status: "failed", detail: message };
+  }
+}
