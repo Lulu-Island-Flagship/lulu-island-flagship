@@ -7,16 +7,34 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  Lock,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { ChecklistZoneProgress } from "@/types";
+import {
+  getChemicalCode,
+  isZoneUnlocked,
+  applyConfirmation,
+} from "@/lib/chemical-lockout";
 
 interface ChecklistCierreProps {
   orderId: string;
   serviceSubtype: string;
+  /**
+   * Candado químico (E4, B.2.8): zonas cuyo color aún no fue confirmado
+   * explícitamente no se pueden tocar. Si no se pasan estas props, el
+   * candado queda desactivado (compatibilidad hacia atrás).
+   */
+  confirmedColors?: ReadonlySet<string>;
+  onConfirmedColorsChange?: (next: Set<string>) => void;
 }
 
-export function ChecklistCierre({ orderId, serviceSubtype }: ChecklistCierreProps) {
+export function ChecklistCierre({
+  orderId,
+  serviceSubtype,
+  confirmedColors,
+  onConfirmedColorsChange,
+}: ChecklistCierreProps) {
   const [zones, setZones] = useState<ChecklistZoneProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedZones, setExpandedZones] = useState<Set<string>>(new Set());
@@ -299,6 +317,8 @@ export function ChecklistCierre({ orderId, serviceSubtype }: ChecklistCierreProp
         {zones.map((zone) => {
           const isExpanded = expandedZones.has(zone.zone);
           const zoneColorClass = getColorClass(zone.zoneColor);
+          const lockoutActive = !!confirmedColors && !!onConfirmedColorsChange;
+          const zoneUnlocked = !lockoutActive || isZoneUnlocked(zone.zoneColor, confirmedColors!);
 
           return (
             <div key={zone.zone} className="bg-white rounded-lg border overflow-hidden">
@@ -315,6 +335,7 @@ export function ChecklistCierre({ orderId, serviceSubtype }: ChecklistCierreProp
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
+                  {!zoneUnlocked && <Lock className="w-4 h-4" />}
                   {zone.completedItems === zone.totalItems && (
                     <Check className="w-4 h-4" />
                   )}
@@ -326,8 +347,40 @@ export function ChecklistCierre({ orderId, serviceSubtype }: ChecklistCierreProp
                 </div>
               </button>
 
+              {/* Candado químico: la zona no se puede tocar sin confirmar el
+                  producto primero (B.2.8 — color + ícono + texto, nunca solo color). */}
+              {isExpanded && !zoneUnlocked && (() => {
+                const code = getChemicalCode(zone.zoneColor);
+                if (!code) return null;
+                return (
+                  <div className="p-3 bg-amber-50 border-t border-amber-200 flex items-center gap-3">
+                    <div className="text-2xl">{code.icon}</div>
+                    <div className="flex-1 min-w-0 text-xs text-amber-800">
+                      <p className="font-semibold">Confirm the chemical before starting this zone</p>
+                      <p>{code.textEn} — {code.product}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const result = applyConfirmation(confirmedColors!, {
+                          targetColor: code.color,
+                          selectedColor: code.color,
+                          selectedIcon: code.icon,
+                          selectedText: code.textEn,
+                        });
+                        if (result.ok) onConfirmedColorsChange!(result.confirmedColors);
+                      }}
+                      className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold bg-white border border-amber-400 text-amber-800 rounded-lg px-3 py-2 hover:bg-amber-100"
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                      Confirm & unlock
+                    </button>
+                  </div>
+                );
+              })()}
+
               {/* Zone items */}
-              {isExpanded && (
+              {isExpanded && zoneUnlocked && (
                 <div className="p-3 space-y-2">
                   {zone.items.map((item) => (
                     <div
