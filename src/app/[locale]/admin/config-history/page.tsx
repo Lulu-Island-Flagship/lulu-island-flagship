@@ -6,7 +6,8 @@
  * Solo owner_admin (la API lo exige).
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Loader2, Undo2, History } from "lucide-react";
 
 interface Snapshot {
@@ -28,11 +29,21 @@ function diffKeys(before: Record<string, unknown>, after: Record<string, unknown
 }
 
 export default function ConfigHistoryPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20 text-brand-navy"><Loader2 className="h-6 w-6 animate-spin" /></div>}>
+      <ConfigHistoryContent />
+    </Suspense>
+  );
+}
+
+function ConfigHistoryContent() {
+  const searchParams = useSearchParams();
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [undoing, setUndoing] = useState<string | null>(null);
-  const [tableFilter, setTableFilter] = useState("");
+  // v8.3 E6 — permite llegar pre-filtrado desde /admin/comunicaciones (?table=...)
+  const [tableFilter, setTableFilter] = useState(() => searchParams?.get("table") ?? "");
 
   useEffect(() => {
     load();
