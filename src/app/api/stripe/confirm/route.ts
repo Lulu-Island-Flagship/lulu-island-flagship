@@ -8,6 +8,7 @@ import {
   getVancouverTodayString,
 } from "@/lib/date-utils";
 import { verifyPayPalTransaction } from "@/lib/paypal";
+import { dispatchCommunication } from "@/lib/send-communication";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
     // Verify quote exists and belongs to user
     const { data: quoteRow, error: quoteError } = await supabase
       .from("quotes")
-      .select("id, status, service_subtype, service_type, square_feet, zone, price_frozen_until, total, hold_amount, address_lat, address_lng, admin_review_required, user_id, pipa_alt_requires_audit, purchase_order")
+      .select("id, status, service_subtype, service_type, square_feet, zone, price_frozen_until, total, hold_amount, address_lat, address_lng, admin_review_required, user_id, pipa_alt_requires_audit, purchase_order, client_property_id, requires_field_auditor, property_risk_tier")
       .eq("id", quoteId)
       .eq("user_id", user.id)
       .single();
@@ -156,7 +157,7 @@ export async function POST(request: NextRequest) {
 
     const { data: clientProfile } = await supabase
       .from("client_profiles")
-      .select("account_type, services_count")
+      .select("account_type, services_count, preferred_languages")
       .eq("user_id", quoteRow.user_id)
       .single();
 
@@ -366,6 +367,9 @@ export async function POST(request: NextRequest) {
         address_lng: quoteRow.address_lng ?? null,
         pipa_alt_requires_audit: quoteRow.pipa_alt_requires_audit ?? false,
         purchase_order: quoteRow.purchase_order ?? null,
+        client_property_id: quoteRow.client_property_id ?? null,
+        requires_field_auditor: quoteRow.requires_field_auditor ?? false,
+        property_risk_tier: quoteRow.property_risk_tier ?? "standard",
       })
       .select()
       .single();
@@ -392,6 +396,39 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq("id", slotRow.id);
+
+    // E6 Sesión H — conecta el catálogo de plantillas (migración 045/057,
+    // hasta ahora sin ningún disparador real) al primer evento del ciclo de
+    // vida de la orden. Un fallo aquí nunca debe invalidar una reserva ya
+    // creada y pagada (SetupIntent) — por eso dispatchCommunication nunca
+    // lanza y el resultado no se espera con bloqueo del response.
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const language = ((clientProfile?.preferred_languages as string[] | undefined)?.[0] ||
+        "en") as "en" | "es" | "zh";
+
+      await dispatchCommunication(supabase, {
+        eventKey: "order_confirmed",
+        userId: user.id,
+        orderId: order.id,
+        language,
+        vars: {
+          client_name: profile?.full_name || "cliente",
+          service_type: quoteRow.service_type,
+          service_date: serviceDate,
+          time_window: serviceTime,
+          total: quoteRow.total,
+          company_name: "Lulu Island",
+        },
+      });
+    } catch (commErr) {
+      console.error("Error disparando order_confirmed:", commErr);
+    }
 
     return NextResponse.json(
       {

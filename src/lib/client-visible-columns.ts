@@ -7,9 +7,12 @@
  *
  * Columnas EXCLUIDAS a propósito:
  *   quotes: client_score, estimated_labor_cost, estimated_margin_contribution,
- *           admin_review_reason/notas/aprobadores, consent_ip, pipa_alt_requires_audit
+ *           admin_review_reason/notas/aprobadores, consent_ip, pipa_alt_requires_audit,
+ *           client_property_id, requires_field_auditor, property_risk_tier (B.2.3:
+ *           el cliente nunca ve el score de riesgo de su dirección)
  *   orders: admin_review_*, stripe_* (ids técnicos), *_attempts, *_last_error,
- *           paypal_refund_*, qbo_export_status
+ *           paypal_refund_*, qbo_export_status, client_property_id,
+ *           requires_field_auditor, property_risk_tier
  *
  * NOTA (pendiente, sesión supervisada): el blindaje definitivo es a nivel de
  * base de datos (GRANT por columna). Requiere probar en vivo los flujos de

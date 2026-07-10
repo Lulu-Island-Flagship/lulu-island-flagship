@@ -79,3 +79,72 @@ export function evaluatePropertyRisk(flags: RiskFlagType[]): RiskAssessment {
     notes,
   };
 }
+
+/**
+ * v8.3 E7 — Consecuencia de la evaluación de riesgo AL RESERVAR (conecta
+ * evaluatePropertyRisk / property_risk_assessments al flujo de
+ * cotización/reserva, que hasta ahora nunca las leía).
+ *
+ * Umbrales (spec E7 punto 7 + criterio de aceptación):
+ *  - hardBlocked (moho >1m²): la dirección NO es servicio Lulu. Bloqueo
+ *    total, sin importar el tier.
+ *  - pre_inspection_required (5+ flags): "exige inspección previa antes de
+ *    permitir reserva" — se reutiliza el mecanismo existente de
+ *    admin_review_required (igual que B2B / piso de margen), que ya bloquea
+ *    la confirmación automática en /api/stripe/confirm.
+ *  - auditor_required (3-4 flags): NO bloquea la reserva — "auditor
+ *    obligatorio" es un requisito de dotación en el servicio (debe asistir
+ *    un auditor de campo), no una condición previa a aceptar la reserva.
+ *    Se propaga como `requiresFieldAuditor` para que despacho/admin lo vean.
+ *  - standard (0-2 flags) o sin evaluación registrada: sin consecuencia.
+ */
+export interface BookingRiskConsequence {
+  allowed: boolean;
+  blockReason?: string;
+  requiresAdminReview: boolean;
+  adminReviewReason?: string;
+  requiresFieldAuditor: boolean;
+}
+
+export function evaluateBookingRiskConsequence(
+  assessment: Pick<RiskAssessment, "tier" | "hardBlocked"> | null
+): BookingRiskConsequence {
+  if (!assessment) {
+    return { allowed: true, requiresAdminReview: false, requiresFieldAuditor: false };
+  }
+
+  if (assessment.hardBlocked) {
+    return {
+      allowed: false,
+      blockReason:
+        "Esta dirección tiene moho >1m² registrado: no es un servicio Lulu. Referir a especialista en remediación (v8.3 E7).",
+      requiresAdminReview: false,
+      requiresFieldAuditor: false,
+    };
+  }
+
+  if (assessment.tier === "pre_inspection_required") {
+    return {
+      allowed: true,
+      requiresAdminReview: true,
+      adminReviewReason:
+        "Dirección con 5+ flags de riesgo acumulados: requiere inspección previa antes de confirmar la reserva (v8.3 E7).",
+      requiresFieldAuditor: false,
+    };
+  }
+
+  if (assessment.tier === "auditor_required") {
+    return {
+      allowed: true,
+      requiresAdminReview: false,
+      requiresFieldAuditor: true,
+    };
+  }
+
+  return { allowed: true, requiresAdminReview: false, requiresFieldAuditor: false };
+}
+
+/** Normaliza una dirección para hacer match contra client_properties (trim + espacios + minúsculas). */
+export function normalizeAddressForMatch(address: string): string {
+  return address.trim().toLowerCase().replace(/\s+/g, " ");
+}

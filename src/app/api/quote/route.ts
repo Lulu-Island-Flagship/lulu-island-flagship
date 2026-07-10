@@ -18,6 +18,11 @@ import { geocodeAddress } from "@/lib/geocode";
 import { calculateClientScore } from "@/lib/scoring";
 import { QUOTE_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
 import {
+  evaluateBookingRiskConsequence,
+  normalizeAddressForMatch,
+  type RiskTier,
+} from "@/lib/property-risk";
+import {
   ACTIVE_ZONES,
   SERVICE_CATEGORIES,
   SERVICE_SUBTYPES,
@@ -306,6 +311,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // v8.3 E7: conectar el riesgo de propiedad (property_risk_assessments) al
+    // momento de cotizar/reservar. Antes de esto, evaluatePropertyRisk se
+    // calculaba y se guardaba pero jamás se consultaba aquí.
+    const propertyRisk = await findPropertyRiskForAddress(supabase, clientProfile.id, address);
+    const riskConsequence = evaluateBookingRiskConsequence(
+      propertyRisk ? { tier: propertyRisk.tier, hardBlocked: propertyRisk.hardBlocked } : null
+    );
+
+    if (!riskConsequence.allowed) {
+      return NextResponse.json(
+        { error: riskConsequence.blockReason, code: "PROPERTY_RISK_BLOCKED" },
+        { status: 403 }
+      );
+    }
+
     let accountType = clientProfile.account_type || "b2c";
 
     // Bifurcación B2B vs B2C: servicios comerciales cambian el perfil a B2B
@@ -438,6 +458,10 @@ export async function POST(request: NextRequest) {
         ).toFixed(0)}% después de reglas`
       );
     }
+    if (riskConsequence.requiresAdminReview) {
+      adminReviewRequired = true;
+      adminReviewReasons.push(riskConsequence.adminReviewReason!);
+    }
     if (accountType === "b2b" || accountType === "government") {
       adminReviewRequired = true;
       adminReviewReasons.push(
@@ -498,6 +522,9 @@ export async function POST(request: NextRequest) {
         consent_photo_marketing: consentPhotoMarketing,
         pipa_alt_requires_audit: consentPipa !== true,
         purchase_order: purchaseOrder || null,
+        client_property_id: propertyRisk?.propertyId ?? null,
+        requires_field_auditor: riskConsequence.requiresFieldAuditor,
+        property_risk_tier: propertyRisk?.tier ?? "standard",
         tc_version: CONSENT_VERSIONS.tc,
         pipa_version: CONSENT_VERSIONS.pipa,
         marketing_version: CONSENT_VERSIONS.marketing,
@@ -567,6 +594,56 @@ export async function GET(_request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * v8.3 E7: busca la propiedad del cliente que corresponde a la dirección
+ * cotizada (match por client_profile_id + dirección normalizada) y devuelve
+ * su evaluación de riesgo MÁS RECIENTE (property_risk_assessments), si
+ * existe. Direcciones nuevas o sin evaluación registrada devuelven null —
+ * sin evidencia de riesgo, no hay consecuencia (regla conservadora: nunca
+ * bloquear por defecto).
+ */
+async function findPropertyRiskForAddress(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  clientProfileId: string,
+  address: string
+): Promise<{ propertyId: string; tier: RiskTier; hardBlocked: boolean } | null> {
+  if (!clientProfileId) return null;
+
+  const normalizedTarget = normalizeAddressForMatch(address);
+
+  const { data: properties, error: propertiesError } = await supabase
+    .from("client_properties")
+    .select("id, address")
+    .eq("client_profile_id", clientProfileId)
+    .is("deleted_at", null);
+
+  if (propertiesError || !properties || properties.length === 0) {
+    return null;
+  }
+
+  const match = properties.find(
+    (p) => normalizeAddressForMatch(String(p.address)) === normalizedTarget
+  );
+  if (!match) return null;
+
+  const { data: assessment, error: assessmentError } = await supabase
+    .from("property_risk_assessments")
+    .select("tier, hard_blocked")
+    .eq("client_property_id", match.id)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (assessmentError || !assessment) return null;
+
+  return {
+    propertyId: match.id as string,
+    tier: assessment.tier as RiskTier,
+    hardBlocked: assessment.hard_blocked as boolean,
+  };
 }
 
 async function getOrCreateClientProfile(supabase: ReturnType<typeof getSupabaseClient>, userId: string) {
