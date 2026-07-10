@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { assertStripe } from "@/lib/stripe";
 import { getVancouverTodayString } from "@/lib/date-utils";
+import { calculateReserveSplit } from "@/lib/cash-reserve";
 
 /**
  * POST /api/cron/batch-capture
@@ -110,12 +111,14 @@ export async function POST(request: NextRequest) {
   const runId = runRow?.id;
 
   // Feature flags
-  const [{ data: chargebackFlag }, { data: qboFlag }] = await Promise.all([
+  const [{ data: chargebackFlag }, { data: qboFlag }, { data: cashReserveFlag }] = await Promise.all([
     supabase.from("feature_flags").select("activo").eq("nombre", "chargeback_reserve_enabled").single(),
     supabase.from("feature_flags").select("activo").eq("nombre", "qbo_export_enabled").single(),
+    supabase.from("feature_flags").select("activo").eq("nombre", "cash_reserve_tracking_enabled").single(),
   ]);
   const chargebackEnabled = !!chargebackFlag?.activo;
   const qboEnabled = !!qboFlag?.activo;
+  const cashReserveEnabled = !!cashReserveFlag?.activo;
 
   try {
     const { data: orders, error } = await supabase
@@ -322,6 +325,24 @@ export async function POST(request: NextRequest) {
             released_amount: 0,
             status: "held",
             release_date: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+          });
+        }
+
+        // Reserva de impuestos 12% GST+PST (tracking virtual, v8.3 E2.9).
+        // TODO: hoy no hay dato de propina/no-gravable separado a este
+        // nivel; se trata el monto capturado como base gravable completa
+        // hasta que el desglose de propina exista aguas arriba.
+        if (cashReserveEnabled && amountCharged > 0) {
+          const split = calculateReserveSplit({ grossAmountCents: amountCharged * 100 });
+          await supabase.from("cash_tax_reserve_ledger").insert({
+            order_id: order.id,
+            gross_amount_cents: split.grossAmountCents,
+            tip_amount_cents: split.tipAmountCents,
+            non_taxable_amount_cents: split.nonTaxableAmountCents,
+            taxable_base_cents: split.taxableBaseCents,
+            tax_reserve_cents: split.taxReserveCents,
+            operational_amount_cents: split.operationalAmountCents,
+            reserve_rate: split.reserveRate,
           });
         }
 
