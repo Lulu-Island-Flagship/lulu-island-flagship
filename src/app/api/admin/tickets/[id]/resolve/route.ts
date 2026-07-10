@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { dispatchCommunication } from "@/lib/send-communication";
 
 // POST /api/admin/tickets/[id]/resolve — resolver ticket
 export async function POST(
@@ -27,7 +28,7 @@ export async function POST(
     // Verificar que el ticket esté abierto o en revisión antes de resolver
     const { data: existingTicket, error: fetchError } = await auth.supabase
       .from("tickets_disputas")
-      .select("status")
+      .select("status, order_id")
       .eq("id", id)
       .single();
 
@@ -71,6 +72,49 @@ export async function POST(
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // E6 Sesión H — aviso de garantía/disputa al cliente. Solo cuando el
+    // ticket queda 'resolved' (no en 'escalated', que sigue abierto para el
+    // cliente) y tiene una orden asociada. Un fallo de comunicación nunca
+    // debe revertir la resolución ya guardada del ticket.
+    if (status === "resolved" && existingTicket.order_id) {
+      try {
+        const { data: order } = await auth.supabase
+          .from("orders")
+          .select("id, user_id, service_date")
+          .eq("id", existingTicket.order_id)
+          .single();
+
+        if (order?.user_id) {
+          const { data: profile } = await auth.supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("id", order.user_id)
+            .maybeSingle();
+          const { data: clientProfile } = await auth.supabase
+            .from("client_profiles")
+            .select("preferred_languages")
+            .eq("user_id", order.user_id)
+            .maybeSingle();
+          const language = ((clientProfile?.preferred_languages as string[] | undefined)?.[0] ||
+            "en") as "en" | "es" | "zh";
+
+          await dispatchCommunication(auth.supabase, {
+            eventKey: "dispute_resolved",
+            userId: order.user_id,
+            orderId: order.id,
+            language,
+            vars: {
+              client_name: profile?.full_name || "cliente",
+              service_date: order.service_date,
+              resolution_summary: resolutionNote,
+            },
+          });
+        }
+      } catch (commErr) {
+        console.error("Error disparando dispute_resolved:", commErr);
+      }
     }
 
     return NextResponse.json({ ticket: data }, { status: 200 });
