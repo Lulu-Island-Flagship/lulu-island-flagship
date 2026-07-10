@@ -440,6 +440,10 @@ export interface ChecklistZoneProgress {
     isCompleted: boolean;
     photoUrl?: string;
     notes?: string;
+    /** v8.3 E4 (D.7): true en ítems de estufa/campana — sujetos al timer de superficie caliente. */
+    hotSurface?: boolean;
+    /** ISO timestamp de cuándo el empleado inició el timer de 10 min; null/undefined = no iniciado. */
+    hotSurfaceTimerStartedAt?: string | null;
   }[];
 }
 

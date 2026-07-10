@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronUp,
   Lock,
+  Timer,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { ChecklistZoneProgress } from "@/types";
@@ -16,6 +17,7 @@ import {
   isZoneUnlocked,
   applyConfirmation,
 } from "@/lib/chemical-lockout";
+import { isHotSurfaceItemUnlocked, minutesRemaining } from "@/lib/kitchen-timer";
 
 interface ChecklistCierreProps {
   orderId: string;
@@ -98,6 +100,17 @@ export function ChecklistCierre({
   const handleToggleItem = async (zone: ChecklistZoneProgress, itemId: string, itemLabel: string) => {
     const item = zone.items.find((i) => i.itemId === itemId);
     if (!item) return;
+
+    // v8.3 E4 (D.7): candado real — un ítem de superficie caliente no se
+    // puede marcar completado antes de que venza el timer de 10 min. El
+    // servidor lo vuelve a rechazar igual (409) si esto se evade en el cliente.
+    if (
+      item.hotSurface &&
+      !item.isCompleted &&
+      !isHotSurfaceItemUnlocked(item.hotSurfaceTimerStartedAt ?? null, new Date().toISOString())
+    ) {
+      return;
+    }
 
     const newCompleted = !item.isCompleted;
 
@@ -188,6 +201,45 @@ export function ChecklistCierre({
         });
         return prev;
       });
+    }
+  };
+
+  /**
+   * v8.3 E4 (D.7): inicia el timer de 10 min de superficie caliente para un
+   * ítem de estufa/campana. No marca el ítem como completado — solo registra
+   * `hotSurfaceTimerStartedAt`. El checkbox permanece bloqueado hasta que
+   * isHotSurfaceItemUnlocked() sea true (servidor lo vuelve a validar).
+   */
+  const handleStartHotSurfaceTimer = async (zone: ChecklistZoneProgress, itemId: string, itemLabel: string) => {
+    const startedAt = new Date().toISOString();
+    setZones((prev) =>
+      prev.map((z) =>
+        z.zone !== zone.zone
+          ? z
+          : {
+              ...z,
+              items: z.items.map((i) =>
+                i.itemId === itemId ? { ...i, hotSurfaceTimerStartedAt: startedAt } : i
+              ),
+            }
+      )
+    );
+    try {
+      await fetch("/api/empleado/checklist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          orderId,
+          checklistId: zone.checklistId,
+          itemId,
+          itemLabel,
+          isCompleted: false,
+          startHotSurfaceTimer: true,
+        }),
+      });
+    } catch (e) {
+      console.error("Start hot surface timer error:", e);
     }
   };
 
@@ -382,22 +434,38 @@ export function ChecklistCierre({
               {/* Zone items */}
               {isExpanded && zoneUnlocked && (
                 <div className="p-3 space-y-2">
-                  {zone.items.map((item) => (
+                  {zone.items.map((item) => {
+                    // v8.3 E4 (D.7): superficie caliente — estufa/campana con
+                    // azul deben esperar 10 min de timer antes de completarse.
+                    const hotSurfaceLocked =
+                      !!item.hotSurface &&
+                      !item.isCompleted &&
+                      !isHotSurfaceItemUnlocked(item.hotSurfaceTimerStartedAt ?? null, new Date().toISOString());
+                    const hotSurfaceTimerRunning = !!item.hotSurface && !!item.hotSurfaceTimerStartedAt;
+                    const remaining = item.hotSurface
+                      ? minutesRemaining(item.hotSurfaceTimerStartedAt ?? null, new Date().toISOString())
+                      : 0;
+
+                    return (
                     <div
                       key={item.itemId}
                       className={`flex items-start gap-3 p-2 rounded-lg transition-colors ${
-                        item.isCompleted ? "bg-green-50" : "bg-gray-50"
+                        item.isCompleted ? "bg-green-50" : hotSurfaceLocked ? "bg-amber-50" : "bg-gray-50"
                       }`}
                     >
                       <button
                         onClick={() => handleToggleItem(zone, item.itemId, item.label)}
+                        disabled={hotSurfaceLocked}
                         className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
                           item.isCompleted
                             ? "bg-state-success border-state-success text-white"
+                            : hotSurfaceLocked
+                            ? "border-amber-300 bg-amber-100 cursor-not-allowed"
                             : "border-gray-300 bg-white"
                         }`}
                       >
                         {item.isCompleted && <Check className="w-3.5 h-3.5" />}
+                        {!item.isCompleted && hotSurfaceLocked && <Lock className="w-3 h-3 text-amber-600" />}
                       </button>
 
                       <div className="flex-1 min-w-0">
@@ -409,6 +477,27 @@ export function ChecklistCierre({
                             <span className="text-xs text-red-500 font-medium">*</span>
                           )}
                         </div>
+
+                        {/* Superficie caliente: timer de 10 min (D.7) */}
+                        {hotSurfaceLocked && (
+                          <div className="mt-2 flex items-center gap-2 text-xs text-amber-800">
+                            <Timer className="w-3.5 h-3.5" />
+                            {hotSurfaceTimerRunning ? (
+                              <span>Superficie caliente: espera {remaining} min más antes de completar.</span>
+                            ) : (
+                              <>
+                                <span>Superficie caliente: inicia el temporizador de 10 min.</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartHotSurfaceTimer(zone, item.itemId, item.label)}
+                                  className="flex-shrink-0 font-semibold bg-white border border-amber-400 text-amber-800 rounded-lg px-2 py-1 hover:bg-amber-100"
+                                >
+                                  Start timer
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
 
                         {/* Photo for item */}
                         <div className="mt-2">
@@ -438,7 +527,8 @@ export function ChecklistCierre({
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

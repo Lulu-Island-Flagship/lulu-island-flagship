@@ -5,6 +5,10 @@ import { calculateTeamRequirements, getHHEForRange, type ServiceType } from "@/l
 import { buildTeam, type DispatchCandidate } from "@/lib/dispatch-team";
 import { evaluateWorkday } from "@/lib/workday";
 import { isVehicleInsuranceExpired } from "@/lib/vehicle-insurance";
+import {
+  evaluateDispatchDiscrepancyFallback,
+  type DispatchDiscrepancyReason,
+} from "@/lib/dispatch-fallback";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -93,7 +97,13 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
     .order("service_time", { ascending: true });
 
   if (ordersError) throw ordersError;
-  if (!orders || orders.length === 0) return { proposals: [] as ProposedOrder[], availableTeams: 0, pendingLanguage: [] as string[] };
+  if (!orders || orders.length === 0)
+    return {
+      proposals: [] as ProposedOrder[],
+      availableTeams: 0,
+      pendingLanguage: [] as string[],
+      discrepancies: [] as { orderId: string; reason: DispatchDiscrepancyReason }[],
+    };
 
   const quoteIds = orders.map((o) => o.quote_id);
   const { data: quotes } = await supabase
@@ -151,6 +161,11 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
 
   const proposals: ProposedOrder[] = [];
   const pendingLanguage: string[] = [];
+  // v8.3 E3 (B.2.12): registro estructurado de discrepancias de despacho
+  // (sin líder, sin match de idioma, jornada bloqueada) para poder aplicarles
+  // el fallback de 10 min — pendingLanguage arriba solo guarda texto para
+  // logs, nunca tuvo forma estructurada para un timer.
+  const discrepancies: { orderId: string; reason: DispatchDiscrepancyReason }[] = [];
   const assignedEmployeeIds = new Set<string>();
 
   if (expiredInsuranceEmployeeIds.size > 0) {
@@ -189,6 +204,7 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
       pendingLanguage.push(
         `${order.id}: ${result.pendingReason}${result.warnings.length ? ` (${result.warnings[0]})` : ""}`
       );
+      discrepancies.push({ orderId: order.id, reason: result.pendingReason! });
       continue;
     }
 
@@ -198,6 +214,7 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
     const workday = evaluateWorkday([{ serviceMinutes: perPersonMinutes, transitMinutes: 30 }]);
     if (workday.status === "blocked") {
       pendingLanguage.push(`${order.id}: workday_blocked (${workday.reasons.join("; ")})`);
+      discrepancies.push({ orderId: order.id, reason: "workday_blocked" });
       continue;
     }
 
@@ -221,7 +238,78 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
     });
   }
 
-  return { proposals, availableTeams, pendingLanguage };
+  return { proposals, availableTeams, pendingLanguage, discrepancies };
+}
+
+/**
+ * v8.3 E3 (B.2.12) — Registra las discrepancias de despacho detectadas en la
+ * bandeja unificada (tickets_disputas, ya usada para esto exacto desde la
+ * migración 080 — type='discrepancy' — no se inventa una tabla paralela) y
+ * escala a prioridad alta las que llevan >=10 min abiertas sin respuesta del
+ * admin (evaluateDispatchDiscrepancyFallback, la misma función pura testeada
+ * en tests/lib/dispatch-fallback.test.ts).
+ *
+ * No auto-asigna nada al vencer el timer: ninguna de estas tres
+ * discrepancias tiene una regla pre-aprobada segura que no viole B.2.13
+ * (match de idioma) o el líder obligatorio — "decide con reglas
+ * pre-aprobadas" aquí significa "sube la prioridad y lo deja logueado para
+ * el admin", no "asigna a ciegas".
+ */
+async function recordAndEscalateDispatchDiscrepancies(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  discrepancies: { orderId: string; reason: DispatchDiscrepancyReason }[]
+): Promise<{ recorded: number; escalated: number }> {
+  const nowIso = new Date().toISOString();
+  let recorded = 0;
+
+  for (const d of discrepancies) {
+    const { data: existingTicket } = await supabase
+      .from("tickets_disputas")
+      .select("id")
+      .eq("type", "discrepancy")
+      .in("status", ["open", "escalated"])
+      .contains("context", { order_id: d.orderId, reason: d.reason, source: "dispatch_scheduler" })
+      .maybeSingle();
+
+    if (!existingTicket) {
+      const { error } = await supabase.from("tickets_disputas").insert({
+        order_id: d.orderId,
+        type: "discrepancy",
+        priority: "medium",
+        status: "open",
+        context: { order_id: d.orderId, reason: d.reason, source: "dispatch_scheduler" },
+      });
+      if (!error) recorded += 1;
+    }
+  }
+
+  // Fallback B.2.12: escalar tickets de despacho abiertos que llevan >=10 min.
+  const { data: openTickets } = await supabase
+    .from("tickets_disputas")
+    .select("id, created_at, resolved_at, context")
+    .eq("type", "discrepancy")
+    .eq("status", "open");
+
+  let escalated = 0;
+  for (const t of openTickets || []) {
+    const ctx = (t.context as Record<string, unknown>) || {};
+    if (ctx.source !== "dispatch_scheduler") continue;
+
+    const result = evaluateDispatchDiscrepancyFallback(
+      t.created_at as string,
+      nowIso,
+      (t.resolved_at as string | null) ?? null
+    );
+    if (result.expired) {
+      const { error } = await supabase
+        .from("tickets_disputas")
+        .update({ status: "escalated", priority: "high" })
+        .eq("id", t.id);
+      if (!error) escalated += 1;
+    }
+  }
+
+  return { recorded, escalated };
 }
 
 async function persistAssignments(
@@ -263,31 +351,34 @@ export async function GET(request: NextRequest) {
     let result: Record<string, unknown> = { phase, targetDate };
 
     if (phase === "proposal") {
-      const { proposals, availableTeams, pendingLanguage } = await buildProposals(supabase, targetDate);
+      const { proposals, availableTeams, pendingLanguage, discrepancies } = await buildProposals(supabase, targetDate);
+      const fallback = await recordAndEscalateDispatchDiscrepancies(supabase, discrepancies);
       await supabase.from("dispatch_runs").insert({
         run_date: targetDate,
         phase,
         teams_available: availableTeams,
         orders_processed: proposals.length,
-        notes: `Proposed ${proposals.filter((p) => p.proposedEmployeeIds.length > 0).length} orders` + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : ""),
+        notes: `Proposed ${proposals.filter((p) => p.proposedEmployeeIds.length > 0).length} orders` + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : "") + (fallback.escalated ? ` | ESCALATED (B.2.12 10min): ${fallback.escalated}` : ""),
       });
-      result = { ...result, proposals, availableTeams, pendingLanguage };
+      result = { ...result, proposals, availableTeams, pendingLanguage, fallback };
     }
 
     if (phase === "cutoff") {
-      const { proposals, availableTeams, pendingLanguage } = await buildProposals(supabase, targetDate);
+      const { proposals, availableTeams, pendingLanguage, discrepancies } = await buildProposals(supabase, targetDate);
+      const fallback = await recordAndEscalateDispatchDiscrepancies(supabase, discrepancies);
       await supabase.from("dispatch_runs").insert({
         run_date: targetDate,
         phase,
         teams_available: availableTeams,
         orders_processed: proposals.length,
-        notes: `Cutoff validation: ${proposals.filter((p) => p.proposedEmployeeIds.length > 0).length} orders ready` + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : ""),
+        notes: `Cutoff validation: ${proposals.filter((p) => p.proposedEmployeeIds.length > 0).length} orders ready` + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : "") + (fallback.escalated ? ` | ESCALATED (B.2.12 10min): ${fallback.escalated}` : ""),
       });
-      result = { ...result, proposals, availableTeams, pendingLanguage };
+      result = { ...result, proposals, availableTeams, pendingLanguage, fallback };
     }
 
     if (phase === "published") {
-      const { proposals, availableTeams, pendingLanguage } = await buildProposals(supabase, targetDate);
+      const { proposals, availableTeams, pendingLanguage, discrepancies } = await buildProposals(supabase, targetDate);
+      const fallback = await recordAndEscalateDispatchDiscrepancies(supabase, discrepancies);
       // Autopilot: con 6+ equipos disponibles, auto-aprobar
       const autoApproved = availableTeams >= 6;
       const assigned = await persistAssignments(supabase, proposals, autoApproved);
@@ -306,7 +397,8 @@ export async function GET(request: NextRequest) {
     if (phase === "simulation") {
       // Simulación 12:00 PM del día del servicio: detectar gaps y reasignar si es posible
       const today = getVancouverNow().toISOString().split("T")[0];
-      const { proposals, availableTeams, pendingLanguage } = await buildProposals(supabase, today);
+      const { proposals, availableTeams, pendingLanguage, discrepancies } = await buildProposals(supabase, today);
+      const fallback = await recordAndEscalateDispatchDiscrepancies(supabase, discrepancies);
       const unassigned = proposals.filter((p) => p.proposedEmployeeIds.length === 0);
       const assigned = await persistAssignments(supabase, proposals, true);
       await supabase.from("dispatch_runs").insert({
@@ -315,9 +407,9 @@ export async function GET(request: NextRequest) {
         teams_available: availableTeams,
         orders_processed: proposals.length,
         orders_assigned: assigned,
-        notes: `12PM simulation: ${unassigned.length} orders without team` + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : ""),
+        notes: `12PM simulation: ${unassigned.length} orders without team` + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : "") + (fallback.escalated ? ` | ESCALATED (B.2.12 10min): ${fallback.escalated}` : ""),
       });
-      result = { ...result, proposals, availableTeams, assigned, unassignedCount: unassigned.length };
+      result = { ...result, proposals, availableTeams, assigned, unassignedCount: unassigned.length, fallback };
     }
 
     if (phase === "crisis_fallback") {

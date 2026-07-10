@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { isKitchenTimerExpired } from "@/lib/kitchen-timer";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
     const zones = (checklists || []).map((cl) => {
       const items = (cl.items || [])
         .filter((item: { active?: boolean }) => item.active !== false)
-        .map((item: { id: string; label: string; required: boolean }) => {
+        .map((item: { id: string; label: string; required: boolean; hotSurface?: boolean }) => {
           const resp = responseMap.get(item.id);
           return {
             itemId: item.id,
@@ -99,6 +100,10 @@ export async function GET(request: NextRequest) {
             isCompleted: resp?.is_completed || false,
             photoUrl: resp?.photo_url || undefined,
             notes: resp?.notes || undefined,
+            // v8.3 E4 (D.7): timer de superficie caliente — bloquea el ítem
+            // hasta que pasen 10 min desde que el empleado lo inició.
+            hotSurface: item.hotSurface === true,
+            hotSurfaceTimerStartedAt: resp?.hot_surface_timer_started_at || null,
           };
         });
 
@@ -149,7 +154,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { orderId, checklistId, itemId, itemLabel, isCompleted, photoUrl, notes } = body;
+    const { orderId, checklistId, itemId, itemLabel, isCompleted, photoUrl, notes, startHotSurfaceTimer } = body;
 
     if (!orderId || !checklistId || !itemId || !itemLabel) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -186,15 +191,44 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No assignment found for this service" }, { status: 403 });
     }
 
+    // v8.3 E4 (D.7): ¿es un ítem de superficie caliente (estufa/campana)?
+    // Se lee del checklist SOP, no del body — el cliente nunca decide esto.
+    const { data: checklistZone } = await supabase
+      .from("sop_checklists")
+      .select("items")
+      .eq("id", checklistId)
+      .maybeSingle();
+    const itemDef = ((checklistZone?.items as { id: string; hotSurface?: boolean }[]) || []).find(
+      (i) => i.id === itemId
+    );
+    const isHotSurfaceItem = itemDef?.hotSurface === true;
+
     // Verificar si ya existe un registro para este item (con RLS, solo ve los del empleado)
     const { data: existing } = await supabase
       .from("service_checklist_items")
-      .select("id")
+      .select("id, hot_surface_timer_started_at")
       .eq("order_id", orderId)
       .eq("employee_id", employee.id)
       .eq("checklist_id", checklistId)
       .eq("item_id", itemId)
       .maybeSingle();
+
+    const nowIso = new Date().toISOString();
+    const existingTimerStart = existing?.hot_surface_timer_started_at ?? null;
+
+    // Bloqueo real (no solo en UI): si es superficie caliente y se intenta
+    // completar antes de que venzan los 10 min, se rechaza en el servidor.
+    if (isHotSurfaceItem && isCompleted && !isKitchenTimerExpired(existingTimerStart, nowIso)) {
+      return NextResponse.json(
+        { error: "Superficie caliente: espera el temporizador de 10 min antes de marcar este ítem." },
+        { status: 409 }
+      );
+    }
+
+    const hotSurfaceTimerStartedAt =
+      isHotSurfaceItem && startHotSurfaceTimer
+        ? existingTimerStart ?? nowIso // nunca reinicia un timer ya en curso
+        : existingTimerStart;
 
     let result;
     if (existing) {
@@ -203,10 +237,11 @@ export async function POST(request: NextRequest) {
         .from("service_checklist_items")
         .update({
           is_completed: isCompleted,
-          completed_at: isCompleted ? new Date().toISOString() : null,
+          completed_at: isCompleted ? nowIso : null,
           photo_url: photoUrl || null,
           notes: notes || null,
-          updated_at: new Date().toISOString(),
+          hot_surface_timer_started_at: hotSurfaceTimerStartedAt,
+          updated_at: nowIso,
         })
         .eq("id", existing.id)
         .eq("employee_id", employee.id) // Doble verificación: RLS + query explícita
@@ -223,9 +258,10 @@ export async function POST(request: NextRequest) {
           item_id: itemId,
           item_label: itemLabel,
           is_completed: isCompleted,
-          completed_at: isCompleted ? new Date().toISOString() : null,
+          completed_at: isCompleted ? nowIso : null,
           photo_url: photoUrl || null,
           notes: notes || null,
+          hot_surface_timer_started_at: hotSurfaceTimerStartedAt,
         })
         .select()
         .single();

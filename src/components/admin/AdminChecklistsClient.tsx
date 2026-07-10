@@ -35,6 +35,8 @@ interface ChecklistZone {
   zone_icon: string;
   items: ChecklistItem[];
   sort_order: number;
+  /** v8.3 E4 (D.7): peso/dificultad de la zona — usado en el reparto de zonas por operario (zone-reparto.ts). */
+  zone_weight: number;
   is_active: boolean;
   created_at: string;
 }
@@ -84,6 +86,7 @@ export default function AdminChecklistsClient() {
   const [formZoneColor, setFormZoneColor] = useState("red");
   const [formZoneIcon, setFormZoneIcon] = useState("");
   const [formSortOrder, setFormSortOrder] = useState(0);
+  const [formZoneWeight, setFormZoneWeight] = useState(1.0);
   const [formItems, setFormItems] = useState<ChecklistItem[]>(JSON.parse(JSON.stringify(DEFAULT_ITEMS)));
 
   useEffect(() => {
@@ -153,6 +156,7 @@ export default function AdminChecklistsClient() {
     setFormZoneColor("red");
     setFormZoneIcon("");
     setFormSortOrder(0);
+    setFormZoneWeight(1.0);
     setFormItems(JSON.parse(JSON.stringify(DEFAULT_ITEMS)));
     setShowModal(true);
   };
@@ -165,6 +169,7 @@ export default function AdminChecklistsClient() {
     setFormZoneColor(zone.zone_color);
     setFormZoneIcon(zone.zone_icon);
     setFormSortOrder(zone.sort_order);
+    setFormZoneWeight(zone.zone_weight ?? 1.0);
     setFormItems(JSON.parse(JSON.stringify(zone.items || [])));
     setShowModal(true);
   };
@@ -261,6 +266,7 @@ export default function AdminChecklistsClient() {
         zone_icon: formZoneIcon || "📋",
         items: validItems,
         sort_order: Math.max(0, formSortOrder),
+        zone_weight: formZoneWeight > 0 ? formZoneWeight : 1.0,
       };
 
       let res;
@@ -515,7 +521,7 @@ export default function AdminChecklistsClient() {
                           )}
                         </div>
                         <div className="text-xs text-gray-500 mt-0.5">
-                          {activeItems(zone.items).length} items · Order {zone.sort_order}
+                          {activeItems(zone.items).length} items · Order {zone.sort_order} · Weight {zone.zone_weight ?? 1.0}
                         </div>
                         <div className="flex flex-wrap gap-1 mt-2">
                           {activeItems(zone.items).map((item) => (
@@ -729,18 +735,34 @@ export default function AdminChecklistsClient() {
                 </div>
               </div>
 
-              {/* Sort Order */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sort Order
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formSortOrder}
-                  onChange={(e) => setFormSortOrder(Number(e.target.value))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
-                />
+              {/* Sort Order + Zone Weight */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Sort Order
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formSortOrder}
+                    onChange={(e) => setFormSortOrder(Number(e.target.value))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Zone Weight (D.7)
+                  </label>
+                  <input
+                    type="number"
+                    min="0.5"
+                    step="0.5"
+                    value={formZoneWeight}
+                    onChange={(e) => setFormZoneWeight(Number(e.target.value))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Usado en el reparto de zonas por operario</p>
+                </div>
               </div>
 
               {/* Items */}
