@@ -3,6 +3,10 @@ import { createClient } from "@supabase/supabase-js";
 import { assertStripe } from "@/lib/stripe";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { calculateReserveSplit } from "@/lib/cash-reserve";
+import {
+  evaluateCaptureEligibility,
+  type OrderClaimForCaptureDecision,
+} from "@/lib/batch-capture-eligibility";
 
 /**
  * POST /api/cron/batch-capture
@@ -17,7 +21,20 @@ import { calculateReserveSplit } from "@/lib/cash-reserve";
  *  - PayPal primer servicio: el anticipo ya fue pagado; se cobra el saldo restante
  *    por Stripe (la tarjeta estaba obligatoria en la reserva).
  *
- * Exclusión del batch: orden con reclamo de garantía abierto (warranty_claims.status='open').
+ * Exclusión del batch (v8.3 B.2.2 / B.2.18 / E2.3, migración 080): SOLO se
+ * excluye una orden con disputa de garantía que sea a la vez status='open',
+ * severity='critical' y con evidencia fotográfica aportada por el cliente
+ * ("crítica documentada"). Cualquier otra disputa abierta (minor, o critical
+ * sin evidencia) NO congela el cobro — el pago no se congela por defecto.
+ * La decisión es una función pura (src/lib/batch-capture-eligibility.ts)
+ * para que sea testeable sin DB. Detrás de feature flag
+ * 'batch_capture_dispute_exclusion_enabled' (apagado por defecto): mientras
+ * esté apagado, el comportamiento es el histórico (se cobra siempre y se
+ * deja nota informativa), igual que los demás flags de dinero del módulo.
+ * Las órdenes excluidas quedan en orders.capture_withheld_* y se encolan en
+ * tickets_disputas (type='discrepancy', priority='high') para revisión
+ * manual explícita (punto B.3.3: humano solo si la evidencia no es
+ * concluyente).
  *
  * Seguridad: requiere header Authorization: Bearer ${CRON_SECRET}
  */
@@ -111,14 +128,25 @@ export async function POST(request: NextRequest) {
   const runId = runRow?.id;
 
   // Feature flags
-  const [{ data: chargebackFlag }, { data: qboFlag }, { data: cashReserveFlag }] = await Promise.all([
+  const [
+    { data: chargebackFlag },
+    { data: qboFlag },
+    { data: cashReserveFlag },
+    { data: disputeExclusionFlag },
+  ] = await Promise.all([
     supabase.from("feature_flags").select("activo").eq("nombre", "chargeback_reserve_enabled").single(),
     supabase.from("feature_flags").select("activo").eq("nombre", "qbo_export_enabled").single(),
     supabase.from("feature_flags").select("activo").eq("nombre", "cash_reserve_tracking_enabled").single(),
+    supabase
+      .from("feature_flags")
+      .select("activo")
+      .eq("nombre", "batch_capture_dispute_exclusion_enabled")
+      .single(),
   ]);
   const chargebackEnabled = !!chargebackFlag?.activo;
   const qboEnabled = !!qboFlag?.activo;
   const cashReserveEnabled = !!cashReserveFlag?.activo;
+  const disputeExclusionEnabled = !!disputeExclusionFlag?.activo;
 
   try {
     const { data: orders, error } = await supabase
@@ -155,24 +183,67 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // v8.3 B.2.2 (decisión del dueño 2026-07-09): el cobro es a las 7PM, FIJO.
-      // La garantía es relacional a EVIDENCIA, no a reloj: un reclamo abierto NO
-      // congela el pago — se resuelve post-cobro con ajuste/reembolso contra las
-      // fotos de cierre. La única exclusión válida será "evidencia fotográfica
-      // contradictoria" cuando E4 aporte las fotos de cierre (hoy no existe).
-      // Se registra el reclamo abierto como nota informativa, sin excluir:
-      const { data: openClaims } = await supabase
+      // v8.3 B.2.2 / B.2.18 / E2.3 (migración 080): el cobro es a las 7PM, FIJO.
+      // La garantía es relacional a EVIDENCIA, no a reloj. Un reclamo abierto NO
+      // congela el pago por defecto — SOLO excluye una disputa crítica (>=2
+      // niveles) que además tenga evidencia fotográfica del cliente. Se evalúa
+      // con una función pura testeable (evaluateCaptureEligibility).
+      const { data: claimRows } = await supabase
         .from("warranty_claims")
-        .select("id")
-        .eq("order_id", order.id)
-        .eq("status", "open")
-        .limit(1);
+        .select("id, status, severity, warranty_photo_evidence(photo_type)")
+        .eq("order_id", order.id);
 
-      const hasOpenClaim = !!(openClaims && openClaims.length > 0);
-      if (hasOpenClaim) {
+      const claimsForDecision: OrderClaimForCaptureDecision[] = (claimRows ?? []).map((c) => ({
+        id: c.id as string,
+        status: c.status as OrderClaimForCaptureDecision["status"],
+        severity: (c.severity as OrderClaimForCaptureDecision["severity"]) ?? "minor",
+        hasClientEvidence: Array.isArray(c.warranty_photo_evidence)
+          ? c.warranty_photo_evidence.some((e: { photo_type: string }) => e.photo_type === "client")
+          : false,
+      }));
+
+      const eligibility = evaluateCaptureEligibility(claimsForDecision);
+
+      if (!eligibility.shouldCapture) {
+        if (disputeExclusionEnabled) {
+          // Excluir de verdad: no cobrar, dejar en cola de revisión manual.
+          results.skipped++;
+          results.errors.push({
+            orderId: order.id,
+            error: `EXCLUDED: ${eligibility.reason} (claim ${eligibility.blockingClaimId})`,
+          });
+
+          await supabase
+            .from("orders")
+            .update({
+              capture_withheld_reason: eligibility.reason,
+              capture_withheld_at: new Date().toISOString(),
+              capture_withheld_claim_id: eligibility.blockingClaimId,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", order.id);
+
+          await supabase.from("tickets_disputas").insert({
+            order_id: order.id,
+            type: "discrepancy",
+            priority: "high",
+            status: "open",
+            context: {
+              reason: "batch_capture_withheld_critical_dispute",
+              warranty_claim_id: eligibility.blockingClaimId,
+              quote_total: quoteTotal,
+            },
+          });
+
+          continue;
+        }
+
+        // Flag apagado: comportamiento histórico — se cobra igual, se deja
+        // nota informativa. Permite activar la exclusión real solo tras
+        // demo en staging + aprobación del dueño (criterios de aceptación E2).
         results.errors.push({
           orderId: order.id,
-          error: "INFO: open warranty claim — charged per v8.3 B.2.2; resolve post-charge against evidence",
+          error: `INFO: ${eligibility.reason} (claim ${eligibility.blockingClaimId}) — dispute_exclusion flag off, charged per legacy behavior`,
         });
       }
 

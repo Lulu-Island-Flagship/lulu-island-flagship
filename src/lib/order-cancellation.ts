@@ -1,0 +1,144 @@
+/**
+ * v8.3 D.3 / E2 — Contrato Hold → captura → cancelación.
+ *
+ * Función pura extraída de src/app/api/orders/[orderId]/cancel/route.ts:
+ * decide QUÉ debe pasar con el dinero según la ventana de cancelación,
+ * sin tocar Stripe/PayPal ni la base de datos. El route.ts ejecuta lo que
+ * esta función decide.
+ *
+ * Reglas (D.3, ya vigentes en producción antes de esta sesión — esta
+ * función no cambia el comportamiento, lo hace testeable):
+ *   >72h antes del servicio:  Hold liberado, SIN cargo.
+ *   24-72h antes:              se captura el 50% del Hold como penalidad.
+ *   <24h / no-show:            se captura el 100% del Hold como penalidad.
+ *
+ * PayPal (solo primera reserva, D.3): el anticipo (50% del Hold) ya fue
+ * cobrado real al reservar. Las ventanas ajustan cuánto de ese anticipo se
+ * retiene y si hace falta cobrar una diferencia adicional por Stripe.
+ */
+
+export type CancellationWindow = "full_refund" | "partial_penalty" | "full_penalty";
+
+export type PaymentOption = "card" | "paypal_first_time";
+
+export interface CancellationDecisionInput {
+  /** Horas hasta el servicio (puede ser negativo si ya pasó / no-show). */
+  hoursUntilService: number;
+  /** Total de la cotización sellada, en dólares. */
+  quoteTotal: number;
+  /** order.hold_authorized_amount, en dólares (puede ser 0/null). */
+  holdAuthorizedAmount: number;
+  /** order.hold_amount, en dólares (fallback si no hay authorized). */
+  holdAmount: number;
+  paymentOption: PaymentOption;
+  /** order.paypal_advance_amount, en dólares (0 si no aplica). */
+  paypalAdvanceAmount: number;
+}
+
+export interface CancellationDecision {
+  window: CancellationWindow;
+  /** Hold efectivo usado para los cálculos: min(max(0, authorized||hold), quoteTotal). */
+  effectiveHoldAmount: number;
+  /** Total que el cliente pierde/paga como penalidad (dólares). */
+  penaltyAmount: number;
+  /** Si corresponde intentar cancelar/liberar el PaymentIntent de Hold en Stripe. */
+  releaseStripeHold: boolean;
+  /** Monto a capturar del PaymentIntent de Hold existente (tarjeta), 0 si no aplica. */
+  captureFromExistingHold: number;
+  /** PayPal: si corresponde marcar un reembolso (proceso manual/async, >72h). */
+  paypalRefundRequired: boolean;
+  /** PayPal: cuánto del anticipo ya cobrado se retiene como penalidad. */
+  paypalAmountRetained: number;
+  /** PayPal <24h: diferencia que hay que cobrar por Stripe además del anticipo retenido. */
+  stripeAdditionalChargeAmount: number;
+}
+
+function resolveWindow(hoursUntilService: number): CancellationWindow {
+  if (hoursUntilService > 72) return "full_refund";
+  if (hoursUntilService >= 24) return "partial_penalty"; // 24-72h inclusive, igual que el route original
+  return "full_penalty"; // <24h, incluye no-show (horas negativas)
+}
+
+export function computeCancellationDecision(
+  input: CancellationDecisionInput
+): CancellationDecision {
+  const quoteTotal = Math.max(0, Math.round(input.quoteTotal));
+  const effectiveHoldAmount = Math.min(
+    Math.max(0, input.holdAuthorizedAmount || input.holdAmount || 0),
+    quoteTotal
+  );
+  const window = resolveWindow(input.hoursUntilService);
+
+  if (window === "full_refund") {
+    return {
+      window,
+      effectiveHoldAmount,
+      penaltyAmount: 0,
+      releaseStripeHold: true,
+      captureFromExistingHold: 0,
+      paypalRefundRequired:
+        input.paymentOption === "paypal_first_time" && input.paypalAdvanceAmount > 0,
+      paypalAmountRetained: 0,
+      stripeAdditionalChargeAmount: 0,
+    };
+  }
+
+  if (window === "partial_penalty") {
+    const penaltyAmount = Math.round(effectiveHoldAmount * 0.5);
+
+    if (input.paymentOption === "paypal_first_time") {
+      const paypalAmountRetained = Math.min(input.paypalAdvanceAmount, penaltyAmount);
+      return {
+        window,
+        effectiveHoldAmount,
+        penaltyAmount: paypalAmountRetained,
+        releaseStripeHold: true, // liberar cualquier hold stray en Stripe
+        captureFromExistingHold: 0,
+        paypalRefundRequired: false,
+        paypalAmountRetained,
+        stripeAdditionalChargeAmount: 0,
+      };
+    }
+
+    return {
+      window,
+      effectiveHoldAmount,
+      penaltyAmount,
+      releaseStripeHold: false,
+      captureFromExistingHold: penaltyAmount,
+      paypalRefundRequired: false,
+      paypalAmountRetained: 0,
+      stripeAdditionalChargeAmount: 0,
+    };
+  }
+
+  // full_penalty (<24h o no-show)
+  if (input.paymentOption === "paypal_first_time") {
+    const paypalAmountRetained = Math.min(
+      input.paypalAdvanceAmount || Math.round(input.holdAmount * 0.5),
+      quoteTotal
+    );
+    const stripeAdditionalChargeAmount = Math.max(0, effectiveHoldAmount - paypalAmountRetained);
+    return {
+      window,
+      effectiveHoldAmount,
+      penaltyAmount: paypalAmountRetained + stripeAdditionalChargeAmount,
+      releaseStripeHold: false,
+      captureFromExistingHold: 0,
+      paypalRefundRequired: false,
+      paypalAmountRetained,
+      stripeAdditionalChargeAmount,
+    };
+  }
+
+  return {
+    window,
+    effectiveHoldAmount,
+    penaltyAmount: effectiveHoldAmount,
+    releaseStripeHold: false,
+    captureFromExistingHold: effectiveHoldAmount,
+    paypalRefundRequired: false,
+    paypalAmountRetained: 0,
+    stripeAdditionalChargeAmount: 0,
+  };
+}
