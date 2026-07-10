@@ -90,11 +90,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
+    // v8.3 E9: conectar la resolución full_day_rate a la nómina real. El
+    // monto (day_rate_cents) lo calcula el trigger set_readiness_credit_day_rate
+    // desde employees.day_rate vigente — nunca se envía desde aquí.
+    let payrollCreditError: string | null = null;
+    if (decision.fullDayRate) {
+      const { error: creditError } = await supabase.from("payroll_readiness_credits").insert({
+        readiness_request_id: created.id,
+        employee_id: employee.id,
+        credit_date: today,
+        day_rate_cents: 1, // placeholder; el trigger BEFORE INSERT lo sobrescribe siempre
+        reason: decision.reason,
+      });
+      if (creditError) {
+        console.error("Readiness payroll credit insert error:", creditError);
+        payrollCreditError =
+          "El Day Rate se aprobó pero no se pudo registrar el crédito de nómina automáticamente. Contactar a administración.";
+      }
+    }
+
     return NextResponse.json(
       {
         request: created,
         decision,
         abuseWarning: abuse.exceedsQuarterLimit || abuse.fridayMondayPattern ? abuse : null,
+        payrollCreditError,
       },
       { status: 201 }
     );

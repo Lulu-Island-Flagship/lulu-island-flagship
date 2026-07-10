@@ -76,4 +76,25 @@ describe("aggregateCycle + cycleToCsv", () => {
     assert.match(header, /^cycle,employee_id,employee_name,services,base_cad/);
     assert.match(row, /2026-07 Q1,e1,"Ana",1,200\.00/);
   });
+
+  // v8.3 E9: un crédito de payroll_readiness_credits (readiness_requests
+  // full_day_rate) se construye como un CycleEntry más — sin order/servicio
+  // real, base=gross=day_rate, todo lo demás en 0 — y aggregateCycle lo suma
+  // igual que cualquier otra entrada del ciclo, sin lógica especial.
+  it("un crédito de Day Rate por 'no estoy listo' se suma como un día trabajado más", () => {
+    const readinessCredit = entry({
+      employeeId: "e1",
+      bonusCents: 0,
+      penaltyCents: 0,
+      reworkAmountCents: 0,
+      minimumWageAdjustmentCents: 0,
+      baseAmountCents: 20000,
+      grossAmountCents: 20000,
+      serviceDate: "2026-07-12",
+    });
+    const out = aggregateCycle([entry({}), readinessCredit], cycle);
+    assert.equal(out.length, 1);
+    assert.equal(out[0].services, 2);
+    assert.equal(out[0].grossCents, 40000);
+  });
 });

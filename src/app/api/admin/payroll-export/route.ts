@@ -59,7 +59,38 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  const summaries = aggregateCycle(cycleEntries, cycle);
+  // v8.3 E9: readiness_requests resueltas como full_day_rate (modo "No estoy
+  // listo", B.2.6) se pagan igual que un día trabajado — mismo agregador
+  // puro (aggregateCycle), sin tocar payroll-cycle.ts ni payroll-deductions.ts.
+  const { data: readinessCredits, error: readinessError } = await supabase
+    .from("payroll_readiness_credits")
+    .select("employee_id, day_rate_cents, credit_date, employees(name)")
+    .gte("credit_date", cycle.start)
+    .lte("credit_date", cycle.end)
+    .is("deleted_at", null);
+
+  if (readinessError) {
+    return NextResponse.json({ error: readinessError.message }, { status: 500 });
+  }
+
+  type EmployeeNameJoin = { name: string } | { name: string }[] | null;
+  const readinessCycleEntries: CycleEntry[] = (readinessCredits || []).map((c) => {
+    const empJoin = c.employees as EmployeeNameJoin;
+    const emp = Array.isArray(empJoin) ? empJoin[0] : empJoin;
+    return {
+      employeeId: c.employee_id,
+      employeeName: emp?.name || "(sin nombre)",
+      serviceDate: c.credit_date,
+      baseAmountCents: c.day_rate_cents,
+      bonusCents: 0,
+      penaltyCents: 0,
+      reworkAmountCents: 0,
+      minimumWageAdjustmentCents: 0,
+      grossAmountCents: c.day_rate_cents,
+    };
+  });
+
+  const summaries = aggregateCycle([...cycleEntries, ...readinessCycleEntries], cycle);
 
   const employeeIds = summaries.map((s) => s.employeeId);
   const { data: ytdRows } = await supabase
