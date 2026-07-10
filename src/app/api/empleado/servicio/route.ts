@@ -1,6 +1,11 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  evaluateClosureProtocol,
+  type ZoneClosureStatus,
+  type ExternalConfirmationType,
+} from "@/lib/closure-protocol";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -24,6 +29,76 @@ function getSupabaseClient() {
       },
     }
   );
+}
+
+/**
+ * v8.3 E4.11 — Protocolo de Cierre Externo. Junta checklist + implementos +
+ * confirmación externa desde Supabase y delega la decisión a la función
+ * pura src/lib/closure-protocol.ts. T_out se rechaza si no está completo.
+ */
+async function checkClosureProtocol(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  orderId: string,
+  employeeId: string
+): Promise<{ complete: boolean; missing: string[] }> {
+  const { data: order } = await supabase
+    .from("orders")
+    .select("service_subtype")
+    .eq("id", orderId)
+    .single();
+
+  const serviceSubtype = order?.service_subtype;
+
+  const { data: checklists } = await supabase
+    .from("sop_checklists")
+    .select("id, zone, zone_label, items")
+    .is("deleted_at", null)
+    .eq("service_subtype", serviceSubtype || "")
+    .eq("is_active", true);
+
+  const { data: responses } = await supabase
+    .from("service_checklist_items")
+    .select("checklist_id, is_completed, photo_url")
+    .eq("order_id", orderId)
+    .eq("employee_id", employeeId);
+
+  const responsesByChecklist = new Map<string, { is_completed: boolean; photo_url: string | null }[]>();
+  for (const r of responses || []) {
+    const list = responsesByChecklist.get(r.checklist_id) || [];
+    list.push(r);
+    responsesByChecklist.set(r.checklist_id, list);
+  }
+
+  const zones: ZoneClosureStatus[] = (checklists || []).map(
+    (cl: { id: string; zone: string; zone_label: string; items: { id: string; required?: boolean }[] }) => {
+      const totalItems = (cl.items || []).length;
+      const zoneResponses = responsesByChecklist.get(cl.id) || [];
+      const completedItems = zoneResponses.filter((r) => r.is_completed).length;
+      const hasAfterPhoto = zoneResponses.some((r) => !!r.photo_url);
+      return {
+        zone: cl.zone,
+        zoneLabel: cl.zone_label,
+        totalItems,
+        completedItems,
+        hasAfterPhoto,
+      };
+    }
+  );
+
+  const { data: closure } = await supabase
+    .from("service_closures")
+    .select("implementos_confirmed, external_confirmation_type")
+    .eq("order_id", orderId)
+    .eq("employee_id", employeeId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  return evaluateClosureProtocol({
+    zones,
+    implementsConfirmed: closure?.implementos_confirmed || false,
+    externalConfirmation: (closure?.external_confirmation_type as ExternalConfirmationType) || null,
+  });
 }
 
 // POST /api/empleado/servicio — T_in, T_start, T_out, foto, nota
@@ -84,6 +159,22 @@ export async function POST(request: NextRequest) {
     }
     if (eventType === "t_out" && assignment.status !== "in_progress") {
       return NextResponse.json({ error: "Must start service (T_start) before finishing" }, { status: 400 });
+    }
+
+    // E4.11 — Protocolo de Cierre Externo: T_out no se acepta sin checklist
+    // 100%, foto "después" por zona, implementos confirmados y confirmación
+    // externa. Rechazo con el detalle exacto de qué falta.
+    if (eventType === "t_out") {
+      const closureCheck = await checkClosureProtocol(supabase, orderId, employee.id);
+      if (!closureCheck.complete) {
+        return NextResponse.json(
+          {
+            error: "El Protocolo de Cierre Externo no está completo.",
+            missing: closureCheck.missing,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     if (newStatus !== assignment.status && ["t_in", "t_start", "t_out"].includes(eventType)) {
