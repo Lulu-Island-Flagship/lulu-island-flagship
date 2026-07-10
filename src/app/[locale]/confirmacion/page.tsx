@@ -4,7 +4,6 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { mapQuoteFromSupabase, mapOrderFromSupabase } from "@/lib/supabase-mappers";
-import { QUOTE_CLIENT_COLUMNS, ORDER_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
 import { Order, QuoteData } from "@/types";
 import {
   CheckCircle2,
@@ -39,9 +38,10 @@ function ConfirmacionContent() {
         return;
       }
 
+      // v8.3 E1: blindaje DB — vista orders_client_view (migración 056)
       const { data: orderData, error: orderError } = await supabase
-        .from("orders")
-        .select(ORDER_CLIENT_COLUMNS)
+        .from("orders_client_view")
+        .select("*")
         .eq("id", orderId)
         .single();
 
@@ -56,8 +56,8 @@ function ConfirmacionContent() {
       // Load associated quote
       if (orderData.quote_id) {
         const { data: quoteData } = await supabase
-          .from("quotes")
-          .select(QUOTE_CLIENT_COLUMNS)
+          .from("quotes_client_view")
+          .select("*")
           .eq("id", orderData.quote_id)
           .single();
         if (quoteData) {

@@ -6,7 +6,6 @@ import { Elements } from "@stripe/react-stripe-js";
 import { QuoteData } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { mapQuoteFromSupabase } from "@/lib/supabase-mappers";
-import { QUOTE_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
 import { DatePicker } from "@/components/reserva/DatePicker";
 import { TimeSlotPicker } from "@/components/reserva/TimeSlotPicker";
 import { StripeCardForm } from "@/components/reserva/StripeCardForm";
@@ -63,9 +62,13 @@ export default function ReservaPage() {
         return;
       }
 
+      // v8.3 E1: blindaje DB — leer de la vista quotes_client_view (migración 056),
+      // que estructuralmente solo tiene las columnas permitidas al cliente
+      // (defensa en profundidad: aunque este select fuera "*", no puede filtrar
+      // client_score, estimated_labor_cost, admin_review_reason, etc.)
       const { data, error: supaError } = await supabase
-        .from("quotes")
-        .select(QUOTE_CLIENT_COLUMNS)
+        .from("quotes_client_view")
+        .select("*")
         .eq("id", quoteId)
         .single();
 
