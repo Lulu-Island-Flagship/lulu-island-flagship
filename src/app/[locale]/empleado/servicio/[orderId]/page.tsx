@@ -24,11 +24,12 @@ import {
 } from "lucide-react";
 import type { EmployeeService, AssignmentStatus } from "@/types";
 import { haversineDistance, GEOFENCE_RADIUS_METERS } from "@/lib/geocode";
-import { submitServiceEventOrQueue } from "@/lib/offline-sync-client";
+import { submitServiceEventOrQueue, submitPhotoOrQueue } from "@/lib/offline-sync-client";
 import { ChecklistCierre } from "@/components/empleado/ChecklistCierre";
 import { UpsellSelector } from "@/components/empleado/UpsellSelector";
 import { DiscrepanciaReporter } from "@/components/empleado/DiscrepanciaReporter";
 import { CodigoCromático } from "@/components/empleado/CodigoCromático";
+import { ClosureProtocolPanel } from "@/components/empleado/ClosureProtocolPanel";
 
 type EventType = "t_in" | "t_start" | "t_out" | "photo" | "note";
 
@@ -66,6 +67,10 @@ export default function ServicioPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("timeline");
   const [geofenceStatus, setGeofenceStatus] = useState<"checking" | "inside" | "outside" | "bypass">("checking");
   const [bypassReason, setBypassReason] = useState("");
+  // Candado químico (E4, B.2.8): colores confirmados explícitamente en esta
+  // sesión de servicio. Vive en el padre porque tanto el tab "Colors" como
+  // el checklist lo necesitan.
+  const [confirmedColors, setConfirmedColors] = useState<Set<string>>(new Set());
 
   // Load service details
   useEffect(() => {
@@ -223,40 +228,23 @@ export default function ServicioPage() {
 
     setUploadingPhoto(true);
     try {
-      const fileExt = file.name.split(".").pop() || "jpg";
-      const fileName = `${orderId}/${Date.now()}.${fileExt}`;
+      const loc = await getCurrentLocation();
+      // Comprime a WebP (E4.12) y sube; si no hay señal, queda encolada
+      // silenciosamente (D.10 #1) — no se pierde la evidencia.
+      const result = await submitPhotoOrQueue(orderId, file, {
+        locationLat: loc?.lat,
+        locationLng: loc?.lng,
+      });
 
-      const { error: uploadError } = await supabase.storage
-        .from("service-photos")
-        .upload(fileName, file, { contentType: file.type });
-
-      if (uploadError) {
-        console.error("Upload error:", uploadError);
+      if (!result.ok) {
+        console.error("Photo upload error:", result.error);
         return;
       }
 
-      const { data: publicUrlData } = supabase.storage
-        .from("service-photos")
-        .getPublicUrl(fileName);
-
-      const photoUrl = publicUrlData.publicUrl;
-
-      const loc = await getCurrentLocation();
-      const res = await fetch("/api/empleado/servicio", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          orderId,
-          eventType: "photo",
-          photoUrl,
-          locationLat: loc?.lat,
-          locationLng: loc?.lng,
-        }),
-      });
-
-      if (res.ok) {
-        setPhotos((prev) => [...prev, photoUrl]);
+      if (result.photoUrl) {
+        setPhotos((prev) => [...prev, result.photoUrl as string]);
+      }
+      if (!result.queued) {
         await loadLogs();
       }
     } catch (e) {
@@ -271,20 +259,19 @@ export default function ServicioPage() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/empleado/servicio", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          orderId,
-          eventType: "note",
-          notes: noteText.trim(),
-        }),
+      // Mismo patrón offline-first que T_in/T_start/T_out: si no hay señal,
+      // la nota se encola en vez de perderse.
+      const result = await submitServiceEventOrQueue(orderId, "note", {
+        notes: noteText.trim(),
       });
 
-      if (res.ok) {
+      if (result.ok) {
         setNoteText("");
-        await loadLogs();
+        if (!result.queued) {
+          await loadLogs();
+        }
+      } else {
+        console.error("Note error:", result.error);
       }
     } catch (e) {
       console.error("Note error:", e);
@@ -597,10 +584,15 @@ export default function ServicioPage() {
             )}
 
             {activeTab === "checklist" && (
-              <ChecklistCierre
-                orderId={orderId}
-                serviceSubtype={service.serviceSubtype || "regular"}
-              />
+              <div className="space-y-4">
+                <ChecklistCierre
+                  orderId={orderId}
+                  serviceSubtype={service.serviceSubtype || "regular"}
+                  confirmedColors={confirmedColors}
+                  onConfirmedColorsChange={setConfirmedColors}
+                />
+                <ClosureProtocolPanel orderId={orderId} />
+              </div>
             )}
 
             {activeTab === "upsell" && (
@@ -614,9 +606,13 @@ export default function ServicioPage() {
             {activeTab === "cromático" && (
               <div className="space-y-4">
                 <p className="text-sm text-gray-600">
-                  Match color, icon, and text. Never mix RED (acid) with BLUE (ammonia) — chlorine gas risk.
+                  Confirm each chemical before using it. Match color, icon, AND text — never rely on color alone
+                  (colorblindness safeguard). Never mix RED (acid) with BLUE (ammonia) — chlorine gas risk.
                 </p>
-                <CodigoCromático />
+                <CodigoCromático
+                  confirmedColors={confirmedColors}
+                  onConfirmedColorsChange={setConfirmedColors}
+                />
               </div>
             )}
           </div>
