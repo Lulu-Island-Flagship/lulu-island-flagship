@@ -1,5 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminRole } from "@/lib/admin";
 
 /**
  * GET /api/admin/quotes
@@ -7,41 +7,24 @@ import { NextRequest, NextResponse } from "next/server";
  * Lista cotizaciones que requieren revisión administrativa
  * (admin_review_required = true) o todas si se pasa ?status=pending.
  *
- * Seguridad: solo supervisores.
+ * v8.3 Sesión P — antes usaba un guard ad-hoc (service-role key + is_supervisor
+ * RPC, sin pasar por la matriz RBAC ni dejar log de auditoría). Ahora usa el
+ * guard estándar requireAdminRole con el recurso "quotes_review" (ya existente
+ * en admin-rbac.ts: owner_admin + ops_coordinator), igual que cualquier otra
+ * ruta admin.
  */
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAdminRole("quotes_review", {
+    method: request.method,
+    url: request.url,
+  });
+  if (auth.error || !auth.supabase) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
+  }
+
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!supabaseUrl || !supabaseServiceKey) {
-      return NextResponse.json(
-        { error: "Supabase service credentials not configured" },
-        { status: 500 }
-      );
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const authHeader = request.headers.get("authorization");
-    let userId: string | null = null;
-    if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.replace("Bearer ", "");
-      const { data } = await supabase.auth.getUser(token);
-      userId = data.user?.id ?? null;
-    }
-
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { data: isSupervisor } = await supabase.rpc("is_supervisor", {
-      user_uuid: userId,
-    });
-    if (!isSupervisor) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
+    const supabase = auth.supabase;
     const { searchParams } = new URL(request.url);
     const onlyReview = searchParams.get("review") !== "false";
 
