@@ -30,7 +30,13 @@ INSERT INTO auth.users (
   ('ceef1739-57f5-45fc-ae34-e75e7bfb12c7'::uuid, 'driver@example.com',     crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Driver Test"}'),
   ('a8bb80d1-1841-4dbe-a569-42d9f5d50cc3'::uuid, 'client_b2c@example.com', crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cliente B2C"}'),
   ('93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, 'client_b2b@example.com', crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cliente B2B"}'),
-  ('7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, 'qc@example.com',         crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"QC Only Test"}')
+  ('7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, 'qc@example.com',         crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"QC Only Test"}'),
+  -- Dueño real (Aeon): sembrado con UUID fijo para que su acceso de
+  -- owner_admin sobreviva a cada `db reset` sin tener que reinsertar
+  -- admin_roles a mano. Entra por el login de email+código de
+  -- src/components/admin/AdminLoginScreen.tsx (signInWithOtp busca por
+  -- email y autentica esta MISMA fila, no crea una cuenta duplicada).
+  ('aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae'::uuid, 'aeonwalk3r@gmail.com',   crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Aeon Walker"}')
 ON CONFLICT (id) DO UPDATE SET
   encrypted_password = EXCLUDED.encrypted_password,
   email_confirmed_at = EXCLUDED.email_confirmed_at,
@@ -54,7 +60,8 @@ INSERT INTO auth.identities (
   ('ceef1739-57f5-45fc-ae34-e75e7bfb12c7'::uuid, 'ceef1739-57f5-45fc-ae34-e75e7bfb12c7'::uuid, 'ceef1739-57f5-45fc-ae34-e75e7bfb12c7', '{"sub":"ceef1739-57f5-45fc-ae34-e75e7bfb12c7","email":"driver@example.com"}',     'email', now(), now()),
   ('a8bb80d1-1841-4dbe-a569-42d9f5d50cc3'::uuid, 'a8bb80d1-1841-4dbe-a569-42d9f5d50cc3'::uuid, 'a8bb80d1-1841-4dbe-a569-42d9f5d50cc3', '{"sub":"a8bb80d1-1841-4dbe-a569-42d9f5d50cc3","email":"client_b2c@example.com"}', 'email', now(), now()),
   ('93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, '93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, '93e41cd3-7ef5-4892-a144-69da2cf41189', '{"sub":"93e41cd3-7ef5-4892-a144-69da2cf41189","email":"client_b2b@example.com"}', 'email', now(), now()),
-  ('7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, '7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, '7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60', '{"sub":"7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60","email":"qc@example.com"}',          'email', now(), now())
+  ('7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, '7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, '7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60', '{"sub":"7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60","email":"qc@example.com"}',          'email', now(), now()),
+  ('aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae'::uuid, 'aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae'::uuid, 'aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae', '{"sub":"aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae","email":"aeonwalk3r@gmail.com"}',    'email', now(), now())
 ON CONFLICT (id) DO UPDATE SET
   identity_data = EXCLUDED.identity_data,
   updated_at = now();
@@ -66,7 +73,8 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO admin_roles (user_id, role, granted_by) VALUES
   ('3e27c46c-c0b3-4583-b33c-a2ca82024232'::uuid, 'owner_admin',     '3e27c46c-c0b3-4583-b33c-a2ca82024232'::uuid),
   ('9739d2ba-8b59-481f-9325-f6c029ff6763'::uuid, 'ops_coordinator', '3e27c46c-c0b3-4583-b33c-a2ca82024232'::uuid),
-  ('7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, 'qc_only',         '3e27c46c-c0b3-4583-b33c-a2ca82024232'::uuid)
+  ('7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, 'qc_only',         '3e27c46c-c0b3-4583-b33c-a2ca82024232'::uuid),
+  ('aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae'::uuid, 'owner_admin',     'aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae'::uuid)
 ON CONFLICT (user_id, role) DO NOTHING;
 
 -- ============================================================
