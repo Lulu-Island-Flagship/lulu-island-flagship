@@ -13,8 +13,22 @@ SELECT set_config('app.change_reason', 'db reset: seed de staging v8.3', false);
 -- ============================================================
 -- 1. Usuarios de prueba (auth.users)
 -- ============================================================
+-- HALLAZGO REAL (verificación visual, 2026-07-11): este INSERT nunca fijaba
+-- instance_id/aud/role, dejándolos en NULL. GoTrue busca usuarios existentes
+-- filtrando por instance_id = '00000000-0000-0000-0000-000000000000' (el
+-- UUID cero estándar de instalaciones self-hosted de un solo tenant); con
+-- NULL no los encuentra, intenta CREAR un usuario nuevo con el mismo email,
+-- choca contra el índice único parcial de auth.users, la transacción queda
+-- abortada, y las conexiones/bloqueos resultantes hacen que TODAS las
+-- peticiones siguientes a /auth/v1/otp den timeout 504 (confirmado: pasa
+-- igual con owner@example.com, no es específico de ninguna cuenta). Fijar
+-- estas tres columnas es exactamente lo que hace el signup normal de
+-- Supabase Auth; no cambia el comportamiento de RLS ni de permisos.
 INSERT INTO auth.users (
+  instance_id,
   id,
+  aud,
+  role,
   email,
   encrypted_password,
   email_confirmed_at,
@@ -24,20 +38,23 @@ INSERT INTO auth.users (
   raw_app_meta_data,
   raw_user_meta_data
 ) VALUES
-  ('3e27c46c-c0b3-4583-b33c-a2ca82024232'::uuid, 'owner@example.com',      crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Owner Admin"}'),
-  ('9739d2ba-8b59-481f-9325-f6c029ff6763'::uuid, 'supervisor@example.com', crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Supervisor Test"}'),
-  ('64e35c23-b883-470b-8f20-23ffb6f40982'::uuid, 'cleaner@example.com',    crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cleaner Test"}'),
-  ('ceef1739-57f5-45fc-ae34-e75e7bfb12c7'::uuid, 'driver@example.com',     crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Driver Test"}'),
-  ('a8bb80d1-1841-4dbe-a569-42d9f5d50cc3'::uuid, 'client_b2c@example.com', crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cliente B2C"}'),
-  ('93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, 'client_b2b@example.com', crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cliente B2B"}'),
-  ('7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, 'qc@example.com',         crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"QC Only Test"}'),
+  ('00000000-0000-0000-0000-000000000000'::uuid, '3e27c46c-c0b3-4583-b33c-a2ca82024232'::uuid, 'authenticated', 'authenticated', 'owner@example.com',      crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Owner Admin"}'),
+  ('00000000-0000-0000-0000-000000000000'::uuid, '9739d2ba-8b59-481f-9325-f6c029ff6763'::uuid, 'authenticated', 'authenticated', 'supervisor@example.com', crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Supervisor Test"}'),
+  ('00000000-0000-0000-0000-000000000000'::uuid, '64e35c23-b883-470b-8f20-23ffb6f40982'::uuid, 'authenticated', 'authenticated', 'cleaner@example.com',    crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cleaner Test"}'),
+  ('00000000-0000-0000-0000-000000000000'::uuid, 'ceef1739-57f5-45fc-ae34-e75e7bfb12c7'::uuid, 'authenticated', 'authenticated', 'driver@example.com',     crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Driver Test"}'),
+  ('00000000-0000-0000-0000-000000000000'::uuid, 'a8bb80d1-1841-4dbe-a569-42d9f5d50cc3'::uuid, 'authenticated', 'authenticated', 'client_b2c@example.com', crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cliente B2C"}'),
+  ('00000000-0000-0000-0000-000000000000'::uuid, '93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, 'authenticated', 'authenticated', 'client_b2b@example.com', crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cliente B2B"}'),
+  ('00000000-0000-0000-0000-000000000000'::uuid, '7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, 'authenticated', 'authenticated', 'qc@example.com',         crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"QC Only Test"}'),
   -- Dueño real (Aeon): sembrado con UUID fijo para que su acceso de
   -- owner_admin sobreviva a cada `db reset` sin tener que reinsertar
   -- admin_roles a mano. Entra por el login de email+código de
   -- src/components/admin/AdminLoginScreen.tsx (signInWithOtp busca por
   -- email y autentica esta MISMA fila, no crea una cuenta duplicada).
-  ('aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae'::uuid, 'aeonwalk3r@gmail.com',   crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Aeon Walker"}')
+  ('00000000-0000-0000-0000-000000000000'::uuid, 'aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae'::uuid, 'authenticated', 'authenticated', 'aeonwalk3r@gmail.com',   crypt('password', gen_salt('bf')), now(), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Aeon Walker"}')
 ON CONFLICT (id) DO UPDATE SET
+  instance_id = EXCLUDED.instance_id,
+  aud = EXCLUDED.aud,
+  role = EXCLUDED.role,
   encrypted_password = EXCLUDED.encrypted_password,
   email_confirmed_at = EXCLUDED.email_confirmed_at,
   updated_at = now();
