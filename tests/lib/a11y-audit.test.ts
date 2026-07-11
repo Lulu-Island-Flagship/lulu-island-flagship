@@ -55,11 +55,9 @@ describe("checkContrastPair sobre la paleta real de marca (src/design/tokens.ts)
     const check = checkContrastPair("navy/white", BRAND.navy, BRAND.white);
     assert.equal(check.passesAA, true, `ratio real: ${check.ratio}`);
   });
-  it("goldDark sobre white: HALLAZGO REAL — el comentario del token dice 'contraste AA' pero el cálculo real da ~3.42:1, que NO alcanza 4.5:1 para texto normal (solo pasa el umbral de texto grande, 3:1). El comentario de src/design/tokens.ts está mal; no se ajusta el test a esa afirmación no verificada, se documenta la contradicción.", () => {
+  it("goldDark sobre white pasa AA para texto normal (ARREGLADO — hallazgo original: #A8863F daba ~3.42:1, no alcanzaba 4.5:1; se reemplazó por #93712A, ratio real ~4.53:1, ver src/design/tokens.ts)", () => {
     const check = checkContrastPair("goldDark/white", BRAND.goldDark, BRAND.white, false);
-    assert.equal(check.passesAA, false, `ratio real: ${check.ratio} — si esto cambia a true, el token cambió y hay que actualizar el comentario de tokens.ts`);
-    const large = checkContrastPair("goldDark/white (texto grande)", BRAND.goldDark, BRAND.white, true);
-    assert.equal(large.passesAA, true, `ratio real: ${large.ratio}`);
+    assert.equal(check.passesAA, true, `ratio real: ${check.ratio} — si esto vuelve a false, alguien bajó el contraste del token de nuevo`);
   });
   it("gold (acento) sobre white NO necesariamente pasa AA para texto normal — documentar si falla", () => {
     // No se afirma un resultado: se calcula y se deja registro. Si esto

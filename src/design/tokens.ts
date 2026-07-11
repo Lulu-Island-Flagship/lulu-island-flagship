@@ -18,7 +18,7 @@ export const BRAND = {
   navyLight: "#14315C",  // hover / estados activos
   waveBlue: "#2E6E96",   // olas — secundario, links, iconografía
   gold: "#C9A961",       // detalles dorados — SOLO acentos e insignias
-  goldDark: "#A8863F",   // dorado con contraste AA sobre blanco
+  goldDark: "#93712A",   // dorado con contraste AA real sobre blanco (4.53:1 — #A8863F daba solo 3.42:1, hallazgo de auditoria de accesibilidad, ver tests/lib/a11y-audit.test.ts)
   ink: "#10192B",        // texto principal
   ice: "#F5F5F5",        // fondo secundario
   white: "#FFFFFF",      // fondo primario
