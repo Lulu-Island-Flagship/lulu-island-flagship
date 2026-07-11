@@ -39,6 +39,10 @@
     {
       "path": "/api/cron/qbo-sync",
       "schedule": "0 9,10 * * *"
+    },
+    {
+      "path": "/api/cron/competitor-scrape",
+      "schedule": "0 8 * * 1"
     }
   ]
 }
