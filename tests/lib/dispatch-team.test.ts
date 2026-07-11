@@ -4,7 +4,12 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert";
-import { buildTeam, type DispatchCandidate } from "../../src/lib/dispatch-team";
+import {
+  buildTeam,
+  enforceMaxTeamSize,
+  B2C_RESIDENTIAL_N_MAX,
+  type DispatchCandidate,
+} from "../../src/lib/dispatch-team";
 
 const cleaner = (id: string, langs: string[], zone = "Richmond"): DispatchCandidate => ({
   id, role: "cleaner", languages: langs, homeZone: zone, trustLevel: "standard",
@@ -59,5 +64,64 @@ describe("buildTeam — reglas duras E3", () => {
     const r = buildTeam([leader("l1", ["en"])], ["en"], 3, "Richmond");
     assert.equal(r.team!.length, 1);
     assert.match(r.warnings[0], /incompleto/);
+  });
+});
+
+describe("enforceMaxTeamSize — invariante B.2.1 (N_max)", () => {
+  it("4 personas en B2C residencial se rechaza, SIEMPRE", () => {
+    const r = enforceMaxTeamSize("b2c_residential", 4, false);
+    assert.equal(r.valid, false);
+    assert.equal(r.correctedSize, B2C_RESIDENTIAL_N_MAX);
+  });
+
+  it("cualquier tamaño > 3 en B2C se rechaza (5, 10, 100)", () => {
+    for (const n of [5, 10, 100]) {
+      const r = enforceMaxTeamSize("b2c_residential", n, false);
+      assert.equal(r.valid, false, `esperaba rechazo para N=${n}`);
+      assert.equal(r.correctedSize, 3);
+    }
+  });
+
+  it("3 personas en B2C residencial es válido (el tope, no lo excede)", () => {
+    const r = enforceMaxTeamSize("b2c_residential", 3, false);
+    assert.equal(r.valid, true);
+    assert.equal(r.correctedSize, 3);
+  });
+
+  it("1 o 2 personas en B2C residencial es válido", () => {
+    assert.equal(enforceMaxTeamSize("b2c_residential", 1, false).valid, true);
+    assert.equal(enforceMaxTeamSize("b2c_residential", 2, false).valid, true);
+  });
+
+  it("B2C rechazado + HHE requiere más tiempo => corrección extiende ventana, NUNCA sube N", () => {
+    const r = enforceMaxTeamSize("b2c_residential", 4, true);
+    assert.equal(r.valid, false);
+    assert.equal(r.correctedSize, 3); // nunca 4, nunca más de 3
+    assert.equal(r.extendTimeWindow, true);
+  });
+
+  it("B2C rechazado + HHE NO requiere más tiempo => no marca extender ventana (solo se recorta N)", () => {
+    const r = enforceMaxTeamSize("b2c_residential", 4, false);
+    assert.equal(r.valid, false);
+    assert.equal(r.correctedSize, 3);
+    assert.equal(r.extendTimeWindow, false);
+  });
+
+  it("B2B sin contrato provisto: sin tope, cualquier tamaño es válido", () => {
+    const r = enforceMaxTeamSize("b2b", 10, false);
+    assert.equal(r.valid, true);
+    assert.equal(r.correctedSize, 10);
+  });
+
+  it("B2B con tope de contrato: se respeta el contrato, no un N fijo", () => {
+    const r = enforceMaxTeamSize("b2b", 8, false, 6);
+    assert.equal(r.valid, false);
+    assert.equal(r.correctedSize, 6);
+  });
+
+  it("B2B con tope de contrato: tamaño dentro del contrato es válido", () => {
+    const r = enforceMaxTeamSize("b2b", 6, false, 6);
+    assert.equal(r.valid, true);
+    assert.equal(r.correctedSize, 6);
   });
 });
