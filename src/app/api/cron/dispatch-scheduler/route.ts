@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { calculateTeamRequirements, getHHEForRange, type ServiceType } from "@/lib/pricing";
-import { buildTeam, type DispatchCandidate } from "@/lib/dispatch-team";
+import { buildTeam, enforceMaxTeamSize, type DispatchCandidate } from "@/lib/dispatch-team";
 import { evaluateWorkday } from "@/lib/workday";
 import { isVehicleInsuranceExpired } from "@/lib/vehicle-insurance";
 import {
   evaluateDispatchDiscrepancyFallback,
   type DispatchDiscrepancyReason,
 } from "@/lib/dispatch-fallback";
+import { evaluateTeamSixAutoApproval } from "@/lib/dispatch-approval";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -103,6 +104,7 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
       availableTeams: 0,
       pendingLanguage: [] as string[],
       discrepancies: [] as { orderId: string; reason: DispatchDiscrepancyReason }[],
+      maxTeamSizeCorrections: [] as string[],
     };
 
   const quoteIds = orders.map((o) => o.quote_id);
@@ -167,6 +169,9 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
   // logs, nunca tuvo forma estructurada para un timer.
   const discrepancies: { orderId: string; reason: DispatchDiscrepancyReason }[] = [];
   const assignedEmployeeIds = new Set<string>();
+  // v8.3 E3 (B.2.1): notas de corrección cuando enforceMaxTeamSize rechaza
+  // un tamaño propuesto — no bloquean la orden, solo quedan logueadas.
+  const maxTeamSizeCorrections: string[] = [];
 
   if (expiredInsuranceEmployeeIds.size > 0) {
     pendingLanguage.push(
@@ -181,8 +186,30 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
     const serviceType = quote.service_type as ServiceType;
     const squareFeet = quote.square_feet as number;
     const hheHours = getHHEForRange(serviceType, squareFeet);
+    // v8.3 E7/known gap: este cron siempre pasa accountType="b2c" a
+    // calculateTeamRequirements — no lee account_type de client_profiles
+    // (existe en el schema, migración 001, pero no se consulta aquí). El
+    // dispatch de órdenes B2B reales queda fuera de alcance de este cambio;
+    // documentado para no inventar un comportamiento B2B no verificado.
     const { minTeams, maxTeams } = calculateTeamRequirements(serviceType, squareFeet, "b2c");
-    const teamSize = Math.min(maxTeams, Math.max(minTeams, 1));
+    const proposedTeamSize = Math.min(maxTeams, Math.max(minTeams, 1));
+
+    // v8.3 E3 (B.2.1) — verificación de última línea antes de armar el
+    // payload de despacho: N_max=3 en B2C residencial, nunca se sube N. La
+    // señal "HHE requiere más tiempo" se aproxima igual que evaluateWorkday
+    // más abajo (mismo cálculo de minutos por persona), evaluada aquí con el
+    // tamaño propuesto para decidir si la corrección debe extender ventana.
+    const prelimPerPersonMinutes = Math.round(((hheHours / proposedTeamSize) * 60) + 45);
+    const prelimWorkday = evaluateWorkday([{ serviceMinutes: prelimPerPersonMinutes, transitMinutes: 30 }]);
+    const sizeCheck = enforceMaxTeamSize(
+      "b2c_residential",
+      proposedTeamSize,
+      prelimWorkday.status !== "ok"
+    );
+    if (!sizeCheck.valid) {
+      maxTeamSizeCorrections.push(`${order.id}: ${sizeCheck.reason}`);
+    }
+    const teamSize = sizeCheck.correctedSize;
 
     // v8.3 E3 — reglas duras: líder obligatorio + match de idioma (buildTeam, testeado)
     const candidates: DispatchCandidate[] = availableEmployees
@@ -238,7 +265,7 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
     });
   }
 
-  return { proposals, availableTeams, pendingLanguage, discrepancies };
+  return { proposals, availableTeams, pendingLanguage, discrepancies, maxTeamSizeCorrections };
 }
 
 /**
@@ -351,36 +378,44 @@ export async function GET(request: NextRequest) {
     let result: Record<string, unknown> = { phase, targetDate };
 
     if (phase === "proposal") {
-      const { proposals, availableTeams, pendingLanguage, discrepancies } = await buildProposals(supabase, targetDate);
+      const { proposals, availableTeams, pendingLanguage, discrepancies, maxTeamSizeCorrections } =
+        await buildProposals(supabase, targetDate);
       const fallback = await recordAndEscalateDispatchDiscrepancies(supabase, discrepancies);
       await supabase.from("dispatch_runs").insert({
         run_date: targetDate,
         phase,
         teams_available: availableTeams,
         orders_processed: proposals.length,
-        notes: `Proposed ${proposals.filter((p) => p.proposedEmployeeIds.length > 0).length} orders` + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : "") + (fallback.escalated ? ` | ESCALATED (B.2.12 10min): ${fallback.escalated}` : ""),
+        notes: `Proposed ${proposals.filter((p) => p.proposedEmployeeIds.length > 0).length} orders` + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : "") + (fallback.escalated ? ` | ESCALATED (B.2.12 10min): ${fallback.escalated}` : "") + (maxTeamSizeCorrections.length ? ` | N_MAX_ENFORCED (B.2.1): ${maxTeamSizeCorrections.join("; ")}` : ""),
       });
-      result = { ...result, proposals, availableTeams, pendingLanguage, fallback };
+      result = { ...result, proposals, availableTeams, pendingLanguage, fallback, maxTeamSizeCorrections };
     }
 
     if (phase === "cutoff") {
-      const { proposals, availableTeams, pendingLanguage, discrepancies } = await buildProposals(supabase, targetDate);
+      const { proposals, availableTeams, pendingLanguage, discrepancies, maxTeamSizeCorrections } =
+        await buildProposals(supabase, targetDate);
       const fallback = await recordAndEscalateDispatchDiscrepancies(supabase, discrepancies);
       await supabase.from("dispatch_runs").insert({
         run_date: targetDate,
         phase,
         teams_available: availableTeams,
         orders_processed: proposals.length,
-        notes: `Cutoff validation: ${proposals.filter((p) => p.proposedEmployeeIds.length > 0).length} orders ready` + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : "") + (fallback.escalated ? ` | ESCALATED (B.2.12 10min): ${fallback.escalated}` : ""),
+        notes: `Cutoff validation: ${proposals.filter((p) => p.proposedEmployeeIds.length > 0).length} orders ready` + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : "") + (fallback.escalated ? ` | ESCALATED (B.2.12 10min): ${fallback.escalated}` : "") + (maxTeamSizeCorrections.length ? ` | N_MAX_ENFORCED (B.2.1): ${maxTeamSizeCorrections.join("; ")}` : ""),
       });
-      result = { ...result, proposals, availableTeams, pendingLanguage, fallback };
+      result = { ...result, proposals, availableTeams, pendingLanguage, fallback, maxTeamSizeCorrections };
     }
 
     if (phase === "published") {
-      const { proposals, availableTeams, pendingLanguage, discrepancies } = await buildProposals(supabase, targetDate);
+      const { proposals, availableTeams, pendingLanguage, discrepancies, maxTeamSizeCorrections } =
+        await buildProposals(supabase, targetDate);
       const fallback = await recordAndEscalateDispatchDiscrepancies(supabase, discrepancies);
-      // Autopilot: con 6+ equipos disponibles, auto-aprobar
-      const autoApproved = availableTeams >= 6;
+      // v8.3 E3 (D.4/E2#9) — umbral "equipo #6": ver nota de alcance en
+      // dispatch-approval.ts sobre por qué `hasRedAlerts` usa discrepancias
+      // + correcciones de N_max como proxy (no existe todavía el semáforo de
+      // tránsito real de la matriz drag-and-drop, marcada WIREFRAME).
+      const hasRedAlerts = discrepancies.length > 0 || maxTeamSizeCorrections.length > 0;
+      const approval = evaluateTeamSixAutoApproval(availableTeams, hasRedAlerts);
+      const autoApproved = approval.autoApproveDefault;
       const assigned = await persistAssignments(supabase, proposals, autoApproved);
       await supabase.from("dispatch_runs").insert({
         run_date: targetDate,
@@ -389,9 +424,26 @@ export async function GET(request: NextRequest) {
         teams_available: availableTeams,
         orders_processed: proposals.length,
         orders_assigned: assigned,
-        notes: (autoApproved ? "Auto-approved (6+ teams available)" : "Published for manual review") + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : ""),
+        notes:
+          (approval.teamSixActive
+            ? autoApproved
+              ? "Auto-approved (equipo #6 activo, sin alertas rojas)"
+              : "Equipo #6 activo pero HAY alertas rojas: publicado para revisión manual"
+            : "Published for manual review") +
+          (approval.showDelegationReminder ? " | Recordatorio de delegación: considerar coordinador" : "") +
+          (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : "") +
+          (maxTeamSizeCorrections.length ? ` | N_MAX_ENFORCED (B.2.1): ${maxTeamSizeCorrections.join("; ")}` : ""),
       });
-      result = { ...result, proposals, availableTeams, autoApproved, assigned, pendingLanguage };
+      result = {
+        ...result,
+        proposals,
+        availableTeams,
+        autoApproved,
+        showDelegationReminder: approval.showDelegationReminder,
+        assigned,
+        pendingLanguage,
+        maxTeamSizeCorrections,
+      };
     }
 
     if (phase === "simulation") {
