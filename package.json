@@ -13,7 +13,8 @@
     "db:reset": "supabase db reset",
     "db:status": "supabase status",
     "tokens": "node scripts/generate-tokens-css.mjs",
-    "prebuild": "npm run tokens"
+    "prebuild": "npm run tokens",
+    "audit:a11y": "node scripts/audit-accessibility.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.7.0",

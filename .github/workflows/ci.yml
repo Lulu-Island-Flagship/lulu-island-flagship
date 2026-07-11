@@ -34,3 +34,5 @@ jobs:
           if grep -rn 'from("orders")' src/app/\[locale\]/ -A2 | grep 'select("\*")'; then
             echo "::error::select(*) sobre orders en página de cliente (invariante B.2.3)"; exit 1
           fi
+      - name: Accesibilidad — sin regresiones de WCAG 2.1 AA en las 3 superficies (E6-C7)
+        run: npm run audit:a11y
