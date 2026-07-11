@@ -46,7 +46,21 @@ export default function AdminLoginScreen() {
     setIsLoading(true);
     setError("");
     try {
-      const { error } = await supabase.auth.signInWithOtp({ email });
+      const currentPath = window.location.pathname;
+      const locale = currentPath.split("/")[1] || "en";
+      const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+      // emailRedirectTo -> /auth/callback: esta instancia local no tiene
+      // customizado el template de email con {{ .Token }}, así que Supabase
+      // manda un magic link (no un código de 6 dígitos). El link necesita
+      // pasar por /auth/callback para intercambiar el "code" PKCE por una
+      // sesión real (mismo mecanismo que ya usa Google arriba) -- sin esto,
+      // el link redirige pero nunca crea sesión.
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/${safeLocale}/admin`,
+        },
+      });
       if (error) throw error;
       setOtpSent(true);
     } catch (err: Error | unknown) {
@@ -159,6 +173,10 @@ export default function AdminLoginScreen() {
         )}
         {mode === "email" && otpSent && (
           <div className="space-y-3 text-left">
+            <p className="text-xs text-gray-500">
+              Check your email for a sign-in link (or a 6-digit code, if your
+              project has that email template configured).
+            </p>
             <div>
               <label className="block text-sm font-medium text-brand-ink mb-1">
                 Enter 6-digit code sent to {email}
