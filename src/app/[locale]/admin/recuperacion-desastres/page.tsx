@@ -31,10 +31,10 @@ interface Drill {
 }
 
 function formatRto(hours: number): string {
-  if (hours === 0) return "Inmediato";
+  if (hours === 0) return "Immediate";
   if (hours < 1) return `${Math.round(hours * 60)} min`;
   if (hours < 24) return `${hours} h`;
-  return `${(hours / 24).toFixed(1)} días`;
+  return `${(hours / 24).toFixed(1)} days`;
 }
 
 function ResultBadge({ result }: { result: Drill["result"] }) {
@@ -49,7 +49,7 @@ export default function RecuperacionDesastresPage() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
-  const [scope, setScope] = useState("Verificación de integridad de la base actual");
+  const [scope, setScope] = useState("Current database integrity verification");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,7 +57,7 @@ export default function RecuperacionDesastresPage() {
     try {
       const res = await fetch("/api/admin/dr-drill");
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error cargando");
+      if (!res.ok) throw new Error(json.error || "Error loading");
       setRtoTargets(json.rtoTargets);
       setDrills(json.drills);
     } catch (e) {
@@ -81,7 +81,7 @@ export default function RecuperacionDesastresPage() {
         body: JSON.stringify({ drillType: "restore_verification", testedScope: scope }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error corriendo el simulacro");
+      if (!res.ok) throw new Error(json.error || "Error running the drill");
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -94,12 +94,12 @@ export default function RecuperacionDesastresPage() {
     <div className="max-w-4xl mx-auto p-6">
       <div className="mb-2 flex items-center gap-3">
         <ShieldCheck className="h-6 w-6 text-brand-navy" />
-        <h1 className="text-2xl font-semibold text-brand-navy">Recuperación de desastres</h1>
+        <h1 className="text-2xl font-semibold text-brand-navy">Disaster Recovery</h1>
       </div>
       <p className="mb-6 text-sm text-gray-500">
-        Los backups en vivo los gestiona Supabase (PITR/snapshots) y el pg_dump mensual a
-        almacenamiento frío (fuera del alcance de esta app). Esta pantalla registra los
-        simulacros y hace verificable el RTO declarado.
+        Live backups are managed by Supabase (PITR/snapshots) and the monthly pg_dump to
+        cold storage (outside the scope of this app). This screen records
+        drills and makes the declared RTO verifiable.
       </p>
 
       {error && <div className="mb-4 rounded-md border border-state-danger bg-red-50 p-3 text-sm text-state-danger">{error}</div>}
@@ -110,15 +110,15 @@ export default function RecuperacionDesastresPage() {
         </div>
       ) : (
         <>
-          <h2 className="mb-2 text-lg font-semibold text-brand-ink">RTO declarado por tipo de dato</h2>
+          <h2 className="mb-2 text-lg font-semibold text-brand-ink">Declared RTO by data type</h2>
           <div className="mb-8 overflow-x-auto rounded border border-gray-200">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-3 py-2 text-left">Tipo de dato</th>
+                  <th className="px-3 py-2 text-left">Data type</th>
                   <th className="px-3 py-2 text-left">RTO</th>
-                  <th className="px-3 py-2 text-left">Método de recuperación</th>
-                  <th className="px-3 py-2 text-left">Estado</th>
+                  <th className="px-3 py-2 text-left">Recovery method</th>
+                  <th className="px-3 py-2 text-left">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -130,10 +130,10 @@ export default function RecuperacionDesastresPage() {
                     <td className="px-3 py-2">
                       {t.is_example ? (
                         <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">
-                          declarado en plan, sin confirmar con simulacro
+                          declared in plan, not confirmed by drill
                         </span>
                       ) : (
-                        <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-800">confirmado</span>
+                        <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-800">confirmed</span>
                       )}
                     </td>
                   </tr>
@@ -144,7 +144,7 @@ export default function RecuperacionDesastresPage() {
 
           <div className="mb-6 flex items-end gap-3 rounded-lg border border-brand-ice bg-white p-4">
             <div className="flex-1">
-              <label className="block text-xs text-gray-500 mb-1">Qué se prueba (tested_scope)</label>
+              <label className="block text-xs text-gray-500 mb-1">What is tested (tested_scope)</label>
               <input
                 type="text"
                 value={scope}
@@ -158,13 +158,13 @@ export default function RecuperacionDesastresPage() {
               className="flex items-center gap-1.5 rounded-md bg-brand-navy px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-50"
             >
               {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
-              Correr verificación de restauración
+              Run restoration verification
             </button>
           </div>
 
-          <h2 className="mb-2 text-lg font-semibold text-brand-ink">Historial de simulacros</h2>
+          <h2 className="mb-2 text-lg font-semibold text-brand-ink">Drill history</h2>
           {drills.length === 0 ? (
-            <p className="py-8 text-center text-sm text-gray-500">Ningún simulacro registrado todavía.</p>
+            <p className="py-8 text-center text-sm text-gray-500">No drills recorded yet.</p>
           ) : (
             <div className="space-y-2">
               {drills.map((d) => (
@@ -173,12 +173,12 @@ export default function RecuperacionDesastresPage() {
                     <code className="rounded bg-brand-ice px-1.5 py-0.5 text-xs">{d.drill_type}</code>
                     <ResultBadge result={d.result} />
                     <span className="ml-auto text-xs text-gray-400">
-                      {new Date(d.created_at).toLocaleString("es-CA", { timeZone: "America/Vancouver" })}
+                      {new Date(d.created_at).toLocaleString("en-CA", { timeZone: "America/Vancouver" })}
                     </span>
                   </div>
                   <p className="mt-1 text-brand-ink">{d.tested_scope}</p>
                   {d.duration_seconds !== null && (
-                    <p className="text-xs text-gray-500">Duración: {d.duration_seconds}s</p>
+                    <p className="text-xs text-gray-500">Duration: {d.duration_seconds}s</p>
                   )}
                 </div>
               ))}

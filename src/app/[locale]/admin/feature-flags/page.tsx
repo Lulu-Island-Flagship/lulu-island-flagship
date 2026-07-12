@@ -41,7 +41,7 @@ export default function FeatureFlagsPage() {
     try {
       const res = await fetch("/api/admin/feature-flags");
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error cargando flags");
+      if (!res.ok) throw new Error(json.error || "Error loading flags");
       setFlags(json.flags);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -60,7 +60,7 @@ export default function FeatureFlagsPage() {
         body: JSON.stringify({ nombre: flag.nombre, activo: !flag.activo }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error guardando");
+      if (!res.ok) throw new Error(json.error || "Error saving");
       setFlags((prev) =>
         prev.map((f) => (f.nombre === flag.nombre ? { ...f, ...json.flag } : f))
       );
@@ -86,7 +86,7 @@ export default function FeatureFlagsPage() {
   const byModule = useMemo(() => {
     const groups: Record<string, Flag[]> = {};
     for (const f of filtered) {
-      const key = f.modulo || "Sin módulo";
+      const key = f.modulo || "No module";
       (groups[key] ??= []).push(f);
     }
     return groups;
@@ -117,7 +117,7 @@ export default function FeatureFlagsPage() {
         <h1 className="text-2xl font-semibold text-brand-navy">Feature Flags</h1>
         <input
           type="text"
-          placeholder="Buscar…"
+          placeholder="Search…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border border-brand-ice rounded-md px-3 py-1.5 text-sm"
@@ -128,7 +128,7 @@ export default function FeatureFlagsPage() {
         <div className="mb-4 flex items-start gap-2 rounded-md border border-state-warning bg-amber-50 p-3 text-sm text-brand-ink">
           <AlertTriangle className="h-4 w-4 mt-0.5 text-state-warning shrink-0" />
           <span>
-            {staleCritical.length} flag(s) crítico(s) llevan más de 7 días apagados:{" "}
+            {staleCritical.length} critical flag(s) have been off for more than 7 days:{" "}
             <strong>{staleCritical.map((f) => f.nombre).join(", ")}</strong>
           </span>
         </div>
@@ -149,7 +149,7 @@ export default function FeatureFlagsPage() {
             {collapsed[mod] ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             {mod}
             <span className="ml-auto text-xs text-gray-400">
-              {group.filter((f) => f.activo).length}/{group.length} activos
+              {group.filter((f) => f.activo).length}/{group.length} active
             </span>
           </button>
 
@@ -168,7 +168,7 @@ export default function FeatureFlagsPage() {
                 <button
                   onClick={() => setInfoOpen(infoOpen === flag.nombre ? null : flag.nombre)}
                   className="text-gray-400 hover:text-brand-wave-blue"
-                  aria-label={`Descripción de ${flag.nombre}`}
+                  aria-label={`Description of ${flag.nombre}`}
                 >
                   <Info className="h-4 w-4" />
                 </button>
@@ -189,7 +189,7 @@ export default function FeatureFlagsPage() {
                 </button>
                 {infoOpen === flag.nombre && (
                   <p className="w-full basis-full pt-1 text-xs text-gray-500">
-                    {flag.descripcion || "Sin descripción."}
+                    {flag.descripcion || "No description."}
                   </p>
                 )}
               </div>
@@ -201,13 +201,13 @@ export default function FeatureFlagsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-96 rounded-lg bg-white p-6 shadow-elevation-3">
             <h2 className="mb-2 font-semibold text-brand-navy">
-              ¿{confirming.activo ? "Apagar" : "Encender"} {confirming.nombre}?
+              {confirming.activo ? "Turn off" : "Turn on"} {confirming.nombre}?
             </h2>
             <p className="mb-4 text-sm text-gray-600">
-              {confirming.descripcion || "Este interruptor activa o desactiva una función del sistema."}
+              {confirming.descripcion || "This switch enables or disables a system feature."}
               {confirming.es_critico && confirming.activo && (
                 <span className="mt-2 block font-medium text-state-danger">
-                  ⚠ Flag crítico (P0): apagarlo desactiva una función central del negocio.
+                  ⚠ Critical flag (P0): turning it off disables a core business feature.
                 </span>
               )}
             </p>
@@ -216,14 +216,14 @@ export default function FeatureFlagsPage() {
                 onClick={() => setConfirming(null)}
                 className="rounded-md border border-brand-ice px-4 py-2 text-sm"
               >
-                Cancelar
+                Cancel
               </button>
               <button
                 onClick={() => applyToggle(confirming)}
                 disabled={saving}
                 className="rounded-md bg-brand-navy px-4 py-2 text-sm text-white"
               >
-                {saving ? "Guardando…" : "Confirmar"}
+                {saving ? "Saving…" : "Confirm"}
               </button>
             </div>
           </div>

@@ -8,7 +8,15 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const next = requestUrl.searchParams.get("next") || "/cotizador";
+  const rawNext = requestUrl.searchParams.get("next") || "/cotizador";
+  // Auditoría v8.3 E0 (2026-07-11): `next` venía de un query param y se usaba
+  // sin validar en new URL(next, request.url). Si `next` es una URL absoluta
+  // (https://evil.com) o protocol-relative (//evil.com), new URL() la toma
+  // tal cual e ignora el base -- open redirect clásico: alguien arma un link
+  // de login legítimo con next=https://sitio-malicioso.com y, tras
+  // autenticar de verdad, el navegador termina en el sitio del atacante.
+  // Solo se permiten rutas relativas que empiecen con "/" y no con "//".
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/cotizador";
 
   if (code) {
     const cookieStore = cookies();

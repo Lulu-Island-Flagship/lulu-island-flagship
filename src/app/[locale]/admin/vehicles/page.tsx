@@ -202,7 +202,7 @@ export default function VehiclesPage() {
                   {v.is_active ? "Active" : "Inactive"}
                 </span>
               </div>
-              {v.current_lat !== undefined && v.current_lng !== undefined ? (
+              {v.current_lat != null && v.current_lng != null ? (
                 <div className="text-sm text-gray-600 flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-brand-gold" />
                   <span>

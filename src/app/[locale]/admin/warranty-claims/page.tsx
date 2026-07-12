@@ -55,9 +55,9 @@ interface ClaimDetail {
 }
 
 const OUTCOME_LABEL: Record<string, string> = {
-  auto_favor_client_missing_closure_evidence: "Sin evidencia de cierre — favor cliente (automático)",
-  auto_favor_team_unsubstantiated_claim: "Sin respaldo del cliente — se explica (automático)",
-  requires_human_review_contradictory_evidence: "Evidencia de ambas partes — requiere revisión humana",
+  auto_favor_client_missing_closure_evidence: "No closure evidence — favors client (automatic)",
+  auto_favor_team_unsubstantiated_claim: "Unsubstantiated by client — explained (automatic)",
+  requires_human_review_contradictory_evidence: "Evidence from both sides — requires human review",
 };
 
 export default function WarrantyClaimsPage() {
@@ -165,7 +165,7 @@ export default function WarrantyClaimsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-brand-ink">Reclamos de Garantía</h1>
+        <h1 className="text-2xl font-bold text-brand-ink">Warranty Claims</h1>
         <div className="flex gap-2">
           {["open", "escalated", "resolved_client", "resolved_lulu", "dismissed"].map((s) => (
             <button
@@ -195,7 +195,7 @@ export default function WarrantyClaimsPage() {
       ) : claims.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
           <CheckCircle2 className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500">Sin reclamos con status &quot;{statusFilter}&quot;.</p>
+          <p className="text-gray-500">No claims with status &quot;{statusFilter}&quot;.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -214,7 +214,7 @@ export default function WarrantyClaimsPage() {
                     {claim.severity}
                   </span>
                   {claim.claim_zone && (
-                    <span className="text-xs text-gray-400">Zona: {claim.claim_zone}</span>
+                    <span className="text-xs text-gray-400">Zone: {claim.claim_zone}</span>
                   )}
                   {claim.orders && (
                     <span className="text-xs text-gray-400">
@@ -225,8 +225,8 @@ export default function WarrantyClaimsPage() {
                 <p className="text-sm text-brand-ink font-medium">{claim.reason}</p>
                 {claim.description && <p className="text-sm text-gray-600">{claim.description}</p>}
                 <p className="text-xs text-gray-400">
-                  {claim.warranty_photo_evidence?.filter((e) => e.photo_type === "client").length || 0} foto(s) del
-                  cliente
+                  {claim.warranty_photo_evidence?.filter((e) => e.photo_type === "client").length || 0} client
+                  photo(s)
                 </p>
               </div>
               {claim.status === "open" || claim.status === "escalated" ? (
@@ -234,7 +234,7 @@ export default function WarrantyClaimsPage() {
                   onClick={() => openClaim(claim)}
                   className="bg-brand-navy text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors ml-2 shrink-0"
                 >
-                  Revisar
+                  Review
                 </button>
               ) : (
                 <CheckCircle2 className="w-5 h-5 text-green-400 ml-2 shrink-0" />
@@ -248,7 +248,7 @@ export default function WarrantyClaimsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-xl max-w-3xl w-full p-6 space-y-4 my-8">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-brand-ink">Resolver reclamo</h2>
+              <h2 className="text-lg font-bold text-brand-ink">Resolve claim</h2>
               <button onClick={() => setSelectedClaim(null)} className="text-gray-400 hover:text-gray-600">
                 <XCircle className="w-5 h-5" />
               </button>
@@ -256,10 +256,10 @@ export default function WarrantyClaimsPage() {
 
             <div className="text-sm space-y-1">
               <p>
-                <strong>Zona reclamada:</strong> {selectedClaim.claim_zone || "(sin zona asignada)"}
+                <strong>Claimed zone:</strong> {selectedClaim.claim_zone || "(no zone assigned)"}
               </p>
               <p>
-                <strong>Motivo:</strong> {selectedClaim.reason}
+                <strong>Reason:</strong> {selectedClaim.reason}
               </p>
               {selectedClaim.description && <p className="text-gray-600">{selectedClaim.description}</p>}
             </div>
@@ -272,34 +272,34 @@ export default function WarrantyClaimsPage() {
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h3 className="text-sm font-semibold text-brand-ink mb-2">Foto de cierre (equipo) — {claimZone}</h3>
+                    <h3 className="text-sm font-semibold text-brand-ink mb-2">Closure photo (team) — {claimZone}</h3>
                     {matchedZone?.hasClosurePhoto ? (
                       <div className="grid grid-cols-2 gap-2">
                         {matchedZone.closurePhotoUrls.map((url) => (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img key={url} src={url} alt="Foto de cierre" className="rounded-lg border w-full aspect-square object-cover" />
+                          <img key={url} src={url} alt="Closure photo" className="rounded-lg border w-full aspect-square object-cover" />
                         ))}
                       </div>
                     ) : (
                       <div className="border border-dashed rounded-lg p-6 text-center text-gray-400">
                         <ImageOff className="w-6 h-6 mx-auto mb-1" />
-                        <p className="text-xs">Sin foto de cierre para esta zona</p>
+                        <p className="text-xs">No closure photo for this zone</p>
                       </div>
                     )}
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-brand-ink mb-2">Evidencia del cliente</h3>
+                    <h3 className="text-sm font-semibold text-brand-ink mb-2">Client evidence</h3>
                     {detail.clientEvidence.length > 0 ? (
                       <div className="grid grid-cols-2 gap-2">
                         {detail.clientEvidence.map((e) => (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img key={e.id} src={e.photo_url} alt="Evidencia del cliente" className="rounded-lg border w-full aspect-square object-cover" />
+                          <img key={e.id} src={e.photo_url} alt="Client evidence" className="rounded-lg border w-full aspect-square object-cover" />
                         ))}
                       </div>
                     ) : (
                       <div className="border border-dashed rounded-lg p-6 text-center text-gray-400">
                         <ImageOff className="w-6 h-6 mx-auto mb-1" />
-                        <p className="text-xs">El cliente no aportó evidencia propia</p>
+                        <p className="text-xs">Client did not provide their own evidence</p>
                       </div>
                     )}
                   </div>
@@ -320,9 +320,9 @@ export default function WarrantyClaimsPage() {
                   <div className="flex gap-2">
                     {(
                       [
-                        { key: "free_recleaning", label: "Re-limpieza gratis" },
-                        { key: "explain_no_action", label: "Explicar, sin acción" },
-                        { key: "dismiss", label: "Descartar" },
+                        { key: "free_recleaning", label: "Free re-cleaning" },
+                        { key: "explain_no_action", label: "Explain, no action" },
+                        { key: "dismiss", label: "Dismiss" },
                       ] as { key: "free_recleaning" | "explain_no_action" | "dismiss"; label: string }[]
                     ).map((opt) => (
                       <button
@@ -343,7 +343,7 @@ export default function WarrantyClaimsPage() {
                 <textarea
                   value={resolutionNotes}
                   onChange={(e) => setResolutionNotes(e.target.value)}
-                  placeholder="Notas de resolución (opcional — si se deja vacío, se usa la explicación generada por el sistema)..."
+                  placeholder="Resolution notes (optional — if left empty, the system-generated explanation is used)..."
                   className="w-full border rounded-lg p-3 text-sm min-h-[80px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
                 />
 
@@ -357,9 +357,9 @@ export default function WarrantyClaimsPage() {
                   {submitting ? (
                     <Loader2 className="w-5 h-5 animate-spin mx-auto" />
                   ) : detail.decision.requiresHumanReview ? (
-                    "Aplicar decisión"
+                    "Apply decision"
                   ) : (
-                    "Aplicar decisión automática"
+                    "Apply automatic decision"
                   )}
                 </button>
               </>

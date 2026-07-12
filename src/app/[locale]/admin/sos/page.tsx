@@ -29,11 +29,11 @@ interface SafetyAbort {
 }
 
 const STAGE_LABELS: Record<Stage, string> = {
-  sos_active: "SOS activo (0-2 min)",
-  escalated_admin_call: "Escalado: llamada a admin (2-4 min)",
-  escalated_emergency_admin: "Escalado: Admin de Emergencia (4-10 min)",
-  auto_approved: "Auto-aprobado por seguridad (10+ min)",
-  acknowledged: "Reconocido por admin",
+  sos_active: "SOS active (0-2 min)",
+  escalated_admin_call: "Escalated: admin call (2-4 min)",
+  escalated_emergency_admin: "Escalated: Emergency Admin (4-10 min)",
+  auto_approved: "Auto-approved for safety (10+ min)",
+  acknowledged: "Acknowledged by admin",
 };
 
 const STAGE_COLORS: Record<Stage, string> = {
@@ -62,13 +62,13 @@ export default function SosPage() {
       const res = await fetch("/api/admin/safety-aborts", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "No se pudo cargar la bandeja de SOS.");
+        setError(err.error || "Could not load the SOS inbox.");
         return;
       }
       const data = await res.json();
       setItems(data.safetyAborts || []);
     } catch {
-      setError("Error de red.");
+      setError("Network error.");
     } finally {
       setLoading(false);
     }
@@ -106,11 +106,11 @@ export default function SosPage() {
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="flex items-center gap-2 mb-1">
           <Siren className="w-5 h-5 text-state-danger" />
-          <h1 className="text-xl font-bold text-brand-ink">Aborto Seguro (SOS)</h1>
+          <h1 className="text-xl font-bold text-brand-ink">Safety Abort (SOS)</h1>
         </div>
         <p className="text-sm text-gray-600 mb-6">
-          El sistema aprueba primero por seguridad. La revisión ex-post es SIEMPRE obligatoria;
-          si la evidencia respalda al líder, la sanción queda prohibida.
+          The system approves first for safety. The ex-post review is ALWAYS mandatory;
+          if the evidence supports the leader, sanction is prohibited.
         </p>
 
         {error && (
@@ -125,7 +125,7 @@ export default function SosPage() {
           <div className="space-y-3">
             {items.length === 0 && (
               <p className="bg-white rounded-xl shadow-elevation-1 p-4 text-sm text-gray-500">
-                Sin abortos seguros registrados.
+                No safety aborts recorded.
               </p>
             )}
             {items.map((it) => {
@@ -152,7 +152,7 @@ export default function SosPage() {
                       disabled={busyId === it.id}
                       className="flex items-center gap-1 bg-brand-navy text-white px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Reconocer (detener escalación)
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Acknowledge (stop escalation)
                     </button>
                   )}
 
@@ -161,15 +161,15 @@ export default function SosPage() {
                       <div className="text-xs text-gray-600 flex items-start gap-1.5">
                         <ClipboardCheck className="w-3.5 h-3.5 text-state-success flex-shrink-0 mt-0.5" />
                         <span>
-                          Revisado ex-post. Evidencia {it.evidence_supports_leader ? "respalda" : "no respalda"} al líder —
-                          sanción {it.sanction_prohibited ? "prohibida" : "no prohibida (revisión humana)"}.
+                          Reviewed ex-post. Evidence {it.evidence_supports_leader ? "supports" : "does not support"} the leader —
+                          sanction {it.sanction_prohibited ? "prohibited" : "not prohibited (human review)"}.
                           {it.review_notes && <> {it.review_notes}</>}
                         </span>
                       </div>
                     ) : (
                       <div className="space-y-2">
                         <p className="text-xs font-medium text-state-warning">
-                          Revisión ex-post pendiente (obligatoria — B.3.5)
+                          Ex-post review pending (mandatory — B.3.5)
                         </p>
                         <div className="flex items-center gap-3 text-xs">
                           <label className="flex items-center gap-1">
@@ -178,7 +178,7 @@ export default function SosPage() {
                               checked={draft.evidenceSupportsLeader === true}
                               onChange={() => setReviewDraft({ ...reviewDraft, [it.id]: { ...draft, evidenceSupportsLeader: true } })}
                             />
-                            Evidencia respalda al líder
+                            Evidence supports the leader
                           </label>
                           <label className="flex items-center gap-1">
                             <input
@@ -186,12 +186,12 @@ export default function SosPage() {
                               checked={draft.evidenceSupportsLeader === false}
                               onChange={() => setReviewDraft({ ...reviewDraft, [it.id]: { ...draft, evidenceSupportsLeader: false } })}
                             />
-                            Evidencia NO respalda
+                            Evidence does NOT support
                           </label>
                         </div>
                         <input
                           type="text"
-                          placeholder="Notas de la revisión (opcional)"
+                          placeholder="Review notes (optional)"
                           value={draft.notes}
                           onChange={(e) => setReviewDraft({ ...reviewDraft, [it.id]: { ...draft, notes: e.target.value } })}
                           className="w-full text-xs border rounded-lg px-2 py-1.5"
@@ -201,7 +201,7 @@ export default function SosPage() {
                           disabled={busyId === it.id}
                           className="bg-brand-navy text-white px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
                         >
-                          Registrar revisión ex-post
+                          Record ex-post review
                         </button>
                       </div>
                     )}

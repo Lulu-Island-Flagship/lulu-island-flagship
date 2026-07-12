@@ -15,11 +15,11 @@ interface WeeklyPattern {
 }
 
 const CATEGORY_LABELS: Record<WeeklyPattern["category"], string> = {
-  near_fall: "Casi-caída",
-  near_chemical_mix: "Casi-mezcla química",
-  near_bite: "Casi-mordida",
-  near_burn: "Casi-quemadura",
-  other: "Otro",
+  near_fall: "Near-fall",
+  near_chemical_mix: "Near chemical mix",
+  near_bite: "Near-bite",
+  near_burn: "Near-burn",
+  other: "Other",
 };
 
 export default function NearMissesPage() {
@@ -44,7 +44,7 @@ export default function NearMissesPage() {
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "No se pudo cargar el dashboard de near-misses.");
+        setError(err.error || "Could not load the near-misses dashboard.");
         return;
       }
       const data = await res.json();
@@ -53,7 +53,7 @@ export default function NearMissesPage() {
       setTotalReports(data.totalReports || 0);
       setPatterns(data.patterns || []);
     } catch {
-      setError("Error de red.");
+      setError("Network error.");
     } finally {
       setLoading(false);
     }
@@ -71,11 +71,11 @@ export default function NearMissesPage() {
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="flex items-center gap-2 mb-1">
           <ShieldAlert className="w-5 h-5 text-brand-navy" />
-          <h1 className="text-xl font-bold text-brand-ink">Near-Misses (casi-accidentes)</h1>
+          <h1 className="text-xl font-bold text-brand-ink">Near-Misses</h1>
         </div>
         <p className="text-sm text-gray-600 mb-6">
-          Reporte sin penalización, anonimato opcional. Nunca se expone aquí quién reportó —
-          solo el patrón agregado semanal y la acción sugerida por categoría.
+          No-penalty reporting, optional anonymity. Who reported is never shown here —
+          only the aggregated weekly pattern and the suggested action per category.
         </p>
 
         {error && (
@@ -90,7 +90,7 @@ export default function NearMissesPage() {
             disabled={loading || !weekStart}
             className="text-sm text-brand-navy font-medium disabled:opacity-40"
           >
-            ← Semana anterior
+            ← Previous week
           </button>
           <span className="text-sm text-gray-600">
             {weekStart && weekEndExclusive
@@ -102,7 +102,7 @@ export default function NearMissesPage() {
             disabled={loading || !weekStart}
             className="text-sm text-brand-navy font-medium disabled:opacity-40"
           >
-            Semana siguiente →
+            Next week →
           </button>
         </div>
 
@@ -111,13 +111,13 @@ export default function NearMissesPage() {
         ) : (
           <>
             <div className="bg-white rounded-xl shadow-elevation-1 p-4 mb-4">
-              <p className="text-sm text-gray-500">Total reportado esta semana</p>
+              <p className="text-sm text-gray-500">Total reported this week</p>
               <p className="text-2xl font-bold text-brand-ink">{totalReports}</p>
             </div>
 
             <div className="bg-white rounded-xl shadow-elevation-1 divide-y">
               {patterns.length === 0 && (
-                <p className="p-4 text-sm text-gray-500">Sin reportes esta semana.</p>
+                <p className="p-4 text-sm text-gray-500">No reports this week.</p>
               )}
               {patterns.map((p) => (
                 <div key={p.category} className="p-3 text-sm">
@@ -126,7 +126,7 @@ export default function NearMissesPage() {
                       <AlertTriangle className="w-4 h-4 text-state-warning" />
                       {CATEGORY_LABELS[p.category]}
                     </span>
-                    <span className="text-gray-500">{p.count} reporte(s)</span>
+                    <span className="text-gray-500">{p.count} report(s)</span>
                   </div>
                   <p className="text-xs text-gray-600 mt-1">{p.suggestedAction}</p>
                 </div>

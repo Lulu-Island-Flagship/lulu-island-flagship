@@ -16,40 +16,40 @@ interface ContingencyItem {
 
 const ITEMS: ContingencyItem[] = [
   {
-    situation: "Cliente sin pago online",
-    action: '"Pago pendiente" + e-transfer/efectivo con recibo.',
+    situation: "Client with no online payment",
+    action: '"Payment pending" + e-transfer/cash with receipt.',
   },
   {
-    situation: "PWA no carga",
-    action: "Teléfono + papel + fotos con celular.",
+    situation: "PWA won't load",
+    action: "Phone + paper + photos with cellphone.",
   },
   {
-    situation: "QBO sin sync >48h",
-    action: "Llamar.",
+    situation: "QBO not synced >48h",
+    action: "Call.",
   },
   {
-    situation: "Sin acceso (llaves)",
-    action: "Protocolo de llaves → no-show.",
+    situation: "No access (keys)",
+    action: "Key protocol → no-show.",
   },
   {
-    situation: "Stripe bloqueado",
-    action: '"Pago pendiente" global.',
+    situation: "Stripe blocked",
+    action: '"Payment pending" globally.',
   },
   {
-    situation: "Supabase caído",
-    action: "Offline, no cancelar servicios.",
+    situation: "Supabase down",
+    action: "Offline, do not cancel services.",
   },
   {
-    situation: "Disputa",
-    action: "Nunca reembolsar sin revisar evidencia.",
+    situation: "Dispute",
+    action: "Never refund without reviewing evidence.",
   },
   {
-    situation: "Lesión",
-    action: "WorkSafeBC 72h, no admitir culpa.",
+    situation: "Injury",
+    action: "WorkSafeBC 72h, do not admit fault.",
   },
   {
-    situation: "Acusación de daño",
-    action: "Foto pre-servicio.",
+    situation: "Damage accusation",
+    action: "Pre-service photo.",
   },
 ];
 
@@ -59,10 +59,10 @@ export default function ManualContingenciaPage() {
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="flex items-center gap-3 mb-2">
           <ShieldAlert className="w-7 h-7 text-brand-navy" />
-          <h1 className="text-xl font-bold text-brand-ink">Manual de Contingencia</h1>
+          <h1 className="text-xl font-bold text-brand-ink">Contingency Manual</h1>
         </div>
         <p className="text-sm text-gray-600 mb-6">
-          Una página. Si la situación no está aquí abajo: Fallback 10 min → Admin de Emergencia.
+          One page. If the situation isn't listed below: 10 min Fallback → Emergency Admin.
         </p>
 
         <div className="bg-white rounded-xl shadow-elevation-1 divide-y">
@@ -78,11 +78,11 @@ export default function ManualContingenciaPage() {
         </div>
 
         <div className="mt-6 bg-brand-navy text-white rounded-xl p-4">
-          <p className="text-sm font-semibold mb-1">Regla de oro</p>
+          <p className="text-sm font-semibold mb-1">Golden rule</p>
           <p className="text-sm text-white/90">
-            Si la situación no está en esta lista → Fallback de 10 minutos → escalar a
-            Admin de Emergencia. Nunca improvisar una excepción nueva sin registrar el caso
-            después para que se agregue aquí.
+            If the situation isn't on this list → 10-minute Fallback → escalate to
+            Emergency Admin. Never improvise a new exception without logging the case
+            afterward so it can be added here.
           </p>
         </div>
       </div>

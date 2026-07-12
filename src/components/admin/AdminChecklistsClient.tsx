@@ -692,7 +692,7 @@ export default function AdminChecklistsClient() {
                     type="text"
                     value={formZoneLabel}
                     onChange={(e) => setFormZoneLabel(e.target.value)}
-                    placeholder="e.g. Baño"
+                    placeholder="e.g. Bathroom"
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
                   />
                 </div>

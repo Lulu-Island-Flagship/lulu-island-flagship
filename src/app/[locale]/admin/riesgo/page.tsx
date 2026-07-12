@@ -28,17 +28,17 @@ interface RiskAssessment {
 }
 
 const FLAG_OPTIONS: { value: RiskFlagType; label: string }[] = [
-  { value: "steep_stairs", label: "Escaleras empinadas (+PPE +15 min)" },
-  { value: "aggressive_dog", label: "Perro agresivo (dueño debe estar presente)" },
-  { value: "mold_over_1sqm", label: "Moho >1m² (NO es servicio Lulu — bloqueo duro)" },
-  { value: "confined_space", label: "Espacio confinado (2 personas + check-in 15 min)" },
-  { value: "defective_lockbox", label: "Lockbox defectuoso (escalación de llaves)" },
+  { value: "steep_stairs", label: "Steep stairs (+PPE +15 min)" },
+  { value: "aggressive_dog", label: "Aggressive dog (owner must be present)" },
+  { value: "mold_over_1sqm", label: "Mold >1m² (NOT a Lulu service — hard block)" },
+  { value: "confined_space", label: "Confined space (2 people + 15 min check-in)" },
+  { value: "defective_lockbox", label: "Defective lockbox (key escalation)" },
 ];
 
 const TIER_LABELS: Record<RiskTier, string> = {
-  standard: "Estándar (0-2 flags)",
-  auditor_required: "Auditor obligatorio (3-4 flags)",
-  pre_inspection_required: "Inspección previa requerida (5+ flags)",
+  standard: "Standard (0-2 flags)",
+  auditor_required: "Auditor required (3-4 flags)",
+  pre_inspection_required: "Pre-inspection required (5+ flags)",
 };
 
 const TIER_COLORS: Record<RiskTier, string> = {
@@ -88,7 +88,7 @@ export default function RiesgoPage() {
     e.preventDefault();
     setError("");
     if (!propertyId.trim()) {
-      setError("Falta el ID de la propiedad (client_property_id).");
+      setError("Missing property ID (client_property_id).");
       return;
     }
     setSaving(true);
@@ -101,7 +101,7 @@ export default function RiesgoPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "No se pudo registrar la evaluación.");
+        setError(data.error || "Could not save the assessment.");
         return;
       }
       setSelectedFlags([]);
@@ -116,11 +116,11 @@ export default function RiesgoPage() {
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="flex items-center gap-2 mb-1">
           <ShieldAlert className="w-5 h-5 text-brand-navy" />
-          <h1 className="text-xl font-bold text-brand-ink">Riesgo por Dirección</h1>
+          <h1 className="text-xl font-bold text-brand-ink">Risk by Address</h1>
         </div>
         <p className="text-sm text-gray-600 mb-6">
-          Visible a admin y líder — nunca al cliente. 0-2 flags = estándar · 3-4 = auditor
-          obligatorio · 5+ = inspección previa.
+          Visible to admin and lead — never to the client. 0-2 flags = standard · 3-4 = auditor
+          required · 5+ = pre-inspection required.
         </p>
 
         {error && (
@@ -130,7 +130,7 @@ export default function RiesgoPage() {
         )}
 
         <form onSubmit={submit} className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3 mb-6">
-          <h2 className="text-sm font-semibold text-brand-ink">Registrar evaluación</h2>
+          <h2 className="text-sm font-semibold text-brand-ink">Record assessment</h2>
           <input
             type="text"
             placeholder="client_property_id (UUID)"
@@ -158,14 +158,14 @@ export default function RiesgoPage() {
             disabled={saving}
             className="flex items-center gap-1 bg-brand-navy text-white px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
           >
-            <Plus className="w-4 h-4" /> Registrar evaluación
+            <Plus className="w-4 h-4" /> Record assessment
           </button>
         </form>
 
         <div className="flex items-center gap-2 mb-3">
           <input
             type="text"
-            placeholder="Filtrar por client_property_id (opcional)"
+            placeholder="Filter by client_property_id (optional)"
             value={lookupPropertyId}
             onChange={(e) => setLookupPropertyId(e.target.value)}
             className="flex-1 text-sm border rounded-lg px-3 py-2"
@@ -174,7 +174,7 @@ export default function RiesgoPage() {
             onClick={() => loadAssessments(lookupPropertyId || undefined)}
             className="text-sm bg-white border px-3 py-2 rounded-lg font-medium text-brand-navy"
           >
-            Buscar
+            Search
           </button>
         </div>
 
@@ -183,7 +183,7 @@ export default function RiesgoPage() {
         ) : (
           <div className="bg-white rounded-xl shadow-elevation-1 divide-y">
             {assessments.length === 0 && (
-              <p className="p-4 text-sm text-gray-500">Sin evaluaciones registradas todavía.</p>
+              <p className="p-4 text-sm text-gray-500">No assessments recorded yet.</p>
             )}
             {assessments.map((a) => (
               <div key={a.id} className="p-3 text-sm">
@@ -195,7 +195,7 @@ export default function RiesgoPage() {
                 </div>
                 {a.hard_blocked && (
                   <p className="text-xs text-state-danger font-medium mt-1 flex items-center gap-1">
-                    <AlertOctagon className="w-3.5 h-3.5" /> Bloqueado — no es servicio Lulu
+                    <AlertOctagon className="w-3.5 h-3.5" /> Blocked — not a Lulu service
                   </p>
                 )}
                 {a.notes && <p className="text-xs text-gray-600 mt-1">{a.notes}</p>}

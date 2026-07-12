@@ -39,7 +39,7 @@ export default function AjustesHhePage() {
     try {
       const res = await fetch("/api/admin/hhe-adjustments");
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error cargando sugerencias");
+      if (!res.ok) throw new Error(json.error || "Error loading suggestions");
       setData(json);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -69,7 +69,7 @@ export default function AjustesHhePage() {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error aplicando ajuste");
+      if (!res.ok) throw new Error(json.error || "Error applying adjustment");
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -82,13 +82,13 @@ export default function AjustesHhePage() {
     <div className="max-w-4xl mx-auto p-6">
       <div className="mb-2 flex items-center gap-3">
         <Gauge className="h-6 w-6 text-brand-navy" />
-        <h1 className="text-2xl font-semibold text-brand-navy">Ajustes de HHE sugeridos</h1>
+        <h1 className="text-2xl font-semibold text-brand-navy">Suggested HHE Adjustments</h1>
       </div>
       <p className="mb-6 text-sm text-gray-500">
-        Desviación sostenida ≥30 días entre HHE estimada y horas-hombre reales (aproximadas desde
-        el rango de checklist completado × equipo asignado — no hay clock-in/out dedicado en el
-        schema todavía). Aplicar aquí cierra la celda vigente y abre una nueva en la tabla HHE;
-        queda registrado y es reversible desde Historial de configuración.
+        Sustained deviation ≥30 days between estimated HHE and actual person-hours (approximated
+        from completed checklist range × assigned team — there's no dedicated clock-in/out in the
+        schema yet). Applying here closes the current cell and opens a new one in the HHE table;
+        it is logged and reversible from Configuration History.
       </p>
 
       {error && <div className="mb-4 rounded-md border border-state-danger bg-red-50 p-3 text-sm text-state-danger">{error}</div>}
@@ -99,7 +99,7 @@ export default function AjustesHhePage() {
         </div>
       ) : !data || data.suggestions.length === 0 ? (
         <p className="py-16 text-center text-sm text-gray-500">
-          Sin desviaciones sostenidas detectadas ({data?.observationsUsed ?? 0} observaciones analizadas).
+          No sustained deviations detected ({data?.observationsUsed ?? 0} observations analyzed).
         </p>
       ) : (
         <div className="space-y-3">
@@ -109,7 +109,7 @@ export default function AjustesHhePage() {
               <div key={key} className="rounded-lg border border-brand-ice bg-white p-4 shadow-elevation-1">
                 <p className="text-sm text-brand-ink">{s.message}</p>
                 <p className="mt-1 text-xs text-gray-500">
-                  {s.observationDays.toFixed(0)} días de observación, {(s.consistentFraction * 100).toFixed(0)}% consistente
+                  {s.observationDays.toFixed(0)} days of observation, {(s.consistentFraction * 100).toFixed(0)}% consistent
                 </p>
                 <button
                   onClick={() => apply(s)}
@@ -117,7 +117,7 @@ export default function AjustesHhePage() {
                   className="mt-3 flex items-center gap-1.5 rounded-md bg-brand-navy px-3 py-1.5 text-xs text-white hover:opacity-90 disabled:opacity-50"
                 >
                   {applying === key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                  Aplicar
+                  Apply
                 </button>
               </div>
             );

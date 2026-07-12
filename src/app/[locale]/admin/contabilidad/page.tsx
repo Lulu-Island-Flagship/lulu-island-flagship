@@ -24,7 +24,7 @@ interface AccountingResponse {
 }
 
 function formatCad(cents: number): string {
-  return (cents / 100).toLocaleString("es-CA", { style: "currency", currency: "CAD" });
+  return (cents / 100).toLocaleString("en-CA", { style: "currency", currency: "CAD" });
 }
 
 function formatPercent(fraction: number): string {
@@ -39,13 +39,13 @@ function GroupTable({ title, rows }: { title: string; rows: GroupSummary[] }) {
         <table className="min-w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-3 py-2 text-left">Grupo</th>
-              <th className="px-3 py-2 text-right">Órdenes</th>
-              <th className="px-3 py-2 text-right">Cobrado</th>
-              <th className="px-3 py-2 text-right">Pagado (nómina)</th>
-              <th className="px-3 py-2 text-right">Carga patronal</th>
-              <th className="px-3 py-2 text-right">Margen contribución</th>
-              <th className="px-3 py-2 text-right">Margen neto real</th>
+              <th className="px-3 py-2 text-left">Group</th>
+              <th className="px-3 py-2 text-right">Orders</th>
+              <th className="px-3 py-2 text-right">Collected</th>
+              <th className="px-3 py-2 text-right">Paid (payroll)</th>
+              <th className="px-3 py-2 text-right">Employer burden</th>
+              <th className="px-3 py-2 text-right">Contribution margin</th>
+              <th className="px-3 py-2 text-right">Actual net margin</th>
             </tr>
           </thead>
           <tbody>
@@ -71,7 +71,7 @@ function GroupTable({ title, rows }: { title: string; rows: GroupSummary[] }) {
             {rows.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-3 py-4 text-center text-gray-400">
-                  Sin datos en el rango seleccionado.
+                  No data in the selected range.
                 </td>
               </tr>
             )}
@@ -109,10 +109,10 @@ export default function ContabilidadPage() {
       if (to) params.set("to", to);
       const res = await fetch(`/api/admin/accounting?${params.toString()}`);
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error cargando contabilidad");
+      if (!res.ok) throw new Error(json.error || "Error loading accounting data");
       setData(json);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido");
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
     }
@@ -126,32 +126,32 @@ export default function ContabilidadPage() {
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex items-center gap-2 mb-4">
         <DollarSign className="w-6 h-6" />
-        <h1 className="text-2xl font-bold">Contabilidad operativa</h1>
+        <h1 className="text-2xl font-bold">Operational Accounting</h1>
       </div>
 
       <p className="text-sm text-gray-500 mb-4">
-        Cobrado = monto real capturado del cliente. Pagado = nómina bruta. Margen de contribución = cobrado −
-        pagado. Margen neto real = cobrado − pagado − carga patronal (CPP/EI/WorkSafeBC). La carga patronal se
-        muestra en 0 hasta que exista un snapshot de nómina para el ciclo correspondiente.
+        Collected = actual amount captured from the client. Paid = gross payroll. Contribution margin = collected −
+        paid. Actual net margin = collected − paid − employer burden (CPP/EI/WorkSafeBC). Employer burden is
+        shown as 0 until a payroll snapshot exists for the corresponding cycle.
       </p>
 
       <div className="flex items-end gap-3 mb-6">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Desde</label>
+          <label className="block text-xs text-gray-500 mb-1">From</label>
           <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="border rounded px-2 py-1 text-sm" />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Hasta</label>
+          <label className="block text-xs text-gray-500 mb-1">To</label>
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="border rounded px-2 py-1 text-sm" />
         </div>
         <button onClick={load} className="px-3 py-1.5 bg-gray-900 text-white rounded text-sm">
-          Filtrar
+          Filter
         </button>
       </div>
 
       <div className="flex items-end gap-3 mb-6 border-t pt-4">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Exportación universal (mes)</label>
+          <label className="block text-xs text-gray-500 mb-1">Universal export (month)</label>
           <input
             type="month"
             value={exportMonth}
@@ -172,13 +172,13 @@ export default function ContabilidadPage() {
           <Download className="w-3.5 h-3.5" /> JSON
         </button>
         <span className="text-xs text-gray-400">
-          Sin dependencia de QBO — ingresos, nómina, comisiones, regalos y reservas de impuestos del mes (D.9.5).
+          No dependency on QBO — revenue, payroll, commissions, gifts and tax reserves for the month (D.9.5).
         </span>
       </div>
 
       {loading && (
         <div className="flex items-center gap-2 text-gray-500">
-          <Loader2 className="w-4 h-4 animate-spin" /> Cargando…
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading…
         </div>
       )}
       {error && <div className="text-red-600 text-sm mb-4">{error}</div>}
@@ -187,11 +187,11 @@ export default function ContabilidadPage() {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
             <div className="border rounded p-4">
-              <div className="text-xs text-gray-500 mb-1">Total cobrado</div>
+              <div className="text-xs text-gray-500 mb-1">Total collected</div>
               <div className="text-xl font-semibold">{formatCad(data.overall.collectedCents)}</div>
             </div>
             <div className="border rounded p-4">
-              <div className="text-xs text-gray-500 mb-1">Margen neto real</div>
+              <div className="text-xs text-gray-500 mb-1">Actual net margin</div>
               <div className={`text-xl font-semibold flex items-center gap-1 ${data.overall.netMarginCents >= 0 ? "text-green-700" : "text-red-700"}`}>
                 {data.overall.netMarginCents >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                 {formatCad(data.overall.netMarginCents)} ({formatPercent(data.overall.netMarginPercent)})
@@ -199,9 +199,9 @@ export default function ContabilidadPage() {
             </div>
           </div>
 
-          <GroupTable title="Por zona" rows={data.byZone} />
-          <GroupTable title="Por tipo de servicio" rows={data.byServiceType} />
-          <GroupTable title="Por equipo" rows={data.byTeam} />
+          <GroupTable title="By zone" rows={data.byZone} />
+          <GroupTable title="By service type" rows={data.byServiceType} />
+          <GroupTable title="By team" rows={data.byTeam} />
         </>
       )}
     </div>

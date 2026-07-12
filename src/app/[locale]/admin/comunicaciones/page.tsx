@@ -61,7 +61,7 @@ export default function ComunicacionesPage() {
     try {
       const res = await fetch("/api/admin/communication-templates");
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error cargando plantillas");
+      if (!res.ok) throw new Error(json.error || "Error loading templates");
       setEvents(json.events);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -87,11 +87,11 @@ export default function ComunicacionesPage() {
   async function save(existing?: TemplateRow) {
     if (!editing) return;
     if (!draftBody.trim()) {
-      setError("El cuerpo de la plantilla no puede estar vacío");
+      setError("The template body cannot be empty");
       return;
     }
     if (existing && !draftReason.trim()) {
-      setError("El motivo del cambio es obligatorio para editar una plantilla existente");
+      setError("A reason for the change is required to edit an existing template");
       return;
     }
     setSaving(true);
@@ -109,7 +109,7 @@ export default function ComunicacionesPage() {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error guardando plantilla");
+      if (!res.ok) throw new Error(json.error || "Error saving template");
       await load();
       cancelEdit();
     } catch (e) {
@@ -141,11 +141,11 @@ export default function ComunicacionesPage() {
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-brand-navy">Plantillas de comunicación</h1>
+        <h1 className="text-2xl font-semibold text-brand-navy">Communication Templates</h1>
         <div className="flex items-center gap-3">
           <input
             type="text"
-            placeholder="Buscar evento…"
+            placeholder="Search event…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="rounded-md border border-brand-ice px-3 py-1.5 text-sm"
@@ -155,7 +155,7 @@ export default function ComunicacionesPage() {
             className="flex items-center gap-1 rounded-md border border-brand-navy px-3 py-1.5 text-sm text-brand-navy hover:bg-brand-ice"
           >
             <History className="h-4 w-4" />
-            Ver historial / Deshacer
+            View history / Undo
           </Link>
         </div>
       </div>
@@ -176,11 +176,11 @@ export default function ComunicacionesPage() {
                   ev.category === "transactional" ? "bg-brand-navy text-white" : "bg-brand-gold text-white"
                 }`}
               >
-                {ev.category === "transactional" ? "TRANSACCIONAL" : "MARKETING"}
+                {ev.category === "transactional" ? "TRANSACTIONAL" : "MARKETING"}
               </span>
               {ev.priority === "urgent" && (
                 <span className="rounded bg-state-danger px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                  URGENTE
+                  URGENT
                 </span>
               )}
               <span className="ml-auto text-xs text-gray-400">{ev.description}</span>
@@ -200,7 +200,7 @@ export default function ComunicacionesPage() {
                         <button
                           onClick={() => startEdit(ev.event_key, code, existing)}
                           className="ml-auto text-gray-400 hover:text-brand-wave-blue"
-                          aria-label={`Editar plantilla ${ev.event_key} (${label})`}
+                          aria-label={`Edit template ${ev.event_key} (${label})`}
                         >
                           {existing ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
                         </button>
@@ -211,13 +211,13 @@ export default function ComunicacionesPage() {
                       <div className="space-y-2">
                         <input
                           type="text"
-                          placeholder="Asunto (opcional, solo email)"
+                          placeholder="Subject (optional, email only)"
                           value={draftSubject}
                           onChange={(e) => setDraftSubject(e.target.value)}
                           className="w-full rounded border border-brand-ice px-2 py-1 text-xs"
                         />
                         <textarea
-                          placeholder="Texto de la plantilla — usa {variable} para valores dinámicos"
+                          placeholder="Template text — use {variable} for dynamic values"
                           value={draftBody}
                           onChange={(e) => setDraftBody(e.target.value)}
                           rows={4}
@@ -226,7 +226,7 @@ export default function ComunicacionesPage() {
                         {existing && (
                           <input
                             type="text"
-                            placeholder="Motivo del cambio (obligatorio)"
+                            placeholder="Reason for change (required)"
                             value={draftReason}
                             onChange={(e) => setDraftReason(e.target.value)}
                             className="w-full rounded border border-brand-ice px-2 py-1 text-xs"
@@ -239,7 +239,7 @@ export default function ComunicacionesPage() {
                             className="flex items-center gap-1 rounded border border-brand-ice px-2 py-1 text-xs"
                           >
                             <X className="h-3 w-3" />
-                            Cancelar
+                            Cancel
                           </button>
                           <button
                             onClick={() => save(existing)}
@@ -247,14 +247,14 @@ export default function ComunicacionesPage() {
                             className="flex items-center gap-1 rounded bg-brand-navy px-2 py-1 text-xs text-white"
                           >
                             {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                            Guardar
+                            Save
                           </button>
                         </div>
                       </div>
                     ) : existing ? (
                       <p className="whitespace-pre-wrap text-xs text-brand-ink">{existing.body}</p>
                     ) : (
-                      <p className="text-xs text-gray-400">Sin plantilla todavía.</p>
+                      <p className="text-xs text-gray-400">No template yet.</p>
                     )}
                   </div>
                 );

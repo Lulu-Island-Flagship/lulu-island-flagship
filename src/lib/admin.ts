@@ -14,11 +14,26 @@ export function getSupabaseClient() {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
+        // v8.3 E0 (2026-07-11): esta función se llama tanto desde Route
+        // Handlers (donde escribir cookies funciona) como desde Server
+        // Components de páginas de admin (donde NO funciona y Next.js
+        // truena con "Cookies can only be modified in a Server Action or
+        // Route Handler"). Ignorar el error acá es el patrón oficial de
+        // @supabase/ssr para ese caso -- ver mismo fix en
+        // src/app/[locale]/admin/layout.tsx.
         set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options });
+          try {
+            cookieStore.set({ name, value, ...options });
+          } catch {
+            // No-op: esperado cuando se llama desde un Server Component.
+          }
         },
         remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options });
+          try {
+            cookieStore.set({ name, value: "", ...options });
+          } catch {
+            // No-op: esperado cuando se llama desde un Server Component.
+          }
         },
       },
     }
@@ -74,12 +89,20 @@ export async function requireAdminRole(
 
   const roles = (roleRows ?? []).map((r) => r.role as AdminRole);
 
-  // Compatibilidad: un supervisor de campo activo equivale a ops_coordinator
-  // hasta que el dueño migre los accesos (evita lockout durante el retrofit).
-  if (roles.length === 0) {
-    const { data: isSupervisor } = await supabase.rpc("is_supervisor", { user_uuid: user.id });
-    if (isSupervisor) roles.push("ops_coordinator");
-  }
+  // v8.3 E0 (2026-07-11): hallazgo de auditoría externa (verificado): este
+  // fallback ("si no hay admin_roles pero es supervisor de campo, trátalo
+  // como ops_coordinator") era un riesgo de acceso fantasma -- si alguien
+  // deja de ser supervisor activo pero su fila de admin_roles nunca se creó
+  // (o se olvida borrar), sigue teniendo acceso administrativo implícito
+  // sin que quede registrado en ningún lado que se le otorgó. Eliminado:
+  // todo acceso administrativo con permisos por-recurso debe venir de una
+  // fila explícita y auditable en admin_roles. Confirmado seguro de quitar:
+  // las cuentas de prueba que dependían de esto (supervisor@example.com)
+  // ya tienen su propia fila explícita en admin_roles (seed.sql). Un
+  // supervisor de campo sin admin_roles puede seguir viendo el layout del
+  // admin (is_supervisor() lo permite en layout.tsx) pero no ejecutar
+  // acciones sobre recursos específicos hasta que un owner_admin le
+  // asigne un rol real.
 
   if (!roleAllows(roles, resource)) {
     return { error: `Forbidden — resource '${resource}' requires a role you don't have`, status: 403 as const, supabase: null, user: null, roles };
@@ -88,13 +111,29 @@ export async function requireAdminRole(
   // Log de auditoría por usuario (solo escrituras; las lecturas no se loguean)
   const method = request?.method?.toUpperCase() ?? "GET";
   if (method !== "GET" && method !== "HEAD") {
-    await supabase.from("admin_action_logs").insert({
+    // v8.3 E0 (2026-07-11): hallazgo de auditoría externa (verificado):
+    // antes, si este insert fallaba, la acción administrativa continuaba
+    // igual -- violando el invariante B.2.10 (toda escritura admin debe
+    // quedar en el log inmutable). Ahora un fallo de auditoría BLOQUEA la
+    // acción: preferimos negar una escritura legítima a dejar una sin
+    // rastro.
+    const { error: logError } = await supabase.from("admin_action_logs").insert({
       user_id: user.id,
       role_used: roles.join(","),
       method,
       path: request?.url ? new URL(request.url).pathname : "unknown",
       resource,
     });
+    if (logError) {
+      console.error("admin_action_logs insert failed:", logError);
+      return {
+        error: "Audit log failed - action blocked for security",
+        status: 500 as const,
+        supabase: null,
+        user: null,
+        roles,
+      };
+    }
   }
 
   return { error: null, status: 200 as const, supabase, user, roles };

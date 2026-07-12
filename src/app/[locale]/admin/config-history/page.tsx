@@ -59,7 +59,7 @@ function ConfigHistoryContent() {
         : "/api/admin/config-history";
       const res = await fetch(url);
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error cargando historial");
+      if (!res.ok) throw new Error(json.error || "Error loading history");
       setSnapshots(json.snapshots);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -69,7 +69,7 @@ function ConfigHistoryContent() {
   }
 
   async function undo(id: string) {
-    if (!confirm("¿Deshacer este cambio? Se restauran los valores anteriores (el undo también queda registrado).")) return;
+    if (!confirm("Undo this change? The previous values will be restored (the undo is also logged).")) return;
     setUndoing(id);
     setError("");
     try {
@@ -79,7 +79,7 @@ function ConfigHistoryContent() {
         body: JSON.stringify({ snapshot_id: id }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error deshaciendo");
+      if (!res.ok) throw new Error(json.error || "Error undoing");
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -94,13 +94,13 @@ function ConfigHistoryContent() {
     <div className="max-w-4xl mx-auto p-6">
       <div className="mb-6 flex items-center gap-3">
         <History className="h-6 w-6 text-brand-navy" />
-        <h1 className="text-2xl font-semibold text-brand-navy">Historial de configuración</h1>
+        <h1 className="text-2xl font-semibold text-brand-navy">Configuration History</h1>
         <select
           value={tableFilter}
           onChange={(e) => setTableFilter(e.target.value)}
           className="ml-auto rounded-md border border-brand-ice px-3 py-1.5 text-sm"
         >
-          <option value="">Todas las tablas</option>
+          <option value="">All tables</option>
           {tables.map((t) => (
             <option key={t} value={t}>{t}</option>
           ))}
@@ -119,7 +119,7 @@ function ConfigHistoryContent() {
         </div>
       ) : snapshots.length === 0 ? (
         <p className="py-16 text-center text-sm text-gray-500">
-          Sin cambios de configuración registrados todavía.
+          No configuration changes recorded yet.
         </p>
       ) : (
         <div className="space-y-3">
@@ -135,10 +135,10 @@ function ConfigHistoryContent() {
                 <div className="flex items-center gap-2 text-sm">
                   <code className="rounded bg-brand-ice px-1.5 py-0.5 text-xs">{s.table_name}</code>
                   <span className="text-gray-400">
-                    {new Date(s.created_at).toLocaleString("es-CA", { timeZone: "America/Vancouver" })}
+                    {new Date(s.created_at).toLocaleString("en-CA", { timeZone: "America/Vancouver" })}
                   </span>
                   {s.undone_at && (
-                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">DESHECHO</span>
+                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">UNDONE</span>
                   )}
                   {!s.undone_at && (
                     <button
@@ -151,7 +151,7 @@ function ConfigHistoryContent() {
                       ) : (
                         <Undo2 className="h-3 w-3" />
                       )}
-                      Deshacer
+                      Undo
                     </button>
                   )}
                 </div>

@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { headers } from "next/headers";
 import AdminLoginScreen from "@/components/admin/AdminLoginScreen";
+import AdminNav from "@/components/admin/AdminNav";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -20,11 +21,28 @@ export default async function AdminLayout({
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
+        // v8.3 E0 (2026-07-11): Server Components (a diferencia de Route
+        // Handlers/Server Actions) NO pueden escribir cookies en Next.js —
+        // truena con "Cookies can only be modified in a Server Action or
+        // Route Handler" en cuanto Supabase intenta refrescar el token acá.
+        // Patrón oficial de @supabase/ssr para este caso: ignorar el error
+        // en el Server Component: el refresh real de todos modos requiere
+        // middleware de sesión (ver hallazgo de la 2da auditoría — no
+        // implementado aún). Sin este try/catch, cualquier página de admin
+        // truena en cuanto el token necesita refrescarse.
         set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options });
+          try {
+            cookieStore.set({ name, value, ...options });
+          } catch {
+            // No-op: esperado en Server Components, ver comentario arriba.
+          }
         },
         remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options });
+          try {
+            cookieStore.set({ name, value: "", ...options });
+          } catch {
+            // No-op: esperado en Server Components, ver comentario arriba.
+          }
         },
       },
     }
@@ -42,9 +60,28 @@ export default async function AdminLayout({
     return <AdminLoginScreen />;
   }
 
+  // v8.3 E0 (2026-07-11): hallazgo de auditoría externa (verificado y
+  // confirmado real antes de aplicarlo): is_supervisor() solo cubre
+  // employees.role='supervisor' activo O admin_roles en ['owner_admin',
+  // 'ops_coordinator'] -- NO incluye 'qc_only'. Un usuario con
+  // admin_roles.role='qc_only' (rol legítimo, ver el CHECK constraint de la
+  // tabla) quedaba bloqueado del layout entero aunque tuviera una fila
+  // activa real en admin_roles. El gate correcto es: is_supervisor() O
+  // cualquier fila activa en admin_roles, sin importar cuál rol.
   const { data: isSupervisor } = await supabase.rpc("is_supervisor", { user_uuid: user.id });
 
-  if (!isSupervisor) {
+  let hasAdminAccess = !!isSupervisor;
+  if (!hasAdminAccess) {
+    const { data: roleRows } = await supabase
+      .from("admin_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .is("deleted_at", null)
+      .limit(1);
+    hasAdminAccess = !!roleRows && roleRows.length > 0;
+  }
+
+  if (!hasAdminAccess) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="bg-white rounded-xl shadow-elevation-1 p-8 max-w-md w-full text-center space-y-4">
@@ -54,7 +91,7 @@ export default async function AdminLayout({
             <p><strong>User email:</strong> {user.email || "no email"}</p>
           </div>
           <p className="text-sm text-gray-500">
-            Your account does not have supervisor privileges.
+            Your account does not have an admin role assigned.
           </p>
           <a
             href={`/${safeLocale}`}
@@ -71,36 +108,18 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Admin Nav */}
-      <nav className="bg-brand-navy text-white">
+      {/* Admin Nav — v8.3 E0: reemplazado el 2026-07-11 por feedback directo
+          (notas a mano): la fila plana de 19 links era "muy desordenada".
+          Ahora es un menú agrupado por categoría (desktop: dropdowns,
+          mobile: acordeón con botón hamburguesa). Ver AdminNav.tsx. */}
+      <nav className="bg-brand-navy text-white relative">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <a href={adminPath} className="font-bold text-lg">Admin</a>
-            <div className="flex items-center gap-4 text-sm">
-              <a href={`${adminPath}/servicios`} className="hover:text-brand-gold transition-colors">Services</a>
-              <a href={`${adminPath}/empleados`} className="hover:text-brand-gold transition-colors">Employees</a>
-              <a href={`${adminPath}/vehicles`} className="hover:text-brand-gold transition-colors">Vehicles</a>
-              <a href={`${adminPath}/upsells`} className="hover:text-brand-gold transition-colors">Upsells</a>
-              <a href={`${adminPath}/checklists`} className="hover:text-brand-gold transition-colors">Checklists</a>
-              <a href={`${adminPath}/qc`} className="hover:text-brand-gold transition-colors">QC</a>
-              <a href={`${adminPath}/audits`} className="hover:text-brand-gold transition-colors">Audits</a>
-              <a href={`${adminPath}/tickets`} className="hover:text-brand-gold transition-colors">Tickets</a>
-              <a href={`${adminPath}/pricing-rules`} className="hover:text-brand-gold transition-colors">Pricing Rules</a>
-              <a href={`${adminPath}/pricing-settings`} className="hover:text-brand-gold transition-colors">Pricing Settings</a>
-              <a href={`${adminPath}/inventario`} className="hover:text-brand-gold transition-colors">Inventario</a>
-              <a href={`${adminPath}/near-misses`} className="hover:text-brand-gold transition-colors">Near-Misses</a>
-              <a href={`${adminPath}/riesgo`} className="hover:text-brand-gold transition-colors">Riesgo</a>
-              <a href={`${adminPath}/sos`} className="hover:text-brand-gold transition-colors">SOS</a>
-              <a href={`${adminPath}/team-ranking`} className="hover:text-brand-gold transition-colors">Team Ranking</a>
-              <a href={`${adminPath}/competencia`} className="hover:text-brand-gold transition-colors">Competencia</a>
-              <a href={`${adminPath}/marketing`} className="hover:text-brand-gold transition-colors">Marketing</a>
-              <a href={`${adminPath}/contabilidad`} className="hover:text-brand-gold transition-colors">Contabilidad</a>
-              <a href={`${adminPath}/ajustes-hhe`} className="hover:text-brand-gold transition-colors">Ajustes HHE</a>
-              <a href={`${adminPath}/recuperacion-desastres`} className="hover:text-brand-gold transition-colors">Disaster Recovery</a>
-            </div>
+            <a href={adminPath} className="font-bold text-lg shrink-0">Admin</a>
+            <AdminNav adminPath={adminPath} />
           </div>
           <form action="/auth/signout" method="post">
-            <button type="submit" className="text-sm text-white/70 hover:text-white transition-colors">
+            <button type="submit" className="text-sm text-white/70 hover:text-white transition-colors shrink-0">
               Sign Out
             </button>
           </form>
