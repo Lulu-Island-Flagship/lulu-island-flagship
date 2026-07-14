@@ -21,8 +21,10 @@ import {
   Users,
 } from "lucide-react";
 import type { EmployeeService } from "@/types";
+import { downloadAndCacheDayBundle } from "@/lib/offline-day-cache";
 
 type JornadaStatus = "not_started" | "started";
+type OfflineDownloadStatus = "idle" | "downloading" | "ready" | "failed";
 
 export default function EmpleadoPage() {
   const router = useRouter();
@@ -37,6 +39,8 @@ export default function EmpleadoPage() {
   const [loadingServices, setLoadingServices] = useState(true);
   const [jornadaStatus, setJornadaStatus] = useState<JornadaStatus>("not_started");
   const [isStartingJornada, setIsStartingJornada] = useState(false);
+  // v8.3 E4 (D.10.1-2): estado de la precarga offline (ruta+SOP+accesos del día).
+  const [offlineDownloadStatus, setOfflineDownloadStatus] = useState<OfflineDownloadStatus>("idle");
 
   // Check auth on mount — verify employee authorization
   useEffect(() => {
@@ -226,6 +230,14 @@ export default function EmpleadoPage() {
       }
 
       setJornadaStatus("started");
+
+      // v8.3 E4 (D.10.1-2, criterio E4 #1): descargar ruta+SOP+accesos del día
+      // a IndexedDB AHORA, mientras hay red en el punto de encuentro, para
+      // poder abrir cualquier servicio sin conexión después. Si falla, nunca
+      // bloquea el inicio de jornada — solo se avisa al líder.
+      setOfflineDownloadStatus("downloading");
+      const dlResult = await downloadAndCacheDayBundle();
+      setOfflineDownloadStatus(dlResult.ok ? "ready" : "failed");
     } catch (e) {
       console.error("Start jornada error:", e);
     } finally {
@@ -343,6 +355,28 @@ export default function EmpleadoPage() {
             <CheckCircle2 className="w-5 h-5" />
             <span className="font-medium">Shift Started</span>
             <span className="text-sm ml-auto">Ready to work</span>
+          </div>
+        )}
+
+        {/* v8.3 E4 (D.10.1-2): estado de la precarga offline del día. Nunca
+            bloquea nada — solo informa al líder si puede confiar en trabajar
+            sin señal desde ya. */}
+        {offlineDownloadStatus === "downloading" && (
+          <div className="flex items-center gap-2 text-xs text-gray-500 px-1">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            Downloading today&apos;s route for offline use…
+          </div>
+        )}
+        {offlineDownloadStatus === "ready" && (
+          <div className="flex items-center gap-2 text-xs text-state-success px-1">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Today&apos;s route saved for offline use.
+          </div>
+        )}
+        {offlineDownloadStatus === "failed" && (
+          <div className="flex items-center gap-2 text-xs text-state-warning px-1">
+            <AlertCircle className="w-3.5 h-3.5" />
+            Couldn&apos;t save today&apos;s route for offline use — stay connected until reconnected.
           </div>
         )}
 

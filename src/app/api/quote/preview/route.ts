@@ -17,6 +17,8 @@ import {
   type ServiceCategory,
 } from "@/lib/pricing";
 import { applyPricingRules, type RuleContext, type PricingRule } from "@/lib/rules";
+import { calculateAddonZonesCharge } from "@/lib/pricing";
+import { fetchAddonZoneOptions } from "@/lib/addon-zones";
 import type { QuoteInput, QuoteData } from "@/types";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
@@ -219,6 +221,16 @@ export async function POST(request: NextRequest) {
     const targetHourlyRate = await getTargetHourlyRate(supabase);
     const hheTable = await getCurrentHHETable(supabase);
 
+    // v8.3 E4 (D.7): zonas add-on (ej. Garaje) que el admin agregó y marcó
+    // como cobrables. Se recalcula siempre contra la lista real, nunca se
+    // confía en un monto enviado por el cliente.
+    const availableAddonZones = await fetchAddonZoneOptions(supabase, serviceSubtype!);
+    const addonZonesCharge = calculateAddonZonesCharge(
+      availableAddonZones,
+      rawInput.addonZones || [],
+      targetHourlyRate
+    );
+
     const baseBreakdown = calculatePrice(
       serviceType as ServiceType,
       squareFeet,
@@ -230,7 +242,8 @@ export async function POST(request: NextRequest) {
       dayOfWeek,
       isPreferredDay,
       targetHourlyRate,
-      hheTable
+      hheTable,
+      addonZonesCharge
     );
 
     // Aplicar motor de reglas headless
@@ -311,6 +324,7 @@ export async function POST(request: NextRequest) {
       recencyAdjustment: baseBreakdown.recencyAdjustment,
       zoneSurcharge: baseBreakdown.zoneSurcharge,
       logisticsSurcharge: baseBreakdown.logisticsSurcharge,
+      addonZonesCharge: baseBreakdown.addonZonesCharge,
       ruleAdjustment: ruleResult.adjustment,
       appliedRules: ruleResult.appliedRules,
       subtotal: subtotalAfterRules,

@@ -18,7 +18,17 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { zone_label, zone_color, zone_icon, items, sort_order, is_active, zone_weight } = body;
+    const {
+      zone_label,
+      zone_color,
+      zone_icon,
+      items,
+      sort_order,
+      is_active,
+      zone_weight,
+      zone_time_hours,
+      is_addon_zone,
+    } = body;
 
     // Para items: preservar IDs existentes, generar nuevos solo para items nuevos
     // Items "eliminados" se marcan con active: false, no se quitan del array
@@ -49,6 +59,9 @@ export async function PUT(
     if (is_active !== undefined) updateData.is_active = is_active;
     // v8.3 E4 (D.7): peso/dificultad de la zona, editable por el admin.
     if (typeof zone_weight === "number" && zone_weight > 0) updateData.zone_weight = zone_weight;
+    // v8.3 E4 (D.7): tiempo estimado + decisión explícita de add-on de cotización.
+    if (typeof zone_time_hours === "number" && zone_time_hours >= 0) updateData.zone_time_hours = zone_time_hours;
+    if (typeof is_addon_zone === "boolean") updateData.is_addon_zone = is_addon_zone;
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase

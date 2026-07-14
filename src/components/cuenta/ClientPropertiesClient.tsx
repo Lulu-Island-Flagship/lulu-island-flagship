@@ -186,6 +186,9 @@ export default function ClientPropertiesClient() {
       <div className="text-center">
         <h1 className="text-3xl font-bold text-brand-ink mb-2">My Properties</h1>
         <p className="text-gray-600">Save multiple addresses to speed up future bookings.</p>
+        <a href="../servicios" className="inline-block mt-2 text-xs text-brand-wave-blue hover:text-brand-navy underline">
+          View my service history
+        </a>
       </div>
 
       {error && (

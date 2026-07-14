@@ -13,10 +13,13 @@ import {
   MARGIN_FLOOR_PERCENT,
 } from "@/lib/pricing";
 import { applyPricingRules, type RuleContext, type PricingRule } from "@/lib/rules";
+import { calculateAddonZonesCharge } from "@/lib/pricing";
+import { fetchAddonZoneOptions } from "@/lib/addon-zones";
 import type { QuoteInput } from "@/types";
 import { geocodeAddress } from "@/lib/geocode";
 import { calculateClientScore } from "@/lib/scoring";
 import { QUOTE_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
+import { isValidPreferredLanguages } from "@/lib/languages";
 import {
   evaluateBookingRiskConsequence,
   normalizeAddressForMatch,
@@ -152,6 +155,13 @@ function validateQuoteInputs(
     return { valid: false, error: "consentMarketing must be a boolean" };
   }
 
+  if (
+    (input as QuoteInput).preferredLanguages !== undefined &&
+    !isValidPreferredLanguages((input as QuoteInput).preferredLanguages)
+  ) {
+    return { valid: false, error: "preferredLanguages must be a non-empty list of supported, non-repeated language codes" };
+  }
+
   return { valid: true };
 }
 
@@ -263,6 +273,7 @@ export async function POST(request: NextRequest) {
       consentMarketing,
       consentPhotoMarketing,
       purchaseOrder,
+      preferredLanguages,
     } = rawInput;
 
     // Obtener o crear perfil de cliente para score y tipo de cuenta
@@ -285,6 +296,27 @@ export async function POST(request: NextRequest) {
         clientProfile = updatedProfile;
       } else {
         console.error("Failed to update client photo marketing consent:", consentUpdateError);
+      }
+    }
+
+    // v8.3 M0-F0.4 (B.2.13): idioma(s) de la cuenta, ordenados por prioridad.
+    // Ya validado arriba (isValidPreferredLanguages). Sin esto el match de
+    // idioma del despacho no tiene dato real que consultar (siempre 'en').
+    if (clientProfile.id && preferredLanguages !== undefined) {
+      const { data: updatedProfile, error: langUpdateError } = await supabase
+        .from("client_profiles")
+        .update({
+          preferred_languages: preferredLanguages,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", clientProfile.id)
+        .select()
+        .single();
+
+      if (!langUpdateError && updatedProfile) {
+        clientProfile = updatedProfile;
+      } else {
+        console.error("Failed to update client preferred languages:", langUpdateError);
       }
     }
 
@@ -364,6 +396,18 @@ export async function POST(request: NextRequest) {
     // Leer tabla HHE vigente (20 celdas editables por admin)
     const hheTable = await getCurrentHHETable(supabase);
 
+    // v8.3 E4 (D.7): zonas add-on (ej. Garaje) editables por el admin.
+    // Recalculado siempre en servidor, nunca confía en un monto del cliente.
+    const availableAddonZones = await fetchAddonZoneOptions(supabase, serviceSubtype!);
+    const addonZonesCharge = calculateAddonZonesCharge(
+      availableAddonZones,
+      rawInput.addonZones || [],
+      targetHourlyRate
+    );
+    const validatedAddonZones = (rawInput.addonZones || []).filter((z) =>
+      availableAddonZones.some((a) => a.zone === z)
+    );
+
     // Calcular precio base en servidor
     const baseBreakdown = calculatePrice(
       serviceType as ServiceType,
@@ -376,7 +420,8 @@ export async function POST(request: NextRequest) {
       dayOfWeek,
       isPreferredDay,
       targetHourlyRate,
-      hheTable
+      hheTable,
+      addonZonesCharge
     );
 
     // Aplicar motor de reglas headless
@@ -503,6 +548,8 @@ export async function POST(request: NextRequest) {
         recency_adjustment: baseBreakdown.recencyAdjustment,
         zone_surcharge: baseBreakdown.zoneSurcharge,
         logistics_surcharge: baseBreakdown.logisticsSurcharge,
+        addon_zones: validatedAddonZones,
+        addon_zones_charge: baseBreakdown.addonZonesCharge,
         rule_adjustment: ruleResult.adjustment,
         applied_rules: ruleResult.appliedRules,
         subtotal: subtotalAfterRules,

@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { isKitchenTimerExpired } from "@/lib/kitchen-timer";
+import { ensureZoneAssignment } from "@/lib/zone-assignment";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Obtener plantilla de checklist para este tipo de servicio
-    const { data: checklists, error: checklistError } = await supabase
+    const { data: checklistsRaw, error: checklistError } = await supabase
       .from("sop_checklists")
       .select("*")
       .is("deleted_at", null)
@@ -69,6 +70,21 @@ export async function GET(request: NextRequest) {
     if (checklistError) {
       return NextResponse.json({ error: checklistError.message }, { status: 500 });
     }
+
+    // v8.3 E4 (D.7): zonas add-on (ej. Garaje) solo aparecen en el checklist
+    // de las órdenes donde el cliente las seleccionó en la cotización
+    // (orders.addon_zones). Zonas del catálogo base (is_addon_zone=false)
+    // no se filtran — siguen siempre presentes, sin cambio de comportamiento.
+    const { data: orderForAddons } = await supabase
+      .from("orders")
+      .select("addon_zones")
+      .eq("id", orderId)
+      .maybeSingle();
+    const selectedAddonZones = new Set<string>(orderForAddons?.addon_zones || []);
+    const checklists = (checklistsRaw || []).filter(
+      (cl: { is_addon_zone?: boolean; zone: string }) =>
+        !cl.is_addon_zone || selectedAddonZones.has(cl.zone)
+    );
 
     // Obtener respuestas ya guardadas para este order
     const { data: responses, error: respError } = await supabase
@@ -87,8 +103,24 @@ export async function GET(request: NextRequest) {
       responseMap.set(r.item_id, r);
     }
 
+    // v8.3 E4 (D.7): reparto de zonas por operario. Regla dura: con N>=2,
+    // Cocina y Baño nunca van al mismo empleado. Se calcula (o se lee si ya
+    // estaba calculado) para toda la orden, y aquí solo se filtra a las
+    // zonas de ESTE empleado. Si el reparto no aplica (N=1) o falla por
+    // cualquier motivo, se degrada a mostrar todas las zonas (nunca bloquea
+    // al líder por un problema de infraestructura).
+    let myZones: string[] | null = null;
+    try {
+      const plan = await ensureZoneAssignment(supabase, orderId);
+      if (plan.size > 0) {
+        myZones = plan.get(employee.id) ?? [];
+      }
+    } catch (e) {
+      console.error("Zone assignment error (degrading to show all zones):", e);
+    }
+
     // Combinar plantilla + respuestas
-    const zones = (checklists || []).map((cl) => {
+    const allZones = (checklists || []).map((cl) => {
       const items = (cl.items || [])
         .filter((item: { active?: boolean }) => item.active !== false)
         .map((item: { id: string; label: string; required: boolean; hotSurface?: boolean }) => {
@@ -126,6 +158,13 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    // v8.3 E4 (D.7): si el reparto real produjo una lista (aunque sea
+    // vacía) para este empleado, filtrar a solo sus zonas. Un array vacío
+    // es una respuesta válida (el reparto ya corrió y a este empleado no le
+    // tocó ninguna zona nueva) y se respeta — null es lo único que significa
+    // "no se pudo calcular, mostrar todo".
+    const zones = myZones !== null ? allZones.filter((z) => myZones!.includes(z.zone)) : allZones;
+
     // Calcular progreso global
     const totalItems = zones.reduce((sum, z) => sum + z.totalItems, 0);
     const completedItems = zones.reduce((sum, z) => sum + z.completedItems, 0);
@@ -134,6 +173,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       zones,
+      myZones,
       progress: {
         totalItems,
         completedItems,
@@ -181,7 +221,7 @@ export async function POST(request: NextRequest) {
     // Verificar que el empleado tiene asignación para este order
     const { data: assignment, error: assignError } = await supabase
       .from("assignments")
-      .select("id")
+      .select("id, zones")
       .is("deleted_at", null)
       .eq("order_id", orderId)
       .eq("employee_id", employee.id)
@@ -189,6 +229,26 @@ export async function POST(request: NextRequest) {
 
     if (assignError || !assignment) {
       return NextResponse.json({ error: "No assignment found for this service" }, { status: 403 });
+    }
+
+    // v8.3 E4 (D.7): regla dura del reparto — si esta orden ya tiene zonas
+    // repartidas (assignment.zones no-nulo, típico con N>=2), el empleado
+    // solo puede tocar ítems de SU zona. Esto es el candado real: la UI ya
+    // filtra lo que se ve (GET), esto impide que se evada con una llamada
+    // directa a la API. Con N=1 (zones NULL) no aplica, cubre todo.
+    if (assignment.zones !== null) {
+      const { data: checklistRow } = await supabase
+        .from("sop_checklists")
+        .select("zone")
+        .eq("id", checklistId)
+        .maybeSingle();
+      const itemZone = checklistRow?.zone;
+      if (itemZone && !(assignment.zones as string[]).includes(itemZone)) {
+        return NextResponse.json(
+          { error: "This zone is assigned to a different operator on this service." },
+          { status: 403 }
+        );
+      }
     }
 
     // v8.3 E4 (D.7): ¿es un ítem de superficie caliente (estufa/campana)?

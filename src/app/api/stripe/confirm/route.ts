@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     // Verify quote exists and belongs to user
     const { data: quoteRow, error: quoteError } = await supabase
       .from("quotes")
-      .select("id, status, service_subtype, service_type, square_feet, zone, price_frozen_until, total, hold_amount, address_lat, address_lng, admin_review_required, user_id, pipa_alt_requires_audit, purchase_order, client_property_id, requires_field_auditor, property_risk_tier")
+      .select("id, status, service_subtype, service_type, square_feet, zone, price_frozen_until, total, hold_amount, address_lat, address_lng, admin_review_required, user_id, pipa_alt_requires_audit, purchase_order, client_property_id, requires_field_auditor, property_risk_tier, addon_zones")
       .eq("id", quoteId)
       .eq("user_id", user.id)
       .single();
@@ -370,6 +370,9 @@ export async function POST(request: NextRequest) {
         client_property_id: quoteRow.client_property_id ?? null,
         requires_field_auditor: quoteRow.requires_field_auditor ?? false,
         property_risk_tier: quoteRow.property_risk_tier ?? "standard",
+        // v8.3 E4 (D.7): zonas add-on seleccionadas en el cotizador, congeladas
+        // con la orden — el checklist del líder solo las muestra si están aquí.
+        addon_zones: quoteRow.addon_zones ?? [],
       })
       .select()
       .single();

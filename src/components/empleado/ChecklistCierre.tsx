@@ -38,6 +38,7 @@ export function ChecklistCierre({
   onConfirmedColorsChange,
 }: ChecklistCierreProps) {
   const [zones, setZones] = useState<ChecklistZoneProgress[]>([]);
+  const [myZoneCount, setMyZoneCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedZones, setExpandedZones] = useState<Set<string>>(new Set());
   const [uploadingItem, setUploadingItem] = useState<string | null>(null);
@@ -68,6 +69,11 @@ export function ChecklistCierre({
       }
       const data = await res.json();
       setZones(data.zones || []);
+      // v8.3 E4 (D.7): myZones !== null y con menos zonas que el total
+      // significa que el reparto real corrió (N>=2) y a este empleado le
+      // tocó un subconjunto — se lo mostramos para que no piense que faltan
+      // zonas por error.
+      setMyZoneCount(Array.isArray(data.myZones) ? data.myZones.length : null);
       setOverallProgress(data.progress || {
         totalItems: 0,
         completedItems: 0,
@@ -346,6 +352,18 @@ export function ChecklistCierre({
 
   return (
     <div className="space-y-4">
+      {/* v8.3 E4 (D.7): aviso de reparto — solo aparece cuando el servicio
+          tiene N>=2 y a este empleado le tocó un subconjunto de zonas. */}
+      {myZoneCount !== null && myZoneCount > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
+          You have {myZoneCount} zone{myZoneCount === 1 ? "" : "s"} assigned on this service. Your teammate covers the rest.
+        </div>
+      )}
+      {myZoneCount === 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
+          No checklist zones assigned to you on this service — help your teammate and confirm with them directly.
+        </div>
+      )}
       {/* Overall progress */}
       <div className="bg-white rounded-lg border p-4">
         <div className="flex items-center justify-between mb-2">

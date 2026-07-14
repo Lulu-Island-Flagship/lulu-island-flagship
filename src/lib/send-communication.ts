@@ -22,6 +22,7 @@ import {
   type ProposedMessage,
 } from "./communications";
 import { sendSms } from "./sms";
+import { sendEmail } from "./email";
 import { getVancouverTodayString, getVancouverOffset } from "./date-utils";
 
 export interface CommunicationEventRow {
@@ -35,6 +36,8 @@ export interface CommunicationEventRow {
 export interface CommunicationTemplateRow {
   body: string;
   language: string;
+  /** Solo relevante para el canal 'email'. Null en plantillas que solo se usan por SMS/WhatsApp. */
+  subject?: string | null;
 }
 
 export interface DecideDispatchInput {
@@ -49,7 +52,13 @@ export interface DecideDispatchInput {
 }
 
 export type DispatchDecision =
-  | { action: "send"; renderedBody: string; channel: CommunicationEventRow["default_channel"] }
+  | {
+      action: "send";
+      renderedBody: string;
+      /** Renderizado igual que renderedBody (mismas vars) cuando el canal es 'email' y la plantilla trae subject. Null en cualquier otro caso. */
+      renderedSubject: string | null;
+      channel: CommunicationEventRow["default_channel"];
+    }
   | { action: "postpone"; reason: string }
   | { action: "failed"; reason: string };
 
@@ -65,8 +74,12 @@ export function decideDispatch(input: DecideDispatchInput): DispatchDecision {
   }
 
   let renderedBody: string;
+  let renderedSubject: string | null = null;
   try {
     renderedBody = renderTemplate(input.template.body, input.vars);
+    if (input.template.subject) {
+      renderedSubject = renderTemplate(input.template.subject, input.vars);
+    }
   } catch (e) {
     if (e instanceof MissingVariableError) {
       return { action: "failed", reason: e.message };
@@ -90,7 +103,7 @@ export function decideDispatch(input: DecideDispatchInput): DispatchDecision {
   const { send, postponed } = arbitrateThrottle([proposed], marketingSentThisWeek);
 
   if (send.length === 1) {
-    return { action: "send", renderedBody, channel: input.event.default_channel };
+    return { action: "send", renderedBody, renderedSubject, channel: input.event.default_channel };
   }
 
   return {
@@ -159,7 +172,7 @@ export async function dispatchCommunication(
     let template: CommunicationTemplateRow | null = null;
     const { data: templateInLanguage } = await supabase
       .from("communication_templates")
-      .select("body, language")
+      .select("body, language, subject")
       .eq("event_key", params.eventKey)
       .eq("language", params.language)
       .eq("is_current", true)
@@ -170,7 +183,7 @@ export async function dispatchCommunication(
     if (!template && params.language !== "en") {
       const { data: fallback } = await supabase
         .from("communication_templates")
-        .select("body, language")
+        .select("body, language, subject")
         .eq("event_key", params.eventKey)
         .eq("language", "en")
         .eq("is_current", true)
@@ -238,10 +251,9 @@ export async function dispatchCommunication(
     }
 
     // decision.action === "send"
-    if (decision.channel !== "sms") {
-      // Solo SMS tiene adaptador real hoy (E2, src/lib/sms.ts). Email/WhatsApp/
-      // llamada quedan explícitamente pendientes — se registran como 'queued',
-      // nunca se fingen enviados.
+    if (decision.channel === "whatsapp" || decision.channel === "call") {
+      // WhatsApp/llamada quedan explícitamente pendientes — se registran
+      // como 'queued', nunca se fingen enviados.
       await supabase.from("communication_log").insert({
         order_id: params.orderId ?? null,
         user_id: params.userId,
@@ -256,6 +268,54 @@ export async function dispatchCommunication(
       return { status: "queued", detail: `Canal '${decision.channel}' pendiente de adaptador` };
     }
 
+    if (decision.channel === "email") {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", params.userId)
+        .maybeSingle();
+
+      if (!profile?.email) {
+        await supabase.from("communication_log").insert({
+          order_id: params.orderId ?? null,
+          user_id: params.userId,
+          event_key: params.eventKey,
+          category: event.category,
+          channel: "email",
+          language: params.language,
+          body_rendered: decision.renderedBody,
+          status: "queued",
+          postponed_reason: "Cliente sin email registrado (profiles.email, migración 135)",
+        });
+        return { status: "queued", detail: "Cliente sin email registrado" };
+      }
+
+      const emailResult = await sendEmail({
+        toEmail: profile.email,
+        subject: decision.renderedSubject || `Lulu Island Flagship — ${params.eventKey}`,
+        body: decision.renderedBody,
+      });
+      const emailLogStatus: "sent" | "failed" | "queued" =
+        emailResult.status === "sent" ? "sent" : emailResult.status === "failed" ? "failed" : "queued";
+
+      await supabase.from("communication_log").insert({
+        order_id: params.orderId ?? null,
+        user_id: params.userId,
+        event_key: params.eventKey,
+        category: event.category,
+        channel: "email",
+        language: params.language,
+        body_rendered: decision.renderedBody,
+        status: emailLogStatus,
+        postponed_reason:
+          emailResult.status === "not_configured" ? "Proveedor de email aún no configurado (TODO E6)" : null,
+        sent_at: emailLogStatus === "sent" ? new Date().toISOString() : null,
+      });
+
+      return { status: emailLogStatus };
+    }
+
+    // decision.channel === "sms"
     const { data: profile } = await supabase
       .from("profiles")
       .select("phone")

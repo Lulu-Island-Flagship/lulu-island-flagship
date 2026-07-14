@@ -11,7 +11,7 @@ export async function GET() {
   try {
     const { data, error } = await auth.supabase
       .from("employees")
-      .select("id, name, email, role, phone, is_active, day_rate, languages, created_at")
+      .select("id, name, email, role, phone, is_active, day_rate, languages, language_levels, career_level, created_at")
       .order("name", { ascending: true });
 
     if (error) {

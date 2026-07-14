@@ -173,29 +173,43 @@ export default function AdminLoginScreen() {
         )}
         {mode === "email" && otpSent && (
           <div className="space-y-3 text-left">
-            <p className="text-xs text-gray-500">
-              Check your email for a sign-in link (or a 6-digit code, if your
-              project has that email template configured).
+            {/* v8.3 E0 (2026-07-11): hallazgo de auditoría externa
+                (verificado real): esta pantalla pedía un código de 6
+                dígitos como si siempre llegara uno, pero
+                signInWithOtp() sin un template de email con {{ .Token }}
+                configurado (el default de este proyecto local, ver
+                supabase/config.toml) manda un MAGIC LINK, no un código —
+                confirmado hoy mismo probando el flujo real contra Mailpit.
+                Un usuario nunca recibiría número que escribir y se
+                quedaría atascado. Ahora el link es la instrucción
+                primaria; el código queda como alterna solo por si el
+                proyecto llega a configurar ese template más adelante. */}
+            <p className="text-sm text-brand-ink">
+              We sent a sign-in link to <strong>{email}</strong>. Open your
+              email and click the link to continue — this page will update
+              automatically once you&apos;re signed in.
             </p>
-            <div>
-              <label className="block text-sm font-medium text-brand-ink mb-1">
-                Enter 6-digit code sent to {email}
-              </label>
-              <input
-                type="text"
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder="123456"
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none text-center text-lg tracking-widest"
-              />
-            </div>
-            <button
-              onClick={handleVerifyOtp}
-              disabled={isLoading}
-              className="w-full bg-brand-gold text-brand-navy py-2.5 rounded-lg font-semibold hover:bg-brand-gold-dark transition-colors disabled:opacity-50"
-            >
-              {isLoading ? "Verifying..." : "Verify & Sign In"}
-            </button>
+            <details className="text-xs text-gray-500">
+              <summary className="cursor-pointer hover:text-gray-700">
+                Got a 6-digit code instead of a link?
+              </summary>
+              <div className="mt-2 space-y-2">
+                <input
+                  type="text"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="123456"
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none text-center text-lg tracking-widest"
+                />
+                <button
+                  onClick={handleVerifyOtp}
+                  disabled={isLoading}
+                  className="w-full bg-brand-gold text-brand-navy py-2.5 rounded-lg font-semibold hover:bg-brand-gold-dark transition-colors disabled:opacity-50"
+                >
+                  {isLoading ? "Verifying..." : "Verify & Sign In"}
+                </button>
+              </div>
+            </details>
           </div>
         )}
         {error && (

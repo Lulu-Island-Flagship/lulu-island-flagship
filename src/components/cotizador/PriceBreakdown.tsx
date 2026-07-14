@@ -3,7 +3,7 @@
 import React from "react";
 import { QuoteData } from "@/types";
 import { SERVICE_TYPES } from "@/lib/pricing";
-import { DollarSign, Percent, MapPin, Truck, Receipt, Shield, AlertTriangle, Tag } from "lucide-react";
+import { DollarSign, Percent, MapPin, Truck, Receipt, Shield, AlertTriangle, Tag, Plus } from "lucide-react";
 
 interface PriceBreakdownProps {
   quote: QuoteData;
@@ -77,6 +77,19 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
           </span>
           <span className="font-medium text-state-warning">
             +${quote.logisticsSurcharge.toFixed(2)}
+          </span>
+        </div>
+      )}
+
+      {/* v8.3 E4 (D.7): recargo de zonas add-on (ej. Garaje) seleccionadas por el cliente */}
+      {quote.addonZonesCharge > 0 && (
+        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+          <span className="text-gray-600 flex items-center gap-1">
+            <Plus className="w-4 h-4" />
+            Extra areas selected
+          </span>
+          <span className="font-medium text-state-warning">
+            +${quote.addonZonesCharge.toFixed(2)}
           </span>
         </div>
       )}

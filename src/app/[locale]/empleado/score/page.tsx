@@ -10,7 +10,11 @@ import {
   AlertTriangle,
   XCircle,
   Minus,
+  Trophy,
+  TrendingUp,
 } from "lucide-react";
+import { BADGE_CATALOG, type BadgeKey } from "@/lib/badges";
+import { CAREER_LEVEL_ORDER, type CareerLevel } from "@/lib/career-path";
 
 interface ScoreRecord {
   id: string;
@@ -42,16 +46,35 @@ interface RecentService {
   created_at: string;
 }
 
+interface EarnedBadge {
+  id: string;
+  badge_key: BadgeKey;
+  earned_at: string;
+  evidence: string;
+  employee_badge_bonuses: { bonus_cents: number }[] | { bonus_cents: number } | null;
+}
+
 interface EmployeeScoreData {
   employee: {
     id: string;
     name: string;
     trust_level: string;
+    career_level: CareerLevel;
+    career_level_since: string;
   };
   scores: ScoreRecord[];
   audits: Audit[];
   recentServices: RecentService[];
+  badges: EarnedBadge[];
 }
+
+const CAREER_LEVEL_LABEL: Record<CareerLevel, string> = {
+  trabajador: "Team Member",
+  senior: "Senior",
+  lider: "Team Lead",
+  lider_mentor: "Lead Mentor",
+  coordinador_operativo: "Operations Coordinator",
+};
 
 export default function EmpleadoScorePage() {
   const [data, setData] = useState<EmployeeScoreData | null>(null);
@@ -227,6 +250,77 @@ export default function EmpleadoScorePage() {
                 <p>Week of {latestScore?.week_start || "—"}</p>
                 <p>{latestScore?.services_count || 0} services · {latestScore?.disputes_count || 0} disputes</p>
               </div>
+            </div>
+
+            {/* Career Path */}
+            <div className="bg-white rounded-xl shadow-elevation-1 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="w-4 h-4 text-brand-wave-blue" />
+                <h2 className="text-sm font-semibold text-brand-ink">Career Path</h2>
+              </div>
+              <div className="flex items-center flex-wrap gap-1">
+                {CAREER_LEVEL_ORDER.map((level, idx) => {
+                  const currentIdx = CAREER_LEVEL_ORDER.indexOf(data.employee.career_level);
+                  const reached = idx <= currentIdx;
+                  return (
+                    <React.Fragment key={level}>
+                      {idx > 0 && <span className="text-gray-300 text-xs">→</span>}
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          level === data.employee.career_level
+                            ? "bg-brand-gold text-brand-navy"
+                            : reached
+                            ? "bg-brand-navy/10 text-brand-navy"
+                            : "bg-gray-100 text-gray-400"
+                        }`}
+                      >
+                        {CAREER_LEVEL_LABEL[level]}
+                      </span>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                Current level since {new Date(data.employee.career_level_since).toLocaleDateString()}
+              </p>
+            </div>
+
+            {/* Badges */}
+            <div>
+              <h2 className="text-lg font-semibold text-brand-ink mb-3">Badges</h2>
+              {data.badges.length === 0 ? (
+                <div className="bg-white rounded-xl shadow-elevation-1 p-5 text-center text-sm text-gray-400">
+                  No badges earned yet. Keep up the great work!
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-2">
+                  {data.badges.map((b) => {
+                    const def = BADGE_CATALOG[b.badge_key];
+                    const bonusEntry = Array.isArray(b.employee_badge_bonuses)
+                      ? b.employee_badge_bonuses[0]
+                      : b.employee_badge_bonuses;
+                    return (
+                      <div key={b.id} className="bg-white rounded-xl shadow-elevation-1 p-4 flex items-start gap-3">
+                        <Trophy className="w-5 h-5 text-brand-gold shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-semibold text-brand-ink">{def?.name || b.badge_key}</p>
+                            {bonusEntry && bonusEntry.bonus_cents > 0 && (
+                              <span className="text-xs font-medium text-state-success">
+                                +${(bonusEntry.bonus_cents / 100).toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5">{b.evidence}</p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {new Date(b.earned_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Score History */}

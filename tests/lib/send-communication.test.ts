@@ -46,6 +46,37 @@ describe("decideDispatch", () => {
     }
   });
 
+  it("renderiza el subject con las mismas vars cuando el canal es email y la plantilla trae subject", () => {
+    const result = decideDispatch({
+      event: { ...transactionalEvent, default_channel: "email" },
+      template: { body: "Hola {client_name}.", language: "es", subject: "Recibo de {client_name}" },
+      vars: { client_name: "Ana" },
+      userId: "u1",
+      eventKey: "service_completed",
+      marketingSentThisWeek: false,
+    });
+    assert.equal(result.action, "send");
+    if (result.action === "send") {
+      assert.equal(result.renderedSubject, "Recibo de Ana");
+      assert.equal(result.channel, "email");
+    }
+  });
+
+  it("renderedSubject es null cuando la plantilla no trae subject", () => {
+    const result = decideDispatch({
+      event: transactionalEvent,
+      template: { body: "Hola {client_name}", language: "es" },
+      vars: { client_name: "Ana" },
+      userId: "u1",
+      eventKey: "service_completed",
+      marketingSentThisWeek: false,
+    });
+    assert.equal(result.action, "send");
+    if (result.action === "send") {
+      assert.equal(result.renderedSubject, null);
+    }
+  });
+
   it("evento desactivado nunca envía (falla explícitamente, no silenciosamente)", () => {
     const result = decideDispatch({
       event: { ...transactionalEvent, is_active: false },

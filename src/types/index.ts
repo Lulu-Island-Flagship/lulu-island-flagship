@@ -23,6 +23,10 @@ export interface QuoteInput {
   consentPhotoMarketing?: boolean;
   consentPipa?: boolean;
   purchaseOrder?: string;
+  /** v8.3 M0-F0.4 (B.2.13): idiomas de la cuenta, ordenados por prioridad. */
+  preferredLanguages?: string[];
+  /** v8.3 E4 (D.7): códigos de zonas add-on (ej. "garage") seleccionadas por el cliente. */
+  addonZones?: string[];
 }
 
 export interface QuoteData extends QuoteInput {
@@ -35,6 +39,7 @@ export interface QuoteData extends QuoteInput {
   recencyAdjustment: number;
   zoneSurcharge: number;
   logisticsSurcharge: number;
+  addonZonesCharge: number;
   ruleAdjustment: number;
   appliedRules: AppliedRule[];
   subtotal: number;
@@ -181,6 +186,7 @@ export type CotizadorStep =
   | "category"      // NUEVO: elegir Home / Commercial
   | "purpose"       // Subtipo específico
   | "dimensions"
+  | "addonZones"    // v8.3 E4 (D.7): zonas add-on editables por el admin (ej. Garaje)
   | "organic"
   | "recency"
   | "address"

@@ -9,7 +9,12 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
+  Languages as LanguagesIcon,
+  Pencil,
 } from "lucide-react";
+import { SUPPORTED_LANGUAGES } from "@/lib/languages";
+import { LANGUAGE_LEVELS, type LanguageLevels } from "@/lib/employee-languages";
+import { CAREER_LEVEL_ORDER, type CareerLevel } from "@/lib/career-path";
 
 interface Employee {
   id: string;
@@ -20,13 +25,31 @@ interface Employee {
   is_active: boolean;
   day_rate: number;
   languages: string[];
+  language_levels: LanguageLevels;
+  career_level: CareerLevel;
   created_at: string;
 }
+
+const CAREER_LEVEL_LABEL: Record<CareerLevel, string> = {
+  trabajador: "Team Member",
+  senior: "Senior",
+  lider: "Team Lead",
+  lider_mentor: "Lead Mentor",
+  coordinador_operativo: "Ops Coordinator",
+};
+
+const LEVEL_LABEL: Record<string, string> = {
+  basic: "Basic",
+  intermediate: "Intermediate",
+  fluent: "Fluent",
+  native: "Native",
+};
 
 export default function AdminEmpleadosClient() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
 
   useEffect(() => {
     loadEmployees();
@@ -50,6 +73,37 @@ export default function AdminEmpleadosClient() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function saveLanguages(employeeId: string, languages: string[], languageLevels: LanguageLevels) {
+    const res = await fetch(`/api/admin/empleados/${employeeId}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ languages, languageLevels }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to save");
+    }
+    const data = await res.json();
+    setEmployees((prev) => prev.map((e) => (e.id === employeeId ? data.employee : e)));
+  }
+
+  async function saveCareerLevel(employeeId: string, careerLevel: CareerLevel) {
+    const res = await fetch(`/api/admin/empleados/${employeeId}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ careerLevel }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.error || "Failed to save career level");
+      return;
+    }
+    const data = await res.json();
+    setEmployees((prev) => prev.map((e) => (e.id === employeeId ? data.employee : e)));
   }
 
   const getRoleBadge = (role: string) => {
@@ -103,6 +157,8 @@ export default function AdminEmpleadosClient() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Role</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Day Rate</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Languages</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Career Level</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -140,6 +196,42 @@ export default function AdminEmpleadosClient() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-gray-600">${emp.day_rate}/day</td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => setEditingEmployee(emp)}
+                        className="flex items-center gap-1.5 text-xs text-brand-wave-blue hover:text-brand-navy"
+                      >
+                        <LanguagesIcon className="w-3.5 h-3.5" />
+                        {(emp.languages || []).length === 0 ? (
+                          <span className="text-gray-400">Not set</span>
+                        ) : (
+                          <span>
+                            {emp.languages
+                              .map((code) => {
+                                const level = emp.language_levels?.[code];
+                                const label = SUPPORTED_LANGUAGES.find((l) => l.code === code)?.label || code;
+                                return level ? `${label} (${LEVEL_LABEL[level]})` : label;
+                              })
+                              .join(", ")}
+                          </span>
+                        )}
+                        <Pencil className="w-3 h-3 text-gray-400" />
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={emp.career_level || "trabajador"}
+                        onChange={(e) => saveCareerLevel(emp.id, e.target.value as CareerLevel)}
+                        className="text-xs border rounded-md px-2 py-1"
+                        title="Promotions to Team Lead+ require certification and recommendation the system can't verify — confirm those manually before selecting."
+                      >
+                        {CAREER_LEVEL_ORDER.map((level) => (
+                          <option key={level} value={level}>
+                            {CAREER_LEVEL_LABEL[level]}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -147,6 +239,132 @@ export default function AdminEmpleadosClient() {
           </div>
         </div>
       )}
+
+      {editingEmployee && (
+        <EditLanguagesModal
+          employee={editingEmployee}
+          onClose={() => setEditingEmployee(null)}
+          onSave={saveLanguages}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditLanguagesModal({
+  employee,
+  onClose,
+  onSave,
+}: {
+  employee: Employee;
+  onClose: () => void;
+  onSave: (employeeId: string, languages: string[], languageLevels: LanguageLevels) => Promise<void>;
+}) {
+  const [languages, setLanguages] = useState<string[]>(employee.languages || []);
+  const [levels, setLevels] = useState<LanguageLevels>(employee.language_levels || {});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  const toggleLanguage = (code: string) => {
+    setLanguages((prev) => {
+      if (prev.includes(code)) {
+        // Al quitar el idioma, su nivel deja de tener sentido (invariante:
+        // languageLevels ⊆ languages, ver isValidLanguageLevels).
+        setLevels((prevLevels) => {
+          const next = { ...prevLevels };
+          delete next[code];
+          return next;
+        });
+        return prev.filter((c) => c !== code);
+      }
+      return [...prev, code];
+    });
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError("");
+    try {
+      await onSave(employee.id, languages, levels);
+      onClose();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+        <h2 className="text-lg font-semibold text-brand-ink">
+          Languages — {employee.name}
+        </h2>
+        <p className="text-xs text-gray-500">
+          Used by dispatch to match this employee to accounts with the same
+          preferred language (B.2.13). A level is optional but recommended.
+        </p>
+
+        <div className="space-y-3">
+          {SUPPORTED_LANGUAGES.map((lang) => {
+            const spoken = languages.includes(lang.code);
+            return (
+              <div key={lang.code} className="flex items-center justify-between gap-3">
+                <label className="flex items-center gap-2 flex-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={spoken}
+                    onChange={() => toggleLanguage(lang.code)}
+                    className="w-4 h-4 accent-brand-gold"
+                  />
+                  <span className="text-sm">{lang.label}</span>
+                </label>
+                <select
+                  disabled={!spoken}
+                  value={levels[lang.code] || ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setLevels((prev) => {
+                      if (!value) {
+                        const next = { ...prev };
+                        delete next[lang.code];
+                        return next;
+                      }
+                      return { ...prev, [lang.code]: value as LanguageLevels[string] };
+                    });
+                  }}
+                  className="text-xs border rounded-md px-2 py-1 disabled:opacity-40 disabled:bg-gray-50"
+                >
+                  <option value="">No level set</option>
+                  {LANGUAGE_LEVELS.map((lvl) => (
+                    <option key={lvl} value={lvl}>
+                      {LEVEL_LABEL[lvl]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            );
+          })}
+        </div>
+
+        {saveError && <p className="text-xs text-state-danger">{saveError}</p>}
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || languages.length === 0}
+            className="px-4 py-2 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

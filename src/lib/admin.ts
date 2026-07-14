@@ -64,7 +64,7 @@ export async function requireSupervisor() {
 // La matriz de permisos vive en src/lib/admin-rbac.ts (función pura, testeada).
 // Deja log inmutable en admin_action_logs para métodos de escritura.
 // ============================================================
-import { roleAllows, type AdminRole, type AdminResource } from "./admin-rbac";
+import { roleAllows, matchingRole, type AdminRole, type AdminResource } from "./admin-rbac";
 
 export async function requireAdminRole(
   resource: AdminResource,
@@ -108,6 +108,10 @@ export async function requireAdminRole(
     return { error: `Forbidden — resource '${resource}' requires a role you don't have`, status: 403 as const, supabase: null, user: null, roles };
   }
 
+  // El rol específico que autorizó esta acción (no todos los que tiene el
+  // usuario) -- ver matchingRole() en admin-rbac.ts.
+  const authorizingRole = matchingRole(roles, resource);
+
   // Log de auditoría por usuario (solo escrituras; las lecturas no se loguean)
   const method = request?.method?.toUpperCase() ?? "GET";
   if (method !== "GET" && method !== "HEAD") {
@@ -119,7 +123,7 @@ export async function requireAdminRole(
     // rastro.
     const { error: logError } = await supabase.from("admin_action_logs").insert({
       user_id: user.id,
-      role_used: roles.join(","),
+      role_used: authorizingRole ?? roles.join(","),
       method,
       path: request?.url ? new URL(request.url).pathname : "unknown",
       resource,

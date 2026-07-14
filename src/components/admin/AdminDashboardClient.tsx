@@ -13,7 +13,9 @@ import {
   Settings2,
   DollarSign,
   FileSearch,
+  CalendarClock,
 } from "lucide-react";
+import DashboardMetricsPanel from "./DashboardMetricsPanel";
 
 export default function AdminDashboardClient() {
   // Detect locale from pathname for navigation
@@ -29,6 +31,13 @@ export default function AdminDashboardClient() {
       icon: ClipboardList,
       href: `/${safeLocale}/admin/servicios`,
       color: "bg-blue-50 text-blue-600",
+    },
+    {
+      title: "Dispatch review",
+      description: "Daily assignment matrix — override, language match, workday alerts (D.4)",
+      icon: CalendarClock,
+      href: `/${safeLocale}/admin/dispatch`,
+      color: "bg-teal-50 text-teal-600",
     },
     {
       title: "Employees",
@@ -93,11 +102,20 @@ export default function AdminDashboardClient() {
       href: `/${safeLocale}/admin/pricing-settings`,
       color: "bg-emerald-50 text-emerald-600",
     },
+    {
+      title: "Business Insurance",
+      description: "Vehicular, general liability, and E&O policy registry",
+      icon: ShieldCheck,
+      href: `/${safeLocale}/admin/business-insurance`,
+      color: "bg-teal-50 text-teal-600",
+    },
   ];
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-brand-ink">Admin Dashboard</h1>
+
+      <DashboardMetricsPanel />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {cards.map((card) => {

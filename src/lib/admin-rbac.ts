@@ -66,6 +66,20 @@ export function roleAllows(roles: AdminRole[], resource: AdminResource): boolean
   return roles.some((r) => allowed.includes(r));
 }
 
+// v8.3 E0 (2026-07-11): hallazgo de auditoría externa (verificado): el log
+// de admin_action_logs guardaba TODOS los roles del usuario
+// (roles.join(",")), no cuál de ellos autorizó de verdad la acción. Si un
+// usuario tiene dos roles (ej: ops_coordinator y qc_only) y hay un
+// incidente, el log no dice bajo cuál permiso se permitió -- y si hubiera
+// un bug en la matriz que permita algo por error, el log no ayuda a
+// encontrarlo. Esta función devuelve el rol específico que efectivamente
+// coincide con el recurso, para que admin.ts lo registre en vez del CSV
+// completo.
+export function matchingRole(roles: AdminRole[], resource: AdminResource): AdminRole | null {
+  const allowed = MATRIX[resource];
+  return roles.find((r) => allowed.includes(r)) ?? null;
+}
+
 /** Recursos permitidos para un conjunto de roles (para UI de navegación). */
 export function allowedResources(roles: AdminRole[]): AdminResource[] {
   return (Object.keys(MATRIX) as AdminResource[]).filter((res) =>

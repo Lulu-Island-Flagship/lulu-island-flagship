@@ -3,16 +3,18 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { QuoteInput, QuoteData, CotizadorStep } from "@/types";
-import { ServiceType } from "@/lib/pricing";
+import { ServiceType, TARIFA_OBJETIVO_HORA } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
 import { StepCategory } from "@/components/cotizador/StepCategory";
 import { StepPurpose } from "@/components/cotizador/StepPurpose";
 import { StepDimensions } from "@/components/cotizador/StepDimensions";
+import { StepAddonZones } from "@/components/cotizador/StepAddonZones";
 import { StepOrganic } from "@/components/cotizador/StepOrganic";
 import { StepRecency } from "@/components/cotizador/StepRecency";
 import { StepAddress } from "@/components/cotizador/StepAddress";
 import { PriceBreakdown } from "@/components/cotizador/PriceBreakdown";
 import { ConsentCheck } from "@/components/cotizador/ConsentCheck";
+import { LanguagePreference } from "@/components/cotizador/LanguagePreference";
 import { AuthModal } from "@/components/cotizador/AuthModal";
 import {
   ChevronLeft,
@@ -27,6 +29,7 @@ const STEPS: CotizadorStep[] = [
   "category",
   "purpose",
   "dimensions",
+  "addonZones",
   "organic",
   "recency",
   "address",
@@ -37,6 +40,7 @@ const STEP_LABELS: Record<CotizadorStep, string> = {
   category: "Category",
   purpose: "Service Type",
   dimensions: "Dimensions",
+  addonZones: "Extras",
   organic: "Household",
   recency: "Recency",
   address: "Location",
@@ -124,6 +128,7 @@ export default function CotizadorPage() {
     photoMarketing: false,
   });
   const [purchaseOrder, setPurchaseOrder] = useState("");
+  const [preferredLanguages, setPreferredLanguages] = useState<string[]>(["en"]);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -240,6 +245,8 @@ export default function CotizadorPage() {
           input.bathrooms !== undefined &&
           input.squareFeet !== undefined
         );
+      case "addonZones":
+        return true; // paso opcional, nunca bloquea el avance
       case "organic":
         return (
           input.petsCount !== undefined &&
@@ -320,11 +327,13 @@ export default function CotizadorPage() {
         postalCode: input.postalCode,
         dayOfWeek: input.dayOfWeek,
         isPreferredDay: input.isPreferredDay,
+        addonZones: input.addonZones,
         consentTc: consents.tc,
         consentPipa: consents.pipa,
         consentMarketing: consents.marketing,
         consentPhotoMarketing: consents.photoMarketing,
         purchaseOrder: purchaseOrder.trim() || undefined,
+        preferredLanguages,
       };
 
       const response = await fetch("/api/quote", {
@@ -473,6 +482,14 @@ export default function CotizadorPage() {
               onChange={(vals) => updateInput(vals)}
             />
           )}
+          {step === "addonZones" && (
+            <StepAddonZones
+              serviceSubtype={input.serviceSubtype}
+              targetHourlyRate={TARIFA_OBJETIVO_HORA}
+              selected={input.addonZones ?? []}
+              onChange={(zones) => updateInput({ addonZones: zones })}
+            />
+          )}
           {step === "organic" && (
             <StepOrganic
               petsCount={input.petsCount ?? 0}
@@ -553,6 +570,11 @@ export default function CotizadorPage() {
                       </p>
                     </div>
                   )}
+
+                  <LanguagePreference
+                    value={preferredLanguages}
+                    onChange={setPreferredLanguages}
+                  />
 
                   <ConsentCheck
                     consents={consents}

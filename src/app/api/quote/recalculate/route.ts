@@ -129,7 +129,10 @@ export async function POST(request: NextRequest) {
     const targetHourlyRate = await getTargetHourlyRate(supabase);
     const hheTable = await getCurrentHHETable(supabase);
 
-    // Recalcular precio con los nuevos parámetros de día
+    // Recalcular precio con los nuevos parámetros de día. addon_zones_charge
+    // ya fue validado y persistido al crear la quote (v8.3 E4, D.7) — la
+    // selección de zonas add-on no cambia por elegir fecha, así que se
+    // reutiliza el monto guardado en vez de volver a resolverlo.
     const breakdown = calculatePrice(
       quote.service_type as ServiceType,
       quote.square_feet,
@@ -141,7 +144,8 @@ export async function POST(request: NextRequest) {
       dayOfWeek,
       isPreferredDay,
       targetHourlyRate,
-      hheTable
+      hheTable,
+      quote.addon_zones_charge ?? 0
     );
 
     // Reaplicar motor de reglas con el nuevo contexto de día
@@ -219,6 +223,7 @@ export async function POST(request: NextRequest) {
         day_of_week: dayOfWeek,
         is_preferred_day: isPreferredDay,
         logistics_surcharge: breakdown.logisticsSurcharge,
+        addon_zones_charge: breakdown.addonZonesCharge,
         rule_adjustment: ruleResult.blocked ? 0 : ruleResult.adjustment,
         applied_rules: ruleResult.blocked ? [] : ruleResult.appliedRules,
         subtotal: subtotalAfterRules,

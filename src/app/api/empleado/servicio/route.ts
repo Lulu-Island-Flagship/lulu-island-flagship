@@ -8,6 +8,7 @@ import {
 } from "@/lib/closure-protocol";
 import { dispatchCommunication } from "@/lib/send-communication";
 import { buildReviewLink, buildReviewQrSvg, hasOpenCriticalDispute } from "@/lib/review-delivery";
+import { ensureZoneAssignment } from "@/lib/zone-assignment";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -44,20 +45,59 @@ async function checkClosureProtocol(
   orderId: string,
   employeeId: string
 ): Promise<{ complete: boolean; missing: string[] }> {
+  // v8.3 E4 fix (13 jul 2026): orders NO tiene columna service_subtype (solo
+  // vive en quotes, migración 001). Esta consulta pedía una columna
+  // inexistente, PostgREST la rechazaba, `order` quedaba null, y
+  // serviceSubtype terminaba en "" — el checklist siempre resolvía a 0
+  // zonas y evaluateClosureProtocol bloqueaba T_out con "No hay checklist
+  // cargado" para TODOS los servicios, siempre. Se corrige con el join real
+  // orders.quote_id -> quotes.service_subtype (mismo patrón que
+  // servicio/[orderId]/route.ts).
   const { data: order } = await supabase
     .from("orders")
-    .select("service_subtype")
+    .select("quotes:quote_id ( service_subtype )")
     .eq("id", orderId)
     .single();
 
-  const serviceSubtype = order?.service_subtype;
+  const quoteForSubtype = order?.quotes as unknown as { service_subtype?: string } | null;
+  const serviceSubtype = quoteForSubtype?.service_subtype;
 
-  const { data: checklists } = await supabase
+  const { data: orderForAddons } = await supabase
+    .from("orders")
+    .select("addon_zones")
+    .eq("id", orderId)
+    .maybeSingle();
+  const selectedAddonZones = new Set<string>(orderForAddons?.addon_zones || []);
+
+  const { data: checklistsRaw } = await supabase
     .from("sop_checklists")
-    .select("id, zone, zone_label, items")
+    .select("id, zone, zone_label, items, is_addon_zone")
     .is("deleted_at", null)
     .eq("service_subtype", serviceSubtype || "")
     .eq("is_active", true);
+
+  // v8.3 E4 (D.7): dos filtros antes de exigir la zona en el cierre de ESTE
+  // empleado — (a) zonas add-on no seleccionadas en la cotización (mismo
+  // criterio que el GET del checklist), y (b) con N>=2, el reparto real de
+  // zonas por operario (zone-assignment.ts): un empleado nunca puede
+  // completar zonas que el candado de reparto ni siquiera le mostró. Si el
+  // reparto no aplica o falla, se degrada a exigir todas (comportamiento
+  // previo, nunca más permisivo que antes).
+  let myClosureZones: string[] | null = null;
+  try {
+    const plan = await ensureZoneAssignment(supabase, orderId);
+    if (plan.size > 0) myClosureZones = plan.get(employeeId) ?? [];
+  } catch (e) {
+    console.error("Zone assignment error in closure protocol (degrading to all zones):", e);
+  }
+
+  const checklists = (checklistsRaw || []).filter(
+    (cl: { zone: string; is_addon_zone?: boolean }) => {
+      if (cl.is_addon_zone && !selectedAddonZones.has(cl.zone)) return false;
+      if (myClosureZones !== null && !myClosureZones.includes(cl.zone)) return false;
+      return true;
+    }
+  );
 
   const { data: responses } = await supabase
     .from("service_checklist_items")

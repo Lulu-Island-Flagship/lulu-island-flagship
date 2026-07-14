@@ -90,7 +90,41 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  const summaries = aggregateCycle([...cycleEntries, ...readinessCycleEntries], cycle);
+  // v8.3 E8 (D.11): bonos de insignias ganadas (employee_badge_bonuses,
+  // migración 136) — mismo patrón exacto que los créditos de readiness de
+  // arriba: no tocan payroll-cycle.ts, solo se funden como CycleEntry con
+  // baseAmountCents=0 (el bono no reemplaza el día trabajado, se SUMA).
+  const { data: badgeBonuses, error: badgeBonusError } = await supabase
+    .from("employee_badge_bonuses")
+    .select("employee_id, bonus_cents, credit_date, employees(name)")
+    .gte("credit_date", cycle.start)
+    .lte("credit_date", cycle.end)
+    .is("deleted_at", null);
+
+  if (badgeBonusError) {
+    return NextResponse.json({ error: badgeBonusError.message }, { status: 500 });
+  }
+
+  const badgeBonusCycleEntries: CycleEntry[] = (badgeBonuses || []).map((b) => {
+    const empJoin = b.employees as EmployeeNameJoin;
+    const emp = Array.isArray(empJoin) ? empJoin[0] : empJoin;
+    return {
+      employeeId: b.employee_id,
+      employeeName: emp?.name || "(sin nombre)",
+      serviceDate: b.credit_date,
+      baseAmountCents: 0,
+      bonusCents: b.bonus_cents,
+      penaltyCents: 0,
+      reworkAmountCents: 0,
+      minimumWageAdjustmentCents: 0,
+      grossAmountCents: b.bonus_cents,
+    };
+  });
+
+  const summaries = aggregateCycle(
+    [...cycleEntries, ...readinessCycleEntries, ...badgeBonusCycleEntries],
+    cycle
+  );
 
   const employeeIds = summaries.map((s) => s.employeeId);
   const { data: ytdRows } = await supabase

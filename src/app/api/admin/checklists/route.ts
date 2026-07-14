@@ -44,7 +44,18 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { service_subtype, zone, zone_label, zone_color, zone_icon, items, sort_order, zone_weight } = body;
+    const {
+      service_subtype,
+      zone,
+      zone_label,
+      zone_color,
+      zone_icon,
+      items,
+      sort_order,
+      zone_weight,
+      zone_time_hours,
+      is_addon_zone,
+    } = body;
 
     if (!service_subtype || !zone || !zone_label || !zone_color || !zone_icon || !items) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -54,6 +65,13 @@ export async function POST(request: NextRequest) {
     // Default 1.0 (mismo default que la columna en la migración 104).
     const validatedZoneWeight =
       typeof zone_weight === "number" && zone_weight > 0 ? zone_weight : 1.0;
+
+    // v8.3 E4 (D.7): "tiempo estimado" + decisión explícita de ofrecerla como
+    // add-on en el cotizador (migración 132). is_addon_zone default false a
+    // propósito — el admin lo activa a mano, nunca es automático.
+    const validatedZoneTimeHours =
+      typeof zone_time_hours === "number" && zone_time_hours >= 0 ? zone_time_hours : 0.5;
+    const validatedIsAddonZone = is_addon_zone === true;
 
     // Validar que items sea un array no vacío de objetos válidos
     if (!Array.isArray(items) || items.length === 0) {
@@ -84,6 +102,8 @@ export async function POST(request: NextRequest) {
         items: itemsWithIds,
         sort_order: sort_order ?? 0,
         zone_weight: validatedZoneWeight,
+        zone_time_hours: validatedZoneTimeHours,
+        is_addon_zone: validatedIsAddonZone,
         is_active: true,
       })
       .select()

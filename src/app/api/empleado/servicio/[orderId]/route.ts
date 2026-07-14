@@ -80,6 +80,7 @@ export async function GET(
           address,
           zone,
           service_type,
+          service_subtype,
           square_feet,
           bedrooms,
           bathrooms,
@@ -106,7 +107,15 @@ export async function GET(
         serviceTime: order.service_time,
         address: quote?.address || "",
         zone: quote?.zone || "",
-        serviceSubtype: quote?.service_type || "",
+        // v8.3 E4 fix (13 jul 2026): esto estaba leyendo quote.service_type
+        // (el tipo interno de HHE: regular/deep/move_in_out/post_construction)
+        // en un campo llamado serviceSubtype, que el checklist SOP necesita
+        // como service_subtype real ("first_time"/"regular"/"move_in_out"/
+        // "office"/"airbnb"/"post_construction"). Coincidían por casualidad
+        // solo cuando subtype y type comparten el string ("regular"); para
+        // "first_time" (mapsTo "deep") el checklist quedaba vacío en
+        // producción. sop_checklists SIEMPRE se indexa por service_subtype.
+        serviceSubtype: quote?.service_subtype || "",
         squareFeet: quote?.square_feet || 0,
         bedrooms: quote?.bedrooms || 0,
         bathrooms: quote?.bathrooms || 0,

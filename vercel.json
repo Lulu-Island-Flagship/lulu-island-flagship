@@ -13,6 +13,10 @@
       "schedule": "0 5,6 * * *"
     },
     {
+      "path": "/api/cron/capture-remainder",
+      "schedule": "0 * * * *"
+    },
+    {
       "path": "/api/cron/cash-exposure-monitor",
       "schedule": "0 * * * *"
     },

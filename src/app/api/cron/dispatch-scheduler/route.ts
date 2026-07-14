@@ -345,8 +345,25 @@ async function persistAssignments(
   autoApproved: boolean
 ) {
   let assigned = 0;
+  let skippedLocked = 0;
   for (const p of proposals) {
     if (p.proposedEmployeeIds.length === 0) continue;
+
+    // v8.3 E3/D.4 (migración 140): un admin ya revisó y asignó esta orden
+    // manualmente durante la ventana 5:00-5:30 PM (POST /api/admin/dispatch
+    // marca locked_by_admin=true) -- la decisión humana gana siempre, el
+    // publicador automático NO debe borrarla ni reemplazarla.
+    const { data: lockedRows } = await supabase
+      .from("assignments")
+      .select("id")
+      .eq("order_id", p.orderId)
+      .eq("locked_by_admin", true)
+      .limit(1);
+
+    if (lockedRows && lockedRows.length > 0) {
+      skippedLocked++;
+      continue;
+    }
 
     await supabase.from("assignments").delete().eq("order_id", p.orderId);
 
@@ -360,7 +377,7 @@ async function persistAssignments(
     const { error } = await supabase.from("assignments").insert(assignments);
     if (!error) assigned += assignments.length;
   }
-  return assigned;
+  return { assigned, skippedLocked };
 }
 
 // GET /api/cron/dispatch-scheduler
@@ -416,7 +433,7 @@ export async function GET(request: NextRequest) {
       const hasRedAlerts = discrepancies.length > 0 || maxTeamSizeCorrections.length > 0;
       const approval = evaluateTeamSixAutoApproval(availableTeams, hasRedAlerts);
       const autoApproved = approval.autoApproveDefault;
-      const assigned = await persistAssignments(supabase, proposals, autoApproved);
+      const { assigned, skippedLocked } = await persistAssignments(supabase, proposals, autoApproved);
       await supabase.from("dispatch_runs").insert({
         run_date: targetDate,
         phase,
@@ -432,7 +449,8 @@ export async function GET(request: NextRequest) {
             : "Published for manual review") +
           (approval.showDelegationReminder ? " | Recordatorio de delegación: considerar coordinador" : "") +
           (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : "") +
-          (maxTeamSizeCorrections.length ? ` | N_MAX_ENFORCED (B.2.1): ${maxTeamSizeCorrections.join("; ")}` : ""),
+          (maxTeamSizeCorrections.length ? ` | N_MAX_ENFORCED (B.2.1): ${maxTeamSizeCorrections.join("; ")}` : "") +
+          (skippedLocked > 0 ? ` | ADMIN_OVERRIDE_PRESERVED (D.4): ${skippedLocked} orden(es) ya asignada(s) manualmente, no tocadas` : ""),
       });
       result = {
         ...result,

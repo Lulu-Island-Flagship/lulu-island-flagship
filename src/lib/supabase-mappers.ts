@@ -38,6 +38,7 @@ export function mapQuoteFromSupabase(data: Record<string, unknown>): QuoteData {
     dayOfWeek: data.day_of_week as number | undefined,
     isPreferredDay: data.is_preferred_day as boolean | undefined,
     basePrice: data.base_price as number,
+    addonZonesCharge: (data.addon_zones_charge as number | undefined) ?? 0,
     organicMultiplier: data.organic_multiplier as number,
     organicAdjustment: data.organic_adjustment as number,
     recencyMultiplier: data.recency_multiplier as number,

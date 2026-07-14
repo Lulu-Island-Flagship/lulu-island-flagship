@@ -38,7 +38,7 @@ export async function GET() {
 
     const { data: me, error: meError } = await supabase
       .from("employees")
-      .select("id, name, trust_level")
+      .select("id, name, trust_level, career_level, career_level_since")
       .eq("user_id", user.id)
       .single();
 
@@ -83,11 +83,23 @@ export async function GET() {
       console.error("Services error:", servicesError);
     }
 
+    // v8.3 E8 (D.11): insignias ganadas + bono (si aplica)
+    const { data: badges, error: badgesError } = await supabase
+      .from("employee_badges")
+      .select("id, badge_key, earned_at, evidence, employee_badge_bonuses(bonus_cents)")
+      .eq("employee_id", me.id)
+      .order("earned_at", { ascending: false });
+
+    if (badgesError) {
+      console.error("Badges error:", badgesError);
+    }
+
     return NextResponse.json({
       employee: me,
       scores: scores || [],
       audits: audits || [],
       recentServices: recentServices || [],
+      badges: badges || [],
     }, { status: 200 });
   } catch (err: Error | unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";

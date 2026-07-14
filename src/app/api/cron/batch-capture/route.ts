@@ -1,3 +1,4 @@
+import type Stripe from "stripe";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { assertStripe } from "@/lib/stripe";
@@ -7,6 +8,8 @@ import {
   evaluateCaptureEligibility,
   type OrderClaimForCaptureDecision,
 } from "@/lib/batch-capture-eligibility";
+import { computePartialCaptureDecision } from "@/lib/batch-capture-partial";
+import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
 
 /**
  * POST /api/cron/batch-capture
@@ -54,6 +57,7 @@ interface OrderRow {
   hold_captured_at: string | null;
   paypal_advance_amount: number;
   capture_attempts: number;
+  capture_force_full_by: string | null;
   quotes: { total: number }[] | null;
 }
 
@@ -133,6 +137,7 @@ export async function POST(request: NextRequest) {
     { data: qboFlag },
     { data: cashReserveFlag },
     { data: disputeExclusionFlag },
+    { data: partialCaptureFlag },
   ] = await Promise.all([
     supabase.from("feature_flags").select("activo").eq("nombre", "chargeback_reserve_enabled").single(),
     supabase.from("feature_flags").select("activo").eq("nombre", "qbo_export_enabled").single(),
@@ -142,17 +147,27 @@ export async function POST(request: NextRequest) {
       .select("activo")
       .eq("nombre", "batch_capture_dispute_exclusion_enabled")
       .single(),
+    supabase
+      .from("feature_flags")
+      .select("activo")
+      .eq("nombre", "batch_capture_partial_on_dispute_enabled")
+      .single(),
   ]);
   const chargebackEnabled = !!chargebackFlag?.activo;
   const qboEnabled = !!qboFlag?.activo;
   const cashReserveEnabled = !!cashReserveFlag?.activo;
   const disputeExclusionEnabled = !!disputeExclusionFlag?.activo;
+  // v8.3 E2 (2026-07-13, decisión del dueño): cuando hay disputa crítica
+  // documentada, en vez de no cobrar nada, cobrar de inmediato el costo
+  // laboral+10% y el resto a 24h. Solo tiene efecto si disputeExclusionEnabled
+  // también está prendido (ver migración 137).
+  const partialCaptureOnDisputeEnabled = !!partialCaptureFlag?.activo;
 
   try {
     const { data: orders, error } = await supabase
       .from("orders")
       .select(
-        "id, quote_id, user_id, payment_option, stripe_hold_payment_intent_id, stripe_customer_id, stripe_payment_method_id, hold_amount, hold_authorized_amount, paypal_advance_amount, capture_attempts, quotes(total)"
+        "id, quote_id, user_id, payment_option, stripe_hold_payment_intent_id, stripe_customer_id, stripe_payment_method_id, hold_amount, hold_authorized_amount, paypal_advance_amount, capture_attempts, capture_force_full_by, quotes(total)"
       )
       .eq("service_date", todayStr)
       .eq("status", "completed")
@@ -183,6 +198,18 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // v8.3 E2 (2026-07-13): un admin ya forzó el cobro completo pese a la
+      // disputa (force-full-capture, fuera de este cron) -- no hay nada más
+      // que hacer aquí, evita reprocesar/recobrar la misma orden.
+      if (order.capture_force_full_by) {
+        results.skipped++;
+        results.errors.push({
+          orderId: order.id,
+          error: "SKIPPED: already force-captured by admin outside this run",
+        });
+        continue;
+      }
+
       // v8.3 B.2.2 / B.2.18 / E2.3 (migración 080): el cobro es a las 7PM, FIJO.
       // La garantía es relacional a EVIDENCIA, no a reloj. Un reclamo abierto NO
       // congela el pago por defecto — SOLO excluye una disputa crítica (>=2
@@ -205,6 +232,126 @@ export async function POST(request: NextRequest) {
       const eligibility = evaluateCaptureEligibility(claimsForDecision);
 
       if (!eligibility.shouldCapture) {
+        // v8.3 E2 (2026-07-13): la captura parcial solo aplica a órdenes con
+        // tarjeta. Una orden PayPal-primera-vez con disputa crítica en su
+        // primerísimo servicio es un cruce de casos raro (anticipo PayPal ya
+        // cobrado + captura parcial laboral) que no se resuelve aquí para no
+        // arriesgar un doble cobro o un cálculo incorrecto sin poder
+        // probarlo en vivo -- cae al camino de exclusión total existente.
+        if (disputeExclusionEnabled && partialCaptureOnDisputeEnabled && order.payment_option === "card") {
+          // En vez de no cobrar nada, cobrar de inmediato el costo laboral
+          // (Σ payroll_entries) + 10%, y el resto a las 24h. Registra el
+          // ticket igual que el camino de exclusión total, para que quede
+          // en la bandeja de revisión -- lo único que cambia es que sí
+          // entra dinero ahora.
+          const { data: payrollRows, error: payrollError } = await supabase
+            .from("payroll_entries")
+            .select("gross_amount")
+            .eq("order_id", order.id);
+
+          if (payrollError) {
+            console.error(`Payroll lookup failed for order ${order.id}:`, payrollError);
+          }
+
+          const laborCostCents =
+            payrollRows && payrollRows.length > 0
+              ? payrollRows.reduce((sum: number, r: { gross_amount: number }) => sum + (r.gross_amount || 0), 0)
+              : null;
+
+          const decision = computePartialCaptureDecision({
+            quoteTotalCents: quoteTotal * 100,
+            laborCostCents,
+            forceFullCapture: false,
+            now: new Date(),
+          });
+
+          await supabase.from("tickets_disputas").insert({
+            order_id: order.id,
+            type: "discrepancy",
+            priority: "high",
+            status: "open",
+            context: {
+              reason: "batch_capture_partial_critical_dispute",
+              warranty_claim_id: eligibility.blockingClaimId,
+              quote_total: quoteTotal,
+              capture_now_cents: decision.captureNowCents,
+              capture_remaining_cents: decision.remainingCents,
+              decision_reason: decision.reason,
+            },
+          });
+
+          try {
+            const executed = await executePartialCapture(stripe, order, decision);
+
+            await supabase
+              .from("orders")
+              .update({
+                capture_withheld_reason: eligibility.reason,
+                capture_withheld_at: new Date().toISOString(),
+                capture_withheld_claim_id: eligibility.blockingClaimId,
+                capture_partial_amount: Math.round(decision.captureNowCents / 100),
+                capture_partial_at: new Date().toISOString(),
+                capture_remaining_amount:
+                  decision.remainingCents > 0 ? Math.round(decision.remainingCents / 100) : 0,
+                capture_remaining_due_at: decision.remainingDueAt,
+                stripe_hold_payment_intent_id: order.stripe_hold_payment_intent_id,
+                total_paid: Math.round(decision.captureNowCents / 100),
+                card_amount_charged: Math.round(decision.captureNowCents / 100),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", order.id);
+
+            if (executed.capturedNowCents > 0) {
+              await supabase.from("shadow_ledger_entries").insert(
+                buildShadowLedgerEntry({
+                  eventType: "balance_captured",
+                  orderId: order.id,
+                  userId: order.user_id,
+                  amountCents: executed.capturedNowCents,
+                  processor: "stripe",
+                  externalReference: executed.paymentIntentId,
+                  occurredAt: new Date(),
+                  metadata: {
+                    partial_capture: true,
+                    reason: decision.reason,
+                    blocking_claim_id: eligibility.blockingClaimId,
+                  },
+                })
+              );
+            }
+
+            results.captured++;
+          } catch (err: Error | unknown) {
+            const message = err instanceof Error ? err.message : "Unknown partial capture error";
+            results.failed++;
+            results.errors.push({ orderId: order.id, error: `PARTIAL_CAPTURE_FAILED: ${message}` });
+
+            await supabase.from("shadow_ledger_entries").insert(
+              buildShadowLedgerEntry({
+                eventType: "capture_failed",
+                orderId: order.id,
+                userId: order.user_id,
+                amountCents: decision.captureNowCents,
+                processor: "stripe",
+                externalReference: null,
+                occurredAt: new Date(),
+                metadata: { partial_capture: true, error: message.slice(0, 300) },
+              })
+            );
+
+            await supabase
+              .from("orders")
+              .update({
+                capture_attempts: (order.capture_attempts ?? 0) + 1,
+                capture_last_error: message.slice(0, 500),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", order.id);
+          }
+
+          continue;
+        }
+
         if (disputeExclusionEnabled) {
           // Excluir de verdad: no cobrar, dejar en cola de revisión manual.
           results.skipped++;
@@ -356,6 +503,26 @@ export async function POST(request: NextRequest) {
         // Stripe fee aproximada para QBO (2.9% + 0.30 CAD)
         const stripeFeeCents = Math.round(amountCharged * 100 * 0.029 + 30);
 
+        // v8.3 E2.5/C.2.4 (2026-07-13): Shadow Ledger -- registrar el cobro
+        // real ANTES/en paralelo a QBO, independiente de si QBO responde.
+        // Este módulo existía desde la migración 081 pero nada lo llamaba
+        // todavía; aprovechando que este archivo se está tocando para la
+        // captura parcial, se cierra ese hueco también en el camino normal.
+        if (amountCharged > 0) {
+          await supabase.from("shadow_ledger_entries").insert(
+            buildShadowLedgerEntry({
+              eventType: "balance_captured",
+              orderId: order.id,
+              userId: order.user_id,
+              amountCents: amountCharged * 100,
+              processor: "stripe",
+              externalReference: payments.balance || payments.hold || null,
+              occurredAt: new Date(),
+              metadata: { payment_option: order.payment_option },
+            })
+          );
+        }
+
         await supabase
           .from("orders")
           .update({
@@ -439,6 +606,19 @@ export async function POST(request: NextRequest) {
         results.errors.push({ orderId: order.id, error: message });
         console.error(`Batch capture failed for order ${order.id}:`, err);
 
+        await supabase.from("shadow_ledger_entries").insert(
+          buildShadowLedgerEntry({
+            eventType: "capture_failed",
+            orderId: order.id,
+            userId: order.user_id,
+            amountCents: quoteTotal * 100,
+            processor: "stripe",
+            externalReference: null,
+            occurredAt: new Date(),
+            metadata: { error: message.slice(0, 300) },
+          })
+        );
+
         await supabase
           .from("orders")
           .update({
@@ -477,4 +657,82 @@ export async function POST(request: NextRequest) {
     console.error("Batch capture job error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+/**
+ * v8.3 E2 (2026-07-13) — ejecuta el "captureNowCents" de una decisión de
+ * captura parcial contra Stripe, SOLO para órdenes con tarjeta (ver el
+ * comentario de scope en el caller).
+ *
+ * LIMITACIÓN DE STRIPE (ver también batch-capture-partial.ts): un
+ * PaymentIntent en `requires_capture` solo admite UNA captura. Si
+ * `captureNowCents` es menor al Hold autorizado, capturar esa porción
+ * LIBERA automáticamente el resto del Hold -- no queda una segunda captura
+ * pendiente sobre el mismo PI. Por eso el remanente (si lo hay) se cobra
+ * más tarde como un PaymentIntent NUEVO off-session (mismo mecanismo que ya
+ * usa el "balance" del flujo normal), no como una segunda captura del Hold.
+ */
+async function executePartialCapture(
+  stripe: Stripe,
+  order: OrderRow,
+  decision: { captureNowCents: number }
+): Promise<{ capturedNowCents: number; paymentIntentId: string | null }> {
+  if (decision.captureNowCents <= 0) {
+    return { capturedNowCents: 0, paymentIntentId: null };
+  }
+
+  const holdAuthorizedCents = Math.round(
+    Math.max(0, order.hold_authorized_amount || order.hold_amount || 0) * 100
+  );
+
+  const captureFromHoldCents = Math.min(decision.captureNowCents, holdAuthorizedCents);
+  let capturedNowCents = 0;
+  let lastPaymentIntentId: string | null = null;
+
+  if (captureFromHoldCents > 0) {
+    if (!order.stripe_hold_payment_intent_id) {
+      throw new Error("Missing hold PaymentIntent for partial capture");
+    }
+    const holdPi = await stripe.paymentIntents.retrieve(order.stripe_hold_payment_intent_id);
+    if (holdPi.status === "requires_capture") {
+      await stripe.paymentIntents.capture(order.stripe_hold_payment_intent_id, {
+        amount_to_capture: captureFromHoldCents,
+      });
+    } else if (holdPi.status !== "succeeded") {
+      throw new Error(`Hold PaymentIntent status: ${holdPi.status}`);
+    }
+    capturedNowCents += captureFromHoldCents;
+    lastPaymentIntentId = order.stripe_hold_payment_intent_id;
+  }
+
+  const excessCents = decision.captureNowCents - captureFromHoldCents;
+  if (excessCents > 0) {
+    if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
+      throw new Error("Missing customer or payment method for partial capture excess");
+    }
+    const excessPi = await stripe.paymentIntents.create({
+      amount: excessCents,
+      currency: "cad",
+      customer: order.stripe_customer_id,
+      payment_method: order.stripe_payment_method_id,
+      payment_method_types: ["card"],
+      capture_method: "automatic",
+      confirm: true,
+      off_session: true,
+      description: `Partial labor-safe capture for order ${order.id}`,
+      metadata: {
+        order_id: order.id,
+        quote_id: order.quote_id,
+        user_id: order.user_id,
+        charge_type: "partial_capture_excess",
+      },
+    });
+    if (excessPi.status !== "succeeded") {
+      throw new Error(`Partial capture excess PaymentIntent status: ${excessPi.status}`);
+    }
+    capturedNowCents += excessCents;
+    lastPaymentIntentId = excessPi.id;
+  }
+
+  return { capturedNowCents, paymentIntentId: lastPaymentIntentId };
 }

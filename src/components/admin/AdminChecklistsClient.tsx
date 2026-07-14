@@ -37,6 +37,10 @@ interface ChecklistZone {
   sort_order: number;
   /** v8.3 E4 (D.7): peso/dificultad de la zona — usado en el reparto de zonas por operario (zone-reparto.ts). */
   zone_weight: number;
+  /** v8.3 E4 (D.7): "tiempo estimado" — solo importa cuando is_addon_zone=true. */
+  zone_time_hours: number;
+  /** v8.3 E4 (D.7): true = zona opcional que NO está en la tabla HHE base; se ofrece como add-on en el cotizador. */
+  is_addon_zone: boolean;
   is_active: boolean;
   created_at: string;
 }
@@ -87,6 +91,8 @@ export default function AdminChecklistsClient() {
   const [formZoneIcon, setFormZoneIcon] = useState("");
   const [formSortOrder, setFormSortOrder] = useState(0);
   const [formZoneWeight, setFormZoneWeight] = useState(1.0);
+  const [formZoneTimeHours, setFormZoneTimeHours] = useState(0.5);
+  const [formIsAddonZone, setFormIsAddonZone] = useState(false);
   const [formItems, setFormItems] = useState<ChecklistItem[]>(JSON.parse(JSON.stringify(DEFAULT_ITEMS)));
 
   useEffect(() => {
@@ -157,6 +163,8 @@ export default function AdminChecklistsClient() {
     setFormZoneIcon("");
     setFormSortOrder(0);
     setFormZoneWeight(1.0);
+    setFormZoneTimeHours(0.5);
+    setFormIsAddonZone(false);
     setFormItems(JSON.parse(JSON.stringify(DEFAULT_ITEMS)));
     setShowModal(true);
   };
@@ -170,6 +178,8 @@ export default function AdminChecklistsClient() {
     setFormZoneIcon(zone.zone_icon);
     setFormSortOrder(zone.sort_order);
     setFormZoneWeight(zone.zone_weight ?? 1.0);
+    setFormZoneTimeHours(zone.zone_time_hours ?? 0.5);
+    setFormIsAddonZone(zone.is_addon_zone ?? false);
     setFormItems(JSON.parse(JSON.stringify(zone.items || [])));
     setShowModal(true);
   };
@@ -267,6 +277,8 @@ export default function AdminChecklistsClient() {
         items: validItems,
         sort_order: Math.max(0, formSortOrder),
         zone_weight: formZoneWeight > 0 ? formZoneWeight : 1.0,
+        zone_time_hours: formZoneTimeHours >= 0 ? formZoneTimeHours : 0.5,
+        is_addon_zone: formIsAddonZone,
       };
 
       let res;
@@ -522,6 +534,11 @@ export default function AdminChecklistsClient() {
                         </div>
                         <div className="text-xs text-gray-500 mt-0.5">
                           {activeItems(zone.items).length} items · Order {zone.sort_order} · Weight {zone.zone_weight ?? 1.0}
+                          {zone.is_addon_zone && (
+                            <span className="ml-2 text-brand-gold-dark font-medium">
+                              · Add-on in quote (+{zone.zone_time_hours ?? 0.5}h)
+                            </span>
+                          )}
                         </div>
                         <div className="flex flex-wrap gap-1 mt-2">
                           {activeItems(zone.items).map((item) => (
@@ -763,6 +780,49 @@ export default function AdminChecklistsClient() {
                   />
                   <p className="text-xs text-gray-400 mt-1">Usado en el reparto de zonas por operario</p>
                 </div>
+              </div>
+
+              {/* v8.3 E4 (D.7): "agregar zona = nombre + peso + tiempo estimado, y
+                  aparece automáticamente en cotización, reparto y checklist".
+                  Marcar esta zona como add-on la agrega también al cotizador —
+                  decisión explícita del admin, nunca automática (protege el
+                  piso de margen y la transparencia de precio). */}
+              <div className="bg-brand-ice rounded-lg p-3 space-y-3">
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={formIsAddonZone}
+                    onChange={(e) => setFormIsAddonZone(e.target.checked)}
+                  />
+                  <span>
+                    <span className="font-medium text-brand-ink">Offer as add-on in the quote (D.7)</span>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Only check this for zones NOT already covered by the base ft² price table
+                      (e.g. Garage, Storage Room). The client will see it as an optional selection
+                      that adds time and price to the quote, and it will only appear on the
+                      leader&apos;s checklist for orders where it was selected.
+                    </p>
+                  </span>
+                </label>
+                {formIsAddonZone && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Estimated Add-on Time (hours)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.25"
+                      value={formZoneTimeHours}
+                      onChange={(e) => setFormZoneTimeHours(Number(e.target.value))}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Charged as time × current target hourly rate, shown as its own line in the quote.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Items */}

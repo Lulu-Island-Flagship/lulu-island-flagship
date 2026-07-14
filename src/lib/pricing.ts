@@ -226,6 +226,36 @@ export function getZoneSurcharge(zoneName: string): number {
   return zone?.surcharge ?? 0;
 }
 
+// ─── E4 (D.7): zonas add-on editables por el admin, propagadas a cotización ──
+// "agregar zona = nombre + peso + tiempo estimado, y aparece automáticamente
+// en cotización, reparto y checklist". Solo zonas que el admin marca
+// explícitamente is_addon_zone=true (ej. Garaje) llegan aquí — las zonas del
+// catálogo base (cocina, baño, sala, habitación...) ya están en D.1/D.2.
+export interface AddonZoneOption {
+  zone: string;
+  zoneLabel: string;
+  timeHours: number;
+}
+
+/**
+ * Suma zone_time_hours × tarifa objetivo de las zonas add-on seleccionadas
+ * por el cliente. Ignora selecciones que no existen en `available` (defensa
+ * ante manipulación del payload — el servidor SIEMPRE recalcula desde la
+ * lista real de zonas add-on activas, nunca confía en un monto enviado por
+ * el cliente).
+ */
+export function calculateAddonZonesCharge(
+  available: AddonZoneOption[],
+  selectedZones: string[],
+  targetHourlyRate: number = TARIFA_OBJETIVO_HORA
+): number {
+  const selectedSet = new Set(selectedZones);
+  const totalHours = available
+    .filter((z) => selectedSet.has(z.zone))
+    .reduce((sum, z) => sum + z.timeHours, 0);
+  return Math.round(totalHours * targetHourlyRate);
+}
+
 // Hold de seguridad (T-72h)
 // Hold = MAX(fórmula_base, 40% del total proyectado)
 // Fórmula base: (Tarifa_hora × 3h × N_referencia) × 1.10
@@ -441,6 +471,7 @@ export interface PriceBreakdown {
   recencyAdjustment: number;
   zoneSurcharge: number;
   logisticsSurcharge: number;
+  addonZonesCharge: number;
   ruleAdjustment: number;
   appliedRules: import("./rules").AppliedRule[];
   subtotal: number;
@@ -465,7 +496,8 @@ export function calculatePrice(
   dayOfWeek?: number, // 0=Dom, 6=Sab
   isPreferredDay?: boolean,
   targetHourlyRate: number = TARIFA_OBJETIVO_HORA,
-  hheTable: Record<ServiceType, number[]> = HHE_TABLE
+  hheTable: Record<ServiceType, number[]> = HHE_TABLE,
+  addonZonesCharge: number = 0
 ): PriceBreakdown {
   // Validar squareFeet para evitar precios absurdos
   const MAX_SQUARE_FEET = 10000;
@@ -488,7 +520,14 @@ export function calculatePrice(
   const organicAdjustment = Math.round(basePrice * (organicMultiplier - 1));
   const recencyAdjustment = Math.round(basePrice * (recencyMultiplier - 1));
 
-  const subtotalBeforeRules = basePrice + organicAdjustment + recencyAdjustment + zoneSurcharge + logisticsSurcharge;
+  // v8.3 E4 (D.7): recargo de zonas add-on (ej. Garaje) editables por el
+  // admin. El monto SIEMPRE llega ya recalculado por el servidor contra la
+  // lista real de zonas activas (calculateAddonZonesCharge) — nunca se
+  // confía en un número que venga del cliente.
+  const safeAddonZonesCharge = Math.max(0, Math.round(addonZonesCharge));
+
+  const subtotalBeforeRules =
+    basePrice + organicAdjustment + recencyAdjustment + zoneSurcharge + logisticsSurcharge + safeAddonZonesCharge;
   const gst = Math.round(subtotalBeforeRules * GST_RATE * 100) / 100;
   const pst = Math.round(subtotalBeforeRules * PST_RATE * 100) / 100;
   const totalBeforeRules = Math.round((subtotalBeforeRules + gst + pst) * 100) / 100;
@@ -507,6 +546,7 @@ export function calculatePrice(
     recencyAdjustment,
     zoneSurcharge,
     logisticsSurcharge,
+    addonZonesCharge: safeAddonZonesCharge,
     ruleAdjustment: 0,
     appliedRules: [],
     subtotal: subtotalBeforeRules,
