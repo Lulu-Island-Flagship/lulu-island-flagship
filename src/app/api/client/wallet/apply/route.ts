@@ -111,24 +111,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No hay saldo disponible para aplicar (puede estar vencido)." }, { status: 400 });
   }
 
-  const newBalance = wallet.balance - applyCents;
-
-  const { error: debitError } = await supabase.from("wallet_transactions").insert({
-    wallet_id: wallet.id,
-    user_id: user.id,
-    order_id: order.id,
-    type: "debit",
-    amount: applyCents,
-    balance_after: newBalance,
-    description: `Aplicado a orden ${order.id}`,
+  // v8.3 fix (auditoría 2026-07-15): mutación atómica vía RPC (migración 180)
+  // en vez de read-then-write sin bloqueo.
+  const { data: rpcResult, error: rpcError } = await supabase.rpc("apply_wallet_delta", {
+    p_wallet_id: wallet.id,
+    p_user_id: user.id,
+    p_order_id: order.id,
+    p_type: "debit",
+    p_delta: -applyCents,
+    p_description: `Aplicado a orden ${order.id}`,
   });
-  if (debitError) return NextResponse.json({ error: debitError.message }, { status: 500 });
-
-  const { error: walletUpdateError } = await supabase
-    .from("client_wallets")
-    .update({ balance: newBalance, updated_at: nowIso })
-    .eq("id", wallet.id);
-  if (walletUpdateError) return NextResponse.json({ error: walletUpdateError.message }, { status: 500 });
+  if (rpcError) return NextResponse.json({ error: rpcError.message }, { status: 500 });
+  const newBalance = rpcResult?.[0]?.new_balance ?? wallet.balance - applyCents;
 
   const applyDollars = applyCents / 100;
   const { data: updatedOrder, error: orderUpdateError } = await supabase

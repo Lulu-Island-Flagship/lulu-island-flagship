@@ -125,15 +125,42 @@ export async function POST(
     const futureOrderIds = (futureOrders || []).map((o) => o.id);
     let reassignedCount = 0;
     const affectedOrders: { orderId: string; serviceDate: string }[] = [];
+    const inProgressOrders: { orderId: string; serviceDate: string; status: string }[] = [];
 
     if (futureOrderIds.length > 0) {
-      const { data: futureAssignments } = await supabase
+      const { data: allFutureAssignments } = await supabase
         .from("assignments")
-        .select("id, order_id")
+        .select("id, order_id, status")
         .eq("employee_id", employeeId)
         .in("order_id", futureOrderIds)
         .is("deleted_at", null);
 
+      // v8.3 ROUND 2: hallazgo -- la primera versión de este endpoint soltaba
+      // TODAS las asignaciones futuras sin distinguir si el empleado ya
+      // estaba a mitad de un servicio hoy (en_route/arrived/in_progress).
+      // Soltar esa asignación silenciosamente le habría quitado el servicio
+      // de encima mientras lo está ejecutando -- ni el cliente ni el admin
+      // se enterarían de que quedó sin equipo a medio servicio. Un servicio
+      // ya en curso se deja intacto y se reporta aparte para manejo manual
+      // del admin (ej. dejar que termine, o reasignar con contexto humano);
+      // solo se sueltan automáticamente los que todavía no arrancan.
+      const orderDateById = new Map((futureOrders || []).map((o) => [o.id, o.service_date as string]));
+      const releasable = (allFutureAssignments || []).filter(
+        (a) => !["en_route", "arrived", "in_progress"].includes(a.status)
+      );
+      const inProgress = (allFutureAssignments || []).filter((a) =>
+        ["en_route", "arrived", "in_progress"].includes(a.status)
+      );
+
+      for (const a of inProgress) {
+        inProgressOrders.push({
+          orderId: a.order_id,
+          serviceDate: orderDateById.get(a.order_id) || effectiveDate,
+          status: a.status,
+        });
+      }
+
+      const futureAssignments = releasable;
       const assignmentIds = (futureAssignments || []).map((a) => a.id);
       if (assignmentIds.length > 0) {
         const { error: releaseError } = await supabase
@@ -146,7 +173,6 @@ export async function POST(
         }
         reassignedCount = assignmentIds.length;
 
-        const orderDateById = new Map((futureOrders || []).map((o) => [o.id, o.service_date as string]));
         for (const a of futureAssignments || []) {
           affectedOrders.push({ orderId: a.order_id, serviceDate: orderDateById.get(a.order_id) || effectiveDate });
         }
@@ -168,6 +194,26 @@ export async function POST(
             },
           });
         }
+      }
+
+      // Servicios en curso: no se tocan, pero el admin debe saberlo de
+      // inmediato -- prioridad más alta porque hay un cliente esperando un
+      // servicio con un equipo que está a punto de perder a su empleado.
+      for (const o of inProgressOrders) {
+        await supabase.from("tickets_disputas").insert({
+          order_id: o.orderId,
+          employee_id: employeeId,
+          type: "discrepancy",
+          priority: "high",
+          status: "open",
+          context: {
+            order_id: o.orderId,
+            reason: "employee_offboarded_mid_service_needs_manual_handling",
+            service_date: o.serviceDate,
+            assignment_status: o.status,
+            source: "offboarding",
+          },
+        });
       }
     }
 
@@ -195,6 +241,7 @@ export async function POST(
         accessRevoked,
         reassignedCount,
         affectedOrders,
+        inProgressOrders,
       },
       { status: 200 }
     );

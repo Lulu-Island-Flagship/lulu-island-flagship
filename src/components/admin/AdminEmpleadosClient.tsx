@@ -322,6 +322,7 @@ function OffboardModal({
     vacationPayoutCents: number;
     accessRevoked: boolean;
     reassignedCount: number;
+    inProgressOrders: { orderId: string; serviceDate: string; status: string }[];
   } | null>(null);
 
   const handleConfirm = async () => {
@@ -340,6 +341,7 @@ function OffboardModal({
         vacationPayoutCents: data.vacationPayoutCents,
         accessRevoked: data.accessRevoked,
         reassignedCount: data.reassignedCount,
+        inProgressOrders: data.inProgressOrders || [],
       });
       onOffboarded(employee.id, {
         is_active: false,
@@ -363,6 +365,21 @@ function OffboardModal({
             <p>Vacation pay paid out: ${(result.vacationPayoutCents / 100).toFixed(2)}</p>
             <p>Access revoked: {result.accessRevoked ? "yes" : "no (check service credentials)"}</p>
             <p>Future services released for reassignment: {result.reassignedCount}</p>
+            {result.inProgressOrders.length > 0 && (
+              <div className="bg-state-danger/5 border border-state-danger/20 rounded-lg p-3 mt-2">
+                <p className="font-medium text-state-danger">
+                  {result.inProgressOrders.length} service(s) already in progress were left untouched —
+                  handle manually:
+                </p>
+                <ul className="list-disc list-inside mt-1">
+                  {result.inProgressOrders.map((o) => (
+                    <li key={o.orderId}>
+                      Order {o.orderId.slice(0, 8)} — {o.serviceDate} ({o.status})
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="flex justify-end pt-2">
               <button
                 onClick={onClose}

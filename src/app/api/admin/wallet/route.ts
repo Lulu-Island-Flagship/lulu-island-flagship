@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
 
   const { data: wallet, error: walletError } = await supabase
     .from("client_wallets")
-    .select("*")
+    .select("id")
     .eq("user_id", body.userId)
     .maybeSingle();
   if (walletError) return NextResponse.json({ error: walletError.message }, { status: 500 });
@@ -115,30 +115,24 @@ export async function POST(request: NextRequest) {
   }
 
   const nowIso = new Date().toISOString();
-  const newBalance = wallet.balance + amountCents;
   const expiresAt = isExpiringWalletCreditType(body.type) ? computeWalletCreditExpiryDate(nowIso) : null;
 
-  const { data: transaction, error: txError } = await supabase
-    .from("wallet_transactions")
-    .insert({
-      wallet_id: wallet.id,
-      user_id: body.userId,
-      order_id: body.orderId || null,
-      type: body.type,
-      amount: amountCents,
-      balance_after: newBalance,
-      description: body.description?.trim() || null,
-      expires_at: expiresAt,
-    })
-    .select()
-    .single();
-  if (txError) return NextResponse.json({ error: txError.message }, { status: 500 });
+  // v8.3 fix (auditoría 2026-07-15): mutación atómica vía RPC (migración 180)
+  // en vez de leer balance + calcular en JS + UPDATE sin bloqueo -- ese
+  // patrón permitía "lost updates" si dos operaciones tocaban la misma
+  // billetera casi al mismo tiempo (ver comentario de la función SQL).
+  const { data: rpcResult, error: rpcError } = await supabase.rpc("apply_wallet_delta", {
+    p_wallet_id: wallet.id,
+    p_user_id: body.userId,
+    p_order_id: body.orderId || null,
+    p_type: body.type,
+    p_delta: amountCents,
+    p_description: body.description?.trim() || null,
+    p_expires_at: expiresAt,
+  });
+  if (rpcError) return NextResponse.json({ error: rpcError.message }, { status: 500 });
+  const newBalance = rpcResult?.[0]?.new_balance ?? null;
+  const transactionId = rpcResult?.[0]?.transaction_id ?? null;
 
-  const { error: updateError } = await supabase
-    .from("client_wallets")
-    .update({ balance: newBalance, updated_at: nowIso })
-    .eq("id", wallet.id);
-  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
-
-  return NextResponse.json({ transaction, newBalance }, { status: 201 });
+  return NextResponse.json({ transactionId, newBalance }, { status: 201 });
 }
