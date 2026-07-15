@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
         requested_at: requestedAt.toISOString(),
         due_at: dueAt.toISOString(),
         requested_by_admin: auth.user.id,
-        correction_details: requestType === "correction" ? correctionDetails.trim() : null,
+        correction_details: requestType === "correction" ? (correctionDetails?.trim() ?? null) : null,
       })
       .select()
       .single();
