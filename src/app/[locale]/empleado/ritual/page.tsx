@@ -194,12 +194,18 @@ export default function ShiftRitualPage() {
               ))}
             </div>
             <label className="flex items-center gap-2 text-xs text-gray-600 mb-1">
-              <input type="checkbox" checked={sleptWell === true} onChange={(e) => setSleptWell(e.target.checked ? true : false)} />
+              <input
+                type="checkbox"
+                aria-label="Dormí 6 o más horas"
+                checked={sleptWell === true}
+                onChange={(e) => setSleptWell(e.target.checked ? true : false)}
+              />
               Dormí 6+ horas
             </label>
             <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
               <input
                 type="checkbox"
+                aria-label="Hoy tengo una tarea con productos químicos"
                 checked={hasChemicalRiskTaskToday}
                 onChange={(e) => setHasChemicalRiskTaskToday(e.target.checked)}
               />
@@ -209,6 +215,7 @@ export default function ShiftRitualPage() {
             {chemicalAlertResult && <p className="text-xs text-state-success mb-1">{chemicalAlertResult}</p>}
             <button
               type="button"
+              aria-label="Registrar mi estado de ánimo y bienestar"
               onClick={submitWellbeingCheckin}
               disabled={chemicalAlertSubmitting || mood === null}
               className="w-full bg-brand-navy text-white py-2 rounded-lg text-xs font-medium disabled:opacity-50"
@@ -259,6 +266,7 @@ export default function ShiftRitualPage() {
                   <div className="flex gap-2">
                     <button
                       type="submit"
+                      aria-label="Enviar aviso de no estar listo para el turno"
                       disabled={readinessSubmitting}
                       className="flex-1 bg-state-danger text-white py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
                     >
