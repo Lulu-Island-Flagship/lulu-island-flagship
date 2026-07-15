@@ -96,6 +96,7 @@ function ConfigHistoryContent() {
         <History className="h-6 w-6 text-brand-navy" />
         <h1 className="text-2xl font-semibold text-brand-navy">Configuration History</h1>
         <select
+          aria-label="Filtrar por tabla"
           value={tableFilter}
           onChange={(e) => setTableFilter(e.target.value)}
           className="ml-auto rounded-md border border-brand-ice px-3 py-1.5 text-sm"

@@ -88,6 +88,7 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
       <div>
         <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
         <textarea
+          aria-label="Descripción de la discrepancia de condición"
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Describe what you found differently..."
@@ -116,6 +117,7 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
             )}
             <input
               type="file"
+              aria-label="Agregar foto de la discrepancia"
               accept="image/*"
               capture="environment"
               className="hidden"
@@ -127,6 +129,7 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
       </div>
 
       <button
+        aria-label="Reportar discrepancia"
         onClick={handleSubmit}
         disabled={(!note.trim() && photos.length === 0) || isSubmitting}
         className="w-full bg-amber-600 text-white py-2.5 rounded-lg font-semibold hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"

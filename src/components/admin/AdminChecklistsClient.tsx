@@ -626,6 +626,7 @@ export default function AdminChecklistsClient() {
               {confirmDialog.extraAction && (
                 <button
                   onClick={confirmDialog.extraAction.onClick}
+                  aria-label={confirmDialog.extraAction.label}
                   className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
                 >
                   {confirmDialog.extraAction.label}
@@ -633,6 +634,7 @@ export default function AdminChecklistsClient() {
               )}
               <button
                 onClick={confirmDialog.onConfirm}
+                aria-label={confirmDialog.confirmLabel || "Confirmar"}
                 className={`px-4 py-2 text-sm rounded-lg font-medium ${
                   confirmDialog.danger
                     ? "bg-red-600 text-white hover:bg-red-700"
@@ -673,10 +675,11 @@ export default function AdminChecklistsClient() {
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="checklist-service-type" className="block text-sm font-medium text-gray-700 mb-1">
                     Service Type
                   </label>
                   <input
+                    id="checklist-service-type"
                     type="text"
                     value={formServiceSubtype}
                     onChange={(e) => setFormServiceSubtype(e.target.value)}
@@ -689,10 +692,11 @@ export default function AdminChecklistsClient() {
               {/* Zone code + label */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="checklist-zone-code" className="block text-sm font-medium text-gray-700 mb-1">
                     Zone Code
                   </label>
                   <input
+                    id="checklist-zone-code"
                     type="text"
                     value={formZone}
                     onChange={(e) => setFormZone(e.target.value)}
@@ -702,10 +706,11 @@ export default function AdminChecklistsClient() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="checklist-zone-label" className="block text-sm font-medium text-gray-700 mb-1">
                     Zone Label
                   </label>
                   <input
+                    id="checklist-zone-label"
                     type="text"
                     value={formZoneLabel}
                     onChange={(e) => setFormZoneLabel(e.target.value)}
@@ -738,11 +743,12 @@ export default function AdminChecklistsClient() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="checklist-zone-icon" className="block text-sm font-medium text-gray-700 mb-1">
                     <Smile className="w-3.5 h-3.5 inline mr-1" />
                     Icon
                   </label>
                   <input
+                    id="checklist-zone-icon"
                     type="text"
                     value={formZoneIcon}
                     onChange={(e) => setFormZoneIcon(e.target.value)}
@@ -755,10 +761,11 @@ export default function AdminChecklistsClient() {
               {/* Sort Order + Zone Weight */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="checklist-sort-order" className="block text-sm font-medium text-gray-700 mb-1">
                     Sort Order
                   </label>
                   <input
+                    id="checklist-sort-order"
                     type="number"
                     min="0"
                     value={formSortOrder}
@@ -767,10 +774,11 @@ export default function AdminChecklistsClient() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="checklist-zone-weight" className="block text-sm font-medium text-gray-700 mb-1">
                     Zone Weight (D.7)
                   </label>
                   <input
+                    id="checklist-zone-weight"
                     type="number"
                     min="0.5"
                     step="0.5"
@@ -791,6 +799,7 @@ export default function AdminChecklistsClient() {
                 <label className="flex items-start gap-2 text-sm">
                   <input
                     type="checkbox"
+                    aria-label="Ofrecer como complemento en la cotización"
                     className="mt-0.5"
                     checked={formIsAddonZone}
                     onChange={(e) => setFormIsAddonZone(e.target.checked)}
@@ -807,10 +816,11 @@ export default function AdminChecklistsClient() {
                 </label>
                 {formIsAddonZone && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="checklist-zone-time-hours" className="block text-sm font-medium text-gray-700 mb-1">
                       Estimated Add-on Time (hours)
                     </label>
                     <input
+                      id="checklist-zone-time-hours"
                       type="number"
                       min="0"
                       step="0.25"
@@ -843,6 +853,7 @@ export default function AdminChecklistsClient() {
                       <GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
                       <input
                         type="text"
+                        aria-label={`Descripción del ítem de checklist ${index + 1}`}
                         value={item.label}
                         onChange={(e) => updateItem(index, "label", e.target.value)}
                         placeholder="Item description"
@@ -852,6 +863,7 @@ export default function AdminChecklistsClient() {
                       <label className="flex items-center gap-1 text-xs text-gray-500 whitespace-nowrap">
                         <input
                           type="checkbox"
+                          aria-label={`Ítem ${index + 1} requerido`}
                           checked={item.required}
                           onChange={(e) => updateItem(index, "required", e.target.checked)}
                           disabled={item.active === false}
@@ -896,6 +908,7 @@ export default function AdminChecklistsClient() {
                 <button
                   onClick={handleSubmit}
                   disabled={saving || !formServiceSubtype || !formZone || !formZoneLabel}
+                  aria-label={editingZone ? "Guardar cambios de zona" : "Crear zona"}
                   className="px-4 py-2 bg-brand-navy text-white rounded-lg font-medium text-sm hover:bg-brand-navy/90 disabled:opacity-50 flex items-center gap-2"
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}

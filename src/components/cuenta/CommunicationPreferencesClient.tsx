@@ -166,12 +166,14 @@ export default function CommunicationPreferencesClient() {
         </div>
         <div className="flex items-center gap-2">
           <input
+            aria-label="Fecha de cumpleaños"
             type="date"
             value={birthDateInput}
             onChange={(e) => setBirthDateInput(e.target.value)}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
           <button
+            aria-label="Guardar fecha de cumpleaños"
             onClick={saveBirthDate}
             disabled={savingBirthDate}
             className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"

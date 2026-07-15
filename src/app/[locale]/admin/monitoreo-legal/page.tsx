@@ -185,6 +185,7 @@ export default function LegalMonitoringPage() {
                 <div className="space-y-2 pt-2 border-t">
                   <input
                     type="text"
+                    aria-label="Descripción del cambio"
                     value={changeForm.description}
                     onChange={(e) => setChangeForm({ ...changeForm, description: e.target.value })}
                     placeholder="What changed?"
@@ -193,6 +194,7 @@ export default function LegalMonitoringPage() {
                   <input
                     type="number"
                     step="0.01"
+                    aria-label="Impacto en dólares (opcional)"
                     value={changeForm.impact}
                     onChange={(e) => setChangeForm({ ...changeForm, impact: e.target.value })}
                     placeholder="Dollar impact (optional)"

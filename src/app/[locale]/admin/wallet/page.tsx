@@ -98,12 +98,14 @@ export default function AdminWalletPage() {
         <div className="flex gap-2">
           <input
             type="text"
+            aria-label="ID de usuario del cliente (uuid)"
             value={userId}
             onChange={(e) => setUserId(e.target.value)}
             placeholder="uuid"
             className="border rounded-lg px-3 py-2 text-sm flex-1"
           />
           <button
+            aria-label="Buscar billetera del cliente"
             onClick={lookup}
             disabled={loading}
             className="inline-flex items-center gap-1.5 bg-brand-navy text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50"
@@ -129,6 +131,7 @@ export default function AdminWalletPage() {
         <h2 className="font-semibold text-brand-ink">Grant Credit</h2>
         <div className="grid grid-cols-2 gap-3">
           <select
+            aria-label="Tipo de crédito a otorgar"
             value={grantForm.type}
             onChange={(e) => setGrantForm((f) => ({ ...f, type: e.target.value }))}
             className="border rounded-lg px-3 py-2 text-sm"
@@ -139,6 +142,7 @@ export default function AdminWalletPage() {
           </select>
           <input
             type="number"
+            aria-label="Monto a otorgar en dólares"
             min={0.01}
             step="0.01"
             value={grantForm.amountDollars}
@@ -150,6 +154,7 @@ export default function AdminWalletPage() {
         </div>
         <input
           type="text"
+          aria-label="Descripción del crédito otorgado"
           value={grantForm.description}
           onChange={(e) => setGrantForm((f) => ({ ...f, description: e.target.value }))}
           placeholder="Description (e.g. 'Referral bonus — Jane Doe')"
@@ -157,6 +162,7 @@ export default function AdminWalletPage() {
         />
         <button
           type="submit"
+          aria-label="Otorgar crédito al cliente"
           disabled={granting}
           className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
         >

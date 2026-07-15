@@ -363,10 +363,11 @@ export default function TicketsPage() {
                   against them.
                 </p>
                 <div>
-                  <label className="text-xs text-gray-600 block mb-1">
+                  <label htmlFor="corrected-time-input" className="text-xs text-gray-600 block mb-1">
                     Corrected time (optional — leave blank to reject or to approve without changing the log)
                   </label>
                   <input
+                    id="corrected-time-input"
                     type="time"
                     value={correctedTime}
                     onChange={(e) => setCorrectedTime(e.target.value)}
@@ -374,6 +375,7 @@ export default function TicketsPage() {
                   />
                 </div>
                 <textarea
+                  aria-label="Nota de resolución de la disputa de horas"
                   value={resolutionNote}
                   onChange={(e) => setResolutionNote(e.target.value)}
                   placeholder="Resolution note (required)..."
@@ -404,6 +406,7 @@ export default function TicketsPage() {
                   commission or Batch Capture.
                 </p>
                 <textarea
+                  aria-label="Nota de aprobación del upsell"
                   value={resolutionNote}
                   onChange={(e) => setResolutionNote(e.target.value)}
                   placeholder="Note (optional)..."
@@ -455,6 +458,7 @@ export default function TicketsPage() {
                 </div>
 
                 <textarea
+                  aria-label="Nota de resolución del ticket"
                   value={resolutionNote}
                   onChange={(e) => setResolutionNote(e.target.value)}
                   placeholder="Resolution note (required)..."

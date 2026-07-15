@@ -540,6 +540,7 @@ export default function ServicioPage() {
                 </div>
                 <input
                   type="text"
+                  aria-label="Razón para omitir la verificación de geocerca"
                   value={bypassReason}
                   onChange={(e) => setBypassReason(e.target.value)}
                   placeholder="Reason for bypass (required)..."
@@ -638,6 +639,7 @@ export default function ServicioPage() {
                     )}
                     <input
                       type="file"
+                      aria-label="Agregar foto del servicio"
                       accept="image/*"
                       capture="environment"
                       className="hidden"
@@ -697,6 +699,7 @@ export default function ServicioPage() {
                   <div className="flex items-center gap-2 pt-2 border-t">
                     <input
                       type="text"
+                      aria-label="Agregar una nota al servicio"
                       value={noteText}
                       onChange={(e) => setNoteText(e.target.value)}
                       placeholder="Add a note..."
@@ -704,6 +707,7 @@ export default function ServicioPage() {
                       onKeyDown={(e) => e.key === "Enter" && handleSendNote()}
                     />
                     <button
+                      aria-label="Enviar nota"
                       onClick={handleSendNote}
                       disabled={!noteText.trim() || isSubmitting}
                       className="p-2 bg-brand-navy text-white rounded-lg disabled:opacity-50"

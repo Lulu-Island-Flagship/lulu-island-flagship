@@ -71,12 +71,13 @@ export function DatePicker({ value, onChange, minDate, maxDate }: DatePickerProp
 
   return (
     <div className="space-y-3">
-      <label className="block text-sm font-medium text-brand-ink">
+      <label htmlFor="service-date-input" className="block text-sm font-medium text-brand-ink">
         Select Service Date
       </label>
       <div className="relative">
         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
         <input
+          id="service-date-input"
           type="date"
           value={value}
           onChange={(e) => onChange(e.target.value)}

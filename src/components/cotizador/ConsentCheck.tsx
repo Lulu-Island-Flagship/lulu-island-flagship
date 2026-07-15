@@ -25,8 +25,9 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
       <h3 className="font-semibold text-brand-ink">Consent & Agreements</h3>
 
       {/* Terms & Conditions */}
-      <label className="flex items-start gap-3 p-4 rounded-lg border-2 border-gray-200 hover:border-brand-wave-blue cursor-pointer transition-all">
+      <label htmlFor="consent-tc" className="flex items-start gap-3 p-4 rounded-lg border-2 border-gray-200 hover:border-brand-wave-blue cursor-pointer transition-all">
         <input
+          id="consent-tc"
           type="checkbox"
           checked={consents.tc}
           onChange={(e) => onChange({ ...consents, tc: e.target.checked })}
@@ -47,8 +48,9 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
       </label>
 
       {/* PIPA - Photo Evidence */}
-      <label className="flex items-start gap-3 p-4 rounded-lg border-2 border-gray-200 hover:border-brand-wave-blue cursor-pointer transition-all">
+      <label htmlFor="consent-pipa" className="flex items-start gap-3 p-4 rounded-lg border-2 border-gray-200 hover:border-brand-wave-blue cursor-pointer transition-all">
         <input
+          id="consent-pipa"
           type="checkbox"
           checked={consents.pipa}
           onChange={(e) => onChange({ ...consents, pipa: e.target.checked })}
@@ -76,8 +78,9 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
       </label>
 
       {/* Marketing - CASL */}
-      <label className="flex items-start gap-3 p-4 rounded-lg border-2 border-gray-200 hover:border-brand-wave-blue cursor-pointer transition-all">
+      <label htmlFor="consent-marketing" className="flex items-start gap-3 p-4 rounded-lg border-2 border-gray-200 hover:border-brand-wave-blue cursor-pointer transition-all">
         <input
+          id="consent-marketing"
           type="checkbox"
           checked={consents.marketing}
           onChange={(e) => onChange({ ...consents, marketing: e.target.checked })}
@@ -99,8 +102,9 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
       </label>
 
       {/* Photo Marketing */}
-      <label className="flex items-start gap-3 p-4 rounded-lg border-2 border-gray-200 hover:border-brand-wave-blue cursor-pointer transition-all">
+      <label htmlFor="consent-photo-marketing" className="flex items-start gap-3 p-4 rounded-lg border-2 border-gray-200 hover:border-brand-wave-blue cursor-pointer transition-all">
         <input
+          id="consent-photo-marketing"
           type="checkbox"
           checked={consents.photoMarketing}
           onChange={(e) => onChange({ ...consents, photoMarketing: e.target.checked })}

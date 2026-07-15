@@ -235,10 +235,11 @@ export default function AdminEmpleadosClient() {
                     </td>
                     <td className="px-4 py-3">
                       <select
+                        title="Promotions to Team Lead+ require certification and recommendation the system can't verify — confirm those manually before selecting."
+                        aria-label="Nivel de carrera del empleado"
                         value={emp.career_level || "trabajador"}
                         onChange={(e) => saveCareerLevel(emp.id, e.target.value as CareerLevel)}
                         className="text-xs border rounded-md px-2 py-1"
-                        title="Promotions to Team Lead+ require certification and recommendation the system can't verify — confirm those manually before selecting."
                       >
                         {CAREER_LEVEL_ORDER.map((level) => (
                           <option key={level} value={level}>
@@ -397,8 +398,9 @@ function OffboardModal({
               reassignment. This cannot be undone from here.
             </p>
             <div>
-              <label className="text-xs text-gray-600 block mb-1">Termination reason</label>
+              <label htmlFor="offboard-termination-reason" className="text-xs text-gray-600 block mb-1">Termination reason</label>
               <textarea
+                id="offboard-termination-reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2 text-sm"
@@ -414,6 +416,7 @@ function OffboardModal({
               <button
                 onClick={handleConfirm}
                 disabled={saving || !reason.trim()}
+                aria-label={saving ? "Procesando offboarding" : "Confirmar offboarding del empleado"}
                 className="px-4 py-2 text-sm rounded-lg bg-state-danger text-white hover:opacity-90 disabled:opacity-50"
               >
                 {saving ? "Processing..." : "Confirm Offboard"}
@@ -481,8 +484,9 @@ function AddEmployeeModal({
 
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-gray-600 block mb-1">Name</label>
+            <label htmlFor="add-employee-name" className="text-xs text-gray-600 block mb-1">Name</label>
             <input
+              id="add-employee-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm"
@@ -490,8 +494,9 @@ function AddEmployeeModal({
             />
           </div>
           <div>
-            <label className="text-xs text-gray-600 block mb-1">Email</label>
+            <label htmlFor="add-employee-email" className="text-xs text-gray-600 block mb-1">Email</label>
             <input
+              id="add-employee-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -500,16 +505,18 @@ function AddEmployeeModal({
             />
           </div>
           <div>
-            <label className="text-xs text-gray-600 block mb-1">Phone (optional)</label>
+            <label htmlFor="add-employee-phone" className="text-xs text-gray-600 block mb-1">Phone (optional)</label>
             <input
+              id="add-employee-phone"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm"
             />
           </div>
           <div>
-            <label className="text-xs text-gray-600 block mb-1">Role</label>
+            <label htmlFor="add-employee-role" className="text-xs text-gray-600 block mb-1">Role</label>
             <select
+              id="add-employee-role"
               value={role}
               onChange={(e) => setRole(e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm"
@@ -520,8 +527,9 @@ function AddEmployeeModal({
             </select>
           </div>
           <div>
-            <label className="text-xs text-gray-600 block mb-1">Day Rate ($CAD)</label>
+            <label htmlFor="add-employee-day-rate" className="text-xs text-gray-600 block mb-1">Day Rate ($CAD)</label>
             <input
+              id="add-employee-day-rate"
               type="number"
               value={dayRate}
               onChange={(e) => setDayRate(e.target.value)}
@@ -539,6 +547,7 @@ function AddEmployeeModal({
           <button
             onClick={handleCreate}
             disabled={saving || !name.trim() || !email.trim()}
+            aria-label={saving ? "Creando empleado" : "Crear empleado e invitar"}
             className="px-4 py-2 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light disabled:opacity-50"
           >
             {saving ? "Creating..." : "Create & Invite"}
@@ -611,6 +620,7 @@ function EditLanguagesModal({
                 <label className="flex items-center gap-2 flex-1 cursor-pointer">
                   <input
                     type="checkbox"
+                    aria-label={`Habla ${lang.label}`}
                     checked={spoken}
                     onChange={() => toggleLanguage(lang.code)}
                     className="w-4 h-4 accent-brand-gold"
@@ -619,6 +629,7 @@ function EditLanguagesModal({
                 </label>
                 <select
                   disabled={!spoken}
+                  aria-label={`Nivel de ${lang.label}`}
                   value={levels[lang.code] || ""}
                   onChange={(e) => {
                     const value = e.target.value;
@@ -657,6 +668,7 @@ function EditLanguagesModal({
           <button
             onClick={handleSave}
             disabled={saving || languages.length === 0}
+            aria-label={saving ? "Guardando idiomas" : "Guardar idiomas del empleado"}
             className="px-4 py-2 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light disabled:opacity-50"
           >
             {saving ? "Saving..." : "Save"}

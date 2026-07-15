@@ -106,6 +106,7 @@ export default function AdminLoginScreen() {
             <button
               onClick={handleGoogleSignIn}
               disabled={isLoading}
+              aria-label="Iniciar sesión con Google"
               className="w-full bg-white border border-gray-300 text-brand-ink py-2.5 rounded-lg font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isLoading ? (
@@ -145,10 +146,11 @@ export default function AdminLoginScreen() {
         {mode === "email" && !otpSent && (
           <div className="space-y-3 text-left">
             <div>
-              <label className="block text-sm font-medium text-brand-ink mb-1">
+              <label htmlFor="admin-login-email" className="block text-sm font-medium text-brand-ink mb-1">
                 Email Address
               </label>
               <input
+                id="admin-login-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -159,6 +161,7 @@ export default function AdminLoginScreen() {
             <button
               onClick={handleEmailOtpRequest}
               disabled={isLoading}
+              aria-label={isLoading ? "Enviando código de verificación" : "Enviar código de verificación"}
               className="w-full bg-brand-navy text-white py-2.5 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
             >
               {isLoading ? "Sending..." : "Send Verification Code"}
@@ -196,6 +199,7 @@ export default function AdminLoginScreen() {
               <div className="mt-2 space-y-2">
                 <input
                   type="text"
+                  aria-label="Código de verificación de 6 dígitos"
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="123456"
@@ -204,6 +208,7 @@ export default function AdminLoginScreen() {
                 <button
                   onClick={handleVerifyOtp}
                   disabled={isLoading}
+                  aria-label={isLoading ? "Verificando código" : "Verificar código e iniciar sesión"}
                   className="w-full bg-brand-navy text-white py-2.5 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
                 >
                   {isLoading ? "Verifying..." : "Verify & Sign In"}

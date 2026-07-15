@@ -430,6 +430,7 @@ export default function EmpleadoScorePage() {
             </div>
 
             <textarea
+              aria-label="Razón de la apelación de auditoría"
               value={appealReason}
               onChange={(e) => setAppealReason(e.target.value)}
               placeholder="Explain why you believe this audit is unfair..."

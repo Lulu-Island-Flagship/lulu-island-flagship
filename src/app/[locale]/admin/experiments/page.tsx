@@ -157,19 +157,19 @@ export default function ExperimentsPage() {
             <h2 className="font-semibold text-brand-ink">New Experiment</h2>
             <button type="button" onClick={() => setShowForm(false)}><X className="w-5 h-5 text-gray-400" /></button>
           </div>
-          <input type="text" placeholder="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
-          <select value={form.experimentType} onChange={(e) => setForm((f) => ({ ...f, experimentType: e.target.value as ExperimentType }))} className="w-full border rounded-lg px-3 py-2 text-sm">
+          <input type="text" aria-label="Nombre del experimento" placeholder="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
+          <select aria-label="Tipo de experimento" value={form.experimentType} onChange={(e) => setForm((f) => ({ ...f, experimentType: e.target.value as ExperimentType }))} className="w-full border rounded-lg px-3 py-2 text-sm">
             <option value="price">Price</option>
             <option value="copy">Copy</option>
             <option value="ui_ux">UI/UX</option>
             <option value="batch_schedule">Batch schedule</option>
           </select>
           <div className="grid grid-cols-2 gap-3">
-            <input type="number" min={80} max={99} placeholder="Control %" value={form.controlWeight} onChange={(e) => setForm((f) => ({ ...f, controlWeight: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm" required />
-            <input type="number" min={1} max={20} placeholder="Variant %" value={form.variantWeight} onChange={(e) => setForm((f) => ({ ...f, variantWeight: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm" required />
+            <input type="number" aria-label="Porcentaje de control" min={80} max={99} placeholder="Control %" value={form.controlWeight} onChange={(e) => setForm((f) => ({ ...f, controlWeight: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm" required />
+            <input type="number" aria-label="Porcentaje de variante" min={1} max={20} placeholder="Variant %" value={form.variantWeight} onChange={(e) => setForm((f) => ({ ...f, variantWeight: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm" required />
           </div>
           <p className="text-xs text-gray-400">Variant must stay under 20% of traffic; percentages must add to 100.</p>
-          <button type="submit" disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+          <button type="submit" aria-label="Crear experimento" disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
             {saving ? "Saving..." : "Create"}
           </button>
         </form>
@@ -181,8 +181,8 @@ export default function ExperimentsPage() {
             <h2 className="font-semibold text-brand-ink">Assign Client</h2>
             <button type="button" onClick={() => setAssignTarget(null)}><X className="w-5 h-5 text-gray-400" /></button>
           </div>
-          <input type="text" placeholder="Client user ID" value={assignClientId} onChange={(e) => setAssignClientId(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" required />
-          <button type="submit" disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+          <input type="text" aria-label="ID de usuario del cliente" placeholder="Client user ID" value={assignClientId} onChange={(e) => setAssignClientId(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" required />
+          <button type="submit" aria-label="Asignar cliente al experimento" disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
             {saving ? "Assigning..." : "Assign"}
           </button>
         </form>

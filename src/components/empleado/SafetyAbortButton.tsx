@@ -124,6 +124,7 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
               Esta es la confirmación final. Se activará el SOS inmediatamente al tocar el botón.
             </p>
             <textarea
+              aria-label="Qué está pasando (opcional)"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="¿Qué está pasando? (opcional, pero ayuda al admin a responder mejor)"

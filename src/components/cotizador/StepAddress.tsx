@@ -106,11 +106,12 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
 
       {savedProperties.length > 0 && (
         <div className="bg-brand-ice rounded-lg p-6">
-          <label className="block font-semibold text-brand-ink mb-2 flex items-center gap-2">
+          <label htmlFor="saved-property-select" className="block font-semibold text-brand-ink mb-2 flex items-center gap-2">
             <Home className="w-5 h-5 text-brand-wave-blue" />
             Use a saved property
           </label>
           <select
+            id="saved-property-select"
             value=""
             onChange={(e) => {
               const property = savedProperties.find((p) => p.id === e.target.value);
@@ -138,11 +139,12 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
 
       {/* Address */}
       <div className="bg-brand-ice rounded-lg p-6">
-        <label className="block font-semibold text-brand-ink mb-2 flex items-center gap-2">
+        <label htmlFor="street-address-input" className="block font-semibold text-brand-ink mb-2 flex items-center gap-2">
           <MapPin className="w-5 h-5 text-brand-wave-blue" />
           Street Address
         </label>
         <input
+          id="street-address-input"
           type="text"
           value={address}
           onChange={(e) => onChange({ address: e.target.value, zone, postalCode })}
@@ -212,8 +214,9 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
 
       {/* Postal Code */}
       <div className="bg-brand-ice rounded-lg p-6">
-        <label className="block font-semibold text-brand-ink mb-2">Postal Code</label>
+        <label htmlFor="postal-code-input" className="block font-semibold text-brand-ink mb-2">Postal Code</label>
         <input
+          id="postal-code-input"
           type="text"
           value={postalCode}
           onChange={(e) => handlePostalChange(e.target.value)}

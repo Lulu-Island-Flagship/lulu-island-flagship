@@ -182,12 +182,14 @@ export default function PipedaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <input
               type="text"
+              aria-label="ID de usuario del cliente"
               value={newRequest.clientUserId}
               onChange={(e) => setNewRequest({ ...newRequest, clientUserId: e.target.value })}
               placeholder="Client user ID"
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
             />
             <select
+              aria-label="Tipo de solicitud de datos"
               value={newRequest.requestType}
               onChange={(e) => setNewRequest({ ...newRequest, requestType: e.target.value })}
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
@@ -203,6 +205,7 @@ export default function PipedaPage() {
           {newRequest.requestType === "correction" && (
             <input
               type="text"
+              aria-label="Detalles de la corrección solicitada"
               value={newRequest.correctionDetails}
               onChange={(e) => setNewRequest({ ...newRequest, correctionDetails: e.target.value })}
               placeholder="What needs correcting?"
@@ -273,6 +276,7 @@ export default function PipedaPage() {
         <div className="bg-white rounded-xl border p-4 space-y-2">
           <input
             type="text"
+            aria-label="Descripción del incidente de seguridad"
             value={newIncident.description}
             onChange={(e) => setNewIncident({ ...newIncident, description: e.target.value })}
             placeholder="What happened?"
@@ -280,6 +284,7 @@ export default function PipedaPage() {
           />
           <div className="flex items-center gap-2">
             <select
+              aria-label="Gravedad del incidente"
               value={newIncident.severity}
               onChange={(e) => setNewIncident({ ...newIncident, severity: e.target.value })}
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm"

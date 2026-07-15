@@ -248,6 +248,7 @@ function RebookWidget({ orderId }: { orderId: string }) {
       {rebookError && <p className="text-sm text-state-danger">{rebookError}</p>}
 
       <button
+        aria-label="Confirmar nueva fecha de servicio"
         onClick={confirmRebook}
         disabled={!selectedDate || confirming}
         className="w-full bg-brand-navy text-white py-3 rounded-xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2"

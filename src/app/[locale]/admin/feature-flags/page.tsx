@@ -117,6 +117,7 @@ export default function FeatureFlagsPage() {
         <h1 className="text-2xl font-semibold text-brand-navy">Feature Flags</h1>
         <input
           type="text"
+          aria-label="Buscar feature flags"
           placeholder="Search…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}

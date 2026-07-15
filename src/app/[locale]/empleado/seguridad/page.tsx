@@ -89,6 +89,7 @@ function NearMissSection() {
         </div>
       )}
       <select
+        aria-label="Categoría del cuasi-accidente"
         value={category}
         onChange={(e) => setCategory(e.target.value)}
         className="w-full border rounded px-2 py-1.5 text-sm"
@@ -101,17 +102,19 @@ function NearMissSection() {
         ))}
       </select>
       <textarea
+        aria-label="Descripción del cuasi-accidente"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="What happened? (optional)"
         className="w-full border rounded px-2 py-1.5 text-sm"
         rows={2}
       />
-      <label className="flex items-center gap-2 text-xs text-gray-500">
-        <input type="checkbox" checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} />
+      <label htmlFor="near-miss-anonymous" className="flex items-center gap-2 text-xs text-gray-500">
+        <input id="near-miss-anonymous" type="checkbox" aria-label="Report anonymously" checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} />
         Report anonymously
       </label>
       <button
+        aria-label="Enviar reporte de cuasi-accidente"
         onClick={submit}
         disabled={submitting}
         className="w-full bg-brand-navy text-white rounded py-2 text-sm flex items-center justify-center gap-2"
@@ -189,6 +192,7 @@ function WorkplaceIncidentSection() {
         </div>
       )}
       <textarea
+        aria-label="Descripción de la lesión"
         value={injuryDescription}
         onChange={(e) => setInjuryDescription(e.target.value)}
         placeholder="Describe what happened *"
@@ -196,12 +200,14 @@ function WorkplaceIncidentSection() {
         rows={2}
       />
       <input
+        aria-label="Parte del cuerpo afectada"
         value={bodyPartAffected}
         onChange={(e) => setBodyPartAffected(e.target.value)}
         placeholder="Body part affected"
         className="w-full border rounded px-2 py-1.5 text-sm"
       />
       <select
+        aria-label="Tipo de atención médica recibida"
         value={medicalAttentionType}
         onChange={(e) => setMedicalAttentionType(e.target.value)}
         className="w-full border rounded px-2 py-1.5 text-sm"
@@ -213,12 +219,14 @@ function WorkplaceIncidentSection() {
         ))}
       </select>
       <input
+        aria-label="Ubicación del incidente"
         value={locationDescription}
         onChange={(e) => setLocationDescription(e.target.value)}
         placeholder="Location"
         className="w-full border rounded px-2 py-1.5 text-sm"
       />
       <textarea
+        aria-label="Acción inmediata tomada"
         value={immediateActionTaken}
         onChange={(e) => setImmediateActionTaken(e.target.value)}
         placeholder="Immediate action taken (optional)"

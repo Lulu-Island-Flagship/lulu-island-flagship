@@ -249,6 +249,7 @@ export default function QCPage() {
             </div>
 
             <textarea
+              aria-label="Nota de revisión de control de calidad"
               value={reviewNote}
               onChange={(e) => setReviewNote(e.target.value)}
               placeholder="Review note (required)..."

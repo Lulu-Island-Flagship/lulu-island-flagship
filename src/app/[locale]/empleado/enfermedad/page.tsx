@@ -138,8 +138,9 @@ export default function EnfermedadPage() {
 
       <div className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3">
         <div>
-          <label className="text-xs text-gray-500">Date</label>
+          <label htmlFor="sick-absence-date" className="text-xs text-gray-500">Date</label>
           <input
+            id="sick-absence-date"
             type="date"
             value={absenceDate}
             onChange={(e) => setAbsenceDate(e.target.value)}
@@ -148,17 +149,21 @@ export default function EnfermedadPage() {
         </div>
 
         <div className="flex gap-4 text-sm">
-          <label className="flex items-center gap-1.5">
+          <label htmlFor="sick-reason-self" className="flex items-center gap-1.5">
             <input
+              id="sick-reason-self"
               type="radio"
+              aria-label="Simple reason"
               checked={reasonType === "self_reported"}
               onChange={() => setReasonType("self_reported")}
             />
             Simple reason
           </label>
-          <label className="flex items-center gap-1.5">
+          <label htmlFor="sick-reason-note" className="flex items-center gap-1.5">
             <input
+              id="sick-reason-note"
               type="radio"
+              aria-label="Medical note"
               checked={reasonType === "medical_note"}
               onChange={() => setReasonType("medical_note")}
             />
@@ -167,8 +172,9 @@ export default function EnfermedadPage() {
         </div>
 
         <div>
-          <label className="text-xs text-gray-500">Reason</label>
+          <label htmlFor="sick-reason-text" className="text-xs text-gray-500">Reason</label>
           <textarea
+            id="sick-reason-text"
             value={reasonText}
             onChange={(e) => setReasonText(e.target.value)}
             placeholder="e.g. I have a cold"
@@ -179,10 +185,11 @@ export default function EnfermedadPage() {
 
         {reasonType === "medical_note" && (
           <div>
-            <label className="text-xs text-gray-500 flex items-center gap-1">
+            <label htmlFor="sick-note-file" className="text-xs text-gray-500 flex items-center gap-1">
               <Upload className="w-3 h-3" /> Attach note (optional)
             </label>
             <input
+              id="sick-note-file"
               type="file"
               accept="image/*,.pdf"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
@@ -192,6 +199,7 @@ export default function EnfermedadPage() {
         )}
 
         <button
+          aria-label={uploadingFile ? "Subiendo archivo" : "Enviar reporte de ausencia"}
           onClick={submit}
           disabled={submitting}
           className="w-full bg-brand-navy text-white rounded py-2 text-sm flex items-center justify-center gap-2"

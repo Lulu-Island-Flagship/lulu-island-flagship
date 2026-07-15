@@ -172,6 +172,7 @@ export default function WorkplaceIncidentsPage() {
                     <>
                       <input
                         type="text"
+                        aria-label="Número de referencia de WorkSafeBC (opcional)"
                         placeholder="Reference # (optional)"
                         value={refNumbers[item.id] || ""}
                         onChange={(e) => setRefNumbers((r) => ({ ...r, [item.id]: e.target.value }))}

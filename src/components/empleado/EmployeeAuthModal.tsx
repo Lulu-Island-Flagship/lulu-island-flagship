@@ -36,6 +36,7 @@ export function EmployeeAuthModal({ onClose, onError }: EmployeeAuthModalProps) 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white rounded-xl shadow-elevation-2 w-full max-w-sm p-6 relative">
         <button
+          aria-label="Cerrar"
           onClick={onClose}
           className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
         >
@@ -53,6 +54,7 @@ export function EmployeeAuthModal({ onClose, onError }: EmployeeAuthModalProps) 
         </div>
 
         <button
+          aria-label="Sign in with Google"
           onClick={handleGoogleSignIn}
           disabled={isLoading}
           className="w-full bg-white border border-gray-300 text-brand-ink py-2.5 rounded-lg font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"

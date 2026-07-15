@@ -53,7 +53,7 @@ export function QuoteButton({ variant = "primary", children }: QuoteButtonProps)
       : "bg-white text-brand-navy border-2 border-brand-navy hover:bg-brand-ice";
 
   return (
-    <button onClick={handleClick} className={`${baseClasses} ${variantClasses}`}>
+    <button aria-label="Comenzar cotización" onClick={handleClick} className={`${baseClasses} ${variantClasses}`}>
       {children}
       <ChevronRight className="w-5 h-5" />
     </button>

@@ -214,6 +214,7 @@ export default function EmpleadoVotacionPage() {
             </p>
 
             <textarea
+              aria-label="Nota opcional sobre la votación"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Optional note (only visible to admin)..."

@@ -164,6 +164,7 @@ export default function SuccessionPage() {
       {showForm && (
         <form onSubmit={addSuccessor} className="bg-white rounded-xl border p-4 space-y-3">
           <input
+            aria-label="Nombre completo del sucesor de confianza"
             type="text"
             placeholder="Full name"
             value={form.name}
@@ -172,6 +173,7 @@ export default function SuccessionPage() {
             required
           />
           <input
+            aria-label="Relación con el sucesor (ej. cónyuge, socio)"
             type="text"
             placeholder="Relationship (e.g. spouse, business partner)"
             value={form.relationship}
@@ -180,6 +182,7 @@ export default function SuccessionPage() {
           />
           <div className="grid grid-cols-2 gap-3">
             <input
+              aria-label="Teléfono de contacto del sucesor"
               type="tel"
               placeholder="Phone"
               value={form.contactPhone}
@@ -187,6 +190,7 @@ export default function SuccessionPage() {
               className="border rounded-lg px-3 py-2 text-sm"
             />
             <input
+              aria-label="Correo electrónico de contacto del sucesor"
               type="email"
               placeholder="Email"
               value={form.contactEmail}
@@ -197,12 +201,13 @@ export default function SuccessionPage() {
           <div className="flex gap-2">
             <button
               type="submit"
+              aria-label="Guardar sucesor de confianza"
               disabled={saving}
               className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save"}
             </button>
-            <button type="button" onClick={() => setShowForm(false)} className="text-sm text-gray-500 px-4 py-2">
+            <button type="button" aria-label="Cancelar y cerrar formulario de sucesor" onClick={() => setShowForm(false)} className="text-sm text-gray-500 px-4 py-2">
               Cancel
             </button>
           </div>
@@ -224,7 +229,7 @@ export default function SuccessionPage() {
                   {[s.relationship, s.contact_phone, s.contact_email].filter(Boolean).join(" · ")}
                 </p>
               </div>
-              <button onClick={() => deactivate(s.id)} className="text-gray-400 hover:text-red-500">
+              <button aria-label={`Eliminar sucesor de confianza ${s.name}`} onClick={() => deactivate(s.id)} className="text-gray-400 hover:text-red-500">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>

@@ -187,6 +187,7 @@ export default function DrDrillPage() {
             <div className="pt-1">
               {status.drillType === "restore_verification" ? (
                 <button
+                  aria-label="Ejecutar verificación de restauración"
                   onClick={runRestoreVerification}
                   disabled={running}
                   className="inline-flex items-center gap-1.5 text-xs text-brand-navy hover:underline disabled:opacity-50"
@@ -210,6 +211,7 @@ export default function DrDrillPage() {
         <form onSubmit={submitManual} className="bg-white rounded-xl border p-4 space-y-3 max-w-lg">
           <h2 className="font-semibold text-brand-ink">Log: {DRILL_TYPE_LABEL[showManualForm]}</h2>
           <textarea
+            aria-label="Alcance de lo probado en el simulacro"
             placeholder="What was tested (e.g. 'physical kit inspected, seal intact, credentials current')"
             value={manualForm.testedScope}
             onChange={(e) => setManualForm((f) => ({ ...f, testedScope: e.target.value }))}
@@ -218,6 +220,7 @@ export default function DrDrillPage() {
             required
           />
           <select
+            aria-label="Resultado del simulacro"
             value={manualForm.manualResult}
             onChange={(e) => setManualForm((f) => ({ ...f, manualResult: e.target.value as DrillResult }))}
             className="border rounded-lg px-3 py-2 text-sm"
@@ -227,6 +230,7 @@ export default function DrDrillPage() {
             <option value="fail">Fail</option>
           </select>
           <textarea
+            aria-label="Notas adicionales del simulacro (opcional)"
             placeholder="Notes (optional)"
             value={manualForm.notes}
             onChange={(e) => setManualForm((f) => ({ ...f, notes: e.target.value }))}
@@ -235,6 +239,7 @@ export default function DrDrillPage() {
           />
           <div className="flex gap-2">
             <button
+              aria-label="Guardar registro del simulacro"
               type="submit"
               disabled={saving}
               className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"

@@ -133,6 +133,7 @@ export default function RiesgoPage() {
           <h2 className="text-sm font-semibold text-brand-ink">Record assessment</h2>
           <input
             type="text"
+            aria-label="ID de propiedad del cliente (UUID)"
             placeholder="client_property_id (UUID)"
             value={propertyId}
             onChange={(e) => setPropertyId(e.target.value)}
@@ -143,6 +144,7 @@ export default function RiesgoPage() {
               <label key={f.value} className="flex items-start gap-2 text-sm">
                 <input
                   type="checkbox"
+                  aria-label={f.label}
                   checked={selectedFlags.includes(f.value)}
                   onChange={() => toggleFlag(f.value)}
                   className="mt-0.5"
@@ -165,6 +167,7 @@ export default function RiesgoPage() {
         <div className="flex items-center gap-2 mb-3">
           <input
             type="text"
+            aria-label="Filtrar por ID de propiedad del cliente"
             placeholder="Filter by client_property_id (optional)"
             value={lookupPropertyId}
             onChange={(e) => setLookupPropertyId(e.target.value)}

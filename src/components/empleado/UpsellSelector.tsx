@@ -135,6 +135,7 @@ export function UpsellSelector({ orderId, onUpsellAdded }: UpsellSelectorProps) 
         <label className="block text-xs font-medium text-gray-600 mb-1">Notes (optional)</label>
         <input
           type="text"
+          aria-label="Notas sobre el upsell"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Client agreed verbally / will confirm later..."
@@ -143,6 +144,7 @@ export function UpsellSelector({ orderId, onUpsellAdded }: UpsellSelectorProps) 
       </div>
 
       <button
+        aria-label="Confirmar upsell seleccionado"
         onClick={handleSubmit}
         disabled={selected.size === 0 || isSubmitting}
         className="w-full bg-brand-navy text-white py-2.5 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 flex items-center justify-center gap-2"

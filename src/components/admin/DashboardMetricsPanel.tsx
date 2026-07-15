@@ -251,8 +251,9 @@ export default function DashboardMetricsPanel() {
 
           {editingFixedCosts ? (
             <div className="mt-3 space-y-2">
-              <label className="text-xs text-gray-500 block">Monthly fixed costs ($)</label>
+              <label htmlFor="dashboard-fixed-costs" className="text-xs text-gray-500 block">Monthly fixed costs ($)</label>
               <input
+                id="dashboard-fixed-costs"
                 type="number"
                 min={0}
                 step="0.01"
@@ -267,6 +268,7 @@ export default function DashboardMetricsPanel() {
                 <button
                   onClick={saveFixedCosts}
                   disabled={savingFixedCosts}
+                  aria-label={savingFixedCosts ? "Guardando costos fijos" : "Guardar costos fijos mensuales"}
                   className="text-xs px-3 py-1 rounded-md bg-brand-navy text-white hover:bg-brand-navy-light disabled:opacity-50"
                 >
                   {savingFixedCosts ? "Saving..." : "Save"}

@@ -94,6 +94,7 @@ export default function PayrollExportPage() {
         </div>
         <div className="flex items-center gap-2">
           <select
+            aria-label="Seleccionar ciclo de pago"
             value={which}
             onChange={(e) => setWhich(e.target.value as "previous" | "current")}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm"

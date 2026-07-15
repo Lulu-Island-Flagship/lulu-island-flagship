@@ -156,6 +156,7 @@ export default function ChurnSignalsPage() {
           </div>
           <input
             type="text"
+            aria-label="ID de usuario del cliente"
             placeholder="Client user ID"
             value={manualForm.clientUserId}
             onChange={(e) => setManualForm((f) => ({ ...f, clientUserId: e.target.value }))}
@@ -165,6 +166,7 @@ export default function ChurnSignalsPage() {
           <label className="flex items-center gap-2 text-sm text-gray-600">
             <input
               type="checkbox"
+              aria-label="Canceló y mencionó a un competidor"
               checked={manualForm.cancelledWithCompetitorMention}
               onChange={(e) => setManualForm((f) => ({ ...f, cancelledWithCompetitorMention: e.target.checked }))}
             />
@@ -173,6 +175,7 @@ export default function ChurnSignalsPage() {
           <div className="grid grid-cols-2 gap-3">
             <input
               type="number"
+              aria-label="Puntaje del equipo anterior"
               placeholder="Team score before"
               value={manualForm.teamScorePrevious}
               onChange={(e) => setManualForm((f) => ({ ...f, teamScorePrevious: e.target.value }))}
@@ -180,6 +183,7 @@ export default function ChurnSignalsPage() {
             />
             <input
               type="number"
+              aria-label="Puntaje del equipo actual"
               placeholder="Team score now"
               value={manualForm.teamScoreCurrent}
               onChange={(e) => setManualForm((f) => ({ ...f, teamScoreCurrent: e.target.value }))}
@@ -187,6 +191,7 @@ export default function ChurnSignalsPage() {
             />
           </div>
           <button
+            aria-label="Guardar señal de abandono"
             type="submit"
             disabled={busy === "manual"}
             className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"

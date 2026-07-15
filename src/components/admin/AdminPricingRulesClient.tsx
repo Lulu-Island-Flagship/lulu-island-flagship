@@ -483,6 +483,7 @@ export default function AdminPricingRulesClient() {
       return (
         <select
           multiple
+          aria-label={`Valores para la condición ${field?.label || condition.field}`}
           value={selected}
           onChange={(e) => {
             const values = Array.from(e.target.selectedOptions).map((o) =>
@@ -504,6 +505,7 @@ export default function AdminPricingRulesClient() {
     if (field?.options && field.options.length > 0) {
       return (
         <select
+          aria-label={`Valor para la condición ${field?.label || condition.field}`}
           value={valueToString(condition.value)}
           onChange={(e) => updateCondition(index, { value: parseValueInput(e.target.value, condition.field) })}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
@@ -520,6 +522,7 @@ export default function AdminPricingRulesClient() {
     return (
       <input
         type={field?.type === "number" ? "number" : "text"}
+        aria-label={`Valor para la condición ${field?.label || condition.field}`}
         value={valueToString(condition.value)}
         onChange={(e) => updateCondition(index, { value: parseValueInput(e.target.value, condition.field) })}
         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
@@ -601,8 +604,9 @@ export default function AdminPricingRulesClient() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700">Rule name</label>
+                <label htmlFor="pricing-rule-name" className="text-sm font-medium text-gray-700">Rule name</label>
                 <input
+                  id="pricing-rule-name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -611,8 +615,9 @@ export default function AdminPricingRulesClient() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700">Description</label>
+                <label htmlFor="pricing-rule-description" className="text-sm font-medium text-gray-700">Description</label>
                 <input
+                  id="pricing-rule-description"
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -629,6 +634,7 @@ export default function AdminPricingRulesClient() {
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-gray-500">Match</span>
                     <select
+                      aria-label="Modo de coincidencia de condiciones (todas o cualquiera)"
                       value={conditionGroup}
                       onChange={(e) => setConditionGroup(e.target.value as "and" | "or")}
                       className="rounded-lg border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
@@ -648,6 +654,7 @@ export default function AdminPricingRulesClient() {
                   >
                     <div className="sm:col-span-3">
                       <select
+                        aria-label={`Campo de la condición ${index + 1}`}
                         value={condition.field}
                         onChange={(e) => updateCondition(index, { field: e.target.value })}
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
@@ -661,6 +668,7 @@ export default function AdminPricingRulesClient() {
                     </div>
                     <div className="sm:col-span-2">
                       <select
+                        aria-label={`Operador de la condición ${index + 1}`}
                         value={condition.op}
                         onChange={(e) => updateCondition(index, { op: e.target.value as RuleCondition["op"] })}
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
@@ -706,8 +714,9 @@ export default function AdminPricingRulesClient() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700">Action</label>
+                <label htmlFor="pricing-rule-action" className="text-sm font-medium text-gray-700">Action</label>
                 <select
+                  id="pricing-rule-action"
                   value={actionType}
                   onChange={(e) => setActionType(e.target.value as PricingRule["actionType"])}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
@@ -721,8 +730,9 @@ export default function AdminPricingRulesClient() {
               </div>
               {actionType !== "block" && actionType !== "flag_for_review" && (
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700">Value</label>
+                  <label htmlFor="pricing-rule-value" className="text-sm font-medium text-gray-700">Value</label>
                   <input
+                    id="pricing-rule-value"
                     type="number"
                     step={actionType === "price_multiplier" ? "0.01" : "1"}
                     value={actionValue}
@@ -735,8 +745,9 @@ export default function AdminPricingRulesClient() {
                 </div>
               )}
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700">Priority</label>
+                <label htmlFor="pricing-rule-priority" className="text-sm font-medium text-gray-700">Priority</label>
                 <input
+                  id="pricing-rule-priority"
                   type="number"
                   min={0}
                   step={1}
@@ -761,8 +772,9 @@ export default function AdminPricingRulesClient() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-700">Audit reason</label>
+              <label htmlFor="pricing-rule-audit-reason" className="text-sm font-medium text-gray-700">Audit reason</label>
               <input
+                id="pricing-rule-audit-reason"
                 type="text"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
@@ -785,6 +797,7 @@ export default function AdminPricingRulesClient() {
               <button
                 type="submit"
                 disabled={saving}
+                aria-label={editingRuleId ? "Guardar cambios de la regla" : "Crear regla de precio"}
                 className="inline-flex items-center gap-2 rounded-lg bg-brand-navy px-4 py-2 text-sm font-medium text-white hover:bg-brand-navy/90 disabled:opacity-60"
               >
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}

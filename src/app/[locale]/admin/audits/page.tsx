@@ -313,6 +313,7 @@ export default function AuditsPage() {
             <div>
               <label className="text-sm font-medium text-brand-ink">Overall Score</label>
               <input
+                aria-label="Puntaje general de la auditoría (0 a 100)"
                 type="range"
                 min="0"
                 max="100"
@@ -348,6 +349,7 @@ export default function AuditsPage() {
             </div>
 
             <textarea
+              aria-label="Notas de la auditoría de campo"
               value={auditNotes}
               onChange={(e) => setAuditNotes(e.target.value)}
               placeholder="Notes (optional)..."
@@ -363,6 +365,7 @@ export default function AuditsPage() {
               </div>
               <label className="flex items-center gap-2 text-sm text-brand-ink cursor-pointer">
                 <input
+                  aria-label="Anunciar resultado de auditoría al cliente"
                   type="checkbox"
                   checked={announceToClient}
                   onChange={(e) => setAnnounceToClient(e.target.checked)}
@@ -378,6 +381,7 @@ export default function AuditsPage() {
             {error && <p className="text-sm text-red-600">{error}</p>}
 
             <button
+              aria-label="Enviar auditoría de campo"
               onClick={submitAudit}
               disabled={submitting}
               className="w-full bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"

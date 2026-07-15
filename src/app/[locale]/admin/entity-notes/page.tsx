@@ -138,6 +138,7 @@ export default function EntityNotesPage() {
           <div>
             <label className="text-xs text-gray-500 block mb-1">Entity type</label>
             <select
+              aria-label="Tipo de entidad"
               value={entityType}
               onChange={(e) => setEntityType(e.target.value as EntityType)}
               className="border rounded-lg px-3 py-2 text-sm w-full"
@@ -152,6 +153,7 @@ export default function EntityNotesPage() {
           <div>
             <label className="text-xs text-gray-500 block mb-1">{ENTITY_TYPE_LABEL[entityType]}</label>
             <select
+              aria-label="Seleccionar entidad"
               value={entityId}
               onChange={(e) => setEntityId(e.target.value)}
               disabled={loadingOptions}
@@ -173,6 +175,7 @@ export default function EntityNotesPage() {
           <>
             <div className="space-y-2 border-t pt-4">
               <textarea
+                aria-label="Nueva nota"
                 value={newNote}
                 onChange={(e) => setNewNote(e.target.value)}
                 placeholder="New note…"

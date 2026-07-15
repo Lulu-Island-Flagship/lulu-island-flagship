@@ -91,28 +91,28 @@ export default function StressScenarioPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="text-xs text-gray-500 block mb-1">Current monthly revenue ($)</label>
-            <input value={revenue} onChange={(e) => setRevenue(e.target.value)} type="number" className="border rounded-lg px-3 py-2 text-sm w-full" />
+            <input aria-label="Ingreso mensual actual en dólares" value={revenue} onChange={(e) => setRevenue(e.target.value)} type="number" className="border rounded-lg px-3 py-2 text-sm w-full" />
           </div>
           <div>
             <label className="text-xs text-gray-500 block mb-1">Current monthly fixed costs ($)</label>
-            <input value={fixedCosts} onChange={(e) => setFixedCosts(e.target.value)} type="number" className="border rounded-lg px-3 py-2 text-sm w-full" />
+            <input aria-label="Costos fijos mensuales actuales en dólares" value={fixedCosts} onChange={(e) => setFixedCosts(e.target.value)} type="number" className="border rounded-lg px-3 py-2 text-sm w-full" />
           </div>
           <div>
             <label className="text-xs text-gray-500 block mb-1">Current monthly variable costs ($)</label>
-            <input value={variableCosts} onChange={(e) => setVariableCosts(e.target.value)} type="number" className="border rounded-lg px-3 py-2 text-sm w-full" />
+            <input aria-label="Costos variables mensuales actuales en dólares" value={variableCosts} onChange={(e) => setVariableCosts(e.target.value)} type="number" className="border rounded-lg px-3 py-2 text-sm w-full" />
           </div>
           <div>
             <label className="text-xs text-gray-500 block mb-1">Cash on hand ($, optional — for reserve rule)</label>
-            <input value={cashOnHand} onChange={(e) => setCashOnHand(e.target.value)} type="number" className="border rounded-lg px-3 py-2 text-sm w-full" />
+            <input aria-label="Efectivo disponible en dólares, opcional para regla de reserva" value={cashOnHand} onChange={(e) => setCashOnHand(e.target.value)} type="number" className="border rounded-lg px-3 py-2 text-sm w-full" />
           </div>
           <div>
             <label className="text-xs text-gray-500 block mb-1">Biweekly payroll ($, optional)</label>
-            <input value={biweeklyPayroll} onChange={(e) => setBiweeklyPayroll(e.target.value)} type="number" className="border rounded-lg px-3 py-2 text-sm w-full" />
+            <input aria-label="Nómina quincenal en dólares, opcional" value={biweeklyPayroll} onChange={(e) => setBiweeklyPayroll(e.target.value)} type="number" className="border rounded-lg px-3 py-2 text-sm w-full" />
           </div>
         </div>
 
         <label className="flex items-center gap-2 text-sm text-gray-600">
-          <input type="checkbox" checked={ownerPresent} onChange={(e) => setOwnerPresent(e.target.checked)} />
+          <input type="checkbox" aria-label="El propietario está presente en esta ejecución" checked={ownerPresent} onChange={(e) => setOwnerPresent(e.target.checked)} />
           The owner is present for this run
         </label>
 
@@ -121,14 +121,14 @@ export default function StressScenarioPage() {
           <div className="space-y-1">
             {LEVERS.map((l) => (
               <label key={l.key} className="flex items-center gap-2 text-sm text-gray-600">
-                <input type="checkbox" checked={leversDocumented.includes(l.key)} onChange={() => toggleLever(l.key)} />
+                <input type="checkbox" aria-label={l.label} checked={leversDocumented.includes(l.key)} onChange={() => toggleLever(l.key)} />
                 {l.label}
               </label>
             ))}
           </div>
         </div>
 
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (optional)" className="w-full border rounded-lg px-3 py-2 text-sm" rows={2} />
+        <textarea aria-label="Notas, opcional" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (optional)" className="w-full border rounded-lg px-3 py-2 text-sm" rows={2} />
 
         {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">{error}</div>}
 

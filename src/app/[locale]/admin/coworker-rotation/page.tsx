@@ -107,6 +107,7 @@ export default function CoworkerRotationPage() {
         </div>
         <input
           type="month"
+          aria-label="Mes de análisis de rotación"
           value={month}
           onChange={(e) => setMonth(e.target.value)}
           className="border rounded-lg px-3 py-2 text-sm"
@@ -170,6 +171,7 @@ export default function CoworkerRotationPage() {
               <form onSubmit={addException} className="bg-white rounded-xl border p-4 space-y-3 mb-3">
                 <input
                   type="text"
+                  aria-label="ID del empleado A"
                   placeholder="Employee A ID"
                   value={form.employeeAId}
                   onChange={(e) => setForm((f) => ({ ...f, employeeAId: e.target.value }))}
@@ -178,6 +180,7 @@ export default function CoworkerRotationPage() {
                 />
                 <input
                   type="text"
+                  aria-label="ID del empleado B"
                   placeholder="Employee B ID"
                   value={form.employeeBId}
                   onChange={(e) => setForm((f) => ({ ...f, employeeBId: e.target.value }))}
@@ -186,6 +189,7 @@ export default function CoworkerRotationPage() {
                 />
                 <input
                   type="text"
+                  aria-label="Razón de la excepción"
                   placeholder="Reason"
                   value={form.reason}
                   onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
@@ -193,7 +197,7 @@ export default function CoworkerRotationPage() {
                   required
                 />
                 <div className="flex gap-2">
-                  <button type="submit" disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+                  <button aria-label="Guardar excepción de rotación" type="submit" disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
                     {saving ? "Saving..." : "Save"}
                   </button>
                   <button type="button" onClick={() => setShowForm(false)} className="text-sm text-gray-500 px-4 py-2">

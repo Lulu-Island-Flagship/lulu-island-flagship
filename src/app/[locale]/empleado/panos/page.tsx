@@ -115,6 +115,7 @@ export default function PanosPage() {
           </div>
 
           <select
+            aria-label="Etapa del ciclo de paños"
             value={stage}
             onChange={(e) => setStage(e.target.value as Stage)}
             className="w-full text-sm border rounded-lg px-3 py-2"
@@ -126,6 +127,7 @@ export default function PanosPage() {
 
           <input
             type="number"
+            aria-label="Cantidad de paños"
             placeholder="Cantidad"
             value={count}
             onChange={(e) => setCount(e.target.value)}

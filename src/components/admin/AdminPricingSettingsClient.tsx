@@ -238,10 +238,11 @@ export default function AdminPricingSettingsClient() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-brand-ink mb-1">
+              <label htmlFor="pricing-new-rate" className="block text-sm font-medium text-brand-ink mb-1">
                 New Rate ($/hr)
               </label>
               <input
+                id="pricing-new-rate"
                 type="number"
                 min="1"
                 step="0.01"
@@ -253,10 +254,11 @@ export default function AdminPricingSettingsClient() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-brand-ink mb-1">
+              <label htmlFor="pricing-effective-from" className="block text-sm font-medium text-brand-ink mb-1">
                 Effective From (optional)
               </label>
               <input
+                id="pricing-effective-from"
                 type="date"
                 value={effectiveFrom}
                 onChange={(e) => setEffectiveFrom(e.target.value)}
@@ -265,10 +267,11 @@ export default function AdminPricingSettingsClient() {
               <p className="text-xs text-gray-500 mt-1">Defaults to today</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-brand-ink mb-1">
+              <label htmlFor="pricing-rate-reason" className="block text-sm font-medium text-brand-ink mb-1">
                 Reason (audit log)
               </label>
               <input
+                id="pricing-rate-reason"
                 type="text"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
@@ -347,6 +350,7 @@ export default function AdminPricingSettingsClient() {
                             type="number"
                             min="0.1"
                             step="0.1"
+                            aria-label={`Horas estimadas: ${row.label}, ${hheRangeLabels[i]}`}
                             value={value}
                             onChange={(e) => updateHHECell(row.key, i, e.target.value)}
                             className="w-20 ml-auto block px-2 py-1 rounded border border-gray-200 text-right focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none"
@@ -361,10 +365,11 @@ export default function AdminPricingSettingsClient() {
 
             <div className="flex items-end gap-4">
               <div className="flex-1">
-                <label className="block text-sm font-medium text-brand-ink mb-1">
+                <label htmlFor="hhe-reason" className="block text-sm font-medium text-brand-ink mb-1">
                   Reason (audit log)
                 </label>
                 <input
+                  id="hhe-reason"
                   type="text"
                   value={hheReason}
                   onChange={(e) => setHheReason(e.target.value)}

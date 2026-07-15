@@ -158,22 +158,23 @@ export default function SeasonalCampaignsPage() {
         </h2>
         <div className="flex flex-wrap gap-3 text-sm">
           <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={signals.isRainy} onChange={(e) => setSignals((s) => ({ ...s, isRainy: e.target.checked }))} />
+            <input type="checkbox" aria-label="Día lluvioso" checked={signals.isRainy} onChange={(e) => setSignals((s) => ({ ...s, isRainy: e.target.checked }))} />
             Rainy (+30%)
           </label>
           <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={signals.hasLocalEvent} onChange={(e) => setSignals((s) => ({ ...s, hasLocalEvent: e.target.checked }))} />
+            <input type="checkbox" aria-label="Evento local" checked={signals.hasLocalEvent} onChange={(e) => setSignals((s) => ({ ...s, hasLocalEvent: e.target.checked }))} />
             Local event (−20%)
           </label>
           <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={signals.isSchoolVacation} onChange={(e) => setSignals((s) => ({ ...s, isSchoolVacation: e.target.checked }))} />
+            <input type="checkbox" aria-label="Vacaciones escolares" checked={signals.isSchoolVacation} onChange={(e) => setSignals((s) => ({ ...s, isSchoolVacation: e.target.checked }))} />
             School vacation (−30%)
           </label>
           <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={signals.highPollen} onChange={(e) => setSignals((s) => ({ ...s, highPollen: e.target.checked }))} />
+            <input type="checkbox" aria-label="Alta concentración de polen" checked={signals.highPollen} onChange={(e) => setSignals((s) => ({ ...s, highPollen: e.target.checked }))} />
             High pollen (+25%)
           </label>
           <select
+            aria-label="Feriado aplicable"
             value={signals.holiday}
             onChange={(e) => setSignals((s) => ({ ...s, holiday: e.target.value as typeof signals.holiday }))}
             className="border rounded-lg px-2 py-1 text-sm"

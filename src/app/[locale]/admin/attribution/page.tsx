@@ -139,6 +139,7 @@ export default function AttributionPage() {
             </button>
           </div>
           <input
+            aria-label="Canal de marketing (ej. google_search)"
             type="text"
             placeholder="Channel (e.g. google_search)"
             value={form.channel}
@@ -147,6 +148,7 @@ export default function AttributionPage() {
             required
           />
           <input
+            aria-label="Gasto de este mes en dólares"
             type="number"
             min={0}
             step="0.01"
@@ -157,6 +159,7 @@ export default function AttributionPage() {
             required
           />
           <textarea
+            aria-label="Notas sobre el gasto de atribución"
             placeholder="Notes (optional)"
             value={form.notes}
             onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
@@ -164,6 +167,7 @@ export default function AttributionPage() {
             rows={2}
           />
           <button
+            aria-label="Guardar gasto de atribución"
             type="submit"
             disabled={saving}
             className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"

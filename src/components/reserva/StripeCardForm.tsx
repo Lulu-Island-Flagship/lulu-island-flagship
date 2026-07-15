@@ -110,12 +110,13 @@ export function StripeCardForm({ onPaymentMethodReady, disabled, clientSecret }:
       </div>
 
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-brand-ink">
+        <label htmlFor="stripe-postal-code-input" className="block text-sm font-medium text-brand-ink">
           Postal Code
         </label>
         <div className="relative">
           <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
+            id="stripe-postal-code-input"
             type="text"
             value={postalCode}
             onChange={handlePostalCodeChange}
@@ -136,6 +137,7 @@ export function StripeCardForm({ onPaymentMethodReady, disabled, clientSecret }:
       )}
 
       <button
+        aria-label="Guardar tarjeta de pago"
         type="submit"
         disabled={!stripe || disabled || isProcessing}
         className="w-full inline-flex items-center justify-center gap-2 bg-brand-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

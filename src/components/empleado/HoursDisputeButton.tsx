@@ -100,6 +100,7 @@ export function HoursDisputeButton({
               <label className="text-xs text-gray-600 block mb-1">What time should it have been?</label>
               <input
                 type="time"
+                aria-label="Hora en que debió haber sido registrada"
                 value={claimedTime}
                 onChange={(e) => setClaimedTime(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2 text-sm"
@@ -108,6 +109,7 @@ export function HoursDisputeButton({
             <div>
               <label className="text-xs text-gray-600 block mb-1">What happened?</label>
               <textarea
+                aria-label="Qué sucedió"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 rows={3}
@@ -121,6 +123,7 @@ export function HoursDisputeButton({
                 Cancel
               </button>
               <button
+                aria-label="Enviar disputa de horas"
                 onClick={submit}
                 disabled={submitting || !reason.trim()}
                 className="px-3 py-2 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light disabled:opacity-50"

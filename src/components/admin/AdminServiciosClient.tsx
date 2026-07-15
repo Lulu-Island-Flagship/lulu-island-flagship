@@ -275,6 +275,7 @@ export default function AdminServiciosClient() {
                   >
                     <input
                       type="checkbox"
+                      aria-label={`Asignar a ${emp.name}`}
                       className="w-4 h-4 text-brand-navy rounded"
                       checked={selectedEmployeeIds.includes(emp.id)}
                       onChange={(e) => {

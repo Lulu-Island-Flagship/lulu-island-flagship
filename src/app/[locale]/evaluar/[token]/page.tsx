@@ -292,10 +292,11 @@ export default function EvaluarPage() {
 
           {/* Comment */}
           <div>
-            <label className="block text-sm font-medium text-brand-ink mb-2">
+            <label htmlFor="review-comment" className="block text-sm font-medium text-brand-ink mb-2">
               Comments (optional)
             </label>
             <textarea
+              id="review-comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
@@ -309,6 +310,7 @@ export default function EvaluarPage() {
           )}
 
           <button
+            aria-label="Enviar reseña"
             onClick={submitReview}
             disabled={isSubmitting || rating === 0}
             className="w-full bg-brand-navy text-white py-3 rounded-xl font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 flex items-center justify-center gap-2"

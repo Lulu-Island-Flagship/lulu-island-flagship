@@ -129,6 +129,7 @@ export default function ReferralsPage() {
                 {myCode}
               </code>
               <button
+                aria-label="Copiar código de referido"
                 onClick={copyCode}
                 className="inline-flex items-center gap-1.5 text-xs font-medium bg-brand-navy text-white px-3 py-2 rounded-lg"
               >
@@ -155,6 +156,7 @@ export default function ReferralsPage() {
         <p className="font-medium text-brand-ink text-sm">Have a code from a friend?</p>
         <form onSubmit={submitRedeem} className="space-y-2">
           <input
+            aria-label="Código de referido de un amigo"
             type="text"
             value={redeemCode}
             onChange={(e) => setRedeemCode(e.target.value)}
@@ -163,6 +165,7 @@ export default function ReferralsPage() {
           />
           {leaders.length > 0 && (
             <select
+              aria-label="Líder de equipo que nos recomendó (opcional)"
               value={mentionedLeaderId}
               onChange={(e) => setMentionedLeaderId(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
@@ -178,6 +181,7 @@ export default function ReferralsPage() {
           {redeemError && <p className="text-xs text-state-danger">{redeemError}</p>}
           {redeemMessage && <p className="text-xs text-state-success">{redeemMessage}</p>}
           <button
+            aria-label="Aplicar código de referido"
             type="submit"
             disabled={redeeming || !redeemCode.trim()}
             className="w-full bg-brand-navy text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"

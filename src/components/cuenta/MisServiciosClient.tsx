@@ -341,8 +341,9 @@ function ClaimForm({
       </div>
 
       <div className="space-y-1">
-        <label className="text-xs font-medium text-gray-700">What happened?</label>
+        <label htmlFor="issue-reason-input" className="text-xs font-medium text-gray-700">What happened?</label>
         <input
+          id="issue-reason-input"
           type="text"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
@@ -352,8 +353,9 @@ function ClaimForm({
       </div>
 
       <div className="space-y-1">
-        <label className="text-xs font-medium text-gray-700">More detail (optional)</label>
+        <label htmlFor="issue-description-textarea" className="text-xs font-medium text-gray-700">More detail (optional)</label>
         <textarea
+          id="issue-description-textarea"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={2}
@@ -375,6 +377,8 @@ function ClaimForm({
           </div>
         ) : (
           <input
+            id="issue-photo-input"
+            aria-label="Adjuntar foto del problema (opcional)"
             type="file"
             accept="image/*"
             onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
@@ -523,6 +527,7 @@ function NextRecurringVisitCard() {
           </span>
         </div>
         <button
+          aria-label="Reservar próxima visita"
           onClick={bookNextVisit}
           disabled={booking}
           className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold bg-brand-navy text-white px-4 py-2 rounded-lg disabled:opacity-50"

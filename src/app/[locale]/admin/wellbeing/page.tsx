@@ -67,6 +67,7 @@ export default function WellbeingPage() {
         <Calendar className="w-4 h-4 text-gray-400" />
         <input
           type="date"
+          aria-label="Fecha del reporte de bienestar"
           value={date}
           onChange={(e) => setDate(e.target.value)}
           className="border rounded-lg px-3 py-2 text-sm"

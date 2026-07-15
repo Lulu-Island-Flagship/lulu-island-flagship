@@ -170,6 +170,7 @@ export default function PartnersPage() {
             <button type="button" onClick={() => setShowPartnerForm(false)}><X className="w-5 h-5 text-gray-400" /></button>
           </div>
           <select
+            aria-label="Tipo de socio"
             value={partnerForm.partnerType}
             onChange={(e) => setPartnerForm((f) => ({ ...f, partnerType: e.target.value as PartnerType }))}
             className="w-full border rounded-lg px-3 py-2 text-sm"
@@ -178,9 +179,9 @@ export default function PartnersPage() {
               <option key={v} value={v}>{l}</option>
             ))}
           </select>
-          <input type="text" placeholder="Name" value={partnerForm.name} onChange={(e) => setPartnerForm((f) => ({ ...f, name: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
-          <input type="email" placeholder="Contact email (optional)" value={partnerForm.contactEmail} onChange={(e) => setPartnerForm((f) => ({ ...f, contactEmail: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" />
-          <button type="submit" disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+          <input type="text" aria-label="Nombre del socio" placeholder="Name" value={partnerForm.name} onChange={(e) => setPartnerForm((f) => ({ ...f, name: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
+          <input type="email" aria-label="Correo de contacto del socio (opcional)" placeholder="Contact email (optional)" value={partnerForm.contactEmail} onChange={(e) => setPartnerForm((f) => ({ ...f, contactEmail: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" />
+          <button type="submit" aria-label="Guardar socio" disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
             {saving ? "Saving..." : "Save"}
           </button>
         </form>
@@ -192,15 +193,15 @@ export default function PartnersPage() {
             <h2 className="font-semibold text-brand-ink">Calculate Commission</h2>
             <button type="button" onClick={() => setShowCalcForm(false)}><X className="w-5 h-5 text-gray-400" /></button>
           </div>
-          <select value={calcForm.partnerId} onChange={(e) => setCalcForm((f) => ({ ...f, partnerId: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required>
+          <select aria-label="Seleccionar socio" value={calcForm.partnerId} onChange={(e) => setCalcForm((f) => ({ ...f, partnerId: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required>
             <option value="" disabled>Select partner</option>
             {partners.map((p) => (
               <option key={p.id} value={p.id}>{p.name} — {TYPE_LABEL[p.partner_type]}</option>
             ))}
           </select>
-          <input type="text" placeholder="Order ID" value={calcForm.orderId} onChange={(e) => setCalcForm((f) => ({ ...f, orderId: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
-          <input type="number" min={0} step="0.01" placeholder="Order value ($)" value={calcForm.orderValueDollars} onChange={(e) => setCalcForm((f) => ({ ...f, orderValueDollars: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
-          <button type="submit" disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+          <input type="text" aria-label="ID de la orden" placeholder="Order ID" value={calcForm.orderId} onChange={(e) => setCalcForm((f) => ({ ...f, orderId: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
+          <input type="number" aria-label="Valor de la orden en dólares" min={0} step="0.01" placeholder="Order value ($)" value={calcForm.orderValueDollars} onChange={(e) => setCalcForm((f) => ({ ...f, orderValueDollars: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
+          <button type="submit" aria-label="Calcular y registrar comisión" disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
             {saving ? "Calculating..." : "Calculate & Log"}
           </button>
         </form>

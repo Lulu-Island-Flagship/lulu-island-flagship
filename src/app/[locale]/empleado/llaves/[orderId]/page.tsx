@@ -132,6 +132,7 @@ export default function LlavesPage() {
               {method === "lockbox" && (
                 <input
                   type="text"
+                  aria-label="Código del lockbox"
                   placeholder="Código del lockbox"
                   value={lockboxCode}
                   onChange={(e) => setLockboxCode(e.target.value)}
@@ -140,9 +141,11 @@ export default function LlavesPage() {
               )}
 
               {method === "in_person" && (
-                <label className="flex items-center gap-2 text-sm">
+                <label htmlFor="keys-confirm-returned" className="flex items-center gap-2 text-sm">
                   <input
+                    id="keys-confirm-returned"
                     type="checkbox"
+                    aria-label="Confirmo que devolví las llaves al cliente"
                     checked={confirmedReturned}
                     onChange={(e) => setConfirmedReturned(e.target.checked)}
                   />

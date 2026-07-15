@@ -86,6 +86,7 @@ export default function CraRemittancesPage() {
         <Landmark className="w-6 h-6" />
         <h1 className="text-2xl font-bold">CRA Remittance Calendar</h1>
         <select
+          aria-label="Seleccionar año"
           value={year}
           onChange={(e) => setYear(parseInt(e.target.value, 10))}
           className="ml-auto border rounded px-2 py-1 text-sm"

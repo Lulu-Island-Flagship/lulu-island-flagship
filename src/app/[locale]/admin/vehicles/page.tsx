@@ -141,12 +141,13 @@ export default function VehiclesPage() {
         <form onSubmit={handleCreate} className="bg-white rounded-xl border p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-brand-ink">New Vehicle</h2>
-            <button type="button" onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
+            <button type="button" aria-label="Cerrar formulario de nuevo vehículo" onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
               <X className="w-5 h-5" />
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <input
+              aria-label="Nombre del vehículo"
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
@@ -155,6 +156,7 @@ export default function VehiclesPage() {
               required
             />
             <input
+              aria-label="Placa del vehículo (opcional)"
               type="text"
               value={newPlate}
               onChange={(e) => setNewPlate(e.target.value)}
@@ -162,8 +164,9 @@ export default function VehiclesPage() {
               className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-navy outline-none"
             />
             <div className="sm:col-span-2">
-              <label className="text-xs text-gray-500 block mb-1">Insurance expiry date (optional)</label>
+              <label htmlFor="new-vehicle-insurance-expiry" className="text-xs text-gray-500 block mb-1">Insurance expiry date (optional)</label>
               <input
+                id="new-vehicle-insurance-expiry"
                 type="date"
                 value={newInsuranceExpiry}
                 onChange={(e) => setNewInsuranceExpiry(e.target.value)}
@@ -173,6 +176,7 @@ export default function VehiclesPage() {
           </div>
           <button
             type="submit"
+            aria-label="Guardar vehículo"
             disabled={saving || !newName.trim()}
             className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
           >
@@ -224,6 +228,7 @@ export default function VehiclesPage() {
               {editingInsuranceId === v.id ? (
                 <div className="flex items-center gap-2 pt-1 border-t">
                   <input
+                    aria-label="Fecha de vencimiento del seguro"
                     type="date"
                     value={editInsuranceValue}
                     onChange={(e) => setEditInsuranceValue(e.target.value)}

@@ -144,6 +144,7 @@ export default function ComunicacionesPage() {
         <h1 className="text-2xl font-semibold text-brand-navy">Communication Templates</h1>
         <div className="flex items-center gap-3">
           <input
+            aria-label="Buscar plantilla por evento"
             type="text"
             placeholder="Search event…"
             value={search}
@@ -210,6 +211,7 @@ export default function ComunicacionesPage() {
                     {isEditingThis ? (
                       <div className="space-y-2">
                         <input
+                          aria-label="Asunto de la plantilla (opcional, solo email)"
                           type="text"
                           placeholder="Subject (optional, email only)"
                           value={draftSubject}
@@ -217,6 +219,7 @@ export default function ComunicacionesPage() {
                           className="w-full rounded border border-brand-ice px-2 py-1 text-xs"
                         />
                         <textarea
+                          aria-label="Texto de la plantilla de comunicación"
                           placeholder="Template text — use {variable} for dynamic values"
                           value={draftBody}
                           onChange={(e) => setDraftBody(e.target.value)}
@@ -225,6 +228,7 @@ export default function ComunicacionesPage() {
                         />
                         {existing && (
                           <input
+                            aria-label="Motivo del cambio de plantilla"
                             type="text"
                             placeholder="Reason for change (required)"
                             value={draftReason}

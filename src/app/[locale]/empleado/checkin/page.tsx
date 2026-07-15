@@ -145,14 +145,15 @@ export default function CheckinPage() {
           </div>
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-gray-600">
-          <input type="checkbox" checked={shortcutAccepted} onChange={(e) => setShortcutAccepted(e.target.checked)} />
+        <label htmlFor="checkin-shortcut-accepted" className="flex items-center gap-2 text-sm text-gray-600">
+          <input id="checkin-shortcut-accepted" type="checkbox" aria-label="Acepto el atajo de ruta sugerido hoy" checked={shortcutAccepted} onChange={(e) => setShortcutAccepted(e.target.checked)} />
           <span className="flex items-center gap-1">
             <Zap className="w-3.5 h-3.5 text-brand-gold" /> Acepto el atajo de ruta sugerido hoy (+$10 si se valida)
           </span>
         </label>
 
         <button
+          aria-label={saving ? "Guardando" : alreadyDone ? "Actualizar checklist de check-in" : "Enviar checklist de check-in"}
           onClick={submit}
           disabled={saving}
           className="w-full bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"

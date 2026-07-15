@@ -173,6 +173,7 @@ export default function EconomicParamsPage() {
         <p className="font-medium text-brand-ink text-sm">Simulate a new minimum wage</p>
         <div className="flex items-center gap-2">
           <input
+            aria-label="Nuevo salario mínimo a simular"
             type="number"
             step="0.01"
             value={newWage}
@@ -181,6 +182,7 @@ export default function EconomicParamsPage() {
             className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
           <button
+            aria-label="Simular impacto del nuevo salario mínimo"
             onClick={simulate}
             disabled={simulating || !newWage}
             className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
@@ -207,6 +209,7 @@ export default function EconomicParamsPage() {
 
             <div className="pt-2 border-t space-y-2">
               <input
+                aria-label="Motivo del cambio de salario mínimo"
                 type="text"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
@@ -214,6 +217,7 @@ export default function EconomicParamsPage() {
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
               <button
+                aria-label="Aplicar cambio de salario mínimo"
                 onClick={apply}
                 disabled={applying || reason.trim().length < 3}
                 className="w-full bg-state-danger text-white py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50"

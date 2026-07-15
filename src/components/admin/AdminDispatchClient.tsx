@@ -132,6 +132,7 @@ export default function AdminDispatchClient() {
         <h1 className="text-2xl font-bold text-brand-ink">Dispatch review</h1>
         <input
           type="date"
+          aria-label="Fecha del reparto a revisar"
           value={date}
           onChange={(e) => setDate(e.target.value)}
           className="px-3 py-2 border rounded-lg text-sm"
@@ -342,6 +343,7 @@ function EditAssignmentModal({
             <label key={emp.id} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-gray-50 cursor-pointer">
               <input
                 type="checkbox"
+                aria-label={`Asignar a ${emp.name}`}
                 checked={selected.includes(emp.id)}
                 onChange={() => toggle(emp.id)}
                 className="w-4 h-4 accent-brand-gold"
@@ -357,6 +359,7 @@ function EditAssignmentModal({
 
         <textarea
           rows={2}
+          aria-label="Notas de la asignación (opcional)"
           placeholder="Notes (optional)"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -372,6 +375,7 @@ function EditAssignmentModal({
           <button
             onClick={handleSave}
             disabled={saving}
+            aria-label={saving ? "Guardando asignación" : "Guardar y bloquear asignación"}
             className="px-4 py-2 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light disabled:opacity-50"
           >
             {saving ? "Saving..." : "Save & lock"}

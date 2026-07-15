@@ -246,12 +246,13 @@ export default function InventarioPage() {
             <form onSubmit={addItem} className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3 mb-4">
               <h2 className="text-sm font-semibold text-brand-ink">Add product</h2>
               <input
-                type="text" placeholder="Name (e.g. Degreaser)" value={itemForm.name}
+                type="text" aria-label="Nombre del producto" placeholder="Name (e.g. Degreaser)" value={itemForm.name}
                 onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
                 className="w-full text-sm border rounded-lg px-3 py-2"
               />
               <div className="grid grid-cols-2 gap-2">
                 <select
+                  aria-label="Categoría del producto"
                   value={itemForm.category}
                   onChange={(e) => setItemForm({ ...itemForm, category: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
@@ -259,17 +260,17 @@ export default function InventarioPage() {
                   {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
                 <input
-                  type="text" placeholder="Unit (L, unit, box)" value={itemForm.unit}
+                  type="text" aria-label="Unidad de medida" placeholder="Unit (L, unit, box)" value={itemForm.unit}
                   onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />
                 <input
-                  type="number" placeholder="Current stock" value={itemForm.currentStock}
+                  type="number" aria-label="Stock actual" placeholder="Current stock" value={itemForm.currentStock}
                   onChange={(e) => setItemForm({ ...itemForm, currentStock: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />
                 <input
-                  type="number" placeholder="Reorder threshold" value={itemForm.reorderThreshold}
+                  type="number" aria-label="Umbral de reorden" placeholder="Reorder threshold" value={itemForm.reorderThreshold}
                   onChange={(e) => setItemForm({ ...itemForm, reorderThreshold: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />
@@ -294,28 +295,28 @@ export default function InventarioPage() {
             <form onSubmit={addSupplier} className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3 mb-4">
               <h2 className="text-sm font-semibold text-brand-ink">Add supplier</h2>
               <input
-                type="text" placeholder="Supplier name" value={supplierForm.name}
+                type="text" aria-label="Nombre del proveedor" placeholder="Supplier name" value={supplierForm.name}
                 onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })}
                 className="w-full text-sm border rounded-lg px-3 py-2"
               />
               <div className="grid grid-cols-2 gap-2">
                 <input
-                  type="text" placeholder="Contact" value={supplierForm.contactName}
+                  type="text" aria-label="Nombre del contacto" placeholder="Contact" value={supplierForm.contactName}
                   onChange={(e) => setSupplierForm({ ...supplierForm, contactName: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />
                 <input
-                  type="text" placeholder="Phone" value={supplierForm.contactPhone}
+                  type="text" aria-label="Teléfono del contacto" placeholder="Phone" value={supplierForm.contactPhone}
                   onChange={(e) => setSupplierForm({ ...supplierForm, contactPhone: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />
                 <input
-                  type="email" placeholder="Email" value={supplierForm.contactEmail}
+                  type="email" aria-label="Correo del contacto" placeholder="Email" value={supplierForm.contactEmail}
                   onChange={(e) => setSupplierForm({ ...supplierForm, contactEmail: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />
                 <input
-                  type="number" placeholder="Lead time (days)" value={supplierForm.leadTimeDays}
+                  type="number" aria-label="Tiempo de entrega en días" placeholder="Lead time (days)" value={supplierForm.leadTimeDays}
                   onChange={(e) => setSupplierForm({ ...supplierForm, leadTimeDays: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />

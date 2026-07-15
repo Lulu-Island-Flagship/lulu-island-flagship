@@ -600,10 +600,11 @@ export default function CotizadorPage() {
 
                   {b2bReviewRequired && (
                     <div className="p-4 bg-brand-navy/5 border border-brand-navy/10 rounded-lg">
-                      <label className="block text-sm font-medium text-brand-ink mb-1">
+                      <label htmlFor="purchase-order-number" className="block text-sm font-medium text-brand-ink mb-1">
                         Purchase Order (PO) Number *
                       </label>
                       <input
+                        id="purchase-order-number"
                         type="text"
                         value={purchaseOrder}
                         onChange={(e) => setPurchaseOrder(e.target.value)}
@@ -645,6 +646,7 @@ export default function CotizadorPage() {
         {/* Navigation */}
         <div className="flex items-center justify-between mt-6">
           <button
+            aria-label={stepIndex === 0 ? "Ir a inicio" : "Volver al paso anterior"}
             onClick={handleBack}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-brand-ink hover:bg-white transition-colors"
           >

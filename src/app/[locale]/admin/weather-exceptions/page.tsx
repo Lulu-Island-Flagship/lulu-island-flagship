@@ -141,8 +141,9 @@ export default function WeatherExceptionsPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Affected service date</label>
+              <label htmlFor="weather-exception-affected-date" className="text-xs text-gray-500 block mb-1">Affected service date</label>
               <input
+                id="weather-exception-affected-date"
                 type="date"
                 value={form.affectedDate}
                 onChange={(e) => setForm((f) => ({ ...f, affectedDate: e.target.value }))}
@@ -152,6 +153,7 @@ export default function WeatherExceptionsPage() {
             </div>
             <input
               type="text"
+              aria-label="Condición climática"
               value={form.condition}
               onChange={(e) => setForm((f) => ({ ...f, condition: e.target.value }))}
               placeholder="Condition (e.g. heavy snowfall, wind >70km/h)"
@@ -164,6 +166,7 @@ export default function WeatherExceptionsPage() {
             <label className="flex items-center gap-2 text-sm text-gray-600">
               <input
                 type="checkbox"
+                aria-label="Recibimos aviso previo antes de despachar a la cuadrilla"
                 checked={form.hasAlert}
                 onChange={(e) => setForm((f) => ({ ...f, hasAlert: e.target.checked }))}
               />
@@ -172,6 +175,7 @@ export default function WeatherExceptionsPage() {
             {form.hasAlert && (
               <input
                 type="number"
+                aria-label="Horas de aviso previo antes del servicio"
                 min={0}
                 step="0.5"
                 value={form.alertLeadTimeHours}
@@ -191,6 +195,7 @@ export default function WeatherExceptionsPage() {
           )}
 
           <textarea
+            aria-label="Órdenes o zonas afectadas"
             placeholder="Affected orders / zones (free text — actual rescheduling happens separately)"
             value={form.affectedOrdersNote}
             onChange={(e) => setForm((f) => ({ ...f, affectedOrdersNote: e.target.value }))}
@@ -198,6 +203,7 @@ export default function WeatherExceptionsPage() {
             rows={2}
           />
           <textarea
+            aria-label="Notas adicionales (opcional)"
             placeholder="Notes (optional)"
             value={form.notes}
             onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
@@ -207,6 +213,7 @@ export default function WeatherExceptionsPage() {
 
           <button
             type="submit"
+            aria-label="Declarar excepción climática"
             disabled={saving}
             className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
           >

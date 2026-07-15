@@ -115,6 +115,7 @@ export default function TeamChatPage() {
       <div className="mt-3 flex items-center gap-2">
         <input
           type="text"
+          aria-label="Escribir mensaje de chat"
           value={draft}
           maxLength={MAX_LENGTH}
           onChange={(e) => setDraft(e.target.value)}
@@ -123,6 +124,7 @@ export default function TeamChatPage() {
           className="flex-1 border rounded-lg px-3 py-2 text-sm"
         />
         <button
+          aria-label="Enviar mensaje"
           onClick={send}
           disabled={sending || !draft.trim()}
           className="bg-brand-navy text-white p-2.5 rounded-lg disabled:opacity-50"

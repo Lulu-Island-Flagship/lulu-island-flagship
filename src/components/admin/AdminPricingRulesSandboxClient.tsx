@@ -198,6 +198,7 @@ export default function AdminPricingRulesSandboxClient() {
               >
                 <input
                   type="checkbox"
+                  aria-label={`Seleccionar regla ${rule.name}`}
                   checked={selectedRuleIds.has(rule.id)}
                   onChange={(e) => {
                     const next = new Set(selectedRuleIds);
@@ -224,6 +225,7 @@ export default function AdminPricingRulesSandboxClient() {
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input
               type="checkbox"
+              aria-label="Modo sombra (comparar con las reglas actualmente activas)"
               checked={shadowMode}
               onChange={(e) => setShadowMode(e.target.checked)}
               className="h-4 w-4 rounded border-gray-300 text-brand-navy focus:ring-brand-gold"
@@ -233,6 +235,7 @@ export default function AdminPricingRulesSandboxClient() {
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input
               type="checkbox"
+              aria-label="Incluir escenarios sintéticos"
               checked={includeSynthetic}
               onChange={(e) => setIncludeSynthetic(e.target.checked)}
               className="h-4 w-4 rounded border-gray-300 text-brand-navy focus:ring-brand-gold"

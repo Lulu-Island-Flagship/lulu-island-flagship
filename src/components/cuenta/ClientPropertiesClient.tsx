@@ -205,7 +205,7 @@ export default function ClientPropertiesClient() {
             {isEditing ? "Edit property" : "Add a property"}
           </h2>
           {isEditing && (
-            <button onClick={resetForm} className="text-gray-400 hover:text-gray-600">
+            <button aria-label="Cancelar edición de propiedad" onClick={resetForm} className="text-gray-400 hover:text-gray-600">
               <X className="w-5 h-5" />
             </button>
           )}
@@ -214,8 +214,9 @@ export default function ClientPropertiesClient() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-700">Nickname (optional)</label>
+              <label htmlFor="property-nickname-input" className="text-sm font-medium text-gray-700">Nickname (optional)</label>
               <input
+                id="property-nickname-input"
                 type="text"
                 value={form.nickname}
                 onChange={(e) => setForm((prev) => ({ ...prev, nickname: e.target.value }))}
@@ -224,8 +225,9 @@ export default function ClientPropertiesClient() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-700">Square feet (optional)</label>
+              <label htmlFor="property-square-feet-input" className="text-sm font-medium text-gray-700">Square feet (optional)</label>
               <input
+                id="property-square-feet-input"
                 type="number"
                 value={form.squareFeet}
                 onChange={(e) => setForm((prev) => ({ ...prev, squareFeet: e.target.value }))}
@@ -236,11 +238,12 @@ export default function ClientPropertiesClient() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+            <label htmlFor="property-address-input" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
               <MapPin className="w-4 h-4" />
               Street address
             </label>
             <input
+              id="property-address-input"
               type="text"
               value={form.address}
               onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
@@ -270,8 +273,9 @@ export default function ClientPropertiesClient() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-700">Postal code</label>
+            <label htmlFor="property-postal-code-input" className="text-sm font-medium text-gray-700">Postal code</label>
             <input
+              id="property-postal-code-input"
               type="text"
               value={form.postalCode}
               onChange={(e) => handlePostalChange(e.target.value)}
@@ -292,6 +296,7 @@ export default function ClientPropertiesClient() {
               </button>
             )}
             <button
+              aria-label={isEditing ? "Guardar cambios de la propiedad" : "Agregar propiedad"}
               type="submit"
               disabled={saving}
               className="inline-flex items-center gap-2 rounded-lg bg-brand-navy px-4 py-2 text-sm font-medium text-white hover:bg-brand-navy/90 disabled:opacity-60"

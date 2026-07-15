@@ -1,10 +1,10 @@
 {
   "_comentario": "v8.3 E6-C7 — línea base de deuda de accesibilidad congelada el día que se introdujo el auditor (scripts/audit-accessibility.mjs). El CI falla si el conteo SUBE respecto a estos números; no falla por la deuda ya existente. Esto NO significa que el criterio de aceptación literal de E6 ('sin errores críticos en las 3 superficies') esté cumplido — está documentado como pendiente en el reporte de etapa. Baja estos números a mano (y corrige el código) a medida que se resuelvan violaciones reales; nunca los subas para hacer pasar el build sin justificación escrita en el commit.",
-  "fecha": "2026-07-10",
+  "fecha": "2026-07-15",
   "criticasPorSuperficie": {
-    "cliente": 34,
-    "empleado": 20,
-    "admin": 72
+    "cliente": 0,
+    "empleado": 0,
+    "admin": 0
   },
   "paresDeContrasteFueraDeAA": 4
 }

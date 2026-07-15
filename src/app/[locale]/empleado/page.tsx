@@ -315,6 +315,7 @@ export default function EmpleadoPage() {
             </div>
           </div>
           <button
+            aria-label="Cerrar sesión"
             onClick={handleLogout}
             className="text-gray-300 hover:text-white transition-colors"
           >
@@ -341,6 +342,7 @@ export default function EmpleadoPage() {
         {/* Jornada Button */}
         {jornadaStatus === "not_started" ? (
           <button
+            aria-label="Iniciar turno"
             onClick={handleStartJornada}
             disabled={isStartingJornada}
             className="w-full bg-brand-navy text-white py-4 rounded-xl font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 flex items-center justify-center gap-2"

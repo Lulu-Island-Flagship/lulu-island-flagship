@@ -175,6 +175,7 @@ export default function SosPage() {
                           <label className="flex items-center gap-1">
                             <input
                               type="radio"
+                              aria-label="La evidencia respalda al líder"
                               checked={draft.evidenceSupportsLeader === true}
                               onChange={() => setReviewDraft({ ...reviewDraft, [it.id]: { ...draft, evidenceSupportsLeader: true } })}
                             />
@@ -183,6 +184,7 @@ export default function SosPage() {
                           <label className="flex items-center gap-1">
                             <input
                               type="radio"
+                              aria-label="La evidencia NO respalda al líder"
                               checked={draft.evidenceSupportsLeader === false}
                               onChange={() => setReviewDraft({ ...reviewDraft, [it.id]: { ...draft, evidenceSupportsLeader: false } })}
                             />
@@ -191,6 +193,7 @@ export default function SosPage() {
                         </div>
                         <input
                           type="text"
+                          aria-label="Notas de revisión (opcional)"
                           placeholder="Review notes (optional)"
                           value={draft.notes}
                           onChange={(e) => setReviewDraft({ ...reviewDraft, [it.id]: { ...draft, notes: e.target.value } })}

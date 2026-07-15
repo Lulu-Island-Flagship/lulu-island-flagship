@@ -341,6 +341,7 @@ export default function WarrantyClaimsPage() {
                 )}
 
                 <textarea
+                  aria-label="Notas de resolución (opcional)"
                   value={resolutionNotes}
                   onChange={(e) => setResolutionNotes(e.target.value)}
                   placeholder="Resolution notes (optional — if left empty, the system-generated explanation is used)..."
@@ -350,6 +351,7 @@ export default function WarrantyClaimsPage() {
                 {detailError && <p className="text-sm text-red-600">{detailError}</p>}
 
                 <button
+                  aria-label="Aplicar decisión de resolución del reclamo de garantía"
                   onClick={resolveClaim}
                   disabled={submitting}
                   className="w-full bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"

@@ -151,6 +151,7 @@ export default function BusinessInsurancePage() {
             <div>
               <label className="text-xs text-gray-500 block mb-1">Policy type</label>
               <select
+                aria-label="Tipo de póliza"
                 value={form.policyType}
                 onChange={(e) => setForm((f) => ({ ...f, policyType: e.target.value as PolicyType }))}
                 className="border rounded-lg px-3 py-2 text-sm w-full"
@@ -164,6 +165,7 @@ export default function BusinessInsurancePage() {
             </div>
             <input
               type="text"
+              aria-label="Proveedor o corredor de seguros"
               value={form.provider}
               onChange={(e) => setForm((f) => ({ ...f, provider: e.target.value }))}
               placeholder="Provider / broker"
@@ -172,6 +174,7 @@ export default function BusinessInsurancePage() {
             />
             <input
               type="text"
+              aria-label="Número de póliza"
               value={form.policyNumber}
               onChange={(e) => setForm((f) => ({ ...f, policyNumber: e.target.value }))}
               placeholder="Policy number (optional)"
@@ -179,6 +182,7 @@ export default function BusinessInsurancePage() {
             />
             <input
               type="number"
+              aria-label="Monto de cobertura en dólares"
               min={0}
               step="0.01"
               value={form.coverageAmountDollars}
@@ -191,6 +195,7 @@ export default function BusinessInsurancePage() {
               <label className="text-xs text-gray-500 block mb-1">Effective from</label>
               <input
                 type="date"
+                aria-label="Fecha de inicio de vigencia"
                 value={form.effectiveFrom}
                 onChange={(e) => setForm((f) => ({ ...f, effectiveFrom: e.target.value }))}
                 className="border rounded-lg px-3 py-2 text-sm w-full"
@@ -201,6 +206,7 @@ export default function BusinessInsurancePage() {
               <label className="text-xs text-gray-500 block mb-1">Expiry date</label>
               <input
                 type="date"
+                aria-label="Fecha de expiración de la póliza"
                 value={form.expiryDate}
                 onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
                 className="border rounded-lg px-3 py-2 text-sm w-full"
@@ -210,6 +216,7 @@ export default function BusinessInsurancePage() {
           </div>
           <button
             type="submit"
+            aria-label="Guardar póliza de seguro"
             disabled={saving}
             className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
           >

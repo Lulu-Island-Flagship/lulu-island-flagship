@@ -59,8 +59,9 @@ export default function TeamRankingPage() {
 
       <div className="flex items-end gap-3 mb-6">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Semana (lunes)</label>
+          <label htmlFor="team-ranking-week-start" className="block text-xs text-gray-500 mb-1">Semana (lunes)</label>
           <input
+            id="team-ranking-week-start"
             type="date"
             value={weekStart}
             onChange={(e) => setWeekStart(e.target.value)}

@@ -144,8 +144,9 @@ export default function RecuperacionDesastresPage() {
 
           <div className="mb-6 flex items-end gap-3 rounded-lg border border-brand-ice bg-white p-4">
             <div className="flex-1">
-              <label className="block text-xs text-gray-500 mb-1">What is tested (tested_scope)</label>
+              <label htmlFor="dr-drill-tested-scope" className="block text-xs text-gray-500 mb-1">What is tested (tested_scope)</label>
               <input
+                id="dr-drill-tested-scope"
                 type="text"
                 value={scope}
                 onChange={(e) => setScope(e.target.value)}

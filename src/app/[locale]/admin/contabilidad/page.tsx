@@ -187,12 +187,12 @@ export default function ContabilidadPage() {
 
       <div className="flex items-end gap-3 mb-6">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">From</label>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="border rounded px-2 py-1 text-sm" />
+          <label htmlFor="accounting-from" className="block text-xs text-gray-500 mb-1">From</label>
+          <input id="accounting-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="border rounded px-2 py-1 text-sm" />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">To</label>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="border rounded px-2 py-1 text-sm" />
+          <label htmlFor="accounting-to" className="block text-xs text-gray-500 mb-1">To</label>
+          <input id="accounting-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} className="border rounded px-2 py-1 text-sm" />
         </div>
         <button onClick={load} className="px-3 py-1.5 bg-gray-900 text-white rounded text-sm">
           Filter
@@ -201,8 +201,9 @@ export default function ContabilidadPage() {
 
       <div className="flex items-end gap-3 mb-6 border-t pt-4">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Universal export (month)</label>
+          <label htmlFor="accounting-export-month" className="block text-xs text-gray-500 mb-1">Universal export (month)</label>
           <input
+            id="accounting-export-month"
             type="month"
             value={exportMonth}
             onChange={(e) => setExportMonth(e.target.value)}
@@ -246,8 +247,9 @@ export default function ContabilidadPage() {
             ) : (
               <div className="mt-2 flex flex-wrap items-end gap-2">
                 <div>
-                  <label className="block text-xs mb-1">Monthly fixed costs ($)</label>
+                  <label htmlFor="fixed-costs-amount" className="block text-xs mb-1">Monthly fixed costs ($)</label>
                   <input
+                    id="fixed-costs-amount"
                     type="number"
                     min="0"
                     step="0.01"
@@ -257,8 +259,9 @@ export default function ContabilidadPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs mb-1">Reason (required)</label>
+                  <label htmlFor="fixed-costs-reason" className="block text-xs mb-1">Reason (required)</label>
                   <input
+                    id="fixed-costs-reason"
                     type="text"
                     value={fixedCostsReason}
                     onChange={(e) => setFixedCostsReason(e.target.value)}
@@ -267,6 +270,7 @@ export default function ContabilidadPage() {
                   />
                 </div>
                 <button
+                  aria-label="Guardar costos fijos"
                   onClick={saveFixedCosts}
                   disabled={savingFixedCosts}
                   className="px-3 py-1.5 bg-brand-navy text-white rounded text-sm disabled:opacity-50"

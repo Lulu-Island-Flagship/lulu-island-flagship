@@ -124,6 +124,7 @@ export default function CertificacionesPage() {
         <h2 className="font-semibold mb-3 text-sm">Register a certification</h2>
         <div className="flex flex-wrap gap-2 items-end">
           <select
+            aria-label="Seleccionar empleado"
             value={form.employeeId}
             onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
             className="border rounded px-2 py-1.5 text-sm"
@@ -136,6 +137,7 @@ export default function CertificacionesPage() {
             ))}
           </select>
           <select
+            aria-label="Seleccionar nivel de certificación"
             value={form.level}
             onChange={(e) => setForm({ ...form, level: e.target.value })}
             className="border rounded px-2 py-1.5 text-sm"
@@ -146,6 +148,7 @@ export default function CertificacionesPage() {
           </select>
           <input
             type="date"
+            aria-label="Fecha de expiración de la certificación"
             value={form.expiresAt}
             onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
             className="border rounded px-2 py-1.5 text-sm"
