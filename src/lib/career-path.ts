@@ -8,12 +8,25 @@
  *
  * Honestidad de datos: Senior exige "6 meses + certificación nivel 2 + score
  * sostenido"; Líder exige "certificación nivel 3 + recomendación + aprobación
- * admin". No existe ninguna tabla de certificaciones en el sistema todavía
- * (D.9.7 lo menciona en el modelo de datos pero nunca se construyó). Por eso
- * `certificationVerified` es un parámetro que el ADMIN afirma manualmente al
- * revisar -- el sistema nunca puede confirmarlo solo, y estas funciones lo
- * dejan explícito en vez de fingir que sí lo saben.
+ * admin". v8.3 FIX-7: la tabla employee_certifications (migración 166) SÍ
+ * existe desde hace varias sesiones -- este comentario y el parámetro
+ * `certificationLevel2Verified` (boolean afirmado a mano por el admin)
+ * quedaron desactualizados y eran, en la práctica, una puerta trasera: un
+ * admin podía marcar "sí, está certificado" sin que el sistema verificara
+ * nada real contra employee_certifications, el mismo registro que SÍ se usa
+ * para bloquear el despacho (dispatch-scheduler) cuando la certificación no
+ * es vigente. Ahora evaluateSeniorEligibility recibe los registros reales y
+ * usa highestValidCertificationLevel (src/lib/certifications.ts, la misma
+ * función pura que usa dispatch-scheduler) -- ya no hay afirmación manual
+ * para este check. Líder/Líder Mentor/Coordinador siguen dependiendo de
+ * recomendación humana y activación de rol, que no son datos verificables
+ * por el sistema; esos permanecen en evaluateManualOnlyLevel.
  */
+
+import {
+  highestValidCertificationLevel,
+  type EmployeeCertificationRecord,
+} from "@/lib/certifications";
 
 export type CareerLevel = "trabajador" | "senior" | "lider" | "lider_mentor" | "coordinador_operativo";
 
@@ -27,8 +40,14 @@ export const CAREER_LEVEL_ORDER: CareerLevel[] = [
 
 export interface SeniorEligibilityInput {
   tenureMonths: number;
-  /** El admin afirma esto manualmente -- no hay tabla de certificaciones que el sistema pueda consultar. */
-  certificationLevel2Verified: boolean;
+  /**
+   * Registros reales de employee_certifications para este empleado (mismo
+   * shape que usa dispatch-scheduler/certifications.ts). Se evalúa con
+   * highestValidCertificationLevel -- ya no es una afirmación manual.
+   */
+  certificationRecords: EmployeeCertificationRecord[];
+  /** Fecha de referencia (normalmente "hoy") para decidir vigencia. */
+  todayISO: string;
   /** Promedio de las últimas N semanas de employee_scores.total_score. */
   sustainedScoreAverage: number;
 }
@@ -45,15 +64,19 @@ const SENIOR_MIN_TENURE_MONTHS = 6;
 const SENIOR_MIN_SUSTAINED_SCORE = 70; // "score sostenido" -- se usa el mismo umbral de nivel "estándar" (E5) como piso razonable, documentado como tal.
 
 export function evaluateSeniorEligibility(input: SeniorEligibilityInput): EligibilityResult {
+  const highestLevel = highestValidCertificationLevel(input.certificationRecords, input.todayISO);
   const checks = {
     tenure: input.tenureMonths >= SENIOR_MIN_TENURE_MONTHS,
-    certificationLevel2: input.certificationLevel2Verified,
+    certificationLevel2: highestLevel !== null && highestLevel >= 2,
     sustainedScore: input.sustainedScoreAverage >= SENIOR_MIN_SUSTAINED_SCORE,
   };
   return {
     eligible: checks.tenure && checks.certificationLevel2 && checks.sustainedScore,
     checks,
-    unverifiableBySystem: ["certificationLevel2 (no hay tabla de certificaciones -- lo afirma el admin)"],
+    // Los 3 checks son ahora verificables por el sistema (tenure, score y
+    // certificación real vía employee_certifications) -- el admin sigue
+    // siendo quien ejecuta la promoción, pero ya no afirma nada a ciegas.
+    unverifiableBySystem: [],
   };
 }
 

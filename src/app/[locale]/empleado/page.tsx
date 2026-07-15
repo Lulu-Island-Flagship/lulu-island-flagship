@@ -21,6 +21,8 @@ import {
   Users,
   Video,
   AlertOctagon,
+  Sunrise,
+  Shirt,
 } from "lucide-react";
 import type { EmployeeService } from "@/types";
 import { downloadAndCacheDayBundle } from "@/lib/offline-day-cache";
@@ -404,6 +406,28 @@ export default function EmpleadoPage() {
             </div>
             <p className="text-xs text-gray-400">Rate your teammates</p>
           </a>
+          {/* v8.3 E8.1: checklist de disposición matutina (sueño/ánimo/atajo) — antes construido pero inalcanzable */}
+          <a
+            href={`/${safeLocale}/empleado/checkin`}
+            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Sunrise className="w-4 h-4 text-brand-gold-dark" />
+              <span className="font-medium text-sm text-brand-ink">Morning Check-in</span>
+            </div>
+            <p className="text-xs text-gray-400">Sleep, mood &amp; route shortcut</p>
+          </a>
+          {/* v8.3 E7.3: ciclo de paños/inventario — antes construido pero inalcanzable */}
+          <a
+            href={`/${safeLocale}/empleado/panos`}
+            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Shirt className="w-4 h-4 text-brand-navy" />
+              <span className="font-medium text-sm text-brand-ink">Cloths &amp; Inventory</span>
+            </div>
+            <p className="text-xs text-gray-400">Cycle count &amp; requests</p>
+          </a>
           {/* v8.3 E8.13: ritual de inicio/fin de jornada (equipo, clima, ranking, ganancias, insignias) */}
           <a
             href={`/${safeLocale}/empleado/ritual`}
@@ -481,7 +505,7 @@ export default function EmpleadoPage() {
               {services.map((svc) => (
                 <button
                   key={svc.assignmentId}
-                  onClick={() => router.push(`/empleado/servicio/${svc.orderId}`)}
+                  onClick={() => router.push(`/${safeLocale}/empleado/servicio/${svc.orderId}`)}
                   className="w-full bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
                 >
                   <div className="flex items-start justify-between mb-2">

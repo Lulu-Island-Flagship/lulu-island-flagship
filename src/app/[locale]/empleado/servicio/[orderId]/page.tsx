@@ -405,6 +405,35 @@ export default function ServicioPage() {
           </div>
         </div>
 
+        {/* Quick links a paginas por-orden que antes existian pero eran
+            inalcanzables: preparacion de llegada, manejo de llaves, chat
+            de equipo (D.10.5 / E8.12). */}
+        {!isCompleted && (
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={() => router.push(`/${safeLocale}/empleado/servicio/${orderId}/preparacion`)}
+              className="bg-white rounded-lg shadow-elevation-1 p-3 text-center hover:shadow-elevation-2 transition-shadow"
+            >
+              <ClipboardCheck className="w-4 h-4 text-brand-navy mx-auto mb-1" />
+              <span className="text-xs font-medium text-brand-ink">Arrival prep</span>
+            </button>
+            <button
+              onClick={() => router.push(`/${safeLocale}/empleado/llaves/${orderId}`)}
+              className="bg-white rounded-lg shadow-elevation-1 p-3 text-center hover:shadow-elevation-2 transition-shadow"
+            >
+              <Home className="w-4 h-4 text-brand-navy mx-auto mb-1" />
+              <span className="text-xs font-medium text-brand-ink">Keys</span>
+            </button>
+            <button
+              onClick={() => router.push(`/${safeLocale}/empleado/chat/${orderId}`)}
+              className="bg-white rounded-lg shadow-elevation-1 p-3 text-center hover:shadow-elevation-2 transition-shadow"
+            >
+              <Phone className="w-4 h-4 text-brand-navy mx-auto mb-1" />
+              <span className="text-xs font-medium text-brand-ink">Team chat</span>
+            </button>
+          </div>
+        )}
+
         {/* Action Button (always visible) */}
         {!isCompleted && nextAction && (
           <div className="space-y-2">

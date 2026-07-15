@@ -151,8 +151,83 @@ export async function GET(request: NextRequest) {
     };
   });
 
+  // v8.3 BC ESA Parte 5.1: días de enfermedad PAGADOS (sick_leave_requests,
+  // pay_type='paid') -- antes se calculaba el monto correcto en
+  // src/app/api/empleado/sick-leave/route.ts pero NUNCA llegaba a la nómina
+  // real (bug real, hallazgo de auditoría de flujo del empleado). Mismo
+  // patrón que readiness/badges/referidos: baseAmountCents=el día pagado,
+  // se SUMA al ciclo, nunca reemplaza un servicio trabajado.
+  const { data: sickLeavePays, error: sickLeaveError } = await supabase
+    .from("sick_leave_requests")
+    .select("employee_id, paid_amount_cents, absence_date, employees(name)")
+    .eq("pay_type", "paid")
+    .not("paid_amount_cents", "is", null)
+    .gte("absence_date", cycle.start)
+    .lte("absence_date", cycle.end);
+
+  if (sickLeaveError) {
+    return NextResponse.json({ error: sickLeaveError.message }, { status: 500 });
+  }
+
+  const sickLeaveCycleEntries: CycleEntry[] = (sickLeavePays || []).map((s) => {
+    const empJoin = s.employees as EmployeeNameJoin;
+    const emp = Array.isArray(empJoin) ? empJoin[0] : empJoin;
+    return {
+      employeeId: s.employee_id,
+      employeeName: emp?.name || "(sin nombre)",
+      serviceDate: s.absence_date,
+      baseAmountCents: s.paid_amount_cents ?? 0,
+      bonusCents: 0,
+      penaltyCents: 0,
+      reworkAmountCents: 0,
+      minimumWageAdjustmentCents: 0,
+      grossAmountCents: s.paid_amount_cents ?? 0,
+    };
+  });
+
+  // v8.3 BC ESA Parte 5 s.42-45: festivos estatutarios pagados
+  // (statutory_holiday_pay, eligible=true con average_day_pay_cents ya
+  // calculado por el cron statutory-holiday-scan) -- mismo bug real que el
+  // de arriba: la elegibilidad y el monto se calculaban pero nunca
+  // llegaban a la nómina real.
+  const { data: statHolidayPays, error: statHolidayError } = await supabase
+    .from("statutory_holiday_pay")
+    .select("employee_id, average_day_pay_cents, holiday_date, employees(name)")
+    .eq("eligible", true)
+    .eq("wage_data_unavailable", false)
+    .not("average_day_pay_cents", "is", null)
+    .gte("holiday_date", cycle.start)
+    .lte("holiday_date", cycle.end);
+
+  if (statHolidayError) {
+    return NextResponse.json({ error: statHolidayError.message }, { status: 500 });
+  }
+
+  const statHolidayCycleEntries: CycleEntry[] = (statHolidayPays || []).map((h) => {
+    const empJoin = h.employees as EmployeeNameJoin;
+    const emp = Array.isArray(empJoin) ? empJoin[0] : empJoin;
+    return {
+      employeeId: h.employee_id,
+      employeeName: emp?.name || "(sin nombre)",
+      serviceDate: h.holiday_date,
+      baseAmountCents: h.average_day_pay_cents ?? 0,
+      bonusCents: 0,
+      penaltyCents: 0,
+      reworkAmountCents: 0,
+      minimumWageAdjustmentCents: 0,
+      grossAmountCents: h.average_day_pay_cents ?? 0,
+    };
+  });
+
   const summaries = aggregateCycle(
-    [...cycleEntries, ...readinessCycleEntries, ...badgeBonusCycleEntries, ...referralBonusCycleEntries],
+    [
+      ...cycleEntries,
+      ...readinessCycleEntries,
+      ...badgeBonusCycleEntries,
+      ...referralBonusCycleEntries,
+      ...sickLeaveCycleEntries,
+      ...statHolidayCycleEntries,
+    ],
     cycle
   );
 

@@ -112,6 +112,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No assignment found for this service" }, { status: 403 });
     }
 
+    if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) {
+      return NextResponse.json({ error: "amount must be a positive number" }, { status: 400 });
+    }
+
+    // v8.3 FIX-6 (B.5): "tope: upsell ≤50% del valor base sin aprobación
+    // admin". Antes de este cambio nada verificaba esto -- cualquier monto
+    // se insertaba y el líder podía comisionar sobre un upsell arbitrariamente
+    // grande sin que un admin lo revisara. valor base = quotes.total de la
+    // orden (el valor completo cotizado, no solo el subtotal antes de
+    // impuestos). El tope es sobre el ACUMULADO de upsells ya registrados
+    // para esta orden + el nuevo, no solo el monto individual -- de lo
+    // contrario dos upsells de 30% cada uno evadirían el tope.
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select("id, quote_id")
+      .eq("id", orderId)
+      .single();
+
+    if (orderError || !order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    const { data: quote } = await supabase
+      .from("quotes")
+      .select("total")
+      .eq("id", order.quote_id)
+      .single();
+
+    const baseValue = quote ? Number(quote.total) : 0;
+
+    const { data: existingUpsells } = await supabase
+      .from("service_upsells")
+      .select("amount, approval_status")
+      .eq("order_id", orderId)
+      .neq("approval_status", "admin_rejected");
+
+    const alreadyRegisteredTotal = (existingUpsells || []).reduce(
+      (sum, u) => sum + (Number(u.amount) || 0),
+      0
+    );
+    const cumulativeTotal = alreadyRegisteredTotal + amount;
+    const cap = baseValue * 0.5;
+    const requiresAdminApproval = baseValue > 0 && cumulativeTotal > cap;
+
     const { data: upsell, error } = await supabase
       .from("service_upsells")
       .insert({
@@ -121,6 +165,8 @@ export async function POST(request: NextRequest) {
         upsell_label: upsellLabel,
         amount,
         notes: notes || null,
+        requires_admin_approval: requiresAdminApproval,
+        approval_status: requiresAdminApproval ? "pending_admin_approval" : "auto_approved",
       })
       .select()
       .single();
@@ -129,7 +175,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, upsell }, { status: 201 });
+    if (requiresAdminApproval) {
+      // Mismo patrón que las discrepancias de despacho (tickets_disputas,
+      // migración 080): visible en la bandeja del admin sin inventar una
+      // tabla paralela.
+      await supabase.from("tickets_disputas").insert({
+        order_id: orderId,
+        type: "upsell_approval",
+        priority: "medium",
+        status: "open",
+        context: {
+          order_id: orderId,
+          upsell_id: upsell.id,
+          amount,
+          cumulative_total: cumulativeTotal,
+          base_value: baseValue,
+          cap,
+          source: "upsell_cap",
+        },
+      });
+    }
+
+    return NextResponse.json({ success: true, upsell, requiresAdminApproval }, { status: 201 });
   } catch (err: Error | unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

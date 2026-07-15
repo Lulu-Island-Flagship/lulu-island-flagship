@@ -244,12 +244,30 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
     );
   }
 
+  // v8.3 FIX-5 (BC ESA Parte 5.1): un empleado con una ausencia por
+  // enfermedad ya reportada (sick_leave_requests) para el targetDate NO debe
+  // recibir un servicio nuevo ese día -- antes de este cambio, dispatch-
+  // scheduler nunca consultaba esta tabla, así que reportar una ausencia no
+  // impedía que el cron lo asignara igual al día siguiente. Mismo patrón de
+  // exclusion-set que expiredInsuranceEmployeeIds/uncertifiedEmployeeIds.
+  const employeeIdsForSickLeaveCheck = (employees || []).map((e) => e.id);
+  let sickLeaveEmployeeIds = new Set<string>();
+  if (employeeIdsForSickLeaveCheck.length > 0) {
+    const { data: sickLeaveRows } = await supabase
+      .from("sick_leave_requests")
+      .select("employee_id")
+      .in("employee_id", employeeIdsForSickLeaveCheck)
+      .eq("absence_date", targetDate);
+    sickLeaveEmployeeIds = new Set((sickLeaveRows || []).map((r) => r.employee_id));
+  }
+
   const availableEmployees = (employees || []).filter(
     (e) =>
       e.is_active &&
       !expiredInsuranceEmployeeIds.has(e.id) &&
       !uncertifiedEmployeeIds.has(e.id) &&
-      !restViolationEmployeeIds.has(e.id)
+      !restViolationEmployeeIds.has(e.id) &&
+      !sickLeaveEmployeeIds.has(e.id)
   );
   const availableTeams = availableEmployees.length;
 
@@ -278,6 +296,11 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
   if (restViolationEmployeeIds.size > 0) {
     pendingLanguage.push(
       `${restViolationEmployeeIds.size} empleado(s) excluido(s) del despacho: no alcanzan las 8h de descanso mínimo entre turnos (BC ESA s.32).`
+    );
+  }
+  if (sickLeaveEmployeeIds.size > 0) {
+    pendingLanguage.push(
+      `${sickLeaveEmployeeIds.size} empleado(s) excluido(s) del despacho: ausencia por enfermedad reportada para ${targetDate} (BC ESA Parte 5.1).`
     );
   }
 
@@ -617,11 +640,28 @@ export async function GET(request: NextRequest) {
       const assignedOrderIds = new Set((existingAssignments || []).map((a) => a.order_id));
       const crisisOrders = (unassignedOrders || []).filter((o) => !assignedOrderIds.has(o.id));
 
-      const { data: availableEmployees } = await supabase
+      const { data: allActiveEmployees } = await supabase
         .from("employees")
         .select("id")
         .eq("is_active", true)
         .in("role", ["cleaner", "supervisor"]);
+
+      // v8.3 FIX-5: el fallback de crisis tampoco consultaba sick_leave_requests
+      // -- sin esto, un empleado que reportó enfermedad para hoy podía ser
+      // "recuperado" por este mismo fallback minutos después.
+      const crisisEmployeeIds = (allActiveEmployees || []).map((e) => e.id);
+      let crisisSickLeaveEmployeeIds = new Set<string>();
+      if (crisisEmployeeIds.length > 0) {
+        const { data: crisisSickLeaveRows } = await supabase
+          .from("sick_leave_requests")
+          .select("employee_id")
+          .in("employee_id", crisisEmployeeIds)
+          .eq("absence_date", today);
+        crisisSickLeaveEmployeeIds = new Set((crisisSickLeaveRows || []).map((r) => r.employee_id));
+      }
+      const availableEmployees = (allActiveEmployees || []).filter(
+        (e) => !crisisSickLeaveEmployeeIds.has(e.id)
+      );
 
       let recovered = 0;
       for (const o of crisisOrders) {

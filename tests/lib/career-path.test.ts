@@ -7,11 +7,16 @@ import {
   CAREER_LEVEL_ORDER,
 } from "../../src/lib/career-path";
 
+const TODAY = "2026-07-14";
+
 describe("evaluateSeniorEligibility", () => {
-  it("elegible cuando los 3 checks pasan", () => {
+  it("elegible cuando los 3 checks pasan (certificación real vigente nivel 2)", () => {
     const result = evaluateSeniorEligibility({
       tenureMonths: 6,
-      certificationLevel2Verified: true,
+      certificationRecords: [
+        { level: 2, expiresAtISO: "2027-01-01", revokedAtISO: null },
+      ],
+      todayISO: TODAY,
       sustainedScoreAverage: 75,
     });
     assert.equal(result.eligible, true);
@@ -23,29 +28,74 @@ describe("evaluateSeniorEligibility", () => {
   it("no elegible si falta tenure aunque el resto pase", () => {
     const result = evaluateSeniorEligibility({
       tenureMonths: 3,
-      certificationLevel2Verified: true,
+      certificationRecords: [
+        { level: 2, expiresAtISO: "2027-01-01", revokedAtISO: null },
+      ],
+      todayISO: TODAY,
       sustainedScoreAverage: 90,
     });
     assert.equal(result.eligible, false);
     assert.equal(result.checks.tenure, false);
   });
 
-  it("no elegible si el admin no ha verificado la certificación", () => {
+  it("no elegible si no hay ningún registro de certificación", () => {
     const result = evaluateSeniorEligibility({
       tenureMonths: 12,
-      certificationLevel2Verified: false,
+      certificationRecords: [],
+      todayISO: TODAY,
+      sustainedScoreAverage: 90,
+    });
+    assert.equal(result.eligible, false);
+    assert.equal(result.checks.certificationLevel2, false);
+  });
+
+  it("no elegible si la única certificación nivel 2 está vencida", () => {
+    const result = evaluateSeniorEligibility({
+      tenureMonths: 12,
+      certificationRecords: [
+        { level: 2, expiresAtISO: "2020-01-01", revokedAtISO: null },
+      ],
+      todayISO: TODAY,
+      sustainedScoreAverage: 90,
+    });
+    assert.equal(result.eligible, false);
+    assert.equal(result.checks.certificationLevel2, false);
+  });
+
+  it("no elegible si la certificación nivel 2 fue revocada", () => {
+    const result = evaluateSeniorEligibility({
+      tenureMonths: 12,
+      certificationRecords: [
+        { level: 2, expiresAtISO: "2027-01-01", revokedAtISO: "2026-01-01" },
+      ],
+      todayISO: TODAY,
       sustainedScoreAverage: 90,
     });
     assert.equal(result.eligible, false);
   });
 
-  it("siempre reporta la certificación como no verificable por el sistema", () => {
+  it("elegible con certificación nivel 3 vigente (satisface el mínimo nivel 2)", () => {
     const result = evaluateSeniorEligibility({
       tenureMonths: 12,
-      certificationLevel2Verified: true,
+      certificationRecords: [
+        { level: 3, expiresAtISO: "2027-01-01", revokedAtISO: null },
+      ],
+      todayISO: TODAY,
       sustainedScoreAverage: 90,
     });
-    assert.ok(result.unverifiableBySystem.length > 0);
+    assert.equal(result.checks.certificationLevel2, true);
+  });
+
+  it("ya no reporta ningún check como no verificable por el sistema", () => {
+    const result = evaluateSeniorEligibility({
+      tenureMonths: 12,
+      certificationRecords: [
+        { level: 2, expiresAtISO: "2027-01-01", revokedAtISO: null },
+      ],
+      todayISO: TODAY,
+      sustainedScoreAverage: 90,
+    });
+    assert.equal(result.unverifiableBySystem.length, 0);
   });
 });
 
