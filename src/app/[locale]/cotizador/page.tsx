@@ -677,4 +677,22 @@ export default function CotizadorPage() {
       {/* Auth Modal */}
       {showAuthModal && (
         <AuthModal
-          o
+          onClose={() => {
+            // v8.3 fix (auditoría 2026-07-15): si el usuario cierra el modal
+            // con la "X" sin autenticarse, la flag lulu_pending_auth_quote
+            // (marcada por markPendingAuth() antes de abrir el modal)
+            // quedaba en "true" indefinidamente -- si volvía a /cotizador
+            // por URL horas después (dentro de la ventana de 1h de
+            // localStorage), el sistema intentaba restaurar una cotización
+            // vieja que el usuario no pidió recuperar.
+            clearPendingAuth();
+            setShowAuthModal(false);
+            setAuthErrorMessage("");
+          }}
+          onSuccess={handleAuthSuccess}
+          initialError={authErrorMessage}
+        />
+      )}
+    </main>
+  );
+}
