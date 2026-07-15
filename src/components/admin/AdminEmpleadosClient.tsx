@@ -11,6 +11,7 @@ import {
   AlertCircle,
   Languages as LanguagesIcon,
   Pencil,
+  UserPlus,
 } from "lucide-react";
 import { SUPPORTED_LANGUAGES } from "@/lib/languages";
 import { LANGUAGE_LEVELS, type LanguageLevels } from "@/lib/employee-languages";
@@ -50,6 +51,7 @@ export default function AdminEmpleadosClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     loadEmployees();
@@ -136,9 +138,18 @@ export default function AdminEmpleadosClient() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-brand-ink">Employees</h1>
-        <span className="text-sm text-gray-500">
-          {employees.length} employee{employees.length !== 1 ? "s" : ""}
-        </span>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-gray-500">
+            {employees.length} employee{employees.length !== 1 ? "s" : ""}
+          </span>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add employee
+          </button>
+        </div>
       </div>
 
       {employees.length === 0 ? (
@@ -247,6 +258,139 @@ export default function AdminEmpleadosClient() {
           onSave={saveLanguages}
         />
       )}
+
+      {showAddModal && (
+        <AddEmployeeModal
+          onClose={() => setShowAddModal(false)}
+          onCreated={(employee) => {
+            setEmployees((prev) => [...prev, employee].sort((a, b) => a.name.localeCompare(b.name)));
+            setShowAddModal(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// v8.3 FIX-10: onboarding real -- antes no había ninguna forma en el
+// producto de crear un empleado nuevo (ver POST /api/admin/empleados).
+// Se crea SIEMPRE inactivo (is_active=false); el admin lo activa aparte
+// una vez completado el papeleo/orientación real del primer día.
+function AddEmployeeModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (employee: Employee) => void;
+}) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [role, setRole] = useState("cleaner");
+  const [dayRate, setDayRate] = useState("200");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  const handleCreate = async () => {
+    setSaving(true);
+    setSaveError("");
+    try {
+      const res = await fetch("/api/admin/empleados", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          email,
+          phone: phone || undefined,
+          role,
+          dayRate: dayRate ? Number(dayRate) : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create employee");
+      onCreated(data.employee);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to create employee");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+        <h2 className="text-lg font-semibold text-brand-ink">Add Employee</h2>
+        <p className="text-xs text-gray-500">
+          Creates the account and sends an invite email. The employee starts inactive — activate them once onboarding is complete.
+        </p>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-gray-600 block mb-1">Name</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 text-sm"
+              placeholder="Full name"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-600 block mb-1">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 text-sm"
+              placeholder="name@example.com"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-600 block mb-1">Phone (optional)</label>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-600 block mb-1">Role</label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="cleaner">Cleaner</option>
+              <option value="supervisor">Supervisor</option>
+              <option value="driver">Driver</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-600 block mb-1">Day Rate ($CAD)</label>
+            <input
+              type="number"
+              value={dayRate}
+              onChange={(e) => setDayRate(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+
+        {saveError && <p className="text-xs text-state-danger">{saveError}</p>}
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100">
+            Cancel
+          </button>
+          <button
+            onClick={handleCreate}
+            disabled={saving || !name.trim() || !email.trim()}
+            className="px-4 py-2 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light disabled:opacity-50"
+          >
+            {saving ? "Creating..." : "Create & Invite"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
