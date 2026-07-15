@@ -606,13 +606,11 @@ export default function ServicioPage() {
             {activeTab === "cromático" && (
               <div className="space-y-4">
                 <p className="text-sm text-gray-600">
-                  Confirm each chemical before using it. Match color, icon, AND text — never rely on color alone
-                  (colorblindness safeguard). Never mix RED (acid) with BLUE (ammonia) — chlorine gas risk.
+                  Reference only — the real chemical lock happens per zone in the Checklist tab, where
+                  you must identify the correct product without the answer shown. Never mix RED (acid)
+                  with BLUE (ammonia) — chlorine gas risk.
                 </p>
-                <CodigoCromático
-                  confirmedColors={confirmedColors}
-                  onConfirmedColorsChange={setConfirmedColors}
-                />
+                <CodigoCromático confirmedColors={confirmedColors} />
               </div>
             )}
           </div>

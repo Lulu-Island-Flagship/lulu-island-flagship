@@ -100,7 +100,7 @@ export function UpsellSelector({ orderId, onUpsellAdded }: UpsellSelectorProps) 
               <div className="flex items-center gap-3">
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                    isSelected ? "bg-brand-gold text-white" : "bg-gray-100"
+                    isSelected ? "bg-brand-navy text-white" : "bg-gray-100"
                   }`}
                 >
                   {isSelected ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4 text-gray-400" />}

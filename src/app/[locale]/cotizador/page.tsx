@@ -630,7 +630,7 @@ export default function CotizadorPage() {
             <button
               onClick={() => handleSubmit()}
               disabled={!canProceed() || isSubmitting}
-              className="inline-flex items-center gap-2 bg-brand-gold text-brand-navy px-8 py-3 rounded-lg font-semibold hover:bg-brand-gold-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 bg-brand-navy text-white px-8 py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "Saving..." : b2bReviewRequired ? "Submit for B2B Review" : "Reserve Now"}
               <ChevronRight className="w-5 h-5" />

@@ -19,7 +19,7 @@ import { isFeedBlind } from "@/lib/pipeda";
  * Seguridad: requiere header Authorization: Bearer ${CRON_SECRET}, mismo
  * patrón que el resto de los crons (ver contract-ipc-adjustment/route.ts).
  */
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
 

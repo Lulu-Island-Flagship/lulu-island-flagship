@@ -335,7 +335,7 @@ export default function AuditsPage() {
                         onClick={() => setCriteria({ ...criteria, [key]: n })}
                         className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                           value >= n
-                            ? "bg-brand-gold text-white"
+                            ? "bg-brand-navy text-white"
                             : "bg-gray-100 text-gray-400"
                         }`}
                       >

@@ -8,7 +8,7 @@ import { storeBackupCsv } from "@/lib/backup-storage";
  * Vuelca shadow_ledger_entries de las últimas 24h a un CSV+hash en
  * Storage. Fuente de verdad operativa (081_e2_shadow_ledger.sql), no QBO.
  */
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
   if (!cronSecret) return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });

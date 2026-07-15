@@ -12,12 +12,9 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { ChecklistZoneProgress } from "@/types";
-import {
-  getChemicalCode,
-  isZoneUnlocked,
-  applyConfirmation,
-} from "@/lib/chemical-lockout";
+import { isZoneUnlocked } from "@/lib/chemical-lockout";
 import { isHotSurfaceItemUnlocked, minutesRemaining } from "@/lib/kitchen-timer";
+import { ChemicalMatchModal } from "@/components/empleado/ChemicalMatchModal";
 
 interface ChecklistCierreProps {
   orderId: string;
@@ -42,6 +39,7 @@ export function ChecklistCierre({
   const [loading, setLoading] = useState(true);
   const [expandedZones, setExpandedZones] = useState<Set<string>>(new Set());
   const [uploadingItem, setUploadingItem] = useState<string | null>(null);
+  const [matchModalZone, setMatchModalZone] = useState<{ zoneColor: string; zoneLabel: string } | null>(null);
   const [overallProgress, setOverallProgress] = useState({
     totalItems: 0,
     completedItems: 0,
@@ -417,37 +415,26 @@ export function ChecklistCierre({
                 </div>
               </button>
 
-              {/* Candado químico: la zona no se puede tocar sin confirmar el
-                  producto primero (B.2.8 — color + ícono + texto, nunca solo color). */}
-              {isExpanded && !zoneUnlocked && (() => {
-                const code = getChemicalCode(zone.zoneColor);
-                if (!code) return null;
-                return (
-                  <div className="p-3 bg-amber-50 border-t border-amber-200 flex items-center gap-3">
-                    <div className="text-2xl">{code.icon}</div>
-                    <div className="flex-1 min-w-0 text-xs text-amber-800">
-                      <p className="font-semibold">Confirm the chemical before starting this zone</p>
-                      <p>{code.textEn} — {code.product}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const result = applyConfirmation(confirmedColors!, {
-                          targetColor: code.color,
-                          selectedColor: code.color,
-                          selectedIcon: code.icon,
-                          selectedText: code.textEn,
-                        });
-                        if (result.ok) onConfirmedColorsChange!(result.confirmedColors);
-                      }}
-                      className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold bg-white border border-amber-400 text-amber-800 rounded-lg px-3 py-2 hover:bg-amber-100"
-                    >
-                      <Lock className="w-3.5 h-3.5" />
-                      Confirm & unlock
-                    </button>
+              {/* Candado químico: la zona no se puede tocar sin identificar el
+                  producto correcto primero (B.2.8 — color + ícono + texto,
+                  nunca solo color, y NUNCA la respuesta pre-mostrada: el
+                  empleado elige entre las 6 opciones en ChemicalMatchModal). */}
+              {isExpanded && !zoneUnlocked && (
+                <div className="p-3 bg-amber-50 border-t border-amber-200 flex items-center gap-3">
+                  <div className="flex-1 min-w-0 text-xs text-amber-800">
+                    <p className="font-semibold">Confirm the chemical before starting this zone</p>
+                    <p>Identifica el producto correcto para: {zone.zoneLabel}</p>
                   </div>
-                );
-              })()}
+                  <button
+                    type="button"
+                    onClick={() => setMatchModalZone({ zoneColor: zone.zoneColor, zoneLabel: zone.zoneLabel })}
+                    className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold bg-white border border-amber-400 text-amber-800 rounded-lg px-3 py-2 hover:bg-amber-100"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    Confirm & unlock
+                  </button>
+                </div>
+              )}
 
               {/* Zone items */}
               {isExpanded && zoneUnlocked && (
@@ -553,6 +540,16 @@ export function ChecklistCierre({
           );
         })}
       </div>
+
+      {matchModalZone && confirmedColors && onConfirmedColorsChange && (
+        <ChemicalMatchModal
+          zoneColor={matchModalZone.zoneColor}
+          zoneLabel={matchModalZone.zoneLabel}
+          confirmedColors={confirmedColors}
+          onConfirmed={onConfirmedColorsChange}
+          onClose={() => setMatchModalZone(null)}
+        />
+      )}
     </div>
   );
 }

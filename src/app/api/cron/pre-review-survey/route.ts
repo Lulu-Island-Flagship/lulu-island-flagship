@@ -15,7 +15,7 @@ import { getVancouverTodayString } from "@/lib/date-utils";
  *
  * Seguridad: requiere header Authorization: Bearer ${CRON_SECRET}
  */
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
   if (!cronSecret) {

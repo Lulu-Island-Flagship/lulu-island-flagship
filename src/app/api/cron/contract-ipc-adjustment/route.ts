@@ -54,7 +54,7 @@ interface ServiceContractRow {
   last_ipc_adjustment_year: number | null;
 }
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
 

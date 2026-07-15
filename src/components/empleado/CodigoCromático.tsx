@@ -1,12 +1,8 @@
 "use client";
 
 import React from "react";
-import { CheckCircle2, Lock } from "lucide-react";
-import {
-  CHEMICAL_CODES,
-  applyConfirmation,
-  type ChemicalCode,
-} from "@/lib/chemical-lockout";
+import { CheckCircle2 } from "lucide-react";
+import { CHEMICAL_CODES, type ChemicalCode } from "@/lib/chemical-lockout";
 
 const BG_CLASS: Record<ChemicalCode["color"], string> = {
   red: "bg-red-100 border-red-300 text-red-800",
@@ -20,37 +16,19 @@ const BG_CLASS: Record<ChemicalCode["color"], string> = {
 interface CodigoCromáticoProps {
   compact?: boolean;
   /**
-   * Modo candado (E4): si se pasan estas props, cada tarjeta exige
-   * confirmación explícita antes de mostrarse como "lista" — nunca basta con
-   * ver el color, el empleado debe leer y confirmar la tarjeta completa
-   * (color + ícono + texto, invariante B.2.8).
+   * Solo LECTURA (E4, B.2.8): esto es la tabla de referencia del código
+   * cromático, nunca un lugar para desbloquear zonas. El desbloqueo real
+   * ocurre exclusivamente en ChemicalMatchModal.tsx (vía ChecklistCierre),
+   * donde el empleado debe identificar el producto correcto para una zona
+   * SIN que la respuesta esté pre-mostrada. Este componente antes tenía un
+   * botón "Confirm" que mutaba el mismo `confirmedColors` compartido con la
+   * tarjeta ya mostrando la respuesta correcta -- era un atajo real para
+   * saltarse el candado químico por completo. Se quitó a propósito.
    */
   confirmedColors?: ReadonlySet<string>;
-  onConfirmedColorsChange?: (next: Set<string>) => void;
 }
 
-export function CodigoCromático({
-  compact = false,
-  confirmedColors,
-  onConfirmedColorsChange,
-}: CodigoCromáticoProps) {
-  const interactive = !!confirmedColors && !!onConfirmedColorsChange;
-
-  const handleConfirm = (code: ChemicalCode) => {
-    if (!confirmedColors || !onConfirmedColorsChange) return;
-    // La confirmación se dispara desde el botón de ESTA tarjeta específica,
-    // así que color/ícono/texto siempre corresponden entre sí — no hay forma
-    // de confirmar "solo el color" con esta UI.
-    const result = applyConfirmation(confirmedColors, {
-      targetColor: code.color,
-      selectedColor: code.color,
-      selectedIcon: code.icon,
-      selectedText: code.textEn,
-    });
-    if (result.ok) {
-      onConfirmedColorsChange(result.confirmedColors);
-    }
-  };
+export function CodigoCromático({ compact = false, confirmedColors }: CodigoCromáticoProps) {
 
   if (compact) {
     return (
@@ -86,23 +64,10 @@ export function CodigoCromático({
                 <div className="text-xs mt-1 font-medium opacity-90">⚠️ {cc.riskEn}</div>
               )}
             </div>
-            {interactive && (
-              <div className="flex-shrink-0">
-                {isConfirmed ? (
-                  <div className="flex items-center gap-1 text-xs font-semibold text-state-success">
-                    <CheckCircle2 className="w-5 h-5" />
-                    Confirmed
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => handleConfirm(cc)}
-                    className="flex items-center gap-1 text-xs font-semibold bg-white border border-current rounded-lg px-2 py-2 hover:opacity-80"
-                  >
-                    <Lock className="w-4 h-4" />
-                    Confirm
-                  </button>
-                )}
+            {confirmedColors && isConfirmed && (
+              <div className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-state-success">
+                <CheckCircle2 className="w-5 h-5" />
+                Confirmed
               </div>
             )}
           </div>

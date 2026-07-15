@@ -20,6 +20,7 @@ import {
   Star,
   Users,
   Video,
+  AlertOctagon,
 } from "lucide-react";
 import type { EmployeeService } from "@/types";
 import { downloadAndCacheDayBundle } from "@/lib/offline-day-cache";
@@ -424,6 +425,39 @@ export default function EmpleadoPage() {
               <span className="font-medium text-sm text-brand-ink">Marketing Consent</span>
             </div>
             <p className="text-xs text-gray-400">Optional — reels &amp; public badges</p>
+          </a>
+          {/* BC ESA Parte 5.1: reportar ausencia por enfermedad */}
+          <a
+            href={`/${safeLocale}/empleado/enfermedad`}
+            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <AlertCircle className="w-4 h-4 text-state-warning" />
+              <span className="font-medium text-sm text-brand-ink">Report Sick Day</span>
+            </div>
+            <p className="text-xs text-gray-400">Simple reason or medical note</p>
+          </a>
+          {/* BC ESA s.32: descansos documentados vía tránsito */}
+          <a
+            href={`/${safeLocale}/empleado/descansos`}
+            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Clock className="w-4 h-4 text-brand-navy" />
+              <span className="font-medium text-sm text-brand-ink">My Breaks</span>
+            </div>
+            <p className="text-xs text-gray-400">Documented rest periods</p>
+          </a>
+          {/* E7 D.10.7: SOS, near-miss y reporte de incidente laboral */}
+          <a
+            href={`/${safeLocale}/empleado/seguridad`}
+            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow border border-state-danger/20"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <AlertOctagon className="w-4 h-4 text-state-danger" />
+              <span className="font-medium text-sm text-brand-ink">Safety</span>
+            </div>
+            <p className="text-xs text-gray-400">SOS, near-miss &amp; injury report</p>
           </a>
         </div>
 

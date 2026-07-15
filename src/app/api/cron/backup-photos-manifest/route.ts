@@ -15,7 +15,7 @@ import { storeBackupCsv } from "@/lib/backup-storage";
  * de qué debe replicarse cuando se configure un job de copia real
  * (rclone/similar) contra B2/Glacier. Nunca se simula la copia binaria.
  */
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
   if (!cronSecret) return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });

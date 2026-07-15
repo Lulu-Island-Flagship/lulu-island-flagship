@@ -6,6 +6,7 @@ import { buildTeam, enforceMaxTeamSize, type DispatchCandidate } from "@/lib/dis
 import { evaluateWorkday } from "@/lib/workday";
 import { isVehicleInsuranceExpired } from "@/lib/vehicle-insurance";
 import { isEmployeeAssignableByCertification, type CertificationLevel } from "@/lib/certifications";
+import { hasMinimumRestBetweenShifts } from "@/lib/shift-rest";
 import {
   evaluateDispatchDiscrepancyFallback,
   type DispatchDiscrepancyReason,
@@ -202,8 +203,53 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
       .map((e) => e.id)
   );
 
+  // v8.3 (BC ESA s.32): mínimo 8h libres entre el fin de un turno y el
+  // inicio del siguiente. Se compara contra el servicio MÁS TEMPRANO del
+  // día objetivo (el peor caso -- si alcanza para ese, alcanza para
+  // cualquier otro servicio más tarde ese mismo día).
+  let restViolationEmployeeIds = new Set<string>();
+  if (orders.length > 0 && (employees || []).length > 0) {
+    const earliestServiceTime = orders.reduce(
+      (min, o) => (o.service_time < min ? o.service_time : min),
+      orders[0].service_time
+    );
+    const earliestServiceDatetime = `${targetDate}T${earliestServiceTime}`;
+
+    const lookbackStart = new Date(new Date(earliestServiceDatetime).getTime() - 48 * 60 * 60 * 1000);
+    const employeeIdsForRestCheck = (employees || []).map((e) => e.id);
+    const { data: recentShiftEndLogs } = await supabase
+      .from("service_logs")
+      .select("employee_id, event_type, timestamp")
+      .in("employee_id", employeeIdsForRestCheck)
+      .in("event_type", ["jornada_end", "t_out"])
+      .gte("timestamp", lookbackStart.toISOString())
+      .lt("timestamp", earliestServiceDatetime)
+      .order("timestamp", { ascending: false });
+
+    const lastShiftEndByEmployee = new Map<string, string>();
+    for (const log of recentShiftEndLogs || []) {
+      if (!lastShiftEndByEmployee.has(log.employee_id)) {
+        lastShiftEndByEmployee.set(log.employee_id, log.timestamp);
+      }
+    }
+
+    restViolationEmployeeIds = new Set(
+      (employees || [])
+        .filter((e) => {
+          const lastEnd = lastShiftEndByEmployee.get(e.id);
+          if (!lastEnd) return false; // sin turno reciente registrado -- nada que violar
+          return !hasMinimumRestBetweenShifts(lastEnd, earliestServiceDatetime).satisfiesMinimumRest;
+        })
+        .map((e) => e.id)
+    );
+  }
+
   const availableEmployees = (employees || []).filter(
-    (e) => e.is_active && !expiredInsuranceEmployeeIds.has(e.id) && !uncertifiedEmployeeIds.has(e.id)
+    (e) =>
+      e.is_active &&
+      !expiredInsuranceEmployeeIds.has(e.id) &&
+      !uncertifiedEmployeeIds.has(e.id) &&
+      !restViolationEmployeeIds.has(e.id)
   );
   const availableTeams = availableEmployees.length;
 
@@ -227,6 +273,11 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
   if (uncertifiedEmployeeIds.size > 0) {
     pendingLanguage.push(
       `${uncertifiedEmployeeIds.size} empleado(s) excluido(s) del despacho: sin certificación química vigente (v8.3 E9.4).`
+    );
+  }
+  if (restViolationEmployeeIds.size > 0) {
+    pendingLanguage.push(
+      `${restViolationEmployeeIds.size} empleado(s) excluido(s) del despacho: no alcanzan las 8h de descanso mínimo entre turnos (BC ESA s.32).`
     );
   }
 

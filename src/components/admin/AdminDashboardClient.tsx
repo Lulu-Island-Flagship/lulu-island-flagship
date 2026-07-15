@@ -42,6 +42,7 @@ import {
   Landmark,
   DatabaseBackup,
   FileSignature,
+  CalendarDays,
 } from "lucide-react";
 import DashboardMetricsPanel from "./DashboardMetricsPanel";
 import AutopilotModeBanner from "./AutopilotModeBanner";
@@ -347,6 +348,13 @@ export default function AdminDashboardClient() {
       icon: FileSignature,
       href: `/${safeLocale}/admin/contract-reviews`,
       color: "bg-cyan-50 text-cyan-800",
+    },
+    {
+      title: "BC Labor Compliance",
+      description: "Documented breaks, sick leave, weekly 32h rest, statutory holiday pay",
+      icon: CalendarDays,
+      href: `/${safeLocale}/admin/cumplimiento-laboral`,
+      color: "bg-orange-50 text-orange-800",
     },
   ];
 

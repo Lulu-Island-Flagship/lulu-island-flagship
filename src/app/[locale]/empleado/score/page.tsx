@@ -268,7 +268,7 @@ export default function EmpleadoScorePage() {
                       <span
                         className={`text-xs px-2 py-1 rounded-full font-medium ${
                           level === data.employee.career_level
-                            ? "bg-brand-gold text-brand-navy"
+                            ? "bg-brand-navy text-white"
                             : reached
                             ? "bg-brand-navy/10 text-brand-navy"
                             : "bg-gray-100 text-gray-400"

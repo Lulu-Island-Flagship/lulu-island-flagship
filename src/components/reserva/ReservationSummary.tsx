@@ -2,12 +2,17 @@
 
 import React from "react";
 import { QuoteData } from "@/types";
-import { MapPin, Home, Calendar, DollarSign, Shield } from "lucide-react";
+import { MapPin, Home, Calendar, DollarSign, Shield, Tag, PlusCircle } from "lucide-react";
 
 interface ReservationSummaryProps {
   quote: QuoteData;
   serviceDate?: string;
   serviceTime?: string;
+}
+
+interface PriceLine {
+  label: string;
+  amount: number; // negative = discount, positive = surcharge
 }
 
 export function ReservationSummary({
@@ -25,6 +30,26 @@ export function ReservationSummary({
     quote.serviceSubtype
       ?.replace(/_/g, " ")
       .replace(/\b\w/g, (c) => c.toUpperCase()) ?? "Cleaning Service";
+
+  // v8.3: desglose itemizado en vez de un solo "ruleAdjustment" -- el
+  // cliente ve exactamente qué compone el subtotal, igual que
+  // "$285 -> $260, ahorraste $25" en vez de un número sin explicar.
+  const lines: PriceLine[] = [];
+  if (quote.organicAdjustment) lines.push({ label: "Organic products", amount: quote.organicAdjustment });
+  if (quote.recencyAdjustment) lines.push({ label: "Recency adjustment", amount: quote.recencyAdjustment });
+  if (quote.zoneSurcharge) lines.push({ label: "Zone surcharge", amount: quote.zoneSurcharge });
+  if (quote.logisticsSurcharge) lines.push({ label: "Logistics surcharge", amount: quote.logisticsSurcharge });
+  if (quote.addonZonesCharge) lines.push({ label: "Additional zones", amount: quote.addonZonesCharge });
+  for (const rule of quote.appliedRules || []) {
+    if (rule.adjustment) lines.push({ label: rule.name, amount: rule.adjustment });
+  }
+
+  const totalSavings = lines
+    .filter((l) => l.amount < 0)
+    .reduce((sum, l) => sum + Math.abs(l.amount), 0);
+  const totalSurcharges = lines
+    .filter((l) => l.amount > 0)
+    .reduce((sum, l) => sum + l.amount, 0);
 
   return (
     <div className="bg-brand-ice rounded-lg p-5 space-y-4">
@@ -68,17 +93,23 @@ export function ReservationSummary({
       </div>
 
       <div className="border-t border-gray-200 pt-3 space-y-1 text-sm">
-        {quote.ruleAdjustment !== 0 && (
-          <div className="flex justify-between">
-            <span className="text-gray-600">Pricing rule adjustment</span>
-            <span className={quote.ruleAdjustment > 0 ? "text-state-warning" : "text-state-success"}>
-              {quote.ruleAdjustment > 0 ? "+" : "-"}
-              {formatCurrency(Math.abs(quote.ruleAdjustment))}
+        <div className="flex justify-between text-gray-600">
+          <span>Base price</span>
+          <span>{formatCurrency(quote.basePrice)}</span>
+        </div>
+
+        {lines.map((line, i) => (
+          <div key={i} className="flex justify-between">
+            <span className="text-gray-600">{line.label}</span>
+            <span className={line.amount < 0 ? "text-state-success" : "text-state-warning"}>
+              {line.amount < 0 ? "-" : "+"}
+              {formatCurrency(Math.abs(line.amount))}
             </span>
           </div>
-        )}
-        <div className="flex justify-between">
-          <span className="text-gray-600">Subtotal</span>
+        ))}
+
+        <div className="flex justify-between font-medium pt-1 border-t border-gray-200">
+          <span className="text-gray-700">Subtotal</span>
           <span>{formatCurrency(quote.subtotal)}</span>
         </div>
         <div className="flex justify-between">
@@ -94,6 +125,19 @@ export function ReservationSummary({
           <span>{formatCurrency(quote.total)}</span>
         </div>
       </div>
+
+      {totalSavings > 0 && (
+        <div className="flex items-center gap-2 text-sm text-state-success bg-state-success/10 rounded-lg px-3 py-2">
+          <Tag className="w-4 h-4 flex-shrink-0" />
+          <span>Nice! You&apos;re saving {formatCurrency(totalSavings)} on this booking.</span>
+        </div>
+      )}
+      {totalSurcharges > 0 && (
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          <PlusCircle className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>{formatCurrency(totalSurcharges)} in zone/logistics/product surcharges is already included above.</span>
+        </div>
+      )}
 
       <div className="bg-white rounded-lg p-3 border border-brand-gold/30">
         <div className="flex items-center gap-2 text-sm">

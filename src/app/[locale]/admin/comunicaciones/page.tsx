@@ -173,7 +173,7 @@ export default function ComunicacionesPage() {
               <code className="text-sm text-brand-ink">{ev.event_key}</code>
               <span
                 className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                  ev.category === "transactional" ? "bg-brand-navy text-white" : "bg-brand-gold text-white"
+                  ev.category === "transactional" ? "bg-brand-navy text-white" : "bg-brand-navy-light text-white"
                 }`}
               >
                 {ev.category === "transactional" ? "TRANSACTIONAL" : "MARKETING"}

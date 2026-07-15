@@ -14,7 +14,7 @@ import { createClient } from "@supabase/supabase-js";
  * Seguridad: requiere header Authorization: Bearer ${CRON_SECRET}
  */
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   const cronSecret = request.headers.get("authorization")?.replace("Bearer ", "");
   if (cronSecret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

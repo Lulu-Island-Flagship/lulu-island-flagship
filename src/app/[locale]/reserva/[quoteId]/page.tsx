@@ -10,6 +10,7 @@ import { DatePicker } from "@/components/reserva/DatePicker";
 import { TimeSlotPicker } from "@/components/reserva/TimeSlotPicker";
 import { StripeCardForm } from "@/components/reserva/StripeCardForm";
 import { ReservationSummary } from "@/components/reserva/ReservationSummary";
+import { CheckoutBenefitsPanel } from "@/components/reserva/CheckoutBenefitsPanel";
 import {
   ChevronLeft,
   Shield,
@@ -459,6 +460,8 @@ export default function ReservaPage() {
               serviceTime={serviceTime}
             />
 
+            <CheckoutBenefitsPanel />
+
             {/* Confirm button */}
             {paymentMethodId && (
               <div className="bg-white rounded-lg shadow-elevation-1 p-6">
@@ -470,7 +473,7 @@ export default function ReservaPage() {
                 <button
                   onClick={handleConfirm}
                   disabled={isConfirming}
-                  className="w-full inline-flex items-center justify-center gap-2 bg-brand-gold text-brand-navy px-6 py-3 rounded-lg font-semibold hover:bg-brand-gold-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full inline-flex items-center justify-center gap-2 bg-brand-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isConfirming ? (
                     <>

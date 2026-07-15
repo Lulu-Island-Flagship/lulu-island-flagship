@@ -9,7 +9,7 @@ import { storeBackupCsv } from "@/lib/backup-storage";
  * tokens de pago -- solo el perfil, para que la restauración de clientes
  * sea posible sin depender de la copia completa de Postgres.
  */
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
   if (!cronSecret) return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });

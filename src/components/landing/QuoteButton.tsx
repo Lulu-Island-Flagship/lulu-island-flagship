@@ -43,10 +43,14 @@ export function QuoteButton({ variant = "primary", children }: QuoteButtonProps)
 
   const baseClasses =
     "inline-flex items-center justify-center gap-2 font-semibold px-8 py-4 rounded-lg transition-colors text-lg";
+  // v8.3 rediseño "Powder Sky": el acento blush (brand-gold) es solo para
+  // detalles pequeños (insignias, badges) por regla del token — nunca como
+  // fondo grande de botón (contraste insuficiente para texto normal, ver
+  // src/design/tokens.ts). El CTA principal usa el azul sólido de marca.
   const variantClasses =
     variant === "primary"
-      ? "bg-brand-gold text-brand-navy hover:bg-brand-gold-dark"
-      : "bg-brand-navy text-white hover:bg-brand-navy-light";
+      ? "bg-brand-navy text-white hover:bg-brand-navy-light"
+      : "bg-white text-brand-navy border-2 border-brand-navy hover:bg-brand-ice";
 
   return (
     <button onClick={handleClick} className={`${baseClasses} ${variantClasses}`}>

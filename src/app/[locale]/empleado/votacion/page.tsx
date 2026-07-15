@@ -197,7 +197,7 @@ export default function EmpleadoVotacionPage() {
                   onClick={() => setRating(n)}
                   className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
                     rating >= n
-                      ? "bg-brand-gold text-white"
+                      ? "bg-brand-navy text-white"
                       : "bg-gray-100 text-gray-400"
                   }`}
                 >

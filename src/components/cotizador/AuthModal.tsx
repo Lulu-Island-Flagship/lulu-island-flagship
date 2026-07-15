@@ -251,7 +251,7 @@ export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
                 <button
                   onClick={handleVerifyOtp}
                   disabled={loading}
-                  className="w-full bg-brand-gold text-brand-navy py-3 rounded-lg font-semibold hover:bg-brand-gold-dark transition-colors disabled:opacity-50"
+                  className="w-full bg-brand-navy text-white py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
                 >
                   {loading ? "Verifying..." : "Verify & Sign In"}
                 </button>
@@ -317,7 +317,7 @@ export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
                 <button
                   onClick={handleVerifyOtp}
                   disabled={loading}
-                  className="w-full bg-brand-gold text-brand-navy py-3 rounded-lg font-semibold hover:bg-brand-gold-dark transition-colors disabled:opacity-50"
+                  className="w-full bg-brand-navy text-white py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
                 >
                   {loading ? "Verifying..." : "Verify & Sign In"}
                 </button>

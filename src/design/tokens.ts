@@ -5,23 +5,31 @@
  * valores hex de la marca. Tailwind los importa desde aquí y src/app/tokens.css
  * se GENERA desde aquí (npm run tokens). Nunca copiar estos valores a otro archivo.
  *
- * REGLA DE DOS LENGUAJES (invariante B.2.7): esta paleta de MARCA (navy/dorado)
- * nunca se mezcla con el código cromático de SEGURIDAD QUÍMICA del Módulo 11
- * (rojo=baño/ácido, azul=cocina/amonio, ...). Uno vende confianza; el otro
- * previene gas cloro. Ningún diseñador futuro debe unificarlos.
+ * REGLA DE DOS LENGUAJES (invariante B.2.7): esta paleta de MARCA (azul cielo/
+ * blush) nunca se mezcla con el código cromático de SEGURIDAD QUÍMICA del
+ * Módulo 11 (rojo=baño/ácido, azul=cocina/amonio, ...) — ese código vive en
+ * src/lib/chemical-lockout.ts como strings "red"/"blue"/etc. independientes
+ * de estos hex, nunca importa BRAND. Uno vende confianza; el otro previene
+ * gas cloro. Ningún diseñador futuro debe unificarlos (y con una marca ahora
+ * también azul, hay que vigilar esto con más cuidado, no menos).
  *
- * Dorado: solo acentos, insignias y celebraciones — nunca fondos grandes.
+ * gold (accent blush): solo acentos, insignias y celebraciones — nunca fondos grandes.
  */
 
 export const BRAND = {
-  navy: "#0B1E3D",       // casco del barco — primario, headers, CTA principal
-  navyLight: "#14315C",  // hover / estados activos
-  waveBlue: "#2E6E96",   // olas — secundario, links, iconografía
-  gold: "#C9A961",       // detalles dorados — SOLO acentos e insignias
-  goldDark: "#93712A",   // dorado con contraste AA real sobre blanco (4.53:1 — #A8863F daba solo 3.42:1, hallazgo de auditoria de accesibilidad, ver tests/lib/a11y-audit.test.ts)
-  ink: "#10192B",        // texto principal
-  ice: "#F5F5F5",        // fondo secundario
-  white: "#FFFFFF",      // fondo primario
+  // v8.3 rediseño "Powder Sky" (a petición del dueño: paleta clara/pastel
+  // que evoque limpieza, independiente del logo — antes era navy/dorado
+  // náutico oscuro). Mismos NOMBRES de token que antes a propósito: cero
+  // archivos consumidores tuvieron que tocarse, todo el sitio (público +
+  // admin/empleado) hereda el cambio desde esta única fuente.
+  navy: "#2E5C8A",        // azul cielo profundo — primario, headers, CTA principal (6.97:1 sobre blanco)
+  navyLight: "#3E6D9E",   // hover / estados activos
+  waveBlue: "#3A6E9E",    // secundario, links, iconografía (5.38:1 sobre blanco)
+  gold: "#E3AAB8",        // acento blush — SOLO acentos e insignias, nunca fondos grandes ni texto de cuerpo
+  goldDark: "#8A3A46",    // blush con contraste AA real sobre blanco (7.57:1 — ver tests/lib/a11y-audit.test.ts)
+  ink: "#1F2E3D",         // texto principal (13.8:1 sobre blanco)
+  ice: "#EAF4FB",         // fondo secundario — celeste muy pálido
+  white: "#FFFFFF",       // fondo primario
 } as const;
 
 export const STATE = {

@@ -15,7 +15,7 @@ import { assertStripe } from "@/lib/stripe";
 const HOURS_WINDOW = 72;
 const MAX_ATTEMPTS = 3;
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
 

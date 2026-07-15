@@ -119,6 +119,30 @@
     {
       "path": "/api/cron/contract-review-scan",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/rest-documentation-scan",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-rest-check",
+      "schedule": "0 9 * * 1"
+    },
+    {
+      "path": "/api/cron/statutory-holiday-scan",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/safety-abort-escalation",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/cron/wellbeing-chemical-reassign",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/evaluate-badges",
+      "schedule": "0 7 * * *"
     }
   ]
 }

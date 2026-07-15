@@ -77,7 +77,7 @@ export function StepOrganic({ petsCount, petsType, residents, onChange }: StepOr
                   }
                   className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-all ${
                     petsCount === (n === "4+" ? 4 : n)
-                      ? "bg-brand-gold text-brand-navy"
+                      ? "bg-brand-navy text-white"
                       : "bg-white border border-gray-200 text-gray-600 hover:border-brand-wave-blue"
                   }`}
                 >
@@ -108,7 +108,7 @@ export function StepOrganic({ petsCount, petsType, residents, onChange }: StepOr
               }
               className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-medium transition-all ${
                 residents === (n === "6+" ? 6 : n)
-                  ? "bg-brand-gold text-brand-navy"
+                  ? "bg-brand-navy text-white"
                   : "bg-white border border-gray-200 text-gray-600 hover:border-brand-wave-blue"
               }`}
             >

@@ -101,7 +101,7 @@ export function StepAddonZones({ serviceSubtype, targetHourlyRate, selected, onC
                 </div>
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    isSelected ? "bg-brand-gold text-white" : "bg-white border border-gray-300 text-gray-400"
+                    isSelected ? "bg-brand-navy text-white" : "bg-white border border-gray-300 text-gray-400"
                   }`}
                 >
                   {isSelected ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}

@@ -101,6 +101,50 @@ export function calculatePayroll(
   };
 }
 
+// ------------------------------------------------------------
+// Horas extra (BC ESA / v8.3 B.2.15): >8h estándar = recargo 1.5x sobre
+// el EXCEDENTE; >10h queda bloqueado en el despacho (workday.ts), así que
+// el excedente pagable nunca supera 2h (120 min). Este cálculo es POR
+// DÍA (suma de todos los bloques/órdenes de un empleado ese día), no por
+// orden individual -- workday.evaluateWorkday ya decide a nivel de
+// despacho si una jornada necesita aprobación; esta función solo calcula
+// cuánto dinero corresponde una vez que esa jornada ya ocurrió.
+//
+// LIMITACIÓN DOCUMENTADA: hoy ninguna ruta del código inserta filas en
+// payroll_entries (se leen en varios reportes pero no existe el paso que
+// las genera) -- este cálculo queda listo para ese momento, pero no se
+// aplica solo todavía. Ver nota en el cron/ruta que eventualmente genere
+// la nómina real.
+// ------------------------------------------------------------
+
+export interface OvertimePayInput {
+  totalDayMinutes: number;
+  dayRateCents: number;
+  standardDayMinutes?: number; // default 480 (8h)
+  overtimeMultiplier?: number; // default 1.5
+}
+
+export interface OvertimePayResult {
+  overtimeMinutes: number;
+  hourlyRateCents: number;
+  overtimePayCents: number;
+}
+
+export function calculateOvertimePay(input: OvertimePayInput): OvertimePayResult {
+  const {
+    totalDayMinutes,
+    dayRateCents,
+    standardDayMinutes = 480,
+    overtimeMultiplier = 1.5,
+  } = input;
+
+  const overtimeMinutes = Math.max(0, totalDayMinutes - standardDayMinutes);
+  const hourlyRateCents = standardDayMinutes > 0 ? dayRateCents / (standardDayMinutes / 60) : 0;
+  const overtimePayCents = Math.round((overtimeMinutes / 60) * hourlyRateCents * overtimeMultiplier);
+
+  return { overtimeMinutes, hourlyRateCents: Math.round(hourlyRateCents), overtimePayCents };
+}
+
 /**
  * Convierte un monto en dólares a centavos.
  */

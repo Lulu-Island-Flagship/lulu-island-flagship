@@ -29,7 +29,7 @@ function extractStoragePath(publicUrl: string): string | null {
   return publicUrl.slice(idx + marker.length);
 }
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
   if (!cronSecret) {
