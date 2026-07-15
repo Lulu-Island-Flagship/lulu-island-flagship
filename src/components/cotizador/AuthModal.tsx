@@ -154,7 +154,16 @@ export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
           Sign in to Reserve
         </h2>
         <p className="text-gray-600 text-sm mb-6">
-          All methods create the same secure account. Choose what works best for you.
+          {/* v8.3 fix (auditoría 2026-07-15): el texto anterior ("All methods
+              create the same secure account") era falso -- no existe account
+              linking en el código; Google, Apple y email/phone OTP crean
+              cuentas SEPARADAS en Supabase Auth por defecto. Un cliente que
+              reserva con Google y luego entra con email pierde su historial,
+              wallet y cotizaciones previas sin ningún aviso. Se corrige el
+              texto para reflejar la realidad y se pide explícitamente usar
+              siempre el mismo método. */}
+          Please use the same sign-in method every time — switching methods (e.g. Google, then
+          email) creates a separate account and you&apos;ll lose access to your history and wallet.
         </p>
 
         {error && (

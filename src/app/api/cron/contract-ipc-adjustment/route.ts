@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { calculateMinimumWageImpact } from "@/lib/economic-params";
+import { dispatchCommunication } from "@/lib/send-communication";
 import {
   isIpcNoticeDue,
   isIpcAdjustmentDue,
@@ -46,12 +47,40 @@ function vancouverHour(): number {
 
 interface ServiceContractRow {
   id: string;
+  user_id: string;
   start_date: string;
   base_price: number;
   total: number;
   status: string;
   last_ipc_notice_year: number | null;
   last_ipc_adjustment_year: number | null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function notifyClient(
+  supabase: any,
+  userId: string,
+  eventKey: "contract_ipc_notice" | "contract_ipc_adjusted",
+  vars: Record<string, string>
+): Promise<void> {
+  try {
+    const { data: profile } = await supabase
+      .from("client_profiles")
+      .select("preferred_languages")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const language = ((profile?.preferred_languages as string[] | undefined)?.[0] || "en") as
+      | "en"
+      | "es"
+      | "zh";
+    await dispatchCommunication(supabase, { eventKey, userId, language, vars });
+  } catch (err) {
+    // v8.3 fix (auditoría 2026-07-15): un fallo al notificar NUNCA debe
+    // revertir el ajuste/aviso ya persistido -- pero antes ni siquiera se
+    // intentaba notificar, así que esto va en su propio try/catch igual que
+    // el resto de comunicaciones de cierre del sistema.
+    console.error(`Failed to dispatch ${eventKey} for user ${userId}:`, err);
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -141,7 +170,7 @@ export async function GET(request: NextRequest) {
     const { data: contracts, error } = await supabase
       .from("service_contracts")
       .select(
-        "id, start_date, base_price, total, status, last_ipc_notice_year, last_ipc_adjustment_year"
+        "id, user_id, start_date, base_price, total, status, last_ipc_notice_year, last_ipc_adjustment_year"
       )
       .eq("status", "active");
 
@@ -184,6 +213,13 @@ export async function GET(request: NextRequest) {
             .update({ last_ipc_notice_sent_at: new Date().toISOString(), last_ipc_notice_year: currentYear })
             .eq("id", contract.id);
 
+          await notifyClient(supabase, contract.user_id, "contract_ipc_notice", {
+            client_name: "there",
+            ipc_percentage: ipcPercentage.toFixed(1),
+            anniversary_date: anniversary,
+            new_total: projected.newTotal.toFixed(2),
+          });
+
           results.noticesSent++;
         }
 
@@ -218,6 +254,11 @@ export async function GET(request: NextRequest) {
               updated_at: new Date().toISOString(),
             })
             .eq("id", contract.id);
+
+          await notifyClient(supabase, contract.user_id, "contract_ipc_adjusted", {
+            client_name: "there",
+            new_total: adjusted.newTotal.toFixed(2),
+          });
 
           results.adjustmentsApplied++;
         }

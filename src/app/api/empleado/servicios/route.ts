@@ -58,10 +58,16 @@ export async function GET() {
 
     // Paso 1: Buscar asignaciones del empleado para órdenes de hoy o futuras
     // Primero obtener order_ids de órdenes de hoy/futuro, luego filtrar assignments
+    // v8.3 fix (auditoría 2026-07-15): esta consulta no excluía órdenes
+    // canceladas -- combinado con que /api/orders/[orderId]/cancel nunca
+    // marcaba `assignments.status='cancelled'` (ya corregido), un empleado
+    // podía ver y desplazarse a un servicio que el cliente ya canceló. Se
+    // excluye explícitamente aquí también, como segunda barrera.
     const { data: todaysOrders, error: ordersDateError } = await supabase
       .from("orders")
       .select("id")
       .gte("service_date", today)
+      .neq("status", "cancelled")
       .order("service_date", { ascending: true });
 
     if (ordersDateError) {

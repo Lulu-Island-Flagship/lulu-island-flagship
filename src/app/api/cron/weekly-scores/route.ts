@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
 import {
   detectReciprocalHighRatings,
   hasSufficientVoterSample,
@@ -16,28 +15,25 @@ import {
 const NEUTRAL_PEER_SCORE = 70;
 const PEER_SCORE_WEIGHT = 0.2;
 
+/**
+ * v8.3 ROUND 2 — hallazgo crítico de auditoría: este cron usaba
+ * createServerClient + cookies() (sesión de navegador). Vercel Cron lo
+ * invoca server-to-server sin cookies -- auth.uid() NULL. employee_scores
+ * no tiene política de INSERT/UPDATE para nadie más que el dueño de la fila
+ * (que no existe todavía en un upsert) o supervisor autenticado;
+ * employees.trust_level solo se puede actualizar vía "Employees update own
+ * profile" (auth.uid()=user_id, nunca cierto para un cron); y
+ * peer_vote_collusion_flags exige is_supervisor(auth.uid()). Con NULL en
+ * auth.uid(), las tres escrituras quedaban bloqueadas por RLS en cada
+ * corrida semanal -- el recálculo de score, trust_level y las banderas
+ * anti-colusión probablemente nunca se persistieron. Mismo fix que
+ * dispatch-scheduler/safety-abort-escalation/wellbeing-chemical-reassign.
+ */
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder";
 
 function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(
-    supabaseUrl,
-    supabaseKey,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options });
-        },
-      },
-    }
-  );
+  return createClient(supabaseUrl, supabaseServiceKey);
 }
 
 // GET /api/cron/weekly-scores — recalcular scores semanales de todos los empleados
@@ -46,6 +42,12 @@ export async function GET(request: NextRequest) {
   const cronSecret = request.headers.get("authorization")?.replace("Bearer ", "");
   if (cronSecret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json(
+      { error: "Supabase service credentials not configured" },
+      { status: 500 }
+    );
   }
 
   try {

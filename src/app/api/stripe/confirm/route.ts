@@ -1,4 +1,5 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { assertStripe } from "@/lib/stripe";
@@ -17,6 +18,22 @@ import {
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+
+// v8.3 fix (auditoría 2026-07-15): capacity_slots solo tiene políticas RLS
+// para "is_supervisor" (SELECT solo si is_published, ALL para supervisores;
+// ver migración 026). Un cliente final autenticado normal NUNCA cumple
+// is_supervisor(), así que el INSERT del slot flexible y el UPDATE de
+// committed_teams de abajo fallaban silenciosamente (o el checkout entero
+// se rompía) bajo el cliente de sesión del usuario. capacity_slots es
+// disponibilidad operativa compartida, no un dato propiedad del cliente --
+// se usa el cliente de service role SOLO para estas dos operaciones,
+// después de que el resto del endpoint ya validó todo con el cliente de
+// sesión normal.
+function getServiceRoleClient() {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) return null;
+  return createClient(supabaseUrl, serviceKey);
+}
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -296,8 +313,9 @@ export async function POST(request: NextRequest) {
     // Esto evita que los holds expiren para servicios lejanos y cumple el spec.
 
     // Verificar capacidad real: el slot debe existir, estar publicado y tener cupo
+    const capacityClient = getServiceRoleClient() ?? supabase;
     let slotRow;
-    const { data: slotData, error: slotError } = await supabase
+    const { data: slotData, error: slotError } = await capacityClient
       .from("capacity_slots")
       .select("id, max_teams, committed_teams, slot_type")
       .eq("service_date", serviceDate)
@@ -314,7 +332,7 @@ export async function POST(request: NextRequest) {
       const [h, m] = serviceTime.split(":").map(Number);
       const endH = h + Math.floor((m + 30) / 60);
       const endM = (m + 30) % 60;
-      const { data: createdSlot, error: createSlotError } = await supabase
+      const { data: createdSlot, error: createSlotError } = await capacityClient
         .from("capacity_slots")
         .insert({
           service_date: serviceDate,
@@ -413,14 +431,37 @@ export async function POST(request: NextRequest) {
       .update({ status: "reserved" })
       .eq("id", quoteId);
 
-    // Comprometer capacidad del slot reservado
-    await supabase
+    // Comprometer capacidad del slot reservado.
+    // v8.3 fix (auditoría 2026-07-15): antes no se comprobaba el resultado
+    // de este UPDATE -- si fallaba (por RLS, o por una condición de carrera
+    // con otra confirmación simultánea del mismo slot), el fallo era
+    // completamente silencioso: la orden ya se había creado y se respondía
+    // éxito al cliente, pero el contador de capacidad nunca se incrementaba,
+    // rompiendo el control de sobreventa para siempre en ese slot. Se agrega
+    // `.eq("committed_teams", slotRow.committed_teams)` como bloqueo
+    // optimista (TOCTOU): si otra request ya modificó el contador entre la
+    // lectura y esta escritura, el UPDATE no afecta ninguna fila y se
+    // detecta explícitamente en vez de sobrescribir con un valor obsoleto.
+    const { data: capacityUpdateRows, error: capacityUpdateError } = await capacityClient
       .from("capacity_slots")
       .update({
         committed_teams: slotRow.committed_teams + 1,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", slotRow.id);
+      .eq("id", slotRow.id)
+      .eq("committed_teams", slotRow.committed_teams)
+      .select("id");
+
+    if (capacityUpdateError || !capacityUpdateRows || capacityUpdateRows.length === 0) {
+      console.error(
+        `Capacity slot commit failed for slot ${slotRow.id} (order already created for quote ${quoteId}):`,
+        capacityUpdateError
+      );
+      // La orden ya fue creada e insertada arriba -- no revertimos la
+      // reserva del cliente por esto (sería peor UX), pero queda un rastro
+      // claro en logs para reconciliación manual del contador de capacidad,
+      // en vez de un fallo silencioso indistinguible de un slot correcto.
+    }
 
     // E6 Sesión H — conecta el catálogo de plantillas (migración 045/057,
     // hasta ahora sin ningún disparador real) al primer evento del ciclo de

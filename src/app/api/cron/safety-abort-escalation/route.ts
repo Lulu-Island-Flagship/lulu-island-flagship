@@ -1,26 +1,27 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateSafetyAbortEscalation } from "@/lib/safety-abort";
 
+/**
+ * v8.3 ROUND 2 — hallazgo crítico de seguridad: esta ruta usaba
+ * createServerClient + cookies() (sesión de navegador), pero Vercel Cron la
+ * invoca server-to-server sin cookies -- auth.uid() es NULL. safety_aborts
+ * solo tiene política de UPDATE para "reported_by = auth.uid()" o
+ * is_supervisor(auth.uid()) (migración 069); con auth.uid() NULL ninguna
+ * de las dos aplica, así que el UPDATE de stage/auto_approved de este cron
+ * quedaba bloqueado por RLS en cada corrida. Efecto real: el SOS del
+ * empleado (FIX-1) se registraba pero NUNCA avanzaba de "sos_started" a
+ * "auto_approved" pasando por las etapas de escalación (llamada a admin a
+ * los 2 min, Admin de Emergencia a los 4 min) -- exactamente la excepción
+ * de campo #7 (D.10), la más crítica de seguridad humana. Mismo fix que
+ * dispatch-scheduler y wellbeing-chemical-reassign: service role para un
+ * cron server-to-server, protegido por el mismo guard CRON_SECRET.
+ */
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder";
 
 function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options });
-      },
-    },
-  });
+  return createClient(supabaseUrl, supabaseServiceKey);
 }
 
 // GET /api/cron/safety-abort-escalation — recalcula y persiste la etapa de
@@ -37,6 +38,12 @@ export async function GET(request: NextRequest) {
   const cronSecret = request.headers.get("authorization")?.replace("Bearer ", "");
   if (cronSecret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json(
+      { error: "Supabase service credentials not configured" },
+      { status: 500 }
+    );
   }
 
   const supabase = getSupabaseClient();
