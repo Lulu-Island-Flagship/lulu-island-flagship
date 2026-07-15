@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { assertStripe } from "@/lib/stripe";
 import { dispatchCommunication } from "@/lib/send-communication";
+import { publishUnifiedAlert } from "@/lib/unified-alerts";
+import { getVancouverTodayMidnight } from "@/lib/date-utils";
 
 /**
  * GET /api/cron/no-show
@@ -197,7 +199,7 @@ export async function GET(request: NextRequest) {
       // Verificar si ya fue detectado
       const { data: existingNoShow } = await supabase
         .from("no_show_logs")
-        .select("id, status, client_notified_at")
+        .select("id, status, client_notified_at, cause")
         .eq("order_id", order.id)
         .maybeSingle();
 
@@ -213,13 +215,33 @@ export async function GET(request: NextRequest) {
           .limit(1);
         const assignment = assignments?.[0];
 
+        // v8.3 fix (auditoría 2026-07-15): antes cualquier "sin t_in" se
+        // trataba como ausencia del CLIENTE, sin distinguir el caso
+        // contrario -- el equipo asignado nunca inició turno hoy. Cobrar
+        // la penalidad de no-show a un cliente que esperó a un equipo que
+        // nunca iba a llegar sería una penalidad injusta y una fuente
+        // real de disputas/chargebacks. Se distingue revisando si el
+        // empleado asignado registró jornada_start hoy.
+        let cause: "client" | "employee" | "unknown" = "unknown";
+        if (assignment?.employee_id) {
+          const { data: jornadaLogs } = await supabase
+            .from("service_logs")
+            .select("id")
+            .eq("employee_id", assignment.employee_id)
+            .eq("event_type", "jornada_start")
+            .gte("timestamp", getVancouverTodayMidnight().toISOString())
+            .limit(1);
+          cause = jornadaLogs && jornadaLogs.length > 0 ? "client" : "employee";
+        }
+
         await supabase.from("no_show_logs").insert({
           order_id: order.id,
           employee_id: assignment?.employee_id,
           detected_at: now.toISOString(),
           grace_until: graceEnd.toISOString(),
           status: "waiting",
-          notes: `No-show detected after ${NO_SHOW_GRACE_MINUTES} min grace period`,
+          cause,
+          notes: `No-show detected after ${NO_SHOW_GRACE_MINUTES} min grace period (cause: ${cause})`,
         });
 
         // Marcar assignment como no_show
@@ -230,10 +252,33 @@ export async function GET(request: NextRequest) {
             .eq("id", assignment.id);
         }
 
-        // Incrementar contador de no-show del cliente
-        await supabase.rpc("increment_no_show_count", { p_user_id: order.user_id });
+        if (cause === "employee") {
+          // No se penaliza al cliente ni se incrementa su contador de
+          // no-shows -- el problema es de dotación de personal, no del
+          // cliente. Se alerta a admin de inmediato para reasignación
+          // urgente (tier respond_10min, mismo patrón que safety-abort).
+          await publishUnifiedAlert(supabase, {
+            sourceModule: "no_show_cron",
+            sourceTable: "no_show_logs",
+            sourceId: order.id,
+            tier: "respond_10min",
+            severity: "p1_urgent",
+            title: "Employee no-show — team never started their shift",
+            summary: `Order ${order.id}: assigned employee has no jornada_start logged today, ${NO_SHOW_GRACE_MINUTES}min past service time. Needs urgent reassignment. Client should NOT be penalized.`,
+          });
+        } else {
+          // Incrementar contador de no-show del cliente (solo cuando el
+          // empleado sí estaba activo, así que la ausencia es del cliente).
+          await supabase.rpc("increment_no_show_count", { p_user_id: order.user_id });
+        }
 
         detected.push(order.id);
+      } else if (existingNoShow.cause === "employee") {
+        // Ya alertado a admin en la detección inicial; este cron nunca
+        // notifica al cliente ni cobra penalidad en este camino -- la
+        // recuperación/reasignación es responsabilidad de admin desde la
+        // alerta ya publicada. Solo se sale sin hacer nada más aquí.
+        continue;
       } else if (existingNoShow.status === "waiting" && !existingNoShow.client_notified_at) {
         // v8.3 fix (auditoría 2026-07-15): antes esto solo marcaba
         // client_notified_at sin enviar NADA -- un placeholder de

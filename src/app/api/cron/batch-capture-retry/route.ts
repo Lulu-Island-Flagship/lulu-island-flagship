@@ -4,6 +4,10 @@ import { assertStripe } from "@/lib/stripe";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { sendPaymentUpdateSms, buildPaymentUpdateLink } from "@/lib/sms";
 import { calculateReserveSplit } from "@/lib/cash-reserve";
+import {
+  evaluateCaptureEligibility,
+  type OrderClaimForCaptureDecision,
+} from "@/lib/batch-capture-eligibility";
 
 /**
  * POST /api/cron/batch-capture-retry
@@ -119,6 +123,21 @@ export async function GET(request: NextRequest) {
     .single();
   const cashReserveEnabled = !!cashReserveFlag?.activo;
 
+  // v8.3 AUDITORÍA RESERVA→DINERO→RESEÑA: hallazgo real. batch-capture (7PM)
+  // re-evalúa evaluateCaptureEligibility antes de cobrar y excluye una orden
+  // con disputa crítica documentada (B.2.2/B.2.18); este retry de las 10PM
+  // NUNCA hacía esa misma verificación. Una orden podía fallar a las 7PM por
+  // una razón sin relación (tarjeta rechazada, red caída) y, si entre las
+  // 7PM y las 10PM el cliente abría una disputa crítica con evidencia, el
+  // retry la cobraba igual, saltándose por completo la salvaguarda que sí
+  // aplica el cron principal. Mismo flag, misma función pura testeada.
+  const { data: disputeExclusionFlag } = await supabase
+    .from("feature_flags")
+    .select("activo")
+    .eq("nombre", "batch_capture_dispute_exclusion_enabled")
+    .single();
+  const disputeExclusionEnabled = !!disputeExclusionFlag?.activo;
+
   const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.luluisland.com";
 
   try {
@@ -170,6 +189,49 @@ export async function GET(request: NextRequest) {
       if (quoteTotal <= 0) {
         results.errors.push({ orderId: order.id, error: "Missing quote total" });
         continue;
+      }
+
+      if (disputeExclusionEnabled) {
+        const { data: claimRows } = await supabase
+          .from("warranty_claims")
+          .select("id, status, severity, warranty_photo_evidence(photo_type)")
+          .eq("order_id", order.id);
+
+        const claimsForDecision: OrderClaimForCaptureDecision[] = (claimRows ?? []).map((c) => ({
+          id: c.id as string,
+          status: c.status as OrderClaimForCaptureDecision["status"],
+          severity: (c.severity as OrderClaimForCaptureDecision["severity"]) ?? "minor",
+          hasClientEvidence: Array.isArray(c.warranty_photo_evidence)
+            ? c.warranty_photo_evidence.some((e: { photo_type: string }) => e.photo_type === "client")
+            : false,
+        }));
+
+        const eligibility = evaluateCaptureEligibility(claimsForDecision);
+
+        if (!eligibility.shouldCapture) {
+          // Mismo criterio que el cron de las 7PM: no cobrar sobre una
+          // disputa crítica documentada abierta. No se reintenta la
+          // captura parcial aquí (ese camino ya corrió o no aplicó a las
+          // 7PM) -- se deja en revisión manual explícita en vez de arriesgar
+          // un cobro que la garantía ya bloqueó una vez.
+          await supabase.from("tickets_disputas").insert({
+            order_id: order.id,
+            type: "discrepancy",
+            priority: "high",
+            status: "open",
+            context: {
+              reason: "batch_capture_retry_withheld_critical_dispute",
+              warranty_claim_id: eligibility.blockingClaimId,
+              quote_total: quoteTotal,
+              source: "batch_capture_retry",
+            },
+          });
+          results.errors.push({
+            orderId: order.id,
+            error: `WITHHELD: ${eligibility.reason} (claim ${eligibility.blockingClaimId}) — not retried`,
+          });
+          continue;
+        }
       }
 
       try {

@@ -24,7 +24,8 @@ import {
 } from "lucide-react";
 import type { EmployeeService, AssignmentStatus } from "@/types";
 import { haversineDistance, GEOFENCE_RADIUS_METERS } from "@/lib/geocode";
-import { submitServiceEventOrQueue, submitPhotoOrQueue } from "@/lib/offline-sync-client";
+import { submitServiceEventOrQueue, submitPhotoOrQueue, triggerSyncCycle } from "@/lib/offline-sync-client";
+import { getAllQueuedEvents, planSync, type QueuedServiceEvent } from "@/lib/offline-queue";
 import { ChecklistCierre } from "@/components/empleado/ChecklistCierre";
 import { UpsellSelector } from "@/components/empleado/UpsellSelector";
 import { DiscrepanciaReporter } from "@/components/empleado/DiscrepanciaReporter";
@@ -72,6 +73,40 @@ export default function ServicioPage() {
   // sesión de servicio. Vive en el padre porque tanto el tab "Colors" como
   // el checklist lo necesitan.
   const [confirmedColors, setConfirmedColors] = useState<Set<string>>(new Set());
+  // v8.3 fix (auditoría 2026-07-15): antes, si el empleado tocaba "Finish
+  // Service" sin señal, el evento t_out se encolaba a ciegas (sin validar
+  // el Protocolo de Cierre Externo, que requiere red) y la UI cambiaba
+  // OPTIMISTAMENTE a "Service Completed" -- el empleado se retiraba
+  // creyendo que terminó. Cuando volvía la señal, el servidor rechazaba el
+  // t_out una y otra vez (checklist incompleto) hasta agotar los
+  // reintentos y pasar a needsManualReview, un estado que NINGÚN
+  // componente de UI leía ni mostraba -- el servicio podía quedar
+  // "colgado" sin cerrar nunca, sin comunicaciones de cierre, sin entrar a
+  // batch-capture, y sin que nadie se enterara. Ahora se muestra el estado
+  // real de la cola offline para esta orden.
+  const [pendingSyncEvents, setPendingSyncEvents] = useState<QueuedServiceEvent[]>([]);
+  const [manualReviewEvents, setManualReviewEvents] = useState<QueuedServiceEvent[]>([]);
+  const [retryingSync, setRetryingSync] = useState(false);
+
+  async function refreshQueueStatus() {
+    if (!orderId || typeof indexedDB === "undefined") return;
+    try {
+      const all = await getAllQueuedEvents();
+      const forThisOrder = all.filter((e) => e.orderId === orderId);
+      const plan = planSync(forThisOrder, new Date().toISOString());
+      setPendingSyncEvents([...plan.toSync, ...plan.waiting]);
+      setManualReviewEvents(plan.needsManualReview);
+    } catch (e) {
+      console.error("Queue status check error:", e);
+    }
+  }
+
+  useEffect(() => {
+    refreshQueueStatus();
+    const interval = setInterval(refreshQueueStatus, 5000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId]);
 
   // Load service details
   useEffect(() => {
@@ -202,13 +237,19 @@ export default function ServicioPage() {
       }
 
       if (result.queued) {
-        // Sin señal: actualizamos el estado local de forma optimista (D.10 #1
-        // "no bloqueante") — el servidor confirmará cuando sincronice.
+        // v8.3 fix (auditoría 2026-07-15): T_out ya NO se marca "completed"
+        // optimistamente -- el servidor puede rechazarlo (checklist
+        // incompleto, protocolo de cierre externo pendiente) y ese rechazo
+        // solo se descubre al sincronizar, sin conexión para avisar en el
+        // momento. T_in/T_start sí siguen siendo optimistas (D.10 #1): no
+        // tienen ninguna validación de negocio que el servidor pueda
+        // rechazar más allá de la secuencia, que la propia UI ya respeta.
         const optimisticStatus =
-          eventType === "t_in" ? "arrived" : eventType === "t_start" ? "in_progress" : eventType === "t_out" ? "completed" : service?.status;
+          eventType === "t_in" ? "arrived" : eventType === "t_start" ? "in_progress" : service?.status;
         if (service && optimisticStatus) {
           setService({ ...service, status: optimisticStatus });
         }
+        await refreshQueueStatus();
       } else {
         const data = result.data as { assignmentStatus?: AssignmentStatus } | undefined;
         if (service && data?.assignmentStatus) {
@@ -296,7 +337,12 @@ export default function ServicioPage() {
     }
   };
 
-  const nextAction = getNextAction();
+  // v8.3 fix (auditoría 2026-07-15): si ya hay un T_out de esta orden
+  // esperando sincronizar (pendiente o en revisión manual), no ofrecer el
+  // botón de nuevo -- evita que el empleado lo toque varias veces y
+  // encole T_out duplicados mientras espera señal.
+  const hasQueuedTOut = [...pendingSyncEvents, ...manualReviewEvents].some((e) => e.eventType === "t_out");
+  const nextAction = hasQueuedTOut ? null : getNextAction();
 
   const formatTime = (ts: string) =>
     new Date(ts).toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit" });
@@ -432,6 +478,54 @@ export default function ServicioPage() {
               <Phone className="w-4 h-4 text-brand-navy mx-auto mb-1" />
               <span className="text-xs font-medium text-brand-ink">Team chat</span>
             </button>
+          </div>
+        )}
+
+        {/* v8.3 fix (auditoría 2026-07-15): estado real de la cola offline
+            para esta orden -- antes invisible por completo. */}
+        {manualReviewEvents.length > 0 && (
+          <div className="bg-state-danger/10 border border-state-danger rounded-xl p-4 space-y-2">
+            <div className="flex items-start gap-2">
+              <AlertOctagon className="w-5 h-5 text-state-danger flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-state-danger">
+                <p className="font-semibold">
+                  We couldn&apos;t confirm &quot;{manualReviewEvents[0].eventType.replace(/_/g, " ")}&quot; after several
+                  attempts.
+                </p>
+                {manualReviewEvents[0].lastError && (
+                  <p className="mt-1 text-xs">{manualReviewEvents[0].lastError}</p>
+                )}
+                <p className="mt-1 text-xs">
+                  Check your connection and that your closing checklist and photos are complete, then retry. If this
+                  keeps failing, contact your supervisor.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                setRetryingSync(true);
+                await triggerSyncCycle();
+                await refreshQueueStatus();
+                await loadService();
+                setRetryingSync(false);
+              }}
+              disabled={retryingSync}
+              className="inline-flex items-center gap-2 bg-state-danger text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+            >
+              {retryingSync ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Retry now
+            </button>
+          </div>
+        )}
+
+        {manualReviewEvents.length === 0 && pendingSyncEvents.length > 0 && (
+          <div className="bg-state-warning/10 border border-state-warning rounded-xl p-3 flex items-center gap-2 text-sm text-state-warning">
+            <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+            <span>
+              Saved on this device — waiting for connection to confirm &quot;
+              {pendingSyncEvents[0].eventType.replace(/_/g, " ")}&quot; with the server.
+            </span>
           </div>
         )}
 

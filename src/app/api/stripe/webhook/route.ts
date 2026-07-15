@@ -177,6 +177,46 @@ async function handleDisputeClosed(
 ) {
   const paymentIntentId = dispute.payment_intent as string | undefined;
   if (!paymentIntentId) return;
+
+  // v8.3 AUDITORÍA RESERVA→DINERO→RESEÑA: hallazgo real. chargeback_reserves
+  // (migración 024, reserva de 1-3% del cobro) nunca se tocaba desde este
+  // webhook -- ni cuando el chargeback se PIERDE (debería aplicarse, no
+  // quedar "held" para siempre) ni cuando se GANA (debería liberarse de
+  // inmediato en vez de esperar los 180 días default). Se resuelve aquí,
+  // independientemente del resto de la función que solo corre para 'lost'.
+  const { data: reserveRows } = await supabase
+    .from("chargeback_reserves")
+    .select("id, reserve_amount, status")
+    .eq("payment_intent_id", paymentIntentId)
+    .in("status", ["held", "partially_released"]);
+
+  for (const reserve of reserveRows || []) {
+    if (dispute.status === "lost") {
+      // La reserva existe exactamente para esto: cubrir la pérdida. Se
+      // marca 'applied' (consumida), no 'released' (que implica que vuelve
+      // a caja disponible).
+      await supabase
+        .from("chargeback_reserves")
+        .update({
+          status: "applied",
+          released_amount: reserve.reserve_amount,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", reserve.id);
+    } else if (dispute.status === "won") {
+      // Disputa ganada: el riesgo que motivó la reserva ya no existe, se
+      // libera de inmediato en vez de esperar release_date (180 días).
+      await supabase
+        .from("chargeback_reserves")
+        .update({
+          status: "released",
+          released_amount: reserve.reserve_amount,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", reserve.id);
+    }
+  }
+
   if (dispute.status !== "lost") return;
 
   const { data: orders } = await supabase

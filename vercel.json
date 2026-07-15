@@ -125,6 +125,10 @@
       "schedule": "0 8 * * *"
     },
     {
+      "path": "/api/cron/chargeback-reserve-release",
+      "schedule": "0 10 * * *"
+    },
+    {
       "path": "/api/cron/weekly-rest-check",
       "schedule": "0 9 * * 1"
     },

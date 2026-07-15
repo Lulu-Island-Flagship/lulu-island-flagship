@@ -10,7 +10,32 @@ import {
   CheckCircle2,
   Home,
   MessageSquare,
+  ExternalLink,
 } from "lucide-react";
+
+/**
+ * v8.3 — AUDITORÍA DE FLUJO RESERVA→DINERO→RESEÑA: hallazgo real. En TODO
+ * el repo no existía ningún código que construyera un link real de reseña
+ * de Google Business Profile ni que lo mostrara al cliente -- "/evaluar"
+ * (esta página), la encuesta NPS y la encuesta pre-reseña son las tres
+ * superficies de "reseña" que existen, y las tres son internas: terminan en
+ * una tabla propia (client_reviews / nps_surveys / pre_review_surveys),
+ * nunca en Google. El plan pide explícitamente que el flujo llegue "hasta
+ * que ponen una reseña en Google" -- ese último paso de conversión no
+ * existía en absoluto, no era un bug de código sino una pieza faltante.
+ *
+ * Fix: cuando el cliente califica 4-5★ aquí, se le ofrece un botón para
+ * dejar la reseña pública en Google (mismo criterio que ya usa
+ * pre-review-survey.ts para el link de referido: solo se enruta a canales
+ * públicos/de crecimiento a clientes ya confirmados como satisfechos;
+ * insatisfechos se quedan en el canal privado -- eso ya era el patrón
+ * establecido en este código, no una regla nueva). El link real
+ * (NEXT_PUBLIC_GOOGLE_REVIEW_URL) es un dato del mundo real que debe
+ * configurar el dueño (su URL corta real de Google Business Profile,
+ * "g.page/r/.../review") -- si no está configurado, el botón simplemente no
+ * se muestra en vez de romperse con un link falso.
+ */
+const GOOGLE_REVIEW_URL = process.env.NEXT_PUBLIC_GOOGLE_REVIEW_URL || "";
 
 // Helper: obtener fecha actual en zona horaria America/Vancouver como string YYYY-MM-DD
 function getVancouverDateString(): string {
@@ -173,15 +198,42 @@ export default function EvaluarPage() {
   }
 
   if (submitted) {
+    const showGoogleCta = rating >= 4 && GOOGLE_REVIEW_URL;
     return (
       <main className="min-h-screen bg-brand-ice flex items-center justify-center px-4">
         <div className="bg-white rounded-xl shadow-elevation-1 p-8 max-w-sm w-full text-center">
           <CheckCircle2 className="w-10 h-10 text-state-success mx-auto mb-3" />
           <h2 className="text-lg font-bold text-brand-ink mb-2">Thank You!</h2>
           <p className="text-sm text-gray-500">Your review has been submitted.</p>
+
+          {showGoogleCta && (
+            <div className="mt-5 pt-5 border-t border-gray-100">
+              <p className="text-sm text-brand-ink font-medium mb-1">
+                So glad you loved it! 🎉
+              </p>
+              <p className="text-xs text-gray-500 mb-3">
+                Would you mind sharing that on Google? It takes 30 seconds and helps other families
+                in Richmond find us.
+              </p>
+              <a
+                href={GOOGLE_REVIEW_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg font-medium hover:bg-brand-navy-light transition-colors"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Leave a Google Review
+              </a>
+            </div>
+          )}
+
           <button
             onClick={() => router.push(`/${safeLocale}`)}
-            className="mt-4 inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg font-medium"
+            className={`mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium ${
+              showGoogleCta
+                ? "text-brand-navy border border-brand-navy hover:bg-brand-ice"
+                : "bg-brand-navy text-white"
+            }`}
           >
             <Home className="w-4 h-4" />
             Go Home
