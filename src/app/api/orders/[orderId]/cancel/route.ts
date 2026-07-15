@@ -69,7 +69,7 @@ export async function POST(
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .select(
-        "id, user_id, status, service_datetime, payment_option, stripe_hold_payment_intent_id, hold_authorized_amount, hold_amount, paypal_advance_amount, paypal_transaction_id, stripe_customer_id, stripe_payment_method_id, wallet_amount_used, quotes(total)"
+        "id, user_id, status, service_datetime, payment_option, stripe_hold_payment_intent_id, hold_authorized_amount, hold_amount, paypal_advance_amount, paypal_transaction_id, stripe_customer_id, stripe_payment_method_id, wallet_amount_used, quotes(total, zone)"
       )
       .eq("id", orderId)
       .single();
@@ -90,7 +90,9 @@ export async function POST(
       );
     }
 
-    const quoteTotal = Math.round(Number((order.quotes as unknown as { total: number }[] | null)?.[0]?.total ?? 0));
+    const quoteRow = (order.quotes as unknown as { total: number; zone: string | null }[] | null)?.[0];
+    const quoteTotal = Math.round(Number(quoteRow?.total ?? 0));
+    const orderZone = quoteRow?.zone ?? null;
     const hoursLeft = hoursUntilService(order.service_datetime);
 
     const decision = computeCancellationDecision({
@@ -253,20 +255,37 @@ export async function POST(
       }
     }
 
-    // Liberar slot de capacidad comprometido
+    // Liberar slot de capacidad comprometido.
+    // v8.3 fix (auditoría 2026-07-15): antes esta consulta buscaba el slot
+    // SOLO por fecha/hora, sin filtrar por zona. /api/stripe/confirm (donde
+    // se COMPROMETE el cupo al reservar) prioriza el slot específico de
+    // zona sobre uno flexible (zone IS NULL) cuando ambos existen para el
+    // mismo horario. Al cancelar, con `.limit(1).single()` sin ORDER BY ni
+    // filtro de zona, se podía tomar y decrementar el slot EQUIVOCADO
+    // (el flexible en vez del de zona, o viceversa), desalineando el
+    // contador real de cupos con el tiempo. Se replica aquí la misma
+    // prioridad de búsqueda (zona específica primero) y se agrega un
+    // bloqueo optimista (.eq("committed_teams", ...)) para no pisar una
+    // escritura concurrente.
     const { data: slot } = await supabase
       .from("capacity_slots")
       .select("id, committed_teams")
       .eq("service_date", order.service_datetime.split("T")[0])
       .eq("start_time", order.service_datetime.split("T")[1]?.slice(0, 5))
+      .or(orderZone ? `zone.eq."${orderZone}",zone.is.null` : "zone.is.null")
+      .order("zone", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (slot && slot.committed_teams > 0) {
-      await supabase
+      const { error: releaseError } = await supabase
         .from("capacity_slots")
         .update({ committed_teams: slot.committed_teams - 1, updated_at: new Date().toISOString() })
-        .eq("id", slot.id);
+        .eq("id", slot.id)
+        .eq("committed_teams", slot.committed_teams);
+      if (releaseError) {
+        console.error(`Failed to release capacity slot ${slot.id} for cancelled order ${orderId}:`, releaseError);
+      }
     }
 
     return NextResponse.json(

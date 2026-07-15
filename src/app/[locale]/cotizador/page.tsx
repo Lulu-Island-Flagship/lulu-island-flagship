@@ -170,13 +170,23 @@ export default function CotizadorPage() {
 
   useEffect(() => {
     const pendingAuth = wasPendingAuth();
-    if (pendingAuth) {
-      const saved = loadStateFromStorage();
+    // v8.3 fix (auditoría 2026-07-15): antes SOLO se restauraba el estado
+    // guardado si venía de un login pendiente -- un refresh accidental
+    // (F5), cerrar y reabrir la pestaña, o navegar "atrás" y luego
+    // "adelante" hacia /cotizador directamente descartaba TODO el
+    // progreso ya ingresado (dirección, m², mascotas, etc.) sin ningún
+    // aviso, aunque el localStorage con el estado real seguía presente y
+    // válido (TTL de 1h). QuoteButton.tsx ya limpia el storage cuando el
+    // usuario inicia una cotización nueva a propósito desde la landing, así
+    // que si hay un estado guardado no vencido aquí, es señal real de un
+    // flujo interrumpido -- se restaura siempre, no solo tras login.
+    const saved = loadStateFromStorage();
+    if (pendingAuth || saved) {
       if (saved) {
         setStepIndex(saved.stepIndex);
         setInput(saved.input);
       }
-      clearPendingAuth();
+      if (pendingAuth) clearPendingAuth();
     } else {
       // Inicializar valores default para que el usuario pueda avanzar sin tocar
       // cada control, pero sigue pudiendo modificarlos.
@@ -667,11 +677,4 @@ export default function CotizadorPage() {
       {/* Auth Modal */}
       {showAuthModal && (
         <AuthModal
-          onClose={() => { setShowAuthModal(false); setAuthErrorMessage(""); }}
-          onSuccess={handleAuthSuccess}
-          initialError={authErrorMessage}
-        />
-      )}
-    </main>
-  );
-}
+          o

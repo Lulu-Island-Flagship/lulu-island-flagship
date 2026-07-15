@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { computeWalletCreditExpiryDate } from "@/lib/wallet";
 import { dispatchCommunication } from "@/lib/send-communication";
+import { isEligibleForReferralCode } from "@/lib/referrals";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -166,20 +167,41 @@ export async function POST(request: NextRequest) {
         | "es"
         | "zh";
 
-      // TODO(dueño/producto): referral_link real depende del programa
-      // "Lulu Ambassador" (E5.13, aún no construido en esta sesión) -- por
-      // ahora enlaza a la home. Actualizar cuando exista el código único.
-      await dispatchCommunication(supabase, {
-        eventKey: "leader_recommendation_reminder",
-        userId: user.id,
-        orderId: order.id,
-        language,
-        vars: {
-          client_name: "there",
-          leader_name: employee?.name || "your cleaning team",
-          referral_link: process.env.NEXT_PUBLIC_APP_URL || "https://app.luluisland.ca",
-        },
-      });
+      // v8.3 fix (auditoría 2026-07-15): el comentario decía que el
+      // programa de referidos "aún no estaba construido", pero sí existe y
+      // está operativo (src/lib/referrals.ts, /api/client/referral,
+      // /api/cron/referral-credit-grant) -- el link seguía apuntando a la
+      // home genérica de todos modos, perdiendo la conversión en el
+      // momento de mayor satisfacción del cliente. El programa es solo
+      // para clientes VIP elegibles (>5 servicios, score>80) con un CÓDIGO
+      // que se comparte manualmente desde /cuenta/referidos (no hay un
+      // link de un solo clic con auto-canje todavía) -- por eso, si el
+      // cliente no es elegible, se omite {referral_link} del envío en vez
+      // de prometer algo que no puede usar.
+      const { data: referralProfile } = await supabase
+        .from("client_profiles")
+        .select("services_count, score")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const referralEligible = isEligibleForReferralCode(
+        referralProfile?.services_count || 0,
+        referralProfile?.score || 0
+      );
+
+      if (referralEligible) {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.luluisland.ca";
+        await dispatchCommunication(supabase, {
+          eventKey: "leader_recommendation_reminder",
+          userId: user.id,
+          orderId: order.id,
+          language,
+          vars: {
+            client_name: "there",
+            leader_name: employee?.name || "your cleaning team",
+            referral_link: `${appUrl}/cuenta/referidos`,
+          },
+        });
+      }
     }
   }
 

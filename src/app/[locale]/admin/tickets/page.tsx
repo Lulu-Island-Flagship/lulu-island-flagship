@@ -47,8 +47,8 @@ const PRIORITY_LABEL: Record<string, { label: string; color: string }> = {
 // página solo marca tickets_disputas.status='resolved' sin tocar nada de
 // eso: un admin podía "resolver" el ticket y el empleado seguiría con la
 // hora incorrecta, o el upsell seguiría sin aprobar, para siempre. Estos
-// dos tipos ahora se resuelven con su endpoint especializado.
-const SPECIALIZED_TICKET_TYPES = new Set(["hours_dispute", "upsell_approval"]);
+// dos tipos ahora se resuelven con su endpoint especializado (ver el modal
+// más abajo, que ramifica sobre selectedTicket.type).
 
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -104,6 +104,86 @@ export default function TicketsPage() {
       if (!res.ok) {
         const err = await res.json();
         setError(err.error || "Failed to resolve ticket");
+        setSubmitting(false);
+        return;
+      }
+      setSelectedTicket(null);
+      setResolutionNote("");
+      loadTickets();
+    } catch {
+      setError("Network error");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // v8.3 ROUND 3 — resolución especializada para hours_dispute: llama a
+  // POST /api/admin/hours-disputes/[id]/resolve (FIX-9), que además de
+  // marcar el ticket resolved corrige (o crea) el service_logs real cuando
+  // se aprueba. approve_correction sin correctedTime deja el registro tal
+  // cual (ej. el empleado se equivocó, no la app).
+  async function resolveHoursDispute(ticketId: string, action: "approve_correction" | "reject") {
+    if (!resolutionNote.trim()) {
+      setError("Resolution note is required");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/hours-disputes/${ticketId}/resolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          action,
+          resolutionNote: resolutionNote.trim(),
+          correctedTimestamp:
+            action === "approve_correction" && correctedTime && selectedTicket
+              ? new Date(
+                  `${String(selectedTicket.context?.claimed_timestamp || new Date().toISOString()).slice(0, 10)}T${correctedTime}:00`
+                ).toISOString()
+              : undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setError(err.error || "Failed to resolve hours dispute");
+        setSubmitting(false);
+        return;
+      }
+      setSelectedTicket(null);
+      setResolutionNote("");
+      setCorrectedTime("");
+      loadTickets();
+    } catch {
+      setError("Network error");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // v8.3 ROUND 3 — resolución especializada para upsell_approval: llama a
+  // POST /api/admin/upsells/[upsellId]/review (FIX-6), que aprueba/rechaza
+  // el upsell real y cierra este mismo ticket como efecto secundario ya
+  // implementado en ese endpoint.
+  async function resolveUpsellApproval(action: "approve" | "reject") {
+    const upsellId = selectedTicket?.context?.upsell_id;
+    if (!upsellId || typeof upsellId !== "string") {
+      setError("Ticket is missing upsell_id in context — cannot resolve here");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/upsells/${upsellId}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action, reason: resolutionNote.trim() || undefined }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setError(err.error || "Failed to resolve upsell approval");
         setSubmitting(false);
         return;
       }
@@ -231,6 +311,7 @@ export default function TicketsPage() {
                         setSelectedTicket(ticket);
                         setResolutionNote("");
                         setResolutionStatus("resolved");
+                        setCorrectedTime("");
                         setError("");
                       }}
                       className="bg-brand-navy text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors ml-2"
@@ -274,47 +355,123 @@ export default function TicketsPage() {
               )}
             </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => setResolutionStatus("resolved")}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
-                  resolutionStatus === "resolved"
-                    ? "bg-green-100 text-green-700 border-2 border-green-300"
-                    : "bg-gray-100 text-gray-600 border-2 border-transparent"
-                }`}
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                Resolve
-              </button>
-              <button
-                onClick={() => setResolutionStatus("escalated")}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
-                  resolutionStatus === "escalated"
-                    ? "bg-purple-100 text-purple-700 border-2 border-purple-300"
-                    : "bg-gray-100 text-gray-600 border-2 border-transparent"
-                }`}
-              >
-                <AlertTriangle className="w-4 h-4" />
-                Escalate
-              </button>
-            </div>
+            {selectedTicket.type === "hours_dispute" ? (
+              <>
+                <p className="text-xs text-gray-500">
+                  Approving with a corrected time updates the actual service log — the employee's
+                  pay reflects the correction, not just a note. A technical failure never counts
+                  against them.
+                </p>
+                <div>
+                  <label className="text-xs text-gray-600 block mb-1">
+                    Corrected time (optional — leave blank to reject or to approve without changing the log)
+                  </label>
+                  <input
+                    type="time"
+                    value={correctedTime}
+                    onChange={(e) => setCorrectedTime(e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+                <textarea
+                  value={resolutionNote}
+                  onChange={(e) => setResolutionNote(e.target.value)}
+                  placeholder="Resolution note (required)..."
+                  className="w-full border rounded-lg p-3 text-sm min-h-[80px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
+                />
+                {error && <p className="text-sm text-red-600">{error}</p>}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => resolveHoursDispute(selectedTicket.id, "reject")}
+                    disabled={submitting}
+                    className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50"
+                  >
+                    Reject
+                  </button>
+                  <button
+                    onClick={() => resolveHoursDispute(selectedTicket.id, "approve_correction")}
+                    disabled={submitting}
+                    className="flex-1 bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
+                  >
+                    {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Approve"}
+                  </button>
+                </div>
+              </>
+            ) : selectedTicket.type === "upsell_approval" ? (
+              <>
+                <p className="text-xs text-gray-500">
+                  This upsell went over the 50% cap and needs your approval before it counts toward
+                  commission or Batch Capture.
+                </p>
+                <textarea
+                  value={resolutionNote}
+                  onChange={(e) => setResolutionNote(e.target.value)}
+                  placeholder="Note (optional)..."
+                  className="w-full border rounded-lg p-3 text-sm min-h-[80px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
+                />
+                {error && <p className="text-sm text-red-600">{error}</p>}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => resolveUpsellApproval("reject")}
+                    disabled={submitting}
+                    className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50"
+                  >
+                    Reject
+                  </button>
+                  <button
+                    onClick={() => resolveUpsellApproval("approve")}
+                    disabled={submitting}
+                    className="flex-1 bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
+                  >
+                    {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Approve"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setResolutionStatus("resolved")}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                      resolutionStatus === "resolved"
+                        ? "bg-green-100 text-green-700 border-2 border-green-300"
+                        : "bg-gray-100 text-gray-600 border-2 border-transparent"
+                    }`}
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    Resolve
+                  </button>
+                  <button
+                    onClick={() => setResolutionStatus("escalated")}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                      resolutionStatus === "escalated"
+                        ? "bg-purple-100 text-purple-700 border-2 border-purple-300"
+                        : "bg-gray-100 text-gray-600 border-2 border-transparent"
+                    }`}
+                  >
+                    <AlertTriangle className="w-4 h-4" />
+                    Escalate
+                  </button>
+                </div>
 
-            <textarea
-              value={resolutionNote}
-              onChange={(e) => setResolutionNote(e.target.value)}
-              placeholder="Resolution note (required)..."
-              className="w-full border rounded-lg p-3 text-sm min-h-[100px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
-            />
+                <textarea
+                  value={resolutionNote}
+                  onChange={(e) => setResolutionNote(e.target.value)}
+                  placeholder="Resolution note (required)..."
+                  className="w-full border rounded-lg p-3 text-sm min-h-[100px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
+                />
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+                {error && <p className="text-sm text-red-600">{error}</p>}
 
-            <button
-              onClick={() => resolveTicket(selectedTicket.id)}
-              disabled={submitting}
-              className="w-full bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
-            >
-              {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Submit Resolution"}
-            </button>
+                <button
+                  onClick={() => resolveTicket(selectedTicket.id)}
+                  disabled={submitting}
+                  className="w-full bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
+                >
+                  {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Submit Resolution"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

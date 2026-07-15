@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isContractReviewDue, summarizeLegalChangesForReview } from "@/lib/contract-review";
+import { getVancouverTodayString } from "@/lib/date-utils";
 
 /**
  * POST /api/cron/contract-review-scan — v8.3 E9.8.
@@ -30,7 +31,16 @@ export async function GET(request: NextRequest) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    const todayISO = new Date().toISOString().slice(0, 10);
+    // v8.3 fix (auditoría 2026-07-15): usaba new Date().toISOString() (UTC)
+    // en vez del helper de zona horaria Vancouver que sí usan los demás
+    // crons fecha-sensibles (p.ej. contract-ipc-adjustment). Funcionaba sin
+    // fallo visible hoy porque el cron corre a las 9:00 UTC (madrugada
+    // Vancouver, misma fecha en ambas zonas), pero es frágil: si el horario
+    // en vercel.json cambia a correr más tarde en el día, la ventana de
+    // "60 días antes del aniversario" empieza a calcularse con un día de
+    // desface respecto a la intención documentada ("mismo hito, hora
+    // Vancouver").
+    const todayISO = getVancouverTodayString();
 
     const { data: contracts, error: contractsError } = await supabase
       .from("service_contracts")

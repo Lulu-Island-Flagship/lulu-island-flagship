@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { Gift, Wallet, Loader2 } from "lucide-react";
 
 interface BenefitsResponse {
@@ -53,6 +54,14 @@ export function CheckoutBenefitsPanel() {
 
   if (!data) return null;
 
+  // v8.3 fix (auditoría 2026-07-15): antes era un <a href="/cuenta/billetera">
+  // plano sin prefijo de locale -- con localePrefix:'always' en el
+  // middleware, un cliente en /zh/reserva/... o /fr/reserva/... terminaba en
+  // /en/cuenta/billetera (perdiendo su idioma) y con una recarga completa de
+  // página en vez de navegación cliente.
+  const locale = typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en";
+  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+
   const hasWalletBalance = data.wallet.availableBalance > 0;
   const hasPendingReferral = data.referral.hasPendingCredit;
 
@@ -78,9 +87,9 @@ export function CheckoutBenefitsPanel() {
       {hasWalletBalance && (
         <p className="text-xs text-gray-400">
           Not applied to this booking automatically — manage it from{" "}
-          <a href="/cuenta/billetera" className="underline">
+          <Link href={`/${safeLocale}/cuenta/billetera`} className="underline">
             My Wallet
-          </a>
+          </Link>
           .
         </p>
       )}
