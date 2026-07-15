@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Loader2, FlaskConical, Plus, X, PlayCircle, UserPlus } from "lucide-react";
+import { Loader2, FlaskConical, Plus, X, PlayCircle, UserPlus, Trophy } from "lucide-react";
 
 type ExperimentType = "price" | "copy" | "ui_ux" | "batch_schedule";
 
@@ -23,6 +23,14 @@ export default function ExperimentsPage() {
   const [assignTarget, setAssignTarget] = useState<string | null>(null);
   const [assignClientId, setAssignClientId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [evaluateTarget, setEvaluateTarget] = useState<Experiment | null>(null);
+  const [evaluateForm, setEvaluateForm] = useState<
+    { variant: string; sampleSize: string; conversionRate: string; marginRatio: string }[]
+  >([]);
+  const [confidenceInput, setConfidenceInput] = useState("96");
+  const [evaluateResult, setEvaluateResult] = useState<{ hasWinner: boolean; winner?: string; reason: string } | null>(null);
+  const [evaluateError, setEvaluateError] = useState("");
+  const [evaluating, setEvaluating] = useState(false);
   const [form, setForm] = useState({
     name: "",
     experimentType: "price" as ExperimentType,
@@ -124,6 +132,52 @@ export default function ExperimentsPage() {
     }
   }
 
+  function openEvaluate(exp: Experiment) {
+    setEvaluateTarget(exp);
+    setEvaluateForm(
+      exp.variants.map((v) => ({ variant: v.name, sampleSize: "", conversionRate: "", marginRatio: "" }))
+    );
+    setConfidenceInput("96");
+    setEvaluateResult(null);
+    setEvaluateError("");
+  }
+
+  async function submitEvaluate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!evaluateTarget) return;
+    setEvaluating(true);
+    setEvaluateError("");
+    setEvaluateResult(null);
+    try {
+      const outcomes = evaluateForm.map((f) => ({
+        variant: f.variant,
+        sampleSize: Number(f.sampleSize) || 0,
+        conversionRate: Number(f.conversionRate) / 100,
+        marginRatio: Number(f.marginRatio) / 100,
+      }));
+      const confidence = Number(confidenceInput) / 100;
+      const res = await fetch(`/api/admin/experiments/${evaluateTarget.id}/evaluate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ outcomes, confidence }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setEvaluateError(data.error || "Failed to evaluate experiment");
+        return;
+      }
+      setEvaluateResult(data.result);
+      if (data.result?.hasWinner) {
+        await load();
+      }
+    } catch {
+      setEvaluateError("Network error");
+    } finally {
+      setEvaluating(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -188,6 +242,79 @@ export default function ExperimentsPage() {
         </form>
       )}
 
+      {evaluateTarget && (
+        <form onSubmit={submitEvaluate} className="bg-white rounded-xl border p-4 space-y-3 max-w-lg">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-brand-ink">Mark winner — {evaluateTarget.name}</h2>
+            <button type="button" onClick={() => setEvaluateTarget(null)}><X className="w-5 h-5 text-gray-400" /></button>
+          </div>
+          <p className="text-xs text-gray-500">
+            Enter observed results per variant. Confidence must be pre-computed (z-test or equivalent) outside this form.
+          </p>
+          {evaluateForm.map((f, idx) => (
+            <div key={f.variant} className="grid grid-cols-4 gap-2 items-center">
+              <span className="text-xs font-medium text-brand-ink truncate">{f.variant}</span>
+              <input
+                type="number"
+                aria-label={`Sample size for ${f.variant}`}
+                placeholder="Sample size"
+                value={f.sampleSize}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setEvaluateForm((prev) => prev.map((row, i) => (i === idx ? { ...row, sampleSize: v } : row)));
+                }}
+                className="border rounded-lg px-2 py-1.5 text-sm"
+                required
+              />
+              <input
+                type="number"
+                aria-label={`Conversion rate % for ${f.variant}`}
+                placeholder="Conv. %"
+                value={f.conversionRate}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setEvaluateForm((prev) => prev.map((row, i) => (i === idx ? { ...row, conversionRate: v } : row)));
+                }}
+                className="border rounded-lg px-2 py-1.5 text-sm"
+                required
+              />
+              <input
+                type="number"
+                aria-label={`Margin ratio % for ${f.variant}`}
+                placeholder="Margin %"
+                value={f.marginRatio}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setEvaluateForm((prev) => prev.map((row, i) => (i === idx ? { ...row, marginRatio: v } : row)));
+                }}
+                className="border rounded-lg px-2 py-1.5 text-sm"
+                required
+              />
+            </div>
+          ))}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500 shrink-0">Confidence %</label>
+            <input
+              type="number"
+              aria-label="Statistical confidence percentage"
+              value={confidenceInput}
+              onChange={(e) => setConfidenceInput(e.target.value)}
+              className="border rounded-lg px-2 py-1.5 text-sm w-24"
+              required
+            />
+          </div>
+          {evaluateError && <p className="text-xs text-red-600">{evaluateError}</p>}
+          {evaluateResult && (
+            <div className={`rounded-lg p-3 text-xs ${evaluateResult.hasWinner ? "bg-green-50 text-green-700 border border-green-200" : "bg-yellow-50 text-yellow-800 border border-yellow-200"}`}>
+              {evaluateResult.reason}
+            </div>
+          )}
+          <button type="submit" aria-label="Evaluar experimento y marcar ganador" disabled={evaluating} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+            {evaluating ? "Evaluating..." : "Evaluate"}
+          </button>
+        </form>
+      )}
+
       <div className="bg-white rounded-xl border divide-y">
         {experiments.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-500">
@@ -211,9 +338,14 @@ export default function ExperimentsPage() {
                   </button>
                 )}
                 {exp.status === "running" && (
-                  <button onClick={() => setAssignTarget(exp.id)} className="inline-flex items-center gap-1 text-xs text-brand-navy hover:underline">
-                    <UserPlus className="w-3.5 h-3.5" /> Assign client
-                  </button>
+                  <>
+                    <button onClick={() => setAssignTarget(exp.id)} className="inline-flex items-center gap-1 text-xs text-brand-navy hover:underline">
+                      <UserPlus className="w-3.5 h-3.5" /> Assign client
+                    </button>
+                    <button onClick={() => openEvaluate(exp)} className="inline-flex items-center gap-1 text-xs text-brand-navy hover:underline">
+                      <Trophy className="w-3.5 h-3.5" /> Mark winner
+                    </button>
+                  </>
                 )}
               </div>
             </div>

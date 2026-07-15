@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Siren, X, Loader2 } from "lucide-react";
 
 /**
@@ -20,15 +20,59 @@ import { Siren, X, Loader2 } from "lucide-react";
 
 type Stage = "idle" | "first" | "second" | "sending" | "sent" | "error";
 
+// v8.3 E7 (D.10 #7) — "SOS con GPS vivo": mientras el aborto siga activo
+// (stage === "sent"), el GPS se reenvía periódicamente vía PATCH
+// /api/empleado/safety-abort/[id] (existía la ruta, testeada, pero ningún
+// componente la llamaba -- el POST inicial solo mandaba una foto fija del
+// GPS al momento de activar el SOS).
+const GPS_UPDATE_INTERVAL_MS = 20000;
+
 export function SafetyAbortButton({ orderId }: { orderId?: string }) {
   const [stage, setStage] = useState<Stage>("idle");
   const [reason, setReason] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [safetyAbortId, setSafetyAbortId] = useState<string | null>(null);
+  const gpsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  function stopGpsUpdates() {
+    if (gpsIntervalRef.current) {
+      clearInterval(gpsIntervalRef.current);
+      gpsIntervalRef.current = null;
+    }
+  }
 
   function reset() {
+    stopGpsUpdates();
+    setSafetyAbortId(null);
     setStage("idle");
     setReason("");
     setErrorMsg("");
+  }
+
+  useEffect(() => {
+    return () => stopGpsUpdates();
+  }, []);
+
+  function startGpsUpdates(id: string) {
+    stopGpsUpdates();
+    gpsIntervalRef.current = setInterval(async () => {
+      try {
+        const loc = await getLocation();
+        if (!loc) return;
+        await fetch(`/api/empleado/safety-abort/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ gpsLat: loc.lat, gpsLng: loc.lng }),
+        });
+      } catch {
+        // Falla silenciosa: la actualización de GPS es secundaria al SOS ya
+        // activo (la primera ubicación ya se envió con el POST inicial). No
+        // se le muestra error al empleado en cada tick para no generar
+        // pánico por un fallo transitorio de red/GPS mientras el SOS sigue
+        // activo.
+      }
+    }, GPS_UPDATE_INTERVAL_MS);
   }
 
   function getLocation(): Promise<{ lat: number; lng: number } | null> {
@@ -65,6 +109,11 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "No se pudo activar el SOS");
+      const createdId = data.safetyAbort?.id as string | undefined;
+      if (createdId) {
+        setSafetyAbortId(createdId);
+        startGpsUpdates(createdId);
+      }
       setStage("sent");
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Error de red");

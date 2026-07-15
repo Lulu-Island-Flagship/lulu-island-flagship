@@ -12,6 +12,7 @@ import {
 } from "@/lib/dispatch-fallback";
 import { evaluateTeamSixAutoApproval } from "@/lib/dispatch-approval";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
+import { evaluateOvertimeRejection } from "@/lib/schedule-7030";
 
 /**
  * v8.3 ROUND 2 — hallazgo crítico de auditoría de flujo: este cron construía
@@ -117,6 +118,7 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
       pendingLanguage: [] as string[],
       discrepancies: [] as { orderId: string; reason: DispatchDiscrepancyReason }[],
       maxTeamSizeCorrections: [] as string[],
+      overtimeRejectionNotices: [] as string[],
     };
 
   const quoteIds = orders.map((o) => o.quote_id);
@@ -291,6 +293,14 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
   // v8.3 E3 (B.2.1): notas de corrección cuando enforceMaxTeamSize rechaza
   // un tamaño propuesto — no bloquean la orden, solo quedan logueadas.
   const maxTeamSizeCorrections: string[] = [];
+  // v8.3 E3 (schedule-7030.ts, modelo 70/30) — jornada "completa" pero no
+  // bloqueada (overtime_needs_approval): el equipo asignado tiene derecho a
+  // rechazar el excedente sin penalización de score. No bloquea la orden
+  // (a diferencia de "blocked"), pero deja registro explícito para que el
+  // admin sepa que esta asignación requiere su aprobación y que el equipo
+  // puede rechazarla -- evaluateOvertimeRejection ya existía testeada mas
+  // nunca se llamaba desde ningún caller real.
+  const overtimeRejectionNotices: string[] = [];
 
   if (expiredInsuranceEmployeeIds.size > 0) {
     pendingLanguage.push(
@@ -379,6 +389,13 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
       continue;
     }
 
+    if (workday.status === "overtime_needs_approval") {
+      const overtimeDecision = evaluateOvertimeRejection(workday.status);
+      overtimeRejectionNotices.push(
+        `${order.id}: ${overtimeDecision.reason} (equipo: ${result.team.map((e) => e.id).join(", ")})`
+      );
+    }
+
     const proposed = result.team;
 
     for (const e of proposed) {
@@ -399,7 +416,7 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
     });
   }
 
-  return { proposals, availableTeams, pendingLanguage, discrepancies, maxTeamSizeCorrections };
+  return { proposals, availableTeams, pendingLanguage, discrepancies, maxTeamSizeCorrections, overtimeRejectionNotices };
 }
 
 /**
@@ -549,7 +566,7 @@ export async function GET(request: NextRequest) {
     let result: Record<string, unknown> = { phase, targetDate };
 
     if (phase === "proposal") {
-      const { proposals, availableTeams, pendingLanguage, discrepancies, maxTeamSizeCorrections } =
+      const { proposals, availableTeams, pendingLanguage, discrepancies, maxTeamSizeCorrections, overtimeRejectionNotices } =
         await buildProposals(supabase, targetDate);
       const fallback = await recordAndEscalateDispatchDiscrepancies(supabase, discrepancies);
       await supabase.from("dispatch_runs").insert({
@@ -557,13 +574,13 @@ export async function GET(request: NextRequest) {
         phase,
         teams_available: availableTeams,
         orders_processed: proposals.length,
-        notes: `Proposed ${proposals.filter((p) => p.proposedEmployeeIds.length > 0).length} orders` + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : "") + (fallback.escalated ? ` | ESCALATED (B.2.12 10min): ${fallback.escalated}` : "") + (maxTeamSizeCorrections.length ? ` | N_MAX_ENFORCED (B.2.1): ${maxTeamSizeCorrections.join("; ")}` : ""),
+        notes: `Proposed ${proposals.filter((p) => p.proposedEmployeeIds.length > 0).length} orders` + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : "") + (fallback.escalated ? ` | ESCALATED (B.2.12 10min): ${fallback.escalated}` : "") + (maxTeamSizeCorrections.length ? ` | N_MAX_ENFORCED (B.2.1): ${maxTeamSizeCorrections.join("; ")}` : "") + (overtimeRejectionNotices.length ? ` | OVERTIME_REJECTION_RIGHT (E3 70/30): ${overtimeRejectionNotices.join("; ")}` : ""),
       });
-      result = { ...result, proposals, availableTeams, pendingLanguage, fallback, maxTeamSizeCorrections };
+      result = { ...result, proposals, availableTeams, pendingLanguage, fallback, maxTeamSizeCorrections, overtimeRejectionNotices };
     }
 
     if (phase === "cutoff") {
-      const { proposals, availableTeams, pendingLanguage, discrepancies, maxTeamSizeCorrections } =
+      const { proposals, availableTeams, pendingLanguage, discrepancies, maxTeamSizeCorrections, overtimeRejectionNotices } =
         await buildProposals(supabase, targetDate);
       const fallback = await recordAndEscalateDispatchDiscrepancies(supabase, discrepancies);
       await supabase.from("dispatch_runs").insert({
@@ -571,13 +588,13 @@ export async function GET(request: NextRequest) {
         phase,
         teams_available: availableTeams,
         orders_processed: proposals.length,
-        notes: `Cutoff validation: ${proposals.filter((p) => p.proposedEmployeeIds.length > 0).length} orders ready` + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : "") + (fallback.escalated ? ` | ESCALATED (B.2.12 10min): ${fallback.escalated}` : "") + (maxTeamSizeCorrections.length ? ` | N_MAX_ENFORCED (B.2.1): ${maxTeamSizeCorrections.join("; ")}` : ""),
+        notes: `Cutoff validation: ${proposals.filter((p) => p.proposedEmployeeIds.length > 0).length} orders ready` + (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : "") + (fallback.escalated ? ` | ESCALATED (B.2.12 10min): ${fallback.escalated}` : "") + (maxTeamSizeCorrections.length ? ` | N_MAX_ENFORCED (B.2.1): ${maxTeamSizeCorrections.join("; ")}` : "") + (overtimeRejectionNotices.length ? ` | OVERTIME_REJECTION_RIGHT (E3 70/30): ${overtimeRejectionNotices.join("; ")}` : ""),
       });
-      result = { ...result, proposals, availableTeams, pendingLanguage, fallback, maxTeamSizeCorrections };
+      result = { ...result, proposals, availableTeams, pendingLanguage, fallback, maxTeamSizeCorrections, overtimeRejectionNotices };
     }
 
     if (phase === "published") {
-      const { proposals, availableTeams, pendingLanguage, discrepancies, maxTeamSizeCorrections } =
+      const { proposals, availableTeams, pendingLanguage, discrepancies, maxTeamSizeCorrections, overtimeRejectionNotices } =
         await buildProposals(supabase, targetDate);
       const fallback = await recordAndEscalateDispatchDiscrepancies(supabase, discrepancies);
       // v8.3 E3 (D.4/E2#9) — umbral "equipo #6": ver nota de alcance en
@@ -604,12 +621,14 @@ export async function GET(request: NextRequest) {
           (approval.showDelegationReminder ? " | Recordatorio de delegación: considerar coordinador" : "") +
           (pendingLanguage.length ? ` | PENDING (leader/language): ${pendingLanguage.join("; ")}` : "") +
           (maxTeamSizeCorrections.length ? ` | N_MAX_ENFORCED (B.2.1): ${maxTeamSizeCorrections.join("; ")}` : "") +
+          (overtimeRejectionNotices.length ? ` | OVERTIME_REJECTION_RIGHT (E3 70/30): ${overtimeRejectionNotices.join("; ")}` : "") +
           (skippedLocked > 0 ? ` | ADMIN_OVERRIDE_PRESERVED (D.4): ${skippedLocked} orden(es) ya asignada(s) manualmente, no tocadas` : ""),
       });
       result = {
         ...result,
         proposals,
         availableTeams,
+        overtimeRejectionNotices,
         autoApproved,
         showDelegationReminder: approval.showDelegationReminder,
         assigned,

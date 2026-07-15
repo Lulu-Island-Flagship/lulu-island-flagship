@@ -43,6 +43,34 @@ export async function GET(request: NextRequest) {
 
   try {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const todayStrForExport = getVancouverTodayString();
+
+    // v8.3 E2 (migración 023) — fila padre `qbo_exports` para conciliación:
+    // el código ya escribía en qbo_export_lines con export_id siempre NULL
+    // (038 lo hizo nullable justamente porque nunca se creaba el padre) —
+    // tickets_disputas/alertas de divergencia usaban qbo_export_lines
+    // directo, pero el spec E2 pide el registro agregado (status, totales)
+    // para conciliación real contra QBO. Una fila por día (upsert por
+    // export_date, igual patrón que qbo_divergence_alerts).
+    const { data: existingExport } = await supabase
+      .from("qbo_exports")
+      .select("id, total_transactions, total_gross, total_fees, total_net")
+      .eq("export_date", todayStrForExport)
+      .maybeSingle();
+
+    let exportId: string | null = existingExport?.id ?? null;
+    if (!exportId) {
+      const { data: createdExport, error: createExportError } = await supabase
+        .from("qbo_exports")
+        .insert({ export_date: todayStrForExport, status: "pending" })
+        .select("id")
+        .single();
+      if (createExportError) {
+        console.error("QBO exports parent insert error:", createExportError);
+      } else {
+        exportId = createdExport?.id ?? null;
+      }
+    }
 
     // Órdenes nuevas (nunca intentadas) + reintentos pendientes cuyo backoff
     // ya se cumplió o que nunca se les asignó qbo_sync_attempts.
@@ -101,7 +129,7 @@ export async function GET(request: NextRequest) {
 
       const { error: lineError } = await supabase.from("qbo_export_lines").insert({
         order_id: order.id,
-        export_id: null,
+        export_id: exportId,
         payment_intent_id: pushResult.qboTransactionId,
         transaction_type: "sales_receipt",
         transaction_date: nowIso,
@@ -161,6 +189,53 @@ export async function GET(request: NextRequest) {
         .eq("id", order.id);
 
       results.push({ orderId: order.id, status: "exported" });
+    }
+
+    // v8.3 E2 (migración 023) — actualizar totales agregados de la fila
+    // padre con lo realmente insertado en qbo_export_lines para este
+    // export_id (fuente de verdad = las líneas, no el conteo de `results`,
+    // para no divergir si una línea de una corrida previa del mismo día ya
+    // existía). status: 'exported' si se exportó >=1 línea con éxito real
+    // (pushResult "success"), 'failed' si hubo intentos pero ninguno cerró,
+    // 'pending' si no había nada que exportar todavía.
+    if (exportId) {
+      const { data: linesForExport } = await supabase
+        .from("qbo_export_lines")
+        .select("gross_amount, fee_amount, net_amount")
+        .eq("export_id", exportId);
+
+      const totals = (linesForExport || []).reduce(
+        (acc, l) => ({
+          count: acc.count + 1,
+          gross: acc.gross + (l.gross_amount || 0),
+          fees: acc.fees + (l.fee_amount || 0),
+          net: acc.net + (l.net_amount || 0),
+        }),
+        { count: 0, gross: 0, fees: 0, net: 0 }
+      );
+
+      const exportedCount = results.filter((r) => r.status === "exported").length;
+      const attemptedCount = results.filter((r) => r.status !== "waiting_backoff").length;
+      const exportStatus =
+        totals.count === 0
+          ? "pending"
+          : exportedCount > 0
+            ? "exported"
+            : attemptedCount > 0
+              ? "failed"
+              : "pending";
+
+      await supabase
+        .from("qbo_exports")
+        .update({
+          status: exportStatus,
+          total_transactions: totals.count,
+          total_gross: totals.gross,
+          total_fees: totals.fees,
+          total_net: totals.net,
+          updated_at: nowIso,
+        })
+        .eq("id", exportId);
     }
 
     // v8.3 E2.6 — divergencia Shadow Ledger vs QBO del día (Vancouver).

@@ -75,6 +75,10 @@ export default function WarrantyClaimsPage() {
     "free_recleaning"
   );
   const [submitting, setSubmitting] = useState(false);
+  const [forceCaptureReason, setForceCaptureReason] = useState("");
+  const [forceCaptureSubmitting, setForceCaptureSubmitting] = useState(false);
+  const [forceCaptureResult, setForceCaptureResult] = useState("");
+  const [forceCaptureError, setForceCaptureError] = useState("");
 
   const loadClaims = useCallback(async () => {
     setLoading(true);
@@ -106,6 +110,9 @@ export default function WarrantyClaimsPage() {
     setDetailError("");
     setResolutionNotes("");
     setFinalAction("free_recleaning");
+    setForceCaptureReason("");
+    setForceCaptureResult("");
+    setForceCaptureError("");
     setDetailLoading(true);
     try {
       const res = await fetch(`/api/admin/warranty-claims/${claim.id}`, { credentials: "include" });
@@ -156,6 +163,35 @@ export default function WarrantyClaimsPage() {
       setDetailError("Network error");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function forceFullCapture() {
+    if (!selectedClaim) return;
+    if (!forceCaptureReason.trim()) {
+      setForceCaptureError("Reason is required for the audit trail.");
+      return;
+    }
+    setForceCaptureSubmitting(true);
+    setForceCaptureError("");
+    setForceCaptureResult("");
+    try {
+      const res = await fetch(`/api/admin/orders/${selectedClaim.order_id}/force-full-capture`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ reason: forceCaptureReason.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setForceCaptureError(data.error || "Failed to force full capture");
+        return;
+      }
+      setForceCaptureResult(`Captured $${data.capturedNowDollars} (PaymentIntent ${data.paymentIntentId ?? "n/a"}).`);
+    } catch {
+      setForceCaptureError("Network error");
+    } finally {
+      setForceCaptureSubmitting(false);
     }
   }
 
@@ -337,6 +373,32 @@ export default function WarrantyClaimsPage() {
                         {opt.label}
                       </button>
                     ))}
+                  </div>
+                )}
+
+                {selectedClaim.severity === "critical" && (
+                  <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 space-y-2">
+                    <p className="text-xs font-semibold text-orange-800">
+                      Force full capture (overrides withheld/partial capture for this order)
+                    </p>
+                    <textarea
+                      aria-label="Reason for forcing full capture"
+                      value={forceCaptureReason}
+                      onChange={(e) => setForceCaptureReason(e.target.value)}
+                      placeholder="Reason (required for audit trail)..."
+                      className="w-full border rounded-lg p-2 text-xs min-h-[50px]"
+                    />
+                    {forceCaptureError && <p className="text-xs text-red-600">{forceCaptureError}</p>}
+                    {forceCaptureResult && <p className="text-xs text-green-700">{forceCaptureResult}</p>}
+                    <button
+                      type="button"
+                      aria-label="Forzar cobro completo de la orden"
+                      onClick={forceFullCapture}
+                      disabled={forceCaptureSubmitting}
+                      className="bg-orange-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
+                    >
+                      {forceCaptureSubmitting ? "Capturing..." : "Force full capture"}
+                    </button>
                   </div>
                 )}
 
