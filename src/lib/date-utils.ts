@@ -67,3 +67,26 @@ export function getVancouverTodayMidnight(): Date {
   const offset = getVancouverOffset(vancouverDateStr);
   return new Date(`${vancouverDateStr}T00:00:00${offset}`);
 }
+
+/**
+ * Formatea un string de solo-fecha "YYYY-MM-DD" (service_date, tal como viene
+ * de Postgres) para mostrarlo al usuario, SIN pasar por conversión de zona
+ * horaria. `service_date` ya representa el día calendario correcto -- no es
+ * un instante UTC -- así que `new Date("YYYY-MM-DD")` (que lo interpreta como
+ * medianoche UTC) seguido de `timeZone: "America/Vancouver"` retrocede un día
+ * (la medianoche UTC cae en la tarde del día anterior en Vancouver, UTC-7/8).
+ * Bug real detectado en ReservationSummary.tsx y confirmacion/page.tsx:
+ * ambos mostraban el día anterior al realmente reservado. Este helper
+ * construye el Date a partir de los componentes locales directamente, sin
+ * ninguna conversión de huso horario, para que el día mostrado sea siempre
+ * el que dice el string.
+ */
+export function formatServiceDateDisplay(
+  dateOnlyStr: string,
+  options: Intl.DateTimeFormatOptions = { weekday: "long", year: "numeric", month: "long", day: "numeric" }
+): string {
+  const [year, month, day] = dateOnlyStr.split("-").map(Number);
+  if (!year || !month || !day) return dateOnlyStr;
+  const localDate = new Date(year, month - 1, day);
+  return localDate.toLocaleDateString("en-CA", options);
+}

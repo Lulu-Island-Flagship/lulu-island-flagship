@@ -105,11 +105,18 @@ export async function GET(request: NextRequest) {
   const todayStr = getVancouverTodayString();
 
   // Guard contra doble ejecución: ya corrido hoy?
+  // v8.3 fix (auditoría 2026-07-15): antes usaba phase='published', que
+  // dispatch-scheduler también escribe (para el día siguiente) al publicar
+  // equipos a las 17:30 -- eso hacía que este guard SIEMPRE encontrara una
+  // fila "ya corrida" y el cobro de saldo restante nunca se ejecutara. Usa
+  // su propia fase dedicada ('batch_capture', migración 178) para no
+  // colisionar con el scheduler de despacho ni disparar su trigger de
+  // publicación de slots.
   const { data: alreadyRan } = await supabase
     .from("dispatch_runs")
     .select("id")
     .eq("run_date", todayStr)
-    .eq("phase", "published")
+    .eq("phase", "batch_capture")
     .limit(1);
 
   if (alreadyRan && alreadyRan.length > 0) {
@@ -124,7 +131,7 @@ export async function GET(request: NextRequest) {
     .from("dispatch_runs")
     .insert({
       run_date: todayStr,
-      phase: "published",
+      phase: "batch_capture",
       triggered_at: new Date().toISOString(),
       notes: "Batch capture 7PM Vancouver",
     })

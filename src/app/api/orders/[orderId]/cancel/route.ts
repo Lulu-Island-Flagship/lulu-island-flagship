@@ -69,7 +69,7 @@ export async function POST(
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .select(
-        "id, user_id, status, service_datetime, payment_option, stripe_hold_payment_intent_id, hold_authorized_amount, hold_amount, paypal_advance_amount, paypal_transaction_id, stripe_customer_id, stripe_payment_method_id, quotes(total)"
+        "id, user_id, status, service_datetime, payment_option, stripe_hold_payment_intent_id, hold_authorized_amount, hold_amount, paypal_advance_amount, paypal_transaction_id, stripe_customer_id, stripe_payment_method_id, wallet_amount_used, quotes(total)"
       )
       .eq("id", orderId)
       .single();
@@ -196,6 +196,68 @@ export async function POST(
         updated_at: new Date().toISOString(),
       })
       .eq("id", orderId);
+
+    // v8.3 fix (auditoría 2026-07-15): cancelar la orden nunca marcaba las
+    // asignaciones (assignments) como canceladas. El listado de servicios
+    // del empleado (/api/empleado/servicios) filtra por orders.status y
+    // assignments.status != 'cancelled', pero como esa columna nunca
+    // llegaba a 'cancelled', un empleado podía seguir viendo y desplazarse
+    // a un servicio que el cliente ya canceló, sin ninguna señal en su app.
+    await supabase
+      .from("assignments")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("order_id", orderId)
+      .is("deleted_at", null)
+      .not("status", "in", "(completed,cancelled)");
+
+    // v8.3 fix (auditoría 2026-07-15): si el cliente había aplicado crédito
+    // de Lulu Wallet a esta orden (orders.wallet_amount_used, en DÓLARES —
+    // ver /api/client/wallet/apply), ese crédito se perdía para siempre al
+    // cancelar: nunca se revertía el débito ni se restauraba el saldo de
+    // client_wallets. Se revierte SIEMPRE, independiente de la penalidad de
+    // cancelación (son conceptos distintos: la penalidad es lo que se cobra
+    // por cancelar tarde; el wallet es dinero propio del cliente que ya no
+    // necesita cubrir un servicio que no va a ocurrir).
+    const walletAmountUsedDollars = Math.max(0, order.wallet_amount_used || 0);
+    if (walletAmountUsedDollars > 0) {
+      try {
+        const { data: wallet } = await supabase
+          .from("client_wallets")
+          .select("id, balance")
+          .eq("user_id", order.user_id)
+          .maybeSingle();
+
+        if (wallet) {
+          const refundCents = Math.round(walletAmountUsedDollars * 100);
+          const newBalance = wallet.balance + refundCents;
+
+          const { error: creditError } = await supabase.from("wallet_transactions").insert({
+            wallet_id: wallet.id,
+            user_id: order.user_id,
+            order_id: orderId,
+            type: "credit",
+            amount: refundCents,
+            balance_after: newBalance,
+            description: `Reembolso por cancelación de orden ${orderId}`,
+          });
+          if (creditError) {
+            console.error(`Failed to insert wallet reversal transaction for order ${orderId}:`, creditError);
+          } else {
+            await supabase
+              .from("client_wallets")
+              .update({ balance: newBalance, updated_at: new Date().toISOString() })
+              .eq("id", wallet.id);
+          }
+        } else {
+          console.error(`Cannot reverse wallet credit for order ${orderId}: no wallet found for user ${order.user_id}`);
+        }
+      } catch (err) {
+        // Best-effort: un fallo al revertir el wallet no debe bloquear la
+        // cancelación en sí (el cliente ya pidió cancelar); queda logueado
+        // para revisión manual en vez de perder silenciosamente el dinero.
+        console.error(`Wallet reversal error for order ${orderId}:`, err);
+      }
+    }
 
     // Liberar slot de capacidad comprometido
     const { data: slot } = await supabase

@@ -12,6 +12,7 @@ import {
   Languages as LanguagesIcon,
   Pencil,
   UserPlus,
+  UserMinus,
 } from "lucide-react";
 import { SUPPORTED_LANGUAGES } from "@/lib/languages";
 import { LANGUAGE_LEVELS, type LanguageLevels } from "@/lib/employee-languages";
@@ -29,6 +30,7 @@ interface Employee {
   language_levels: LanguageLevels;
   career_level: CareerLevel;
   created_at: string;
+  terminated_at?: string | null;
 }
 
 const CAREER_LEVEL_LABEL: Record<CareerLevel, string> = {
@@ -52,6 +54,7 @@ export default function AdminEmpleadosClient() {
   const [error, setError] = useState("");
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [offboardingEmployee, setOffboardingEmployee] = useState<Employee | null>(null);
 
   useEffect(() => {
     loadEmployees();
@@ -170,6 +173,7 @@ export default function AdminEmpleadosClient() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Day Rate</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Languages</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Career Level</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600"></th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -243,6 +247,20 @@ export default function AdminEmpleadosClient() {
                         ))}
                       </select>
                     </td>
+                    <td className="px-4 py-3">
+                      {emp.terminated_at ? (
+                        <span className="text-xs text-gray-400">Offboarded</span>
+                      ) : (
+                        <button
+                          onClick={() => setOffboardingEmployee(emp)}
+                          className="flex items-center gap-1 text-xs text-state-danger hover:opacity-80"
+                          title="Deactivate, pay out accrued vacation pay, revoke access, and release future assignments"
+                        >
+                          <UserMinus className="w-3.5 h-3.5" />
+                          Offboard
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -268,6 +286,125 @@ export default function AdminEmpleadosClient() {
           }}
         />
       )}
+
+      {offboardingEmployee && (
+        <OffboardModal
+          employee={offboardingEmployee}
+          onClose={() => setOffboardingEmployee(null)}
+          onOffboarded={(employeeId, updated) => {
+            setEmployees((prev) =>
+              prev.map((e) => (e.id === employeeId ? { ...e, ...updated } : e))
+            );
+            setOffboardingEmployee(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// v8.3 FIX-11: offboarding real -- desactiva, paga el Vacation Pay
+// acumulado, revoca el acceso a la cuenta y suelta los servicios futuros
+// para reasignación (ver POST /api/admin/empleados/[id]/offboard).
+function OffboardModal({
+  employee,
+  onClose,
+  onOffboarded,
+}: {
+  employee: Employee;
+  onClose: () => void;
+  onOffboarded: (employeeId: string, updated: Partial<Employee>) => void;
+}) {
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [result, setResult] = useState<{
+    vacationPayoutCents: number;
+    accessRevoked: boolean;
+    reassignedCount: number;
+  } | null>(null);
+
+  const handleConfirm = async () => {
+    setSaving(true);
+    setSaveError("");
+    try {
+      const res = await fetch(`/api/admin/empleados/${employee.id}/offboard`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ terminationReason: reason }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to offboard employee");
+      setResult({
+        vacationPayoutCents: data.vacationPayoutCents,
+        accessRevoked: data.accessRevoked,
+        reassignedCount: data.reassignedCount,
+      });
+      onOffboarded(employee.id, {
+        is_active: false,
+        terminated_at: data.employee.terminated_at,
+      });
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to offboard employee");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+        <h2 className="text-lg font-semibold text-brand-ink">Offboard — {employee.name}</h2>
+
+        {result ? (
+          <div className="space-y-2 text-sm text-brand-ink">
+            <p className="text-state-success font-medium">Employee offboarded.</p>
+            <p>Vacation pay paid out: ${(result.vacationPayoutCents / 100).toFixed(2)}</p>
+            <p>Access revoked: {result.accessRevoked ? "yes" : "no (check service credentials)"}</p>
+            <p>Future services released for reassignment: {result.reassignedCount}</p>
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="text-xs text-gray-500">
+              This deactivates the employee, pays out their accrued vacation pay in the next payroll
+              cycle, revokes their account access, and releases any future assigned services for
+              reassignment. This cannot be undone from here.
+            </p>
+            <div>
+              <label className="text-xs text-gray-600 block mb-1">Termination reason</label>
+              <textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+                rows={3}
+                placeholder="e.g. voluntary resignation, end of contract, performance"
+              />
+            </div>
+            {saveError && <p className="text-xs text-state-danger">{saveError}</p>}
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={onClose} className="px-4 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100">
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirm}
+                disabled={saving || !reason.trim()}
+                className="px-4 py-2 text-sm rounded-lg bg-state-danger text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {saving ? "Processing..." : "Confirm Offboard"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

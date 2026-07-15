@@ -219,6 +219,36 @@ export async function GET(request: NextRequest) {
     };
   });
 
+  // v8.3 FIX-11 (BC ESA): pago final de Vacation Pay acumulado al terminar
+  // el empleo (employee_final_payouts, migración 177) -- mismo bug real que
+  // sick_leave/statutory_holiday: sin esto, un empleado dado de baja nunca
+  // recibía su Vacation Pay acumulado en la nómina real.
+  const { data: finalPayouts, error: finalPayoutsError } = await supabase
+    .from("employee_final_payouts")
+    .select("employee_id, amount_cents, payout_date, employees(name)")
+    .gte("payout_date", cycle.start)
+    .lte("payout_date", cycle.end);
+
+  if (finalPayoutsError) {
+    return NextResponse.json({ error: finalPayoutsError.message }, { status: 500 });
+  }
+
+  const finalPayoutCycleEntries: CycleEntry[] = (finalPayouts || []).map((p) => {
+    const empJoin = p.employees as EmployeeNameJoin;
+    const emp = Array.isArray(empJoin) ? empJoin[0] : empJoin;
+    return {
+      employeeId: p.employee_id,
+      employeeName: emp?.name || "(sin nombre)",
+      serviceDate: p.payout_date,
+      baseAmountCents: p.amount_cents,
+      bonusCents: 0,
+      penaltyCents: 0,
+      reworkAmountCents: 0,
+      minimumWageAdjustmentCents: 0,
+      grossAmountCents: p.amount_cents,
+    };
+  });
+
   const summaries = aggregateCycle(
     [
       ...cycleEntries,
@@ -227,6 +257,7 @@ export async function GET(request: NextRequest) {
       ...referralBonusCycleEntries,
       ...sickLeaveCycleEntries,
       ...statHolidayCycleEntries,
+      ...finalPayoutCycleEntries,
     ],
     cycle
   );

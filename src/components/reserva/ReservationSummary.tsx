@@ -3,6 +3,7 @@
 import React from "react";
 import { QuoteData } from "@/types";
 import { MapPin, Home, Calendar, DollarSign, Shield, Tag, PlusCircle } from "lucide-react";
+import { formatServiceDateDisplay } from "@/lib/date-utils";
 
 interface ReservationSummaryProps {
   quote: QuoteData;
@@ -79,13 +80,7 @@ export function ReservationSummary({
           <div className="flex items-center gap-2 text-gray-600">
             <Calendar className="w-4 h-4" />
             <span>
-              {new Date(serviceDate).toLocaleDateString("en-CA", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-                timeZone: "America/Vancouver",
-              })}{" "}
+              {formatServiceDateDisplay(serviceDate)}{" "}
               at {serviceTime}
             </span>
           </div>

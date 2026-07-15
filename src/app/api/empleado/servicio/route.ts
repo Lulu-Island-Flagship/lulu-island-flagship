@@ -313,35 +313,58 @@ export async function POST(request: NextRequest) {
 
       // Sync orders.status when service completes
       if (eventType === "t_out") {
-        const { data: order } = await supabase
-          .from("orders")
-          .select("user_id")
-          .eq("id", orderId)
-          .single();
+        // v8.3 fix (auditoría 2026-07-15): antes esto se ejecutaba con
+        // CUALQUIER empleado que hiciera T_out, así que en servicios con
+        // equipo de 2+ personas (reparto de zonas, ver zone-assignment.ts)
+        // la orden se marcaba "completed" y se disparaban las
+        // comunicaciones de cierre (+ solicitud de reseña) apenas el
+        // PRIMER empleado terminaba su parte, mientras el resto del
+        // equipo seguía trabajando. Ahora se verifica que TODAS las
+        // asignaciones activas (no canceladas, no soft-deleted) de esta
+        // orden estén en status='completed' antes de cerrar la orden.
+        const { data: allAssignments } = await supabase
+          .from("assignments")
+          .select("id, status")
+          .is("deleted_at", null)
+          .neq("status", "cancelled")
+          .eq("order_id", orderId);
 
-        await supabase
-          .from("orders")
-          .update({ status: "completed", updated_at: new Date().toISOString() })
-          .eq("id", orderId);
+        const allTeamDone =
+          !!allAssignments &&
+          allAssignments.length > 0 &&
+          allAssignments.every((a: { status: string }) => a.status === "completed");
 
-        // Incrementar contador de servicios completados del cliente
-        if (order?.user_id) {
-          await supabase.rpc("increment_client_services_count", {
-            target_user_id: order.user_id,
-          });
-        }
+        if (allTeamDone) {
+          const { data: order } = await supabase
+            .from("orders")
+            .select("user_id")
+            .eq("id", orderId)
+            .single();
 
-        // E6 Sesión H — confirmación de cierre de servicio + entrega real de
-        // reseña (B.2.18 anti-gating). El UPDATE de arriba ya disparó
-        // generate_review_token_trigger (migración 014), así que releemos la
-        // orden para obtener el review_token recién generado. Un fallo de
-        // comunicaciones nunca debe revertir un T_out ya válido — por eso va
-        // en su propio try/catch, después de que el cierre quedó confirmado.
-        if (order?.user_id) {
-          try {
-            await sendClosureCommunications(supabase, orderId, order.user_id);
-          } catch (commErr) {
-            console.error("Error disparando comunicaciones de cierre (T_out):", commErr);
+          await supabase
+            .from("orders")
+            .update({ status: "completed", updated_at: new Date().toISOString() })
+            .eq("id", orderId);
+
+          // Incrementar contador de servicios completados del cliente
+          if (order?.user_id) {
+            await supabase.rpc("increment_client_services_count", {
+              target_user_id: order.user_id,
+            });
+          }
+
+          // E6 Sesión H — confirmación de cierre de servicio + entrega real de
+          // reseña (B.2.18 anti-gating). El UPDATE de arriba ya disparó
+          // generate_review_token_trigger (migración 014), así que releemos la
+          // orden para obtener el review_token recién generado. Un fallo de
+          // comunicaciones nunca debe revertir un T_out ya válido — por eso va
+          // en su propio try/catch, después de que el cierre quedó confirmado.
+          if (order?.user_id) {
+            try {
+              await sendClosureCommunications(supabase, orderId, order.user_id);
+            } catch (commErr) {
+              console.error("Error disparando comunicaciones de cierre (T_out):", commErr);
+            }
           }
         }
       }

@@ -4,6 +4,7 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { mapQuoteFromSupabase, mapOrderFromSupabase } from "@/lib/supabase-mappers";
+import { formatServiceDateDisplay } from "@/lib/date-utils";
 import { Order, QuoteData } from "@/types";
 import {
   CheckCircle2,
@@ -108,7 +109,6 @@ function ConfirmacionContent() {
     );
   }
 
-  const serviceDate = new Date(order.serviceDate);
   const subtypeLabel =
     quote.serviceSubtype
       ?.replace(/_/g, " ")
@@ -157,13 +157,7 @@ function ConfirmacionContent() {
               <div>
                 <p className="text-sm text-gray-500">Date & Time</p>
                 <p className="font-medium text-brand-ink">
-                  {serviceDate.toLocaleDateString("en-CA", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                    timeZone: "America/Vancouver",
-                  })}{" "}
+                  {formatServiceDateDisplay(order.serviceDate)}{" "}
                   at {order.serviceTime}
                 </p>
               </div>
