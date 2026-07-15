@@ -83,7 +83,6 @@ export async function GET(request: NextRequest) {
         }
 
         released++;
-        void remainingAmount; // informativo, no se usa en el cálculo (released_amount ya queda completo)
       } catch (err: Error | unknown) {
         errors.push({
           reserveId: reserve.id,

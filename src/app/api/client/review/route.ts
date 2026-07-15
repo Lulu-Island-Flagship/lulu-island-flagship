@@ -1,29 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
 
+/**
+ * v8.3 AUDITORÍA RESERVA→DINERO→RESEÑA — hallazgo real (justo el último
+ * paso del flujo: "hasta que ponen una reseña"). Este endpoint dice
+ * explícitamente en su propio comentario "Autenticación por token
+ * (review_token) — no requiere login de usuario" -- el cliente hace clic
+ * en un link de SMS/email y normalmente NO tiene una sesión de navegador
+ * activa. Pero usaba el cliente cookie-based (createServerClient), y
+ * "Clients insert own reviews" (migración 010) exige
+ * WITH CHECK (auth.uid() = user_id) -- con auth.uid() NULL (sin sesión),
+ * ese insert SIEMPRE fallaba por RLS. El control de acceso real aquí no es
+ * la sesión, es el token: single-use (review_token_used_at), ventana de
+ * 24h, atado a una orden específica -- exactamente el mismo modelo de
+ * confianza que ya usa buildPaymentUpdateLink/el link de actualización de
+ * pago. Se usa service role, con el token como única puerta de entrada.
+ */
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder";
 
 function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(
-    supabaseUrl,
-    supabaseKey,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options });
-        },
-      },
-    }
-  );
+  return createClient(supabaseUrl, supabaseServiceKey);
 }
 
 function getClientIp(request: NextRequest): string {
@@ -43,6 +40,10 @@ function getVancouverDateString(): string {
 // Autenticación por token (review_token) — no requiere login de usuario
 export async function POST(request: NextRequest) {
   try {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: "Supabase service credentials not configured" }, { status: 500 });
+    }
+
     const body = await request.json();
     const { token, rating, comment } = body;
 
