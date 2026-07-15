@@ -7,14 +7,17 @@ import { Globe, Apple, Mail, Smartphone, X } from "lucide-react";
 interface AuthModalProps {
   onClose: () => void;
   onSuccess: () => void;
+  // v8.3 fix (auditoría 2026-07-15): permite mostrar un error de OAuth
+  // devuelto por /auth/callback (antes se perdía silenciosamente).
+  initialError?: string;
 }
 
-export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
+export function AuthModal({ onClose, onSuccess, initialError }: AuthModalProps) {
   const [mode, setMode] = useState<"options" | "email" | "phone">("options");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialError || "");
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
 

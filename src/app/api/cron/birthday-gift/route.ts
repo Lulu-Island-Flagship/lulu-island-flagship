@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
 
       const { data: wallet } = await supabase
         .from("client_wallets")
-        .select("id, balance")
+        .select("id")
         .eq("user_id", profile.user_id)
         .maybeSingle();
 
@@ -82,20 +82,16 @@ export async function GET(request: NextRequest) {
       }
 
       const nowIso = new Date().toISOString();
-      const newBalance = wallet.balance + giftAmountCents;
-      await supabase.from("wallet_transactions").insert({
-        wallet_id: wallet.id,
-        user_id: profile.user_id,
-        type: "promo",
-        amount: giftAmountCents,
-        balance_after: newBalance,
-        description: `Birthday gift ${decision.year}`,
-        expires_at: computeWalletCreditExpiryDate(nowIso),
+      // v8.3 fix (auditoría 2026-07-15): mutación atómica vía RPC (migración
+      // 180) en vez de read-then-write sin bloqueo.
+      await supabase.rpc("apply_wallet_delta", {
+        p_wallet_id: wallet.id,
+        p_user_id: profile.user_id,
+        p_type: "promo",
+        p_delta: giftAmountCents,
+        p_description: `Birthday gift ${decision.year}`,
+        p_expires_at: computeWalletCreditExpiryDate(nowIso),
       });
-      await supabase
-        .from("client_wallets")
-        .update({ balance: newBalance, updated_at: nowIso })
-        .eq("id", wallet.id);
 
       await supabase
         .from("client_profiles")

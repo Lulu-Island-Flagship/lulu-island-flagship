@@ -416,8 +416,14 @@ function NextRecurringVisitCard() {
   const router = useRouter();
   const [hasContract, setHasContract] = useState<boolean | null>(null);
   const [nextDate, setNextDate] = useState<string | null>(null);
+  const [contractId, setContractId] = useState<string | null>(null);
   const [booking, setBooking] = useState(false);
   const [bookError, setBookError] = useState("");
+  // v8.3 fix (auditoría 2026-07-15): antes no había ninguna forma de que el
+  // cliente pausara o cancelara su contrato recurrente por su cuenta.
+  const [statusAction, setStatusAction] = useState<"pause" | "cancel" | null>(null);
+  const [statusError, setStatusError] = useState("");
+  const [cancelled, setCancelled] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -430,11 +436,40 @@ function NextRecurringVisitCard() {
         const json = await res.json();
         setHasContract(Boolean(json.hasActiveContract && json.prefill));
         setNextDate(json.nextDate || null);
+        setContractId(json.contractId || null);
       } catch {
         setHasContract(false);
       }
     })();
   }, []);
+
+  async function updateContractStatus(action: "pause" | "cancel") {
+    if (!contractId) return;
+    if (action === "cancel" && !window.confirm("Cancel your recurring plan? You can always book a new one later.")) {
+      return;
+    }
+    setStatusAction(action);
+    setStatusError("");
+    try {
+      const res = await fetch(`/api/client/contracts/${contractId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setStatusError(json.error || "Could not update your plan");
+        return;
+      }
+      if (action === "cancel") setCancelled(true);
+      else setHasContract(false); // paused: ya no se ofrece "book next visit" hasta reanudar desde soporte/otra vista
+    } catch {
+      setStatusError("Network error");
+    } finally {
+      setStatusAction(null);
+    }
+  }
 
   async function bookNextVisit() {
     setBooking(true);
@@ -468,24 +503,51 @@ function NextRecurringVisitCard() {
     }
   }
 
+  if (cancelled) {
+    return (
+      <div className="bg-brand-ice border border-brand-gold/30 rounded-xl p-4 text-sm text-brand-ink">
+        Your recurring plan has been cancelled. You can start a new one anytime from the quote form.
+      </div>
+    );
+  }
+
   if (!hasContract) return null;
 
   return (
-    <div className="bg-brand-ice border border-brand-gold/30 rounded-xl p-4 flex items-center justify-between gap-4">
-      <div className="flex items-center gap-2 text-sm text-brand-ink">
-        <Repeat className="w-4 h-4 text-brand-gold-dark shrink-0" />
-        <span>
-          Your recurring plan{nextDate ? ` — next visit ${nextDate}` : ""}
-        </span>
+    <div className="bg-brand-ice border border-brand-gold/30 rounded-xl p-4 space-y-2">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-sm text-brand-ink">
+          <Repeat className="w-4 h-4 text-brand-gold-dark shrink-0" />
+          <span>
+            Your recurring plan{nextDate ? ` — next visit ${nextDate}` : ""}
+          </span>
+        </div>
+        <button
+          onClick={bookNextVisit}
+          disabled={booking}
+          className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold bg-brand-navy text-white px-4 py-2 rounded-lg disabled:opacity-50"
+        >
+          {booking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Book next visit"}
+        </button>
       </div>
-      <button
-        onClick={bookNextVisit}
-        disabled={booking}
-        className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold bg-brand-navy text-white px-4 py-2 rounded-lg disabled:opacity-50"
-      >
-        {booking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Book next visit"}
-      </button>
       {bookError && <p className="text-xs text-state-danger">{bookError}</p>}
+      <div className="flex items-center gap-4 pt-1">
+        <button
+          onClick={() => updateContractStatus("pause")}
+          disabled={statusAction !== null}
+          className="text-xs text-gray-500 underline disabled:opacity-50"
+        >
+          {statusAction === "pause" ? "Pausing…" : "Pause plan"}
+        </button>
+        <button
+          onClick={() => updateContractStatus("cancel")}
+          disabled={statusAction !== null}
+          className="text-xs text-state-danger underline disabled:opacity-50"
+        >
+          {statusAction === "cancel" ? "Cancelling…" : "Cancel plan"}
+        </button>
+      </div>
+      {statusError && <p className="text-xs text-state-danger">{statusError}</p>}
     </div>
   );
 }

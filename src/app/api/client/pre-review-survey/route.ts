@@ -113,24 +113,23 @@ export async function POST(request: NextRequest) {
   // "sistema" otorgando, no un admin a mano).
   const { data: wallet } = await supabase
     .from("client_wallets")
-    .select("id, balance")
+    .select("id")
     .eq("user_id", user.id)
     .maybeSingle();
 
   if (wallet) {
     const nowIso = new Date().toISOString();
-    const newBalance = wallet.balance + SURVEY_WALLET_CREDIT_CENTS;
-    await supabase.from("wallet_transactions").insert({
-      wallet_id: wallet.id,
-      user_id: user.id,
-      order_id: order.id,
-      type: "credit",
-      amount: SURVEY_WALLET_CREDIT_CENTS,
-      balance_after: newBalance,
-      description: "Encuesta interna post-servicio",
-      expires_at: computeWalletCreditExpiryDate(nowIso),
+    // v8.3 fix (auditoría 2026-07-15): mutación atómica vía RPC (migración
+    // 180) en vez de read-then-write sin bloqueo.
+    await supabase.rpc("apply_wallet_delta", {
+      p_wallet_id: wallet.id,
+      p_user_id: user.id,
+      p_order_id: order.id,
+      p_type: "credit",
+      p_delta: SURVEY_WALLET_CREDIT_CENTS,
+      p_description: "Encuesta interna post-servicio",
+      p_expires_at: computeWalletCreditExpiryDate(nowIso),
     });
-    await supabase.from("client_wallets").update({ balance: newBalance, updated_at: nowIso }).eq("id", wallet.id);
   }
 
   // v8.3 E5.12: "recordatorio de recomendación del líder" -- si el cliente

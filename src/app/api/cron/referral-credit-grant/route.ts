@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
   try {
     const { data: pendingReferrals, error } = await supabase
       .from("referrals")
-      .select("id, referrer_user_id, referred_user_id, mentioned_employee_id")
+      .select("id, referrer_user_id, referred_user_id, mentioned_employee_id, created_at")
       .eq("status", "pending");
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -52,11 +52,20 @@ export async function GET(request: NextRequest) {
     const results: { referralId: string; status: string }[] = [];
 
     for (const referral of pendingReferrals || []) {
+      // v8.3 fix (auditoría 2026-07-15): antes se tomaba la PRIMERA orden
+      // completada del referido sin importar cuándo, así que un usuario que
+      // ya tenía órdenes completadas ANTES de ser referido (reactivación con
+      // el código de otro cliente, o un referral registrado después de que
+      // el checkout ya generó una orden) disparaba el crédito usando una
+      // orden vieja que el referido no motivó -- dinero real otorgado sin
+      // el servicio real que el propio comentario de este archivo dice
+      // garantizar. Ahora exige service_date >= referrals.created_at.
       const { data: completedOrder } = await supabase
         .from("orders")
         .select("id")
         .eq("user_id", referral.referred_user_id)
         .eq("status", "completed")
+        .gte("service_date", (referral.created_at as string).slice(0, 10))
         .order("service_date", { ascending: true })
         .limit(1)
         .maybeSingle();
@@ -68,27 +77,29 @@ export async function GET(request: NextRequest) {
 
       const nowIso = new Date().toISOString();
 
-      // Créditos de $30 a AMBAS billeteras.
+      // Créditos de $30 a AMBAS billeteras. v8.3 fix (auditoría 2026-07-15):
+      // mutación atómica vía RPC (migración 180) en vez de read-then-write
+      // sin bloqueo -- este cron corre en paralelo a otros crons de
+      // billetera (birthday-gift, pre-review-survey) y a aplicaciones de
+      // wallet hechas por el cliente en vivo; sin bloqueo, dos de estos
+      // tocando la misma billetera podían perder una actualización.
       for (const beneficiaryUserId of [referral.referrer_user_id, referral.referred_user_id]) {
         const { data: wallet } = await supabase
           .from("client_wallets")
-          .select("id, balance")
+          .select("id")
           .eq("user_id", beneficiaryUserId)
           .maybeSingle();
         if (!wallet) continue;
 
-        const newBalance = wallet.balance + REFERRAL_CREDIT_CENTS;
-        await supabase.from("wallet_transactions").insert({
-          wallet_id: wallet.id,
-          user_id: beneficiaryUserId,
-          order_id: completedOrder.id,
-          type: "promo",
-          amount: REFERRAL_CREDIT_CENTS,
-          balance_after: newBalance,
-          description: "Lulu Ambassador referral credit",
-          expires_at: computeWalletCreditExpiryDate(nowIso),
+        await supabase.rpc("apply_wallet_delta", {
+          p_wallet_id: wallet.id,
+          p_user_id: beneficiaryUserId,
+          p_order_id: completedOrder.id,
+          p_type: "promo",
+          p_delta: REFERRAL_CREDIT_CENTS,
+          p_description: "Lulu Ambassador referral credit",
+          p_expires_at: computeWalletCreditExpiryDate(nowIso),
         });
-        await supabase.from("client_wallets").update({ balance: newBalance, updated_at: nowIso }).eq("id", wallet.id);
       }
 
       // Bono de $5 al líder mencionado, si lo hubo.

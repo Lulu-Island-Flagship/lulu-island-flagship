@@ -8,6 +8,7 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
+  const providerError = requestUrl.searchParams.get("error");
   const rawNext = requestUrl.searchParams.get("next") || "/cotizador";
   // Auditoría v8.3 E0 (2026-07-11): `next` venía de un query param y se usaba
   // sin validar en new URL(next, request.url). Si `next` es una URL absoluta
@@ -17,6 +18,26 @@ export async function GET(request: NextRequest) {
   // autenticar de verdad, el navegador termina en el sitio del atacante.
   // Solo se permiten rutas relativas que empiecen con "/" y no con "//".
   const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/cotizador";
+
+  // v8.3 fix (auditoría 2026-07-15): si el proveedor OAuth (Google/Apple)
+  // devuelve un error -- usuario cancela el consentimiento, cuenta
+  // bloqueada, etc. -- este handler antes ignoraba por completo el caso
+  // `if (code)` y hacía un redirect "exitoso" como si nada hubiera pasado.
+  // El usuario terminaba de vuelta en el cotizador SIN sesión y sin ningún
+  // mensaje, indistinguible de un botón roto.
+  if (providerError && !code) {
+    const errorUrl = new URL(next, request.url);
+    errorUrl.searchParams.set("auth_error", "provider_error");
+    return NextResponse.redirect(errorUrl);
+  }
+
+  if (!code) {
+    // Ni code ni error -- callback inválido/directo. No hay nada que
+    // intercambiar; redirigir sin fingir éxito silencioso tampoco aquí.
+    const errorUrl = new URL(next, request.url);
+    errorUrl.searchParams.set("auth_error", "missing_code");
+    return NextResponse.redirect(errorUrl);
+  }
 
   if (code) {
     const cookieStore = cookies();

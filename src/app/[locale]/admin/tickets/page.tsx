@@ -16,7 +16,7 @@ interface Ticket {
   order_id: string | null;
   employee_id: string | null;
   type: string;
-  priority: number;
+  priority: string;
   status: string;
   context: Record<string, unknown>;
   resolution_note: string | null;
@@ -26,6 +26,29 @@ interface Ticket {
   employees: { name: string } | null;
   orders: { service_date: string; service_time: string } | null;
 }
+
+// v8.3 ROUND 3 — hallazgo: tickets_disputas.priority es TEXT
+// ('high'|'medium'|'low', ver CHECK constraint en migración 010), pero esta
+// página lo trataba como number (priority >= 5 = "Critical", etc.) -- esa
+// comparación numérica contra un string siempre es falsa, así que TODO
+// ticket, sin importar su prioridad real, se mostraba como "Low". Los
+// tickets de alta prioridad (SOS, disputa de horas, aprobación de upsell,
+// reasignación por offboarding) se veían indistinguibles de una consulta
+// de baja prioridad.
+const PRIORITY_LABEL: Record<string, { label: string; color: string }> = {
+  high: { label: "High", color: "bg-red-100 text-red-700" },
+  medium: { label: "Medium", color: "bg-yellow-100 text-yellow-700" },
+  low: { label: "Low", color: "bg-blue-100 text-blue-700" },
+};
+
+// v8.3 ROUND 3 — hallazgo: hours_dispute y upsell_approval tienen su propio
+// endpoint de resolución con efectos reales (corregir service_logs, aprobar/
+// rechazar el upsell -- FIX-9/FIX-6). El botón "Resolve" genérico de esta
+// página solo marca tickets_disputas.status='resolved' sin tocar nada de
+// eso: un admin podía "resolver" el ticket y el empleado seguiría con la
+// hora incorrecta, o el upsell seguiría sin aprobar, para siempre. Estos
+// dos tipos ahora se resuelven con su endpoint especializado.
+const SPECIALIZED_TICKET_TYPES = new Set(["hours_dispute", "upsell_approval"]);
 
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -37,6 +60,7 @@ export default function TicketsPage() {
   const [resolutionNote, setResolutionNote] = useState("");
   const [resolutionStatus, setResolutionStatus] = useState<"resolved" | "escalated">("resolved");
   const [submitting, setSubmitting] = useState(false);
+  const [correctedTime, setCorrectedTime] = useState("");
 
   useEffect(() => {
     loadTickets();
@@ -93,12 +117,8 @@ export default function TicketsPage() {
     }
   }
 
-  const getPriorityLabel = (priority: number) => {
-    if (priority >= 5) return { label: "Critical", color: "bg-red-100 text-red-700" };
-    if (priority >= 4) return { label: "High", color: "bg-orange-100 text-orange-700" };
-    if (priority >= 3) return { label: "Medium", color: "bg-yellow-100 text-yellow-700" };
-    return { label: "Low", color: "bg-blue-100 text-blue-700" };
-  };
+  const getPriorityLabel = (priority: string) =>
+    PRIORITY_LABEL[priority] || { label: priority, color: "bg-gray-100 text-gray-700" };
 
   const getStatusBadge = (status: string) => {
     switch (status) {

@@ -223,30 +223,24 @@ export async function POST(
       try {
         const { data: wallet } = await supabase
           .from("client_wallets")
-          .select("id, balance")
+          .select("id")
           .eq("user_id", order.user_id)
           .maybeSingle();
 
         if (wallet) {
           const refundCents = Math.round(walletAmountUsedDollars * 100);
-          const newBalance = wallet.balance + refundCents;
-
-          const { error: creditError } = await supabase.from("wallet_transactions").insert({
-            wallet_id: wallet.id,
-            user_id: order.user_id,
-            order_id: orderId,
-            type: "credit",
-            amount: refundCents,
-            balance_after: newBalance,
-            description: `Reembolso por cancelación de orden ${orderId}`,
+          // v8.3 fix (auditoría 2026-07-15): mutación atómica vía RPC
+          // (migración 180) en vez de read-then-write sin bloqueo.
+          const { error: rpcError } = await supabase.rpc("apply_wallet_delta", {
+            p_wallet_id: wallet.id,
+            p_user_id: order.user_id,
+            p_order_id: orderId,
+            p_type: "credit",
+            p_delta: refundCents,
+            p_description: `Reembolso por cancelación de orden ${orderId}`,
           });
-          if (creditError) {
-            console.error(`Failed to insert wallet reversal transaction for order ${orderId}:`, creditError);
-          } else {
-            await supabase
-              .from("client_wallets")
-              .update({ balance: newBalance, updated_at: new Date().toISOString() })
-              .eq("id", wallet.id);
+          if (rpcError) {
+            console.error(`Failed to reverse wallet credit for order ${orderId}:`, rpcError);
           }
         } else {
           console.error(`Cannot reverse wallet credit for order ${orderId}: no wallet found for user ${order.user_id}`);

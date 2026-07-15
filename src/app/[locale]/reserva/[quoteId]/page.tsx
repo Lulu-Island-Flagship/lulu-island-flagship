@@ -11,6 +11,7 @@ import { TimeSlotPicker } from "@/components/reserva/TimeSlotPicker";
 import { StripeCardForm } from "@/components/reserva/StripeCardForm";
 import { ReservationSummary } from "@/components/reserva/ReservationSummary";
 import { CheckoutBenefitsPanel } from "@/components/reserva/CheckoutBenefitsPanel";
+import { PriceFreezeCountdown } from "@/components/reserva/PriceFreezeCountdown";
 import {
   ChevronLeft,
   Shield,
@@ -48,6 +49,21 @@ export default function ReservaPage() {
   const [stripeClientSecret, setStripeClientSecret] = useState("");
   const [stripeCustomerId, setStripeCustomerId] = useState("");
   const [stripeSetupIntentId, setStripeSetupIntentId] = useState("");
+  // v8.3 fix (auditoría 2026-07-15): antes un fallo de /api/stripe/setup-intent
+  // (Stripe caído, quote ya reservada en otra pestaña -> 409, etc.) solo
+  // hacía console.error -- la UI mostraba "Preparing secure checkout..."
+  // indefinidamente, sin botón de reintento ni mensaje, justo en el paso
+  // más crítico del embudo (pago).
+  const [setupIntentError, setSetupIntentError] = useState("");
+  const [setupIntentRetryKey, setSetupIntentRetryKey] = useState(0);
+  const [recalculateError, setRecalculateError] = useState("");
+  const [priceFreezeExpired, setPriceFreezeExpired] = useState(false);
+
+  // Si la quote se refresca (p.ej. tras recalculateQuote) con un freeze
+  // nuevo, no debe seguir mostrándose como expirada.
+  useEffect(() => {
+    setPriceFreezeExpired(false);
+  }, [quote?.priceFrozenUntil]);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [paypalEnabled, setPaypalEnabled] = useState(false);
 
@@ -165,9 +181,17 @@ export default function ReservaPage() {
         if (!res.ok) {
           const err = await res.json();
           console.error("Quote recalculate error:", err.error);
+          // v8.3 fix (auditoría 2026-07-15): antes esto era completamente
+          // silencioso -- si el recálculo por fecha (recargo de fin de
+          // semana, etc.) fallaba, el precio mostrado en pantalla se
+          // quedaba desactualizado sin ningún aviso, aunque el backend de
+          // /api/stripe/confirm sí recalcula correctamente al cobrar
+          // (discrepancia silenciosa entre lo mostrado y lo cobrado).
+          setRecalculateError("Price may not reflect your selected date. Please refresh before confirming.");
           return;
         }
 
+        setRecalculateError("");
         const { quote: updatedQuote } = await res.json();
         setQuote(mapQuoteFromSupabase(updatedQuote));
       } catch (e) {
@@ -183,6 +207,7 @@ export default function ReservaPage() {
     async function createSetupIntent() {
       if (!serviceDate || !serviceTime || !quote) return;
 
+      setSetupIntentError("");
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -201,6 +226,9 @@ export default function ReservaPage() {
         if (!res.ok) {
           const err = await res.json();
           console.error("SetupIntent error:", err.error);
+          setSetupIntentError(
+            err.error || "We couldn't prepare secure checkout. Please try again."
+          );
           return;
         }
 
@@ -210,11 +238,12 @@ export default function ReservaPage() {
         setStripeSetupIntentId(setupIntentId);
       } catch (e) {
         console.error("Failed to create SetupIntent:", e);
+        setSetupIntentError("Network error preparing secure checkout. Please try again.");
       }
     }
 
     createSetupIntent();
-  }, [serviceDate, serviceTime, quote]);
+  }, [serviceDate, serviceTime, quote, setupIntentRetryKey]);
 
   const handlePaymentMethodReady = (pmId: string) => {
     setPaymentMethodId(pmId);
@@ -223,6 +252,21 @@ export default function ReservaPage() {
   const handleConfirm = async () => {
     if (!quote || !serviceDate || !serviceTime || !paymentMethodId) {
       setConfirmError("Please complete all steps before confirming.");
+      return;
+    }
+
+    if (priceFreezeExpired) {
+      setConfirmError("Your price hold has expired. Please refresh to get a new quote before confirming.");
+      return;
+    }
+
+    if (recalculateError) {
+      // v8.3 fix (auditoría 2026-07-15): no permitir confirmar sobre un
+      // precio que puede estar desactualizado -- el backend recalcula
+      // correctamente de todos modos, pero es mejor bloquear con un mensaje
+      // claro que dejar que el cliente confirme sin saber que el número en
+      // pantalla podría no ser el final.
+      setConfirmError("We couldn't confirm your price for this date. Please refresh the page and try again.");
       return;
     }
 
@@ -444,10 +488,36 @@ export default function ReservaPage() {
               </div>
             )}
 
-            {serviceDate && serviceTime && !stripeClientSecret && paymentOption === "card" && (
+            {quote?.priceFrozenUntil && (
+              <PriceFreezeCountdown
+                frozenUntilIso={quote.priceFrozenUntil}
+                onExpired={() => setPriceFreezeExpired(true)}
+              />
+            )}
+
+            {recalculateError && (
+              <div className="bg-state-warning/10 border border-state-warning text-state-warning text-sm rounded-lg p-3">
+                {recalculateError}
+              </div>
+            )}
+
+            {serviceDate && serviceTime && !stripeClientSecret && paymentOption === "card" && !setupIntentError && (
               <div className="bg-white rounded-lg shadow-elevation-1 p-6 text-center">
                 <Loader2 className="w-6 h-6 animate-spin text-brand-gold mx-auto mb-2" />
                 <p className="text-sm text-gray-500">Preparing secure checkout...</p>
+              </div>
+            )}
+
+            {serviceDate && serviceTime && !stripeClientSecret && paymentOption === "card" && setupIntentError && (
+              <div className="bg-white rounded-lg shadow-elevation-1 p-6 text-center space-y-3">
+                <p className="text-sm text-state-danger">{setupIntentError}</p>
+                <button
+                  type="button"
+                  onClick={() => setSetupIntentRetryKey((k) => k + 1)}
+                  className="inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-semibold"
+                >
+                  Try again
+                </button>
               </div>
             )}
           </div>

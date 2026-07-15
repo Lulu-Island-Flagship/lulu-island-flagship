@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { assertStripe } from "@/lib/stripe";
+import { dispatchCommunication } from "@/lib/send-communication";
 
 /**
  * GET /api/cron/no-show
@@ -232,14 +233,36 @@ export async function GET(request: NextRequest) {
         // Incrementar contador de no-show del cliente
         await supabase.rpc("increment_no_show_count", { p_user_id: order.user_id });
 
-        // Notificar al cliente (placeholder: en producción esto dispara SMS/Twilio)
-        // Se marca client_notified_at para trazabilidad aunque el canal sea asíncrono.
-        console.log(`[no-show] SMS notification queued for order ${order.id}`);
-
         detected.push(order.id);
       } else if (existingNoShow.status === "waiting" && !existingNoShow.client_notified_at) {
-        // Simular ventana de respuesta del cliente: en la siguiente corrida notificamos.
-        // En producción real esto sería un job de SMS con webhook de respuesta.
+        // v8.3 fix (auditoría 2026-07-15): antes esto solo marcaba
+        // client_notified_at sin enviar NADA -- un placeholder de
+        // "notificamos" que en realidad nunca notificaba (el console.log
+        // vivía en la rama de detección inicial, un paso antes de este).
+        // Ahora despacha el evento real 'no_show_notice' (catálogo +
+        // plantilla en migración 181) ANTES de marcar client_notified_at,
+        // para que ese campo refleje que sí se intentó notificar de verdad.
+        try {
+          const { data: clientProfile } = await supabase
+            .from("client_profiles")
+            .select("preferred_languages")
+            .eq("user_id", order.user_id)
+            .maybeSingle();
+          const language = ((clientProfile?.preferred_languages as string[] | undefined)?.[0] || "en") as
+            | "en"
+            | "es"
+            | "zh";
+          await dispatchCommunication(supabase, {
+            eventKey: "no_show_notice",
+            userId: order.user_id,
+            orderId: order.id,
+            language,
+            vars: {},
+          });
+        } catch (notifyErr) {
+          console.error(`Failed to dispatch no_show_notice for order ${order.id}:`, notifyErr);
+        }
+
         await supabase
           .from("no_show_logs")
           .update({ client_notified_at: now.toISOString(), updated_at: now.toISOString() })

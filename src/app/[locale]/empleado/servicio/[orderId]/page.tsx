@@ -30,6 +30,7 @@ import { UpsellSelector } from "@/components/empleado/UpsellSelector";
 import { DiscrepanciaReporter } from "@/components/empleado/DiscrepanciaReporter";
 import { CodigoCromático } from "@/components/empleado/CodigoCromático";
 import { ClosureProtocolPanel } from "@/components/empleado/ClosureProtocolPanel";
+import { HoursDisputeButton } from "@/components/empleado/HoursDisputeButton";
 
 type EventType = "t_in" | "t_start" | "t_out" | "photo" | "note";
 
@@ -567,11 +568,19 @@ export default function ServicioPage() {
                           {log.event_type === "note" && <AlertTriangle className="w-4 h-4 text-gray-400" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-medium capitalize">
                               {log.event_type.replace(/_/g, " ")}
                             </span>
                             <span className="text-xs text-gray-400">{formatTime(log.timestamp)}</span>
+                            {["t_in", "t_start", "t_out"].includes(log.event_type) && (
+                              <HoursDisputeButton
+                                orderId={orderId}
+                                eventType={log.event_type as "t_in" | "t_start" | "t_out"}
+                                eventLabel={log.event_type.replace(/_/g, " ")}
+                                recordedTimestamp={log.timestamp}
+                              />
+                            )}
                           </div>
                           {log.notes && (
                             <p className="text-xs text-gray-600 mt-0.5">{log.notes}</p>

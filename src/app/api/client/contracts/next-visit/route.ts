@@ -105,5 +105,8 @@ export async function GET(_request: NextRequest) {
     consentPhotoMarketing: quote.consent_photo_marketing ?? undefined,
   };
 
-  return NextResponse.json({ hasActiveContract: true, prefill, nextDate }, { status: 200 });
+  return NextResponse.json(
+    { hasActiveContract: true, contractId: contract.id, prefill, nextDate },
+    { status: 200 }
+  );
 }

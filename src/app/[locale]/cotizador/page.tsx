@@ -135,6 +135,11 @@ export default function CotizadorPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  // v8.3 fix (auditoría 2026-07-15): antes un fallo de OAuth (Google/Apple)
+  // era completamente silencioso -- /auth/callback ya agrega ?auth_error=
+  // a la URL de redirect, pero ningún componente lo leía. El usuario volvía
+  // sin sesión y sin ningún mensaje, indistinguible de un botón roto.
+  const [authErrorMessage, setAuthErrorMessage] = useState("");
 
   // B2B review se deriva de la cotización server-side o, en ausencia de ella, de la categoría comercial
   const b2bReviewRequired =
@@ -143,6 +148,26 @@ export default function CotizadorPage() {
 
   // Restaurar estado desde localStorage SOLO si venimos de un login pendiente
   // (pending_auth_quote). Si no, empezamos desde cero (cotización nueva).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get("auth_error");
+    if (authError) {
+      const messages: Record<string, string> = {
+        provider_error: "Sign-in was cancelled or failed with your provider. Please try again.",
+        session_exchange_failed: "We couldn't complete sign-in. Please try again.",
+        missing_code: "Sign-in link is invalid or expired. Please try again.",
+      };
+      setAuthErrorMessage(messages[authError] || "Sign-in failed. Please try again.");
+      setShowAuthModal(true);
+      // Limpiar el query param para que un refresh no vuelva a mostrar el
+      // error ni lo deje visible/compartible en la URL.
+      params.delete("auth_error");
+      const newSearch = params.toString();
+      window.history.replaceState({}, "", window.location.pathname + (newSearch ? `?${newSearch}` : ""));
+    }
+  }, []);
+
   useEffect(() => {
     const pendingAuth = wasPendingAuth();
     if (pendingAuth) {
@@ -642,8 +667,9 @@ export default function CotizadorPage() {
       {/* Auth Modal */}
       {showAuthModal && (
         <AuthModal
-          onClose={() => setShowAuthModal(false)}
+          onClose={() => { setShowAuthModal(false); setAuthErrorMessage(""); }}
           onSuccess={handleAuthSuccess}
+          initialError={authErrorMessage}
         />
       )}
     </main>
