@@ -196,6 +196,36 @@ export async function dispatchCommunication(
       return { status: "skipped_no_template", detail: `Sin plantilla vigente para '${params.eventKey}' (ni en ${params.language} ni en en)` };
     }
 
+    // v8.3 E6.5 (CASL): un evento de categoría 'marketing' SOLO se despacha
+    // si la cuenta tiene marketing_opt_in=true HOY (client_profiles,
+    // migración 154) -- distinto de quotes.consent_marketing, que es un
+    // snapshot histórico. Transaccional nunca pasa por este gate (CASL: sin
+    // opt-in requerido, ver comentario en communications.ts).
+    let unsubscribeToken: string | null = null;
+    if (event.category === "marketing") {
+      const { data: clientProfile } = await supabase
+        .from("client_profiles")
+        .select("marketing_opt_in, unsubscribe_token")
+        .eq("user_id", params.userId)
+        .maybeSingle();
+
+      if (!clientProfile?.marketing_opt_in) {
+        await supabase.from("communication_log").insert({
+          order_id: params.orderId ?? null,
+          user_id: params.userId,
+          event_key: params.eventKey,
+          category: event.category,
+          channel: event.default_channel,
+          language: params.language,
+          body_rendered: "",
+          status: "postponed",
+          postponed_reason: "Cuenta sin marketing_opt_in=true (CASL) -- no se despacha",
+        });
+        return { status: "postponed", detail: "Cuenta no está opt-in a marketing (CASL)" };
+      }
+      unsubscribeToken = clientProfile.unsubscribe_token ?? null;
+    }
+
     let marketingSentThisWeek = false;
     if (event.category === "marketing") {
       const weekStart = vancouverWeekStartIso();
@@ -210,10 +240,21 @@ export async function dispatchCommunication(
       marketingSentThisWeek = !!(sentThisWeek && sentThisWeek.length > 0);
     }
 
+    // Toda plantilla de marketing debe poder usar {unsubscribe_link}
+    // (CASL). Se inyecta aquí, no se exige que el caller lo pase -- así
+    // ningún event_key nuevo de marketing puede "olvidarse" del link.
+    const varsWithUnsubscribe =
+      event.category === "marketing" && unsubscribeToken
+        ? {
+            ...params.vars,
+            unsubscribe_link: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.luluisland.ca"}/api/communications/unsubscribe?token=${unsubscribeToken}`,
+          }
+        : params.vars;
+
     const decision = decideDispatch({
       event,
       template,
-      vars: params.vars,
+      vars: varsWithUnsubscribe,
       userId: params.userId,
       eventKey: params.eventKey,
       marketingSentThisWeek,

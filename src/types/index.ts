@@ -25,6 +25,8 @@ export interface QuoteInput {
   purchaseOrder?: string;
   /** v8.3 M0-F0.4 (B.2.13): idiomas de la cuenta, ordenados por prioridad. */
   preferredLanguages?: string[];
+  /** v8.3 E10 (D.10.2): "¿Cómo nos conociste?" — alimenta CAC/LTV por canal. */
+  acquisitionChannel?: string;
   /** v8.3 E4 (D.7): códigos de zonas add-on (ej. "garage") seleccionadas por el cliente. */
   addonZones?: string[];
 }

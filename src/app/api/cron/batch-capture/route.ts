@@ -58,6 +58,7 @@ interface OrderRow {
   paypal_advance_amount: number;
   capture_attempts: number;
   capture_force_full_by: string | null;
+  wallet_amount_used: number | null;
   quotes: { total: number }[] | null;
 }
 
@@ -167,7 +168,7 @@ export async function POST(request: NextRequest) {
     const { data: orders, error } = await supabase
       .from("orders")
       .select(
-        "id, quote_id, user_id, payment_option, stripe_hold_payment_intent_id, stripe_customer_id, stripe_payment_method_id, hold_amount, hold_authorized_amount, paypal_advance_amount, capture_attempts, capture_force_full_by, quotes(total)"
+        "id, quote_id, user_id, payment_option, stripe_hold_payment_intent_id, stripe_customer_id, stripe_payment_method_id, hold_amount, hold_authorized_amount, paypal_advance_amount, capture_attempts, capture_force_full_by, wallet_amount_used, quotes(total)"
       )
       .eq("service_date", todayStr)
       .eq("status", "completed")
@@ -191,8 +192,18 @@ export async function POST(request: NextRequest) {
     for (const order of (orders as unknown as OrderRow[]) || []) {
       results.processed++;
 
-      const quoteTotal = Math.round(Number(order.quotes?.[0]?.total ?? 0));
-      if (quoteTotal <= 0) {
+      // v8.3 E2.10: Billetera Lulu -- si el cliente aplicó crédito de
+      // billetera a esta orden (orders.wallet_amount_used, mismo formato en
+      // DÓLARES que el resto de columnas monetarias de `orders` -- ya
+      // descontado del saldo disponible al momento de aplicarlo, ver
+      // /api/client/wallet/apply), se resta ANTES de calcular Hold/saldo. El
+      // precio de la cotización sigue sellado (B.2.11): esto no muta
+      // quotes.total, solo reduce lo que hay que cobrar por tarjeta/PayPal
+      // para ESTA orden puntual.
+      const quoteTotalBeforeWallet = Math.round(Number(order.quotes?.[0]?.total ?? 0));
+      const walletAppliedDollars = Math.max(0, order.wallet_amount_used || 0);
+      const quoteTotal = Math.max(0, quoteTotalBeforeWallet - walletAppliedDollars);
+      if (quoteTotalBeforeWallet <= 0) {
         results.skipped++;
         results.errors.push({ orderId: order.id, error: "Missing quote total" });
         continue;
@@ -295,7 +306,7 @@ export async function POST(request: NextRequest) {
                   decision.remainingCents > 0 ? Math.round(decision.remainingCents / 100) : 0,
                 capture_remaining_due_at: decision.remainingDueAt,
                 stripe_hold_payment_intent_id: order.stripe_hold_payment_intent_id,
-                total_paid: Math.round(decision.captureNowCents / 100),
+                total_paid: Math.round(decision.captureNowCents / 100) + walletAppliedDollars,
                 card_amount_charged: Math.round(decision.captureNowCents / 100),
                 updated_at: new Date().toISOString(),
               })
@@ -530,7 +541,10 @@ export async function POST(request: NextRequest) {
             stripe_capture_payment_intent_id: payments.balance || null,
             capture_captured_at: payments.balance ? new Date().toISOString() : null,
             capture_authorized_amount: amountCharged,
-            total_paid: amountCharged + (order.payment_option === "paypal_first_time" ? order.paypal_advance_amount : 0),
+            total_paid:
+              amountCharged +
+              walletAppliedDollars +
+              (order.payment_option === "paypal_first_time" ? order.paypal_advance_amount : 0),
             card_amount_charged: amountCharged,
             capture_attempts: 0,
             capture_last_error: null,

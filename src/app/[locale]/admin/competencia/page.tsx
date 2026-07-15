@@ -13,12 +13,21 @@ interface Snapshot {
   source: "manual_checklist" | "scraping";
 }
 
+interface MarginComparison {
+  ourPriceCents: number;
+  ourMarginPercent: number;
+  marginIfMatchedPercent: number;
+  recommendation: "maintain" | "reconsider";
+  message: string;
+}
+
 interface CompetitorRow {
   id: string;
   name: string;
   zone: string;
   notes: string | null;
   latestSnapshot: Snapshot | null;
+  marginComparison: MarginComparison | null;
 }
 
 interface Alert {
@@ -118,18 +127,35 @@ export default function CompetenciaPage() {
               </thead>
               <tbody>
                 {data.competitors.map((c) => (
-                  <tr key={c.id} className="border-t border-gray-100">
-                    <td className="px-3 py-2">{c.name}</td>
-                    <td className="px-3 py-2">{c.zone}</td>
-                    <td className="px-3 py-2 text-right">
-                      {c.latestSnapshot ? formatCad(c.latestSnapshot.price_cents) : "—"}
-                    </td>
-                    <td className="px-3 py-2 text-right">{c.latestSnapshot?.average_rating ?? "—"}</td>
-                    <td className="px-3 py-2 text-right">{c.latestSnapshot?.review_count ?? "—"}</td>
-                    <td className="px-3 py-2 text-gray-400">
-                      {c.latestSnapshot ? new Date(c.latestSnapshot.captured_at).toLocaleDateString("en-CA") : "no data"}
-                    </td>
-                  </tr>
+                  <React.Fragment key={c.id}>
+                    <tr className="border-t border-gray-100">
+                      <td className="px-3 py-2">{c.name}</td>
+                      <td className="px-3 py-2">{c.zone}</td>
+                      <td className="px-3 py-2 text-right">
+                        {c.latestSnapshot ? formatCad(c.latestSnapshot.price_cents) : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right">{c.latestSnapshot?.average_rating ?? "—"}</td>
+                      <td className="px-3 py-2 text-right">{c.latestSnapshot?.review_count ?? "—"}</td>
+                      <td className="px-3 py-2 text-gray-400">
+                        {c.latestSnapshot ? new Date(c.latestSnapshot.captured_at).toLocaleDateString("en-CA") : "no data"}
+                      </td>
+                    </tr>
+                    {c.marginComparison && (
+                      <tr className="border-t border-gray-100 bg-gray-50/50">
+                        <td colSpan={6} className="px-3 py-2 text-xs">
+                          <span
+                            className={
+                              c.marginComparison.recommendation === "reconsider"
+                                ? "text-amber-700 font-medium"
+                                : "text-gray-500"
+                            }
+                          >
+                            {c.marginComparison.message}
+                          </span>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
                 {data.competitors.length === 0 && (
                   <tr>

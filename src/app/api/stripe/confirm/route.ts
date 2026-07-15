@@ -9,6 +9,11 @@ import {
 } from "@/lib/date-utils";
 import { verifyPayPalTransaction } from "@/lib/paypal";
 import { dispatchCommunication } from "@/lib/send-communication";
+import {
+  isEligibleForInstallmentPlan,
+  computeInstallmentSplit,
+  computeInstallmentSecondDueDate,
+} from "@/lib/installment-payment";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -47,6 +52,7 @@ export async function POST(request: NextRequest) {
       paymentOption,
       paypalTransactionId,
       paypalPayerEmail,
+      useInstallmentPlan,
     } = body;
 
     if (!quoteId || !serviceDate || !serviceTime || !paymentMethodId) {
@@ -341,6 +347,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // v8.3 E2.10 -- pago fraccionado 50/50, solo elegible para total > $500 y
+    // solo si el cliente lo pidió explícitamente. Ver limitación documentada
+    // en src/lib/installment-payment.ts: esto es metadata declarada, el
+    // cobro real sigue el flujo Hold+Batch existente sin modificarse aquí.
+    const quoteTotalCents = Math.round(Number(quoteRow.total) * 100);
+    const installmentRequested = useInstallmentPlan === true && isEligibleForInstallmentPlan(quoteTotalCents);
+    const installmentSplit = installmentRequested ? computeInstallmentSplit(quoteTotalCents) : null;
+    const installmentSecondDueAt = installmentRequested
+      ? computeInstallmentSecondDueDate(serviceDatetime.toISOString(), new Date().toISOString())
+      : null;
+
     // Create order
     // Para PayPal primer servicio, la tarjeta (SetupIntent) sigue siendo obligatoria
     // porque el cobro final del saldo restante siempre corre por Stripe.
@@ -373,6 +390,11 @@ export async function POST(request: NextRequest) {
         // v8.3 E4 (D.7): zonas add-on seleccionadas en el cotizador, congeladas
         // con la orden — el checklist del líder solo las muestra si están aquí.
         addon_zones: quoteRow.addon_zones ?? [],
+        // v8.3 E2.10: pago fraccionado 50/50 (metadata, ver nota arriba).
+        installment_plan_selected: installmentRequested,
+        installment_first_amount_cents: installmentSplit?.firstInstallmentCents ?? null,
+        installment_second_amount_cents: installmentSplit?.secondInstallmentCents ?? null,
+        installment_second_due_at: installmentSecondDueAt,
       })
       .select()
       .single();

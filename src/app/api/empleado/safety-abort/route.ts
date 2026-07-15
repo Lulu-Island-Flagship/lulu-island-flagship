@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { isDoubleConfirmed } from "@/lib/safety-abort";
+import { publishUnifiedAlert } from "@/lib/unified-alerts";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -80,6 +81,19 @@ export async function POST(request: NextRequest) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // v8.3 E0.6: publica en la bandeja unificada. P0 seguridad humana — nunca
+    // se bloquea el SOS si esto falla, es una alerta secundaria a la acción
+    // principal ya guardada arriba.
+    await publishUnifiedAlert(supabase, {
+      sourceModule: "safety_abort",
+      sourceTable: "safety_aborts",
+      sourceId: data.id as string,
+      tier: "respond_10min",
+      severity: "p0_safety",
+      title: "Aborto seguro activado (SOS)",
+      summary: reason ? String(reason) : "Sin razón especificada por el empleado.",
+    });
 
     return NextResponse.json({ safetyAbort: data }, { status: 201 });
   } catch (err: Error | unknown) {

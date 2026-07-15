@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
-import { canAddCompetitor, detectCompetitorAlerts, type CompetitorSnapshot } from "@/lib/competitor-tracking";
+import {
+  canAddCompetitor,
+  detectCompetitorAlerts,
+  compareMarginIfMatched,
+  type CompetitorSnapshot,
+} from "@/lib/competitor-tracking";
 
 // GET /api/admin/competencia — dashboard comparativo: competidores activos +
 // último snapshot de cada uno + alertas sin reconocer. Alimenta el mismo
@@ -68,12 +73,83 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: alertError.message }, { status: 500 });
   }
 
+  // v8.3 E9.13: "nuestro margen si igualamos [precio del competidor]" --
+  // se calcula con NUESTRO precio y costo REALES promedio por zona
+  // (últimos 90 días de servicios completados), nunca un número inventado.
+  // Reusa las mismas fuentes que /api/admin/accounting (chargeback_reserves
+  // = cobrado real, payroll_entries = costo real de mano de obra).
+  const zonesWithCompetitors = Array.from(new Set((competitors || []).map((c) => c.zone)));
+  const zoneMarginData = new Map<string, { avgPriceCents: number; avgCostCents: number }>();
+
+  if (zonesWithCompetitors.length > 0) {
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setUTCDate(ninetyDaysAgo.getUTCDate() - 90);
+
+    const { data: recentOrders } = await supabase
+      .from("orders")
+      .select("id, quotes(zone)")
+      .eq("status", "completed")
+      .gte("service_date", ninetyDaysAgo.toISOString().slice(0, 10));
+
+    type QuoteJoin = { zone: string } | { zone: string }[] | null;
+    const orderIdsByZone = new Map<string, string[]>();
+    for (const o of recentOrders || []) {
+      const quoteJoin = o.quotes as QuoteJoin;
+      const quote = Array.isArray(quoteJoin) ? quoteJoin[0] : quoteJoin;
+      const zone = quote?.zone;
+      if (!zone || !zonesWithCompetitors.includes(zone)) continue;
+      const list = orderIdsByZone.get(zone) || [];
+      list.push(o.id);
+      orderIdsByZone.set(zone, list);
+    }
+
+    const allRelevantOrderIds = Array.from(orderIdsByZone.values()).flat();
+    if (allRelevantOrderIds.length > 0) {
+      const [{ data: reserves }, { data: payrollEntries }] = await Promise.all([
+        supabase.from("chargeback_reserves").select("order_id, captured_amount").in("order_id", allRelevantOrderIds),
+        supabase
+          .from("payroll_entries")
+          .select("order_id, gross_amount")
+          .in("order_id", allRelevantOrderIds)
+          .is("deleted_at", null),
+      ]);
+
+      const collectedByOrder = new Map<string, number>();
+      for (const r of reserves || []) {
+        collectedByOrder.set(r.order_id, (collectedByOrder.get(r.order_id) || 0) + r.captured_amount);
+      }
+      const laborByOrder = new Map<string, number>();
+      for (const p of payrollEntries || []) {
+        laborByOrder.set(p.order_id, (laborByOrder.get(p.order_id) || 0) + p.gross_amount);
+      }
+
+      for (const [zone, orderIds] of Array.from(orderIdsByZone.entries())) {
+        if (orderIds.length === 0) continue;
+        const totalCollected = orderIds.reduce((s, id) => s + (collectedByOrder.get(id) || 0), 0);
+        const totalCost = orderIds.reduce((s, id) => s + (laborByOrder.get(id) || 0), 0);
+        zoneMarginData.set(zone, {
+          avgPriceCents: Math.round(totalCollected / orderIds.length),
+          avgCostCents: Math.round(totalCost / orderIds.length),
+        });
+      }
+    }
+  }
+
   return NextResponse.json(
     {
-      competitors: (competitors || []).map((c: { id: string; name: string; zone: string; notes: string | null }) => ({
-        ...c,
-        latestSnapshot: latestByCompetitor.get(c.id) || null,
-      })),
+      competitors: (competitors || []).map((c: { id: string; name: string; zone: string; notes: string | null }) => {
+        const latestSnapshot = latestByCompetitor.get(c.id) as { price_cents?: number } | null;
+        const ours = zoneMarginData.get(c.zone);
+        const marginComparison =
+          latestSnapshot?.price_cents && ours
+            ? compareMarginIfMatched(ours.avgPriceCents, ours.avgCostCents, latestSnapshot.price_cents, c.name)
+            : null;
+        return {
+          ...c,
+          latestSnapshot: latestByCompetitor.get(c.id) || null,
+          marginComparison,
+        };
+      }),
       activeCount: (competitors || []).length,
       unacknowledgedAlerts: alerts || [],
     },

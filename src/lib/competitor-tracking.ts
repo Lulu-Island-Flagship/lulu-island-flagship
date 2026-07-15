@@ -159,3 +159,65 @@ export function benchmarkZoneReputation(
     aheadOfCompetitors: ourAverageRating > competitorAverageRating,
   };
 }
+
+// ------------------------------------------------------------
+// v8.3 E9.13 — Precios de competencia en el panel: "Lulu $285, margen 32%
+// | Comp. A $260, nuestro margen si igualamos 24% | Recomendación:
+// mantener". Se simula el margen que TENDRÍAMOS si igualáramos el precio
+// del competidor, usando nuestro costo REAL promedio por servicio en esa
+// zona (labor + carga patronal, ya calculado en operational-accounting.ts
+// -- nunca se inventa un costo). El umbral de recomendación es el mismo
+// piso de margen de contribución del resto del sistema (MARGIN_FLOOR_
+// PERCENT = 0.15, src/lib/pricing.ts) para no introducir un segundo
+// número de "margen aceptable" en el sistema.
+// ------------------------------------------------------------
+
+export const MARGIN_RECOMMENDATION_FLOOR_PERCENT = 0.15;
+
+export interface CompetitorMarginComparison {
+  ourPriceCents: number;
+  ourMarginPercent: number;
+  competitorPriceCents: number;
+  /** Margen que tendríamos SI igualáramos el precio del competidor, usando nuestro costo real. */
+  marginIfMatchedPercent: number;
+  recommendation: "maintain" | "reconsider";
+  message: string;
+}
+
+/**
+ * @param ourAveragePriceCents precio promedio real cobrado por nosotros en esa zona (collectedCents/orders)
+ * @param ourAverageCostCents costo promedio real por servicio en esa zona (labor + carga patronal, sin igualar precio)
+ * @param competitorPriceCents precio representativo del competidor
+ */
+export function compareMarginIfMatched(
+  ourAveragePriceCents: number,
+  ourAverageCostCents: number,
+  competitorPriceCents: number,
+  competitorName: string
+): CompetitorMarginComparison | null {
+  if (ourAveragePriceCents <= 0 || competitorPriceCents <= 0) return null;
+
+  const ourMarginPercent = (ourAveragePriceCents - ourAverageCostCents) / ourAveragePriceCents;
+  const marginIfMatchedPercent = (competitorPriceCents - ourAverageCostCents) / competitorPriceCents;
+
+  const recommendation = marginIfMatchedPercent < MARGIN_RECOMMENDATION_FLOOR_PERCENT ? "reconsider" : "maintain";
+
+  const ourPriceStr = `$${(ourAveragePriceCents / 100).toFixed(0)}`;
+  const compPriceStr = `$${(competitorPriceCents / 100).toFixed(0)}`;
+  const ourMarginStr = `${Math.round(ourMarginPercent * 100)}%`;
+  const matchedMarginStr = `${Math.round(marginIfMatchedPercent * 100)}%`;
+
+  const message =
+    recommendation === "maintain"
+      ? `Lulu ${ourPriceStr}, margin ${ourMarginStr} | ${competitorName} ${compPriceStr}, our margin if we matched: ${matchedMarginStr} | Recommendation: maintain current price.`
+      : `Lulu ${ourPriceStr}, margin ${ourMarginStr} | ${competitorName} ${compPriceStr}, our margin if we matched: ${matchedMarginStr} (below the ${MARGIN_RECOMMENDATION_FLOOR_PERCENT * 100}% floor) | Recommendation: do not match — compete on value, not price.`;
+
+  return {
+    ourPriceCents: ourAveragePriceCents,
+    ourMarginPercent,
+    competitorPriceCents,
+    marginIfMatchedPercent,
+    recommendation,
+    message,
+  };
+}

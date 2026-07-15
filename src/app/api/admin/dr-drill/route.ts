@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
-import { evaluateDrillResult, type IntegrityCheckResult } from "@/lib/dr-drill";
+import {
+  evaluateDrillResult,
+  computeAllDrillOverdueStatuses,
+  type IntegrityCheckResult,
+  type DrillType,
+} from "@/lib/dr-drill";
 
 // v8.3 E11.3/E11.4 — Recuperación de desastres declarada y probada.
 //
@@ -25,8 +30,7 @@ const DRILL_TYPES = [
   "succession_simulation",
   "emergency_kit_check",
   "fallback_no_admin",
-] as const;
-type DrillType = (typeof DRILL_TYPES)[number];
+] as const satisfies readonly DrillType[];
 
 // Tabla crítica que debe tener datos tras cualquier restauración real; si el restore la
 // dejó vacía, es indicio de restauración incompleta.
@@ -53,7 +57,22 @@ export async function GET(request: NextRequest) {
   if (drillsError) return NextResponse.json({ error: drillsError.message }, { status: 500 });
   if (rtoError) return NextResponse.json({ error: rtoError.message }, { status: 500 });
 
-  return NextResponse.json({ drills: drills ?? [], rtoTargets: rtoTargets ?? [] }, { status: 200 });
+  // Fecha del simulacro MÁS RECIENTE por tipo (sin importar pass/fail/partial
+  // -- ver comentario en dr-drill.ts) para calcular vencimiento del intervalo
+  // declarado en E11.4.
+  const lastRunByType: Partial<Record<DrillType, string>> = {};
+  for (const d of drills ?? []) {
+    const type = d.drill_type as DrillType;
+    if (!lastRunByType[type]) {
+      lastRunByType[type] = d.created_at as string;
+    }
+  }
+  const overdueStatuses = computeAllDrillOverdueStatuses(lastRunByType, new Date().toISOString());
+
+  return NextResponse.json(
+    { drills: drills ?? [], rtoTargets: rtoTargets ?? [], overdueStatuses },
+    { status: 200 }
+  );
 }
 
 interface DrillRequestBody {

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Loader2,
   AlertCircle,
@@ -12,6 +13,8 @@ import {
   Clock,
   Camera,
   X,
+  Repeat,
+  Images,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -108,10 +111,21 @@ export default function MisServiciosClient() {
       <div className="text-center">
         <h1 className="text-3xl font-bold text-brand-ink mb-2">My Services</h1>
         <p className="text-gray-600">Your service history. Report an issue within a completed service if something wasn&apos;t right.</p>
-        <a href="../propiedades" className="inline-block mt-2 text-xs text-brand-wave-blue hover:text-brand-navy underline">
-          Manage my properties
-        </a>
+        <div className="flex items-center justify-center gap-3 mt-2">
+          <a href="../propiedades" className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
+            Manage my properties
+          </a>
+          <a href="../billetera" className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
+            Lulu Wallet
+          </a>
+          <a href="../referidos" className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
+            Refer a friend
+          </a>
+        </div>
       </div>
+
+      <NextRecurringVisitCard />
+      <LivePortfolioNotice />
 
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
@@ -153,16 +167,26 @@ export default function MisServiciosClient() {
                       </div>
                     )}
                   </div>
-                  {order.status === "completed" && order.claimableZones.length > 0 && (
-                    <button
-                      onClick={() => setClaimingOrderId(claimingOrderId === order.id ? null : order.id)}
-                      className="shrink-0 inline-flex items-center gap-1.5 text-xs font-medium text-brand-wave-blue hover:text-brand-navy border border-brand-wave-blue/30 rounded-lg px-3 py-1.5"
-                    >
-                      <Flag className="w-3.5 h-3.5" />
-                      Report an issue
-                      <ChevronDown className={`w-3 h-3 transition-transform ${claimingOrderId === order.id ? "rotate-180" : ""}`} />
-                    </button>
-                  )}
+                  <div className="shrink-0 flex flex-col items-end gap-2">
+                    {order.status === "completed" && (
+                      <a
+                        href={`servicios/${order.id}/galeria`}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-navy hover:underline"
+                      >
+                        View photos & checklist
+                      </a>
+                    )}
+                    {order.status === "completed" && order.claimableZones.length > 0 && (
+                      <button
+                        onClick={() => setClaimingOrderId(claimingOrderId === order.id ? null : order.id)}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-wave-blue hover:text-brand-navy border border-brand-wave-blue/30 rounded-lg px-3 py-1.5"
+                      >
+                        <Flag className="w-3.5 h-3.5" />
+                        Report an issue
+                        <ChevronDown className={`w-3 h-3 transition-transform ${claimingOrderId === order.id ? "rotate-180" : ""}`} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {orderClaims.length > 0 && (
@@ -379,5 +403,172 @@ function ClaimForm({
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * v8.3 E5.12 — "Recurrente de un toque": si el cliente tiene un contrato de
+ * servicio recurrente activo, un solo botón encadena GET next-visit + POST
+ * /api/quote + redirect al checkout existente. Nada se muestra si no hay
+ * contrato activo (no molesta a clientes no recurrentes).
+ */
+function NextRecurringVisitCard() {
+  const router = useRouter();
+  const [hasContract, setHasContract] = useState<boolean | null>(null);
+  const [nextDate, setNextDate] = useState<string | null>(null);
+  const [booking, setBooking] = useState(false);
+  const [bookError, setBookError] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/client/contracts/next-visit", { credentials: "include" });
+        if (!res.ok) {
+          setHasContract(false);
+          return;
+        }
+        const json = await res.json();
+        setHasContract(Boolean(json.hasActiveContract && json.prefill));
+        setNextDate(json.nextDate || null);
+      } catch {
+        setHasContract(false);
+      }
+    })();
+  }, []);
+
+  async function bookNextVisit() {
+    setBooking(true);
+    setBookError("");
+    try {
+      const infoRes = await fetch("/api/client/contracts/next-visit", { credentials: "include" });
+      const info = await infoRes.json();
+      if (!infoRes.ok || !info.prefill) {
+        setBookError(info.error || "Could not load your recurring plan");
+        return;
+      }
+      const day = new Date(`${info.nextDate}T12:00:00Z`).getUTCDay();
+      const quoteRes = await fetch("/api/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ ...info.prefill, dayOfWeek: day, isPreferredDay: true }),
+      });
+      const quoteJson = await quoteRes.json();
+      if (!quoteRes.ok) {
+        setBookError(quoteJson.error || "Could not create quote");
+        return;
+      }
+      const locale = typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en";
+      const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+      router.push(`/${safeLocale}/reserva/${quoteJson.quoteId}?date=${info.nextDate}`);
+    } catch {
+      setBookError("Network error");
+    } finally {
+      setBooking(false);
+    }
+  }
+
+  if (!hasContract) return null;
+
+  return (
+    <div className="bg-brand-ice border border-brand-gold/30 rounded-xl p-4 flex items-center justify-between gap-4">
+      <div className="flex items-center gap-2 text-sm text-brand-ink">
+        <Repeat className="w-4 h-4 text-brand-gold-dark shrink-0" />
+        <span>
+          Your recurring plan{nextDate ? ` — next visit ${nextDate}` : ""}
+        </span>
+      </div>
+      <button
+        onClick={bookNextVisit}
+        disabled={booking}
+        className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold bg-brand-navy text-white px-4 py-2 rounded-lg disabled:opacity-50"
+      >
+        {booking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Book next visit"}
+      </button>
+      {bookError && <p className="text-xs text-state-danger">{bookError}</p>}
+    </div>
+  );
+}
+
+interface LivePortfolioEntry {
+  id: string;
+  anonymous_label: string;
+  status: string;
+  canWithdraw: boolean;
+  withdrawal_deadline: string | null;
+}
+
+/**
+ * v8.3 E5.15 — "Derecho de retiro <24h": si uno de los servicios del
+ * cliente fue aprobado para el Live Portfolio (siempre requiere su
+ * consentimiento de fotos de marketing previo), se le avisa aquí y puede
+ * retirarlo mientras la ventana de 24h siga abierta.
+ */
+function LivePortfolioNotice() {
+  const [entries, setEntries] = useState<LivePortfolioEntry[]>([]);
+  const [withdrawing, setWithdrawing] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/client/live-portfolio", { credentials: "include" });
+        if (!res.ok) return;
+        const json = await res.json();
+        setEntries((json.entries || []).filter((e: LivePortfolioEntry) => e.status === "approved"));
+      } catch {
+        // silencioso -- notificación opcional, no bloquea la página
+      }
+    })();
+  }, []);
+
+  async function withdraw(id: string) {
+    setWithdrawing(id);
+    setNotice("");
+    try {
+      const res = await fetch(`/api/client/live-portfolio/${id}/withdraw`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setNotice(json.error || "Could not withdraw");
+        return;
+      }
+      setEntries((prev) => prev.filter((e) => e.id !== id));
+      setNotice("Removed from Live Portfolio.");
+    } catch {
+      setNotice("Network error");
+    } finally {
+      setWithdrawing(null);
+    }
+  }
+
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      {entries.map((e) => (
+        <div
+          key={e.id}
+          className="bg-brand-ice border border-brand-gold/30 rounded-xl p-4 flex items-center justify-between gap-4"
+        >
+          <div className="flex items-center gap-2 text-sm text-brand-ink">
+            <Images className="w-4 h-4 text-brand-gold-dark shrink-0" />
+            <span>One of your services ({e.anonymous_label}) was selected for our Live Portfolio.</span>
+          </div>
+          {e.canWithdraw && (
+            <button
+              onClick={() => withdraw(e.id)}
+              disabled={withdrawing === e.id}
+              className="shrink-0 text-xs font-semibold text-brand-navy border border-brand-navy/30 px-3 py-1.5 rounded-lg disabled:opacity-50"
+            >
+              {withdrawing === e.id ? "Removing..." : "Remove it"}
+            </button>
+          )}
+        </div>
+      ))}
+      {notice && <p className="text-xs text-gray-500">{notice}</p>}
+    </div>
   );
 }

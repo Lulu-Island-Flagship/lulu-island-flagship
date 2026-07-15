@@ -1,16 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { pushSalesReceipt } from "@/lib/qbo-adapter";
+import { decideQboSyncAction, evaluateQboDivergence, type QboSyncRetryState } from "@/lib/qbo-sync";
+import { getVancouverTodayString } from "@/lib/date-utils";
 
 /**
  * POST /api/cron/qbo-sync
  *
- * Job programado a las 2:00 AM hora Vancouver.
- * Prepara las órdenes pagadas de las últimas 24h para exportación a QBO.
- * v8.2: el sync es determinista; los webhooks solo optimizan.
+ * Job programado a las 2:00 AM hora Vancouver. Prepara Y EXPORTA (cuando
+ * haya proveedor) las órdenes pagadas de las últimas 24h.
  *
- * Nota: la integración real con QuickBooks Online requiere OAuth2 y credenciales.
- *       Este cron marca órdenes pendientes y genera líneas de exportación con
- *       desglose GST/PST. La llamada a la API de QBO es TODO.
+ * v8.3 E2.6 — este cron tenía un TODO explícito: nunca llamaba a la API real
+ * de QBO, no tenía reintentos con backoff ni alerta de divergencia. No hay
+ * credenciales OAuth2 de QBO en este entorno (adaptador honesto
+ * `not_configured`, src/lib/qbo-adapter.ts) -- lo que se cierra aquí es la
+ * lógica de reintento/backoff (5 intentos, src/lib/qbo-sync.ts) y la
+ * detección de divergencia Shadow Ledger vs QBO >0.1%, que el spec exige
+ * independientemente de si el proveedor real ya está conectado. Cuando se
+ * conecte el proveedor real, este cron no cambia: solo pushSalesReceipt()
+ * empieza a devolver "success"/"failed" de verdad en vez de "not_configured".
  *
  * Seguridad: requiere header Authorization: Bearer ${CRON_SECRET}
  */
@@ -31,14 +39,19 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const nowIso = new Date().toISOString();
 
   try {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
+    // Órdenes nuevas (nunca intentadas) + reintentos pendientes cuyo backoff
+    // ya se cumplió o que nunca se les asignó qbo_sync_attempts.
     const { data: orders, error } = await supabase
       .from("orders")
-      .select("id, user_id, total_paid, card_amount_charged, gst, pst, subtotal, total_paid")
-      .eq("qbo_export_status", "pending")
+      .select(
+        "id, user_id, total_paid, card_amount_charged, gst, pst, subtotal, qbo_sync_attempts, qbo_last_attempt_at"
+      )
+      .in("qbo_export_status", ["pending", "failed"])
       .gte("capture_captured_at", since)
       .order("capture_captured_at", { ascending: true })
       .limit(100);
@@ -51,18 +64,47 @@ export async function POST(request: NextRequest) {
     const results: { orderId: string; status: string; error?: string }[] = [];
 
     for (const order of orders || []) {
+      const retryState: QboSyncRetryState = {
+        attempts: order.qbo_sync_attempts || 0,
+        lastAttemptAtIso: order.qbo_last_attempt_at,
+      };
+      const decision = decideQboSyncAction(retryState, nowIso);
+
+      if (decision.action === "wait_backoff") {
+        results.push({ orderId: order.id, status: "waiting_backoff" });
+        continue;
+      }
+
+      if (decision.action === "give_up_pending_sync") {
+        await supabase
+          .from("orders")
+          .update({ qbo_export_status: "pending_sync", updated_at: nowIso })
+          .eq("id", order.id);
+        results.push({ orderId: order.id, status: "pending_sync", error: "Max retries exhausted" });
+        continue;
+      }
+
+      // action === "attempt_now"
       const gross = Math.round((order.total_paid || 0) * 100);
       const gst = Math.round(((order as { gst?: number }).gst || 0) * 100);
       const pst = Math.round(((order as { pst?: number }).pst || 0) * 100);
       const fee = Math.round(gross * 0.029 + 30);
       const net = gross - fee;
 
+      const pushResult = await pushSalesReceipt({
+        orderId: order.id,
+        grossAmountCents: gross,
+        gstAmountCents: gst,
+        pstAmountCents: pst,
+        description: `Sales receipt order ${order.id}`,
+      });
+
       const { error: lineError } = await supabase.from("qbo_export_lines").insert({
         order_id: order.id,
         export_id: null,
-        payment_intent_id: null,
+        payment_intent_id: pushResult.qboTransactionId,
         transaction_type: "sales_receipt",
-        transaction_date: new Date().toISOString(),
+        transaction_date: nowIso,
         gross_amount: gross,
         fee_amount: fee,
         net_amount: net,
@@ -74,22 +116,97 @@ export async function POST(request: NextRequest) {
       if (lineError) {
         console.error("QBO export line insert error:", lineError);
         results.push({ orderId: order.id, status: "failed", error: lineError.message });
+        await supabase
+          .from("orders")
+          .update({
+            qbo_export_status: "failed",
+            qbo_sync_attempts: retryState.attempts + 1,
+            qbo_last_attempt_at: nowIso,
+            qbo_last_error: lineError.message.slice(0, 500),
+            updated_at: nowIso,
+          })
+          .eq("id", order.id);
+        continue;
+      }
+
+      // pushResult.status es "not_configured" mientras no exista el
+      // adaptador real -- se registra igual como intento fallido (con el
+      // motivo explícito) para que el conteo de reintentos/backoff opere
+      // igual que ante un fallo real de red. La línea de exportación queda
+      // como registro preparado (igual que el comportamiento histórico
+      // pre-E2.6), lista para cuando el proveedor real esté conectado.
+      if (pushResult.status !== "success") {
+        results.push({ orderId: order.id, status: "prepared_not_pushed", error: pushResult.status });
+        await supabase
+          .from("orders")
+          .update({
+            qbo_sync_attempts: retryState.attempts + 1,
+            qbo_last_attempt_at: nowIso,
+            qbo_last_error: `QBO provider ${pushResult.status}`,
+            updated_at: nowIso,
+          })
+          .eq("id", order.id);
         continue;
       }
 
       await supabase
         .from("orders")
-        .update({ qbo_export_status: "exported", updated_at: new Date().toISOString() })
+        .update({
+          qbo_export_status: "exported",
+          qbo_sync_attempts: retryState.attempts + 1,
+          qbo_last_attempt_at: nowIso,
+          qbo_last_error: null,
+          updated_at: nowIso,
+        })
         .eq("id", order.id);
 
       results.push({ orderId: order.id, status: "exported" });
+    }
+
+    // v8.3 E2.6 — divergencia Shadow Ledger vs QBO del día (Vancouver).
+    // Compara lo capturado según Shadow Ledger (fuente de verdad operativa)
+    // contra lo efectivamente exportado a QBO en las últimas 24h. UNIQUE
+    // (alert_date) en qbo_divergence_alerts evita duplicar si el cron corre
+    // más de una vez el mismo día.
+    const todayStr = getVancouverTodayString();
+    const { data: shadowEntries } = await supabase
+      .from("shadow_ledger_entries")
+      .select("amount_cents")
+      .eq("event_type", "balance_captured")
+      .gte("occurred_at", since);
+    const shadowTotalCents = (shadowEntries || []).reduce(
+      (sum: number, e: { amount_cents: number }) => sum + (e.amount_cents || 0),
+      0
+    );
+
+    const { data: qboLines } = await supabase
+      .from("qbo_export_lines")
+      .select("gross_amount")
+      .gte("transaction_date", since);
+    const qboTotalCents = (qboLines || []).reduce(
+      (sum: number, l: { gross_amount: number }) => sum + (l.gross_amount || 0),
+      0
+    );
+
+    const divergence = evaluateQboDivergence(shadowTotalCents, qboTotalCents);
+    if (divergence.exceedsThreshold) {
+      await supabase.from("qbo_divergence_alerts").upsert(
+        {
+          alert_date: todayStr,
+          shadow_total_cents: shadowTotalCents,
+          qbo_total_cents: qboTotalCents,
+          divergence_ratio: divergence.divergenceRatio,
+        },
+        { onConflict: "alert_date", ignoreDuplicates: true }
+      );
     }
 
     return NextResponse.json(
       {
         processed: results.length,
         results,
-        note: "QBO API integration required to push Sales Receipts to QuickBooks Online.",
+        divergence,
+        note: "QBO OAuth2 integration required to push Sales Receipts for real (adapter returns not_configured until then).",
       },
       { status: 200 }
     );

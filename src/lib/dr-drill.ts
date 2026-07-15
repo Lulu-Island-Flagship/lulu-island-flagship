@@ -72,3 +72,77 @@ export function evaluateDrillResult(
   }
   return { result: "pass", reasons: reasons.length ? reasons : ["Integridad OK, dentro de RTO"], withinRto };
 }
+
+/**
+ * v8.3 E11.4 — cada tipo de simulacro declarado en el plan tiene un
+ * intervalo obligatorio ("restauración cada 6 meses", "simulacro de
+ * sucesión anual", etc.). Antes de esto, la tabla `disaster_recovery_drills`
+ * (migración 095) guardaba el historial pero nada calculaba si el intervalo
+ * ya se venció — el criterio de aceptación E11.4 era auditable a mano, no en
+ * pantalla. Estas constantes y esta función pura cierran ese hueco: dado el
+ * último simulacro de un tipo (o null si nunca se corrió), dicen si está
+ * vencido.
+ */
+export type DrillType =
+  | "restore_verification"
+  | "succession_simulation"
+  | "emergency_kit_check"
+  | "fallback_no_admin";
+
+export const DRILL_REQUIRED_INTERVAL_DAYS: Record<DrillType, number> = {
+  restore_verification: 182, // ~6 meses
+  succession_simulation: 365, // anual
+  emergency_kit_check: 182, // ~6 meses (semestral)
+  fallback_no_admin: 91, // ~3 meses (trimestral)
+};
+
+export interface DrillOverdueStatus {
+  drillType: DrillType;
+  intervalDays: number;
+  lastRunAt: string | null;
+  daysSinceLastRun: number | null;
+  isOverdue: boolean;
+}
+
+/**
+ * `lastRunAt` es la fecha del simulacro MÁS RECIENTE de ese tipo, sin
+ * importar su resultado (pass/fail/partial) — lo que se audita es que se
+ * haya CORRIDO en el intervalo, no que haya pasado; un simulacro fallido
+ * sigue siendo evidencia de que se probó (y de que hay algo que arreglar).
+ * Si nunca se corrió (`lastRunAt === null`), se considera vencido de
+ * inmediato: no hay evidencia de que el proceso exista.
+ */
+export function computeDrillOverdueStatus(
+  drillType: DrillType,
+  lastRunAt: string | null,
+  nowIso: string
+): DrillOverdueStatus {
+  const intervalDays = DRILL_REQUIRED_INTERVAL_DAYS[drillType];
+
+  if (lastRunAt === null) {
+    return { drillType, intervalDays, lastRunAt: null, daysSinceLastRun: null, isOverdue: true };
+  }
+
+  const daysSinceLastRun = (new Date(nowIso).getTime() - new Date(lastRunAt).getTime()) / (1000 * 60 * 60 * 24);
+
+  return {
+    drillType,
+    intervalDays,
+    lastRunAt,
+    daysSinceLastRun,
+    isOverdue: daysSinceLastRun >= intervalDays,
+  };
+}
+
+export function computeAllDrillOverdueStatuses(
+  lastRunByType: Partial<Record<DrillType, string | null>>,
+  nowIso: string
+): DrillOverdueStatus[] {
+  const types: DrillType[] = [
+    "restore_verification",
+    "succession_simulation",
+    "emergency_kit_check",
+    "fallback_no_admin",
+  ];
+  return types.map((t) => computeDrillOverdueStatus(t, lastRunByType[t] ?? null, nowIso));
+}

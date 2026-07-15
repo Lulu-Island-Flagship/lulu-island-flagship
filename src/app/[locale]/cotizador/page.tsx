@@ -15,6 +15,8 @@ import { StepAddress } from "@/components/cotizador/StepAddress";
 import { PriceBreakdown } from "@/components/cotizador/PriceBreakdown";
 import { ConsentCheck } from "@/components/cotizador/ConsentCheck";
 import { LanguagePreference } from "@/components/cotizador/LanguagePreference";
+import { AcquisitionChannelSelect } from "@/components/cotizador/AcquisitionChannelSelect";
+import type { AcquisitionChannel } from "@/lib/acquisition-channel";
 import { AuthModal } from "@/components/cotizador/AuthModal";
 import {
   ChevronLeft,
@@ -129,6 +131,7 @@ export default function CotizadorPage() {
   });
   const [purchaseOrder, setPurchaseOrder] = useState("");
   const [preferredLanguages, setPreferredLanguages] = useState<string[]>(["en"]);
+  const [acquisitionChannel, setAcquisitionChannel] = useState<AcquisitionChannel | "">("");
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -262,7 +265,7 @@ export default function CotizadorPage() {
           /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTVWXYZ]\s?\d[ABCEGHJ-NPRSTVWXYZ]\d$/i.test(input.postalCode)
         );
       case "summary":
-        return consents.tc && (!b2bReviewRequired || purchaseOrder.trim().length > 0);
+        return consents.tc && !!acquisitionChannel && (!b2bReviewRequired || purchaseOrder.trim().length > 0);
       default:
         return false;
     }
@@ -289,6 +292,10 @@ export default function CotizadorPage() {
     if (!quote) return;
     if (!consents.tc) {
       setSubmitError("Please accept the Terms & Conditions to proceed.");
+      return;
+    }
+    if (!acquisitionChannel) {
+      setSubmitError("Please let us know how you heard about us.");
       return;
     }
 
@@ -334,6 +341,7 @@ export default function CotizadorPage() {
         consentPhotoMarketing: consents.photoMarketing,
         purchaseOrder: purchaseOrder.trim() || undefined,
         preferredLanguages,
+        acquisitionChannel,
       };
 
       const response = await fetch("/api/quote", {
@@ -510,6 +518,8 @@ export default function CotizadorPage() {
               zone={input.zone ?? ""}
               postalCode={input.postalCode ?? ""}
               onChange={(vals) => updateInput(vals)}
+              squareFeet={input.squareFeet}
+              onSquareFeetConfirm={(squareFeet) => updateInput({ squareFeet })}
             />
           )}
           {step === "summary" && (
@@ -574,6 +584,11 @@ export default function CotizadorPage() {
                   <LanguagePreference
                     value={preferredLanguages}
                     onChange={setPreferredLanguages}
+                  />
+
+                  <AcquisitionChannelSelect
+                    value={acquisitionChannel}
+                    onChange={setAcquisitionChannel}
                   />
 
                   <ConsentCheck

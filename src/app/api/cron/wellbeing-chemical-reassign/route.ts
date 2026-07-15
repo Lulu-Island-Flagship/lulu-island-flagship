@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isChemicalAlertTimerExpired, resolveChemicalReassignment } from "@/lib/wellbeing";
+import { publishUnifiedAlert } from "@/lib/unified-alerts";
 
 // GET /api/cron/wellbeing-chemical-reassign — v8.3 E8 regla dura: timer de
 // 10 min sin respuesta admin => reasignación REAL, no solo detección.
@@ -131,6 +132,18 @@ export async function GET(request: NextRequest) {
             reason:
               "Alerta de bienestar químico vencida a los 10 min sin respuesta admin y sin compañero disponible en la orden para asumir la tarea de riesgo.",
           },
+        });
+        // v8.3 E0.6: bandeja unificada. Sin compañero de respaldo es el caso
+        // más urgente de este módulo (la tarea de riesgo queda sin nadie
+        // calificado hasta que un admin actúe).
+        await publishUnifiedAlert(supabase, {
+          sourceModule: "wellbeing_chemical",
+          sourceTable: "wellbeing_chemical_alerts",
+          sourceId: alert.id as string,
+          tier: "respond_10min",
+          severity: "p1_urgent",
+          title: "Reasignación química sin respaldo disponible",
+          summary: "El empleado reportado quedó restringido a tareas de bajo riesgo; nadie más en la orden puede asumir la tarea química.",
         });
         escalatedNoBackup++;
       } else {

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
-import { detectHheAdjustmentSuggestions, type HheObservation } from "@/lib/hhe-adjustment";
+import {
+  detectHheAdjustmentSuggestions,
+  detectTeamSpeedSuggestions,
+  type HheObservation,
+  type TeamSpeedObservation,
+} from "@/lib/hhe-adjustment";
 import { sqftToRangeIndex, HHE_RANGE_LABELS } from "@/lib/hhe-sqft-band";
 import { getVancouverTodayString } from "@/lib/date-utils";
 
@@ -56,7 +61,7 @@ export async function GET(request: NextRequest) {
         .select("order_id, completed_at")
         .in("order_id", orderIds)
         .not("completed_at", "is", null),
-      supabase.from("assignments").select("order_id, employee_id").in("order_id", orderIds),
+      supabase.from("assignments").select("order_id, employee_id, employees(name)").in("order_id", orderIds),
       supabase.rpc("get_current_hhe_table"),
     ]);
   if (checklistError) return NextResponse.json({ error: checklistError.message }, { status: 500 });
@@ -76,9 +81,17 @@ export async function GET(request: NextRequest) {
   }
 
   const teamSizeByOrder = new Map<string, number>();
+  type EmpJoin = { name: string } | { name: string }[] | null;
+  const teamLabelByOrder = new Map<string, string>();
   for (const a of assignmentRows || []) {
     const set = teamSizeByOrder.get(a.order_id) ?? 0;
     teamSizeByOrder.set(a.order_id, set + 1);
+
+    const empJoin = a.employees as EmpJoin;
+    const emp = Array.isArray(empJoin) ? empJoin[0] : empJoin;
+    const name = emp?.name || "(sin asignar)";
+    const existingLabel = teamLabelByOrder.get(a.order_id);
+    teamLabelByOrder.set(a.order_id, existingLabel ? `${existingLabel} + ${name}` : name);
   }
   // Nota: cuenta filas de assignments (una por empleado asignado), no distinct — si hubiera
   // duplicados por reasignación se sobreestimaría levemente el N. Aceptable para una sugerencia
@@ -86,6 +99,7 @@ export async function GET(request: NextRequest) {
 
   type QuoteJoin = { service_type: string; square_feet: number } | { service_type: string; square_feet: number }[] | null;
   const observations: HheObservation[] = [];
+  const teamObservations: TeamSpeedObservation[] = [];
   for (const o of orders || []) {
     const quoteJoin = o.quotes as QuoteJoin;
     const quote = Array.isArray(quoteJoin) ? quoteJoin[0] : quoteJoin;
@@ -112,13 +126,30 @@ export async function GET(request: NextRequest) {
       baselineHhe,
       actualHhe,
     });
+
+    // v8.3 E9.2 "equipo 20% más rápido consistente": misma fuente de datos,
+    // vista desde el ángulo del EQUIPO en lugar del tipo de servicio.
+    // estimatedHours = horas-hombre esperadas repartidas entre el N real
+    // asignado (el "tiempo de bloqueo" esperado para ESE equipo), actualHours
+    // = tiempo real transcurrido (elapsedHours, sin multiplicar por N).
+    const teamLabel = teamLabelByOrder.get(o.id);
+    if (teamLabel) {
+      teamObservations.push({
+        teamLabel,
+        date: o.service_date,
+        estimatedHours: baselineHhe / teamSize,
+        actualHours: elapsedHours,
+      });
+    }
   }
 
   const suggestions = detectHheAdjustmentSuggestions(observations, asOfDate);
+  const teamSpeedSuggestions = detectTeamSpeedSuggestions(teamObservations, asOfDate);
 
   return NextResponse.json(
     {
       suggestions: suggestions.map((s) => ({ ...s, sqftBandLabel: HHE_RANGE_LABELS[Number(s.sqftBand)] ?? s.sqftBand })),
+      teamSpeedSuggestions,
       rangeLabels: HHE_RANGE_LABELS,
       observationsUsed: observations.length,
     },

@@ -1,6 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert";
-import { evaluateDrillResult, type IntegrityCheckResult } from "../../src/lib/dr-drill";
+import {
+  evaluateDrillResult,
+  computeDrillOverdueStatus,
+  computeAllDrillOverdueStatuses,
+  type IntegrityCheckResult,
+} from "../../src/lib/dr-drill";
 
 const cleanCheck: IntegrityCheckResult = {
   rowCounts: { orders: 10, quotes: 10, employees: 5, payroll_entries: 20, assignments: 10, config_snapshots: 3 },
@@ -61,5 +66,61 @@ describe("evaluateDrillResult", () => {
     };
     const r = evaluateDrillResult(broken, { durationSeconds: 999999, rtoHours: 1 });
     assert.equal(r.result, "fail");
+  });
+});
+
+describe("computeDrillOverdueStatus", () => {
+  const NOW = "2026-07-14T12:00:00.000Z";
+
+  it("vencido de inmediato si nunca se corrió (lastRunAt null)", () => {
+    const r = computeDrillOverdueStatus("restore_verification", null, NOW);
+    assert.equal(r.isOverdue, true);
+    assert.equal(r.daysSinceLastRun, null);
+  });
+
+  it("no vencido si el último simulacro fue reciente", () => {
+    const r = computeDrillOverdueStatus("restore_verification", "2026-07-01T12:00:00.000Z", NOW);
+    assert.equal(r.isOverdue, false);
+  });
+
+  it("restore_verification vence a los 182 días", () => {
+    const justUnder = computeDrillOverdueStatus("restore_verification", "2026-01-14T12:00:00.000Z", NOW); // 181 días
+    const justOver = computeDrillOverdueStatus("restore_verification", "2026-01-13T12:00:00.000Z", NOW); // 182 días
+    assert.equal(justUnder.isOverdue, false);
+    assert.equal(justOver.isOverdue, true);
+  });
+
+  it("succession_simulation vence a los 365 días (anual)", () => {
+    const r = computeDrillOverdueStatus("succession_simulation", "2025-07-14T12:00:00.000Z", NOW);
+    assert.equal(r.isOverdue, true);
+  });
+
+  it("fallback_no_admin vence a los 91 días (trimestral) — más estricto que los demás", () => {
+    const r = computeDrillOverdueStatus("fallback_no_admin", "2026-04-01T12:00:00.000Z", NOW); // ~104 días
+    assert.equal(r.isOverdue, true);
+  });
+
+  it("emergency_kit_check comparte intervalo semestral con restore_verification", () => {
+    const r = computeDrillOverdueStatus("emergency_kit_check", "2026-01-14T12:00:00.000Z", NOW);
+    assert.equal(r.intervalDays, 182);
+  });
+});
+
+describe("computeAllDrillOverdueStatuses", () => {
+  const NOW = "2026-07-14T12:00:00.000Z";
+
+  it("devuelve los 4 tipos de simulacro aunque falten datos", () => {
+    const statuses = computeAllDrillOverdueStatuses({}, NOW);
+    assert.equal(statuses.length, 4);
+    assert.ok(statuses.every((s) => s.isOverdue === true));
+  });
+
+  it("respeta el último run provisto por tipo", () => {
+    const statuses = computeAllDrillOverdueStatuses(
+      { restore_verification: "2026-07-01T12:00:00.000Z" },
+      NOW
+    );
+    const restore = statuses.find((s) => s.drillType === "restore_verification");
+    assert.equal(restore?.isOverdue, false);
   });
 });

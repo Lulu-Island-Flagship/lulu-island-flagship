@@ -18,8 +18,10 @@ import { fetchAddonZoneOptions } from "@/lib/addon-zones";
 import type { QuoteInput } from "@/types";
 import { geocodeAddress } from "@/lib/geocode";
 import { calculateClientScore } from "@/lib/scoring";
+import { isEligibleForInstallmentPlan, computeInstallmentSplit } from "@/lib/installment-payment";
 import { QUOTE_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
 import { isValidPreferredLanguages } from "@/lib/languages";
+import { isValidAcquisitionChannel } from "@/lib/acquisition-channel";
 import {
   evaluateBookingRiskConsequence,
   normalizeAddressForMatch,
@@ -162,6 +164,13 @@ function validateQuoteInputs(
     return { valid: false, error: "preferredLanguages must be a non-empty list of supported, non-repeated language codes" };
   }
 
+  if (
+    (input as QuoteInput).acquisitionChannel !== undefined &&
+    !isValidAcquisitionChannel((input as QuoteInput).acquisitionChannel)
+  ) {
+    return { valid: false, error: "acquisitionChannel must be one of the supported values" };
+  }
+
   return { valid: true };
 }
 
@@ -274,6 +283,7 @@ export async function POST(request: NextRequest) {
       consentPhotoMarketing,
       purchaseOrder,
       preferredLanguages,
+      acquisitionChannel,
     } = rawInput;
 
     // Obtener o crear perfil de cliente para score y tipo de cuenta
@@ -569,6 +579,7 @@ export async function POST(request: NextRequest) {
         consent_photo_marketing: consentPhotoMarketing,
         pipa_alt_requires_audit: consentPipa !== true,
         purchase_order: purchaseOrder || null,
+        acquisition_channel: acquisitionChannel || null,
         client_property_id: propertyRisk?.propertyId ?? null,
         requires_field_auditor: riskConsequence.requiresFieldAuditor,
         property_risk_tier: propertyRisk?.tier ?? "standard",
@@ -588,6 +599,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // v8.3 E2.10: pago fraccionado 50/50, solo informativo en esta respuesta
+    // (elegibilidad + desglose sugerido) — el cliente elige explícitamente
+    // useInstallmentPlan al confirmar la reserva (/api/stripe/confirm).
+    const totalCents = Math.round(Number(data.total) * 100);
+    const installmentEligible = isEligibleForInstallmentPlan(totalCents);
+    const installmentSplitPreview = installmentEligible ? computeInstallmentSplit(totalCents) : null;
+
     // v8.3 B.2.3: el cliente ve SOLO el booleano de revisión — el motivo
     // (margen interno, score, etc.) es información interna del negocio.
     return NextResponse.json(
@@ -599,6 +617,8 @@ export async function POST(request: NextRequest) {
         adminReviewRequired,
         accountType,
         b2bReviewRequired: accountType === "b2b" || accountType === "government",
+        installmentEligible,
+        installmentSplitPreview,
       },
       { status: 201 }
     );

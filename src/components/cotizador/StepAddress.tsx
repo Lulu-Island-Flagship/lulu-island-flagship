@@ -11,11 +11,47 @@ interface StepAddressProps {
   zone: string;
   postalCode: string;
   onChange: (vals: { address: string; zone: string; postalCode: string }) => void;
+  /** ft² actual del input (paso "dimensions"). Undefined si aún no se ha llenado. */
+  squareFeet?: number;
+  /** Aplica el valor sugerido de BC Assessment al ft² del formulario. */
+  onSquareFeetConfirm?: (squareFeet: number) => void;
 }
 
-export function StepAddress({ address, zone, postalCode, onChange }: StepAddressProps) {
+export function StepAddress({ address, zone, postalCode, onChange, squareFeet, onSquareFeetConfirm }: StepAddressProps) {
   const [postalError, setPostalError] = React.useState("");
   const [savedProperties, setSavedProperties] = useState<ClientProperty[]>([]);
+  const [bcSuggestion, setBcSuggestion] = useState<{ squareFeet: number; confidence: string } | null>(null);
+  const [bcDismissed, setBcDismissed] = useState(false);
+
+  // v8.3 E1.2 (D.1): sugerencia DÉBIL de BC Assessment -- nunca un hecho.
+  // Se consulta una vez que hay una dirección razonable (>= 8 caracteres,
+  // evita llamadas por cada tecla al empezar a escribir).
+  useEffect(() => {
+    setBcDismissed(false);
+    if (!address || address.trim().length < 8) {
+      setBcSuggestion(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/quote/bc-assessment?address=${encodeURIComponent(address.trim())}`);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (data.confidence !== "unavailable" && typeof data.squareFeet === "number") {
+          setBcSuggestion({ squareFeet: data.squareFeet, confidence: data.confidence });
+        } else {
+          setBcSuggestion(null);
+        }
+      } catch {
+        setBcSuggestion(null);
+      }
+    }, 600);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [address]);
 
   // Regex para código postal canadiense: formato A1A 1A1 (con o sin espacio)
   const isValidCanadianPostal = (code: string): boolean => {
@@ -113,6 +149,32 @@ export function StepAddress({ address, zone, postalCode, onChange }: StepAddress
           placeholder="e.g. 123 Main Street, Richmond"
           className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none transition-all"
         />
+        {bcSuggestion && !bcDismissed && bcSuggestion.squareFeet !== squareFeet && (
+          <div className="mt-3 p-3 bg-brand-gold/10 border border-brand-gold/30 rounded-lg text-sm">
+            <p className="text-brand-ink">
+              Public records suggest ~{bcSuggestion.squareFeet} ft². Confirm it?
+            </p>
+            <div className="flex gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onSquareFeetConfirm?.(bcSuggestion.squareFeet);
+                  setBcDismissed(true);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-brand-navy text-white text-xs font-medium"
+              >
+                Correct
+              </button>
+              <button
+                type="button"
+                onClick={() => setBcDismissed(true)}
+                className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-medium text-gray-600"
+              >
+                No, it&apos;s different
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Zone */}

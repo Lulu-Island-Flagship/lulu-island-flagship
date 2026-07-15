@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { isQcSampleSelected } from "@/lib/anti-gaming";
+import { getVancouverTodayString } from "@/lib/date-utils";
 
 // GET /api/admin/qc — grid de servicios para QC review
 export async function GET(request: NextRequest) {
@@ -64,23 +66,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Verificar nivel de confianza del empleado (deshabilitado hasta detección de gaming)
-    // const { data: employee } = await supabase
-    //   .from("employees")
-    //   .select("trust_level")
-    //   .eq("id", employeeId)
-    //   .single();
+    // v8.3 E5.2 — anti-gaming habilitado (src/lib/anti-gaming.ts, migración
+    // 153). auto_approval_revoked_at no-null FUERZA muro QC completo sin
+    // importar trust_level -- es la consecuencia de una manipulación
+    // detectada previamente y solo un admin la revierte explícitamente
+    // (no hay ruta automática que la limpie).
+    const { data: employee } = await supabase
+      .from("employees")
+      .select("trust_level, auto_approval_revoked_at")
+      .eq("id", employeeId)
+      .single();
 
-    const isElite = false; // DISABLED: employee?.trust_level === "elite";
-    const isSampled = false; // DISABLED: Math.random() < 0.10; // 10% muestreo
-
-    // TODO: Implementar detección de gaming antes de habilitar auto-approval en producción real.
-    // El spec requiere: si >15% de rechazos en muestreo, revocar auto-aprobación,
-    // revisar retroactivamente últimos 10 servicios, recalcular score.
-    // Segunda detección = suspensión documentada.
-    // Sin este control, un empleado podría manipular el sistema para mantener auto-approval.
-    // BLOQUEANTE antes de usar auto-approval con empleados reales.
-    // FORZAR muro QC para todos hasta que exista detección de gaming.
+    const isElite = employee?.trust_level === "elite" && !employee?.auto_approval_revoked_at;
+    const isSampled = isElite && isQcSampleSelected(orderId, getVancouverTodayString());
 
     let reviewStatus = "pending";
     let samplingReason = null;
@@ -88,6 +86,10 @@ export async function POST(request: NextRequest) {
     if (isElite && !isSampled) {
       reviewStatus = "auto";
       samplingReason = "elite_auto_approved";
+    } else if (isElite && isSampled) {
+      // Habría sido auto-aprobado, pero cayó en el 10% que igual pasa por
+      // revisión humana (ver evaluateSampledRejectionRate en el resolve).
+      samplingReason = "elite_auto_approval_sample";
     }
 
     const { data, error } = await supabase

@@ -47,6 +47,78 @@
     {
       "path": "/api/cron/competitor-scrape",
       "schedule": "0 8 * * 1"
+    },
+    {
+      "path": "/api/cron/legal-monitoring-healthcheck",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/succession-check",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/purchase-order-reminders",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/churn-detection",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/communication-reengagement",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/pre-review-survey",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/birthday-gift",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/referral-credit-grant",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/cron/morning-conditions-check",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/live-portfolio-scan",
+      "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/cron/nps-survey",
+      "schedule": "0 15 * * 2"
+    },
+    {
+      "path": "/api/cron/photo-retention-purge",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/backup-transactions",
+      "schedule": "0 19 * * *"
+    },
+    {
+      "path": "/api/cron/backup-clients",
+      "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/cron/backup-payroll",
+      "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/cron/backup-photos-manifest",
+      "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/cron/backup-pg-dump-reminder",
+      "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/contract-review-scan",
+      "schedule": "0 9 * * *"
     }
   ]
 }

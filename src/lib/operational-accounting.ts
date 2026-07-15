@@ -95,3 +95,24 @@ export function summarizeByTeam(records: OrderFinancialRecord[]): AccountingGrou
 export function summarizeOverall(records: OrderFinancialRecord[]): AccountingGroupSummary {
   return summarizeGroup("total", records);
 }
+
+/**
+ * v8.3 E9.1 — Prorratea los costos fijos mensuales (fixed_costs_settings)
+ * entre las órdenes de un rango arbitrario. Se calcula sobre los meses
+ * calendario REALMENTE presentes en `serviceDates` (nunca se asume "1 mes"
+ * si el rango cubre varios, ni se promedia con datos inventados) y se
+ * reparte en partes iguales entre todas las órdenes del rango.
+ *
+ * @param monthlyFixedCostsCents costo fijo vigente (fixed_costs_settings)
+ * @param serviceDates fecha de servicio (YYYY-MM-DD) de cada orden del rango
+ */
+export function computeProratedFixedCostsPerOrder(
+  monthlyFixedCostsCents: number,
+  serviceDates: string[]
+): number {
+  if (serviceDates.length === 0) return 0;
+  const distinctMonths = new Set(serviceDates.map((d) => d.slice(0, 7)));
+  const monthsInRange = Math.max(1, distinctMonths.size);
+  const totalFixedCostsCents = monthlyFixedCostsCents * monthsInRange;
+  return Math.round(totalFixedCostsCents / serviceDates.length);
+}

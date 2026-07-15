@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { DollarSign, Loader2, TrendingUp, TrendingDown, Download } from "lucide-react";
+import { DollarSign, Loader2, TrendingUp, TrendingDown, Download, AlertTriangle } from "lucide-react";
 
 interface GroupSummary {
   key: string;
@@ -21,6 +21,8 @@ interface AccountingResponse {
   byServiceType: GroupSummary[];
   byTeam: GroupSummary[];
   overall: GroupSummary;
+  fixedCostsConfigured: boolean;
+  monthlyFixedCostsCents: number;
 }
 
 function formatCad(cents: number): string {
@@ -31,7 +33,13 @@ function formatPercent(fraction: number): string {
   return `${(fraction * 100).toFixed(1)}%`;
 }
 
-function GroupTable({ title, rows }: { title: string; rows: GroupSummary[] }) {
+// v8.3 E9.2: "margen <15% por tipo → alerta con sugerencia" — mismo piso
+// que MARGIN_FLOOR_PERCENT (src/lib/pricing.ts), duplicado aquí como
+// constante local para no importar el módulo completo de pricing (server-
+// oriented) en un client component solo por un número.
+const MARGIN_ALERT_THRESHOLD = 0.15;
+
+function GroupTable({ title, rows, flagLowMargin }: { title: string; rows: GroupSummary[]; flagLowMargin?: boolean }) {
   return (
     <div className="mb-8">
       <h2 className="text-lg font-semibold mb-2">{title}</h2>
@@ -49,25 +57,32 @@ function GroupTable({ title, rows }: { title: string; rows: GroupSummary[] }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.key} className="border-t border-gray-100">
-                <td className="px-3 py-2">{r.key}</td>
-                <td className="px-3 py-2 text-right">{r.orders}</td>
-                <td className="px-3 py-2 text-right">{formatCad(r.collectedCents)}</td>
-                <td className="px-3 py-2 text-right">{formatCad(r.laborCostCents)}</td>
-                <td className="px-3 py-2 text-right">{formatCad(r.employerBurdenCents + r.otherCostsCents)}</td>
-                <td className="px-3 py-2 text-right">
-                  {formatCad(r.contributionMarginCents)}{" "}
-                  <span className="text-gray-500">({formatPercent(r.contributionMarginPercent)})</span>
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <span className={r.netMarginCents >= 0 ? "text-green-700" : "text-red-700"}>
-                    {formatCad(r.netMarginCents)}
-                  </span>{" "}
-                  <span className="text-gray-500">({formatPercent(r.netMarginPercent)})</span>
-                </td>
-              </tr>
-            ))}
+            {rows.map((r) => {
+              const isLowMargin = flagLowMargin && r.contributionMarginPercent < MARGIN_ALERT_THRESHOLD;
+              return (
+                <tr key={r.key} className={`border-t border-gray-100 ${isLowMargin ? "bg-red-50" : ""}`}>
+                  <td className="px-3 py-2 flex items-center gap-1.5">
+                    {isLowMargin && <AlertTriangle className="w-3.5 h-3.5 text-state-danger shrink-0" />}
+                    {r.key}
+                  </td>
+                  <td className="px-3 py-2 text-right">{r.orders}</td>
+                  <td className="px-3 py-2 text-right">{formatCad(r.collectedCents)}</td>
+                  <td className="px-3 py-2 text-right">{formatCad(r.laborCostCents)}</td>
+                  <td className="px-3 py-2 text-right">{formatCad(r.employerBurdenCents + r.otherCostsCents)}</td>
+                  <td className="px-3 py-2 text-right">
+                    <span className={isLowMargin ? "text-state-danger font-medium" : ""}>
+                      {formatCad(r.contributionMarginCents)} ({formatPercent(r.contributionMarginPercent)})
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <span className={r.netMarginCents >= 0 ? "text-green-700" : "text-red-700"}>
+                      {formatCad(r.netMarginCents)}
+                    </span>{" "}
+                    <span className="text-gray-500">({formatPercent(r.netMarginPercent)})</span>
+                  </td>
+                </tr>
+              );
+            })}
             {rows.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-3 py-4 text-center text-gray-400">
@@ -78,6 +93,13 @@ function GroupTable({ title, rows }: { title: string; rows: GroupSummary[] }) {
           </tbody>
         </table>
       </div>
+      {flagLowMargin && rows.some((r) => r.contributionMarginPercent < MARGIN_ALERT_THRESHOLD) && (
+        <p className="text-xs text-state-danger mt-1 flex items-center gap-1.5">
+          <AlertTriangle className="w-3 h-3" /> Highlighted service types are below the {MARGIN_ALERT_THRESHOLD * 100}%
+          contribution margin floor (D.9.2) — consider a pricing rule adjustment or reviewing SOP time for that
+          service.
+        </p>
+      )}
     </div>
   );
 }
@@ -99,6 +121,32 @@ export default function ContabilidadPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [exportMonth, setExportMonth] = useState(() => new Date().toISOString().slice(0, 7));
+
+  const [showFixedCostsForm, setShowFixedCostsForm] = useState(false);
+  const [fixedCostsInput, setFixedCostsInput] = useState("");
+  const [fixedCostsReason, setFixedCostsReason] = useState("");
+  const [savingFixedCosts, setSavingFixedCosts] = useState(false);
+
+  async function saveFixedCosts() {
+    const dollars = parseFloat(fixedCostsInput);
+    if (isNaN(dollars) || dollars < 0 || fixedCostsReason.trim().length === 0) return;
+    setSavingFixedCosts(true);
+    try {
+      const res = await fetch("/api/admin/fixed-costs-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ monthlyFixedCostsDollars: dollars, reason: fixedCostsReason.trim() }),
+      });
+      if (res.ok) {
+        setShowFixedCostsForm(false);
+        setFixedCostsInput("");
+        setFixedCostsReason("");
+        await load();
+      }
+    } finally {
+      setSavingFixedCosts(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -131,8 +179,10 @@ export default function ContabilidadPage() {
 
       <p className="text-sm text-gray-500 mb-4">
         Collected = actual amount captured from the client. Paid = gross payroll. Contribution margin = collected −
-        paid. Actual net margin = collected − paid − employer burden (CPP/EI/WorkSafeBC). Employer burden is
-        shown as 0 until a payroll snapshot exists for the corresponding cycle.
+        paid. Actual net margin = collected − paid − employer burden (CPP/EI/WorkSafeBC) − prorated monthly fixed
+        costs (rent, insurance, software, owner compensation). Employer burden is shown as 0 until a payroll
+        snapshot exists for the corresponding cycle. Fixed costs are prorated across the calendar months actually
+        present in the selected range, split evenly per order.
       </p>
 
       <div className="flex items-end gap-3 mb-6">
@@ -183,6 +233,52 @@ export default function ContabilidadPage() {
       )}
       {error && <div className="text-red-600 text-sm mb-4">{error}</div>}
 
+      {data && !data.fixedCostsConfigured && (
+        <div className="flex items-start gap-2 border border-amber-300 bg-amber-50 rounded p-3 mb-6 text-sm text-amber-800">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            Monthly fixed costs are not configured yet (rent, insurance, software, owner compensation) — actual net
+            margin below does not subtract them and is currently equal to contribution margin.
+            {!showFixedCostsForm ? (
+              <button onClick={() => setShowFixedCostsForm(true)} className="ml-2 underline font-medium">
+                Set it now
+              </button>
+            ) : (
+              <div className="mt-2 flex flex-wrap items-end gap-2">
+                <div>
+                  <label className="block text-xs mb-1">Monthly fixed costs ($)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={fixedCostsInput}
+                    onChange={(e) => setFixedCostsInput(e.target.value)}
+                    className="border rounded px-2 py-1 text-sm w-32"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1">Reason (required)</label>
+                  <input
+                    type="text"
+                    value={fixedCostsReason}
+                    onChange={(e) => setFixedCostsReason(e.target.value)}
+                    className="border rounded px-2 py-1 text-sm"
+                    placeholder="e.g. initial setup with real rent + insurance"
+                  />
+                </div>
+                <button
+                  onClick={saveFixedCosts}
+                  disabled={savingFixedCosts}
+                  className="px-3 py-1.5 bg-brand-navy text-white rounded text-sm disabled:opacity-50"
+                >
+                  {savingFixedCosts ? "Saving..." : "Save"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {data && !loading && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
@@ -200,7 +296,7 @@ export default function ContabilidadPage() {
           </div>
 
           <GroupTable title="By zone" rows={data.byZone} />
-          <GroupTable title="By service type" rows={data.byServiceType} />
+          <GroupTable title="By service type" rows={data.byServiceType} flagLowMargin />
           <GroupTable title="By team" rows={data.byTeam} />
         </>
       )}

@@ -46,13 +46,27 @@ export async function GET() {
 
   const { data: orders, error } = await supabase
     .from("orders")
-    .select(`${ORDER_CLIENT_COLUMNS}, quotes:quote_id (service_category, service_subtype, service_type, address, zone)`)
+    .select(
+      `${ORDER_CLIENT_COLUMNS}, hold_captured_at, capture_captured_at, quotes:quote_id (service_category, service_subtype, service_type, address, zone)`
+    )
     .eq("user_id", user.id)
     .order("service_date", { ascending: false });
 
   if (error) {
     console.error("client/orders fetch error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // v8.3 E2.10: booleano derivado, NUNCA se exponen los timestamps crudos de
+  // Stripe (hold_captured_at/capture_captured_at no están en
+  // ORDER_CLIENT_COLUMNS a propósito) -- solo si la orden todavía admite
+  // aplicar crédito de billetera (ver /api/client/wallet/apply).
+  const canApplyWalletCreditByOrder = new Map<string, boolean>();
+  for (const o of (orders || []) as { id: string; hold_captured_at: string | null; capture_captured_at: string | null; wallet_amount_used: number }[]) {
+    canApplyWalletCreditByOrder.set(
+      o.id,
+      !o.hold_captured_at && !o.capture_captured_at && !o.wallet_amount_used
+    );
   }
 
   const completedOrderIds = (orders || [])
@@ -84,10 +98,16 @@ export async function GET() {
     }
   }
 
-  const ordersWithZones = (orders || []).map((o: { id: string; status: string }) => ({
-    ...o,
-    claimableZones: o.status === "completed" ? zonesByOrder.get(o.id) || [] : [],
-  }));
+  const ordersWithZones = (orders || []).map((o: { id: string; status: string; hold_captured_at?: string | null; capture_captured_at?: string | null }) => {
+    const { hold_captured_at, capture_captured_at, ...rest } = o;
+    void hold_captured_at;
+    void capture_captured_at;
+    return {
+      ...rest,
+      claimableZones: o.status === "completed" ? zonesByOrder.get(o.id) || [] : [],
+      canApplyWalletCredit: canApplyWalletCreditByOrder.get(o.id) ?? false,
+    };
+  });
 
   return NextResponse.json({ orders: ordersWithZones }, { status: 200 });
 }

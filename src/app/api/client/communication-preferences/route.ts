@@ -1,0 +1,124 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { cookies } from "next/headers";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+
+function getSupabaseClient() {
+  const cookieStore = cookies();
+  return createServerClient(supabaseUrl, supabaseKey, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value;
+      },
+      set(name: string, value: string, options: CookieOptions) {
+        cookieStore.set({ name, value, ...options });
+      },
+      remove(name: string, options: CookieOptions) {
+        cookieStore.set({ name, value: "", ...options });
+      },
+    },
+  });
+}
+
+/**
+ * GET  /api/client/communication-preferences — estado actual de opt-in de
+ *      marketing de la cuenta autenticada (v8.3 E6.5).
+ * POST /api/client/communication-preferences — { marketingOptIn: boolean }
+ *      Cambia el estado. Un opt-IN aquí es la reafirmación explícita que
+ *      CASL exige después de una baja (nunca se reactiva solo, ni por un
+ *      admin, ni automáticamente).
+ */
+export async function GET() {
+  const supabase = getSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { data, error } = await supabase
+    .from("client_profiles")
+    .select("marketing_opt_in, marketing_opt_in_updated_at, auto_unsubscribed_at, birth_date")
+    .eq("user_id", user.id)
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(
+    {
+      marketingOptIn: data.marketing_opt_in,
+      updatedAt: data.marketing_opt_in_updated_at,
+      autoUnsubscribedAt: data.auto_unsubscribed_at,
+      // v8.3 E5.12: opcional, solo para el regalo de cumpleaños configurable.
+      birthDate: data.birth_date,
+    },
+    { status: 200 }
+  );
+}
+
+export async function POST(request: NextRequest) {
+  const supabase = getSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let body: { marketingOptIn?: unknown; birthDate?: unknown };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+  }
+
+  const update: Record<string, unknown> = {};
+
+  if (body.marketingOptIn !== undefined) {
+    if (typeof body.marketingOptIn !== "boolean") {
+      return NextResponse.json({ error: "marketingOptIn debe ser boolean" }, { status: 400 });
+    }
+    update.marketing_opt_in = body.marketingOptIn;
+    update.marketing_opt_in_updated_at = new Date().toISOString();
+    // Reafirmar opt-in manualmente limpia la marca de baja-por-re-engagement
+    // -- esa marca es informativa (por qué se dio de baja), no un candado.
+    if (body.marketingOptIn) {
+      update.auto_unsubscribed_at = null;
+    }
+  }
+
+  // v8.3 E5.12: birth_date es SIEMPRE opcional (PIPA: nunca obligatorio) y
+  // solo alimenta el regalo de cumpleaños configurable -- nunca se usa para
+  // scoring, riesgo ni ninguna otra decisión.
+  if (body.birthDate !== undefined) {
+    if (body.birthDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(String(body.birthDate))) {
+      return NextResponse.json({ error: "birthDate debe ser YYYY-MM-DD o null" }, { status: 400 });
+    }
+    update.birth_date = body.birthDate;
+  }
+
+  if (Object.keys(update).length === 0) {
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from("client_profiles")
+    .update(update)
+    .eq("user_id", user.id)
+    .select("marketing_opt_in, marketing_opt_in_updated_at, birth_date")
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(
+    {
+      marketingOptIn: data.marketing_opt_in,
+      updatedAt: data.marketing_opt_in_updated_at,
+      birthDate: data.birth_date,
+    },
+    { status: 200 }
+  );
+}

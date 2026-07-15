@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Gauge, Loader2, CheckCircle2 } from "lucide-react";
+import { Gauge, Loader2, CheckCircle2, Zap } from "lucide-react";
 
 interface Suggestion {
   serviceType: string;
@@ -21,8 +21,17 @@ interface Suggestion {
   message: string;
 }
 
+interface TeamSpeedSuggestion {
+  teamLabel: string;
+  averageSpeedupPercent: number;
+  observationDays: number;
+  consistentFraction: number;
+  message: string;
+}
+
 interface Response {
   suggestions: Suggestion[];
+  teamSpeedSuggestions: TeamSpeedSuggestion[];
   rangeLabels: string[];
   observationsUsed: number;
 }
@@ -122,6 +131,31 @@ export default function AjustesHhePage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {data && data.teamSpeedSuggestions.length > 0 && (
+        <div className="mt-10">
+          <div className="mb-2 flex items-center gap-2">
+            <Zap className="h-5 w-5 text-brand-gold-dark" />
+            <h2 className="text-lg font-semibold text-brand-navy">Consistently Faster Teams</h2>
+          </div>
+          <p className="mb-4 text-sm text-gray-500">
+            D.9.2: a team completing services ≥20% faster than estimated, sustained over 30 days, suggests
+            assigning more complex services or reducing N — this is a staffing/dispatch decision, not an HHE
+            table change, so there is no one-click apply here; review it in Team Ranking / Dispatch.
+          </p>
+          <div className="space-y-3">
+            {data.teamSpeedSuggestions.map((s) => (
+              <div key={s.teamLabel} className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm text-brand-ink">{s.message}</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {s.observationDays.toFixed(0)} days of observation, {(s.consistentFraction * 100).toFixed(0)}%
+                  consistent
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

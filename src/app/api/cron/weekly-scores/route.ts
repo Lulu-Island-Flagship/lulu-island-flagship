@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import {
+  detectReciprocalHighRatings,
+  hasSufficientVoterSample,
+  type PeerVote,
+} from "@/lib/peer-vote-integrity";
+
+/**
+ * v8.3 E5: peer_score neutral cuando la muestra de votantes es insuficiente
+ * (hasSufficientVoterSample) -- 1 solo voto (amigo u hostil) no debe decidir
+ * el 20% del score. 70 = piso del nivel "Estándar" (spec E5.1), ni castigo ni
+ * premio.
+ */
+const NEUTRAL_PEER_SCORE = 70;
+const PEER_SCORE_WEIGHT = 0.2;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -56,6 +70,34 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: empError.message }, { status: 500 });
     }
 
+    // v8.3 E5 anti-gaming: votos crudos de la semana para detectar colusión
+    // recíproca y exigir muestra mínima de votantes antes de confiar en
+    // peer_score (src/lib/peer-vote-integrity.ts).
+    const { data: weekVotesRaw, error: votesError } = await supabase
+      .from("peer_votes")
+      .select("voter_employee_id, target_employee_id, rating")
+      .eq("week_start", weekStart);
+
+    if (votesError) {
+      console.error("Peer votes fetch error:", votesError);
+    }
+    const weekVotes: PeerVote[] = (weekVotesRaw || []).map((v) => ({
+      voterEmployeeId: v.voter_employee_id,
+      targetEmployeeId: v.target_employee_id,
+      rating: v.rating,
+    }));
+
+    const collusionPairs = detectReciprocalHighRatings(weekVotes);
+    for (const pair of collusionPairs) {
+      await supabase.from("peer_vote_collusion_flags").insert({
+        week_start: weekStart,
+        employee_a: pair.employeeA,
+        employee_b: pair.employeeB,
+        rating_a_to_b: pair.ratingAtoB,
+        rating_b_to_a: pair.ratingBtoA,
+      });
+    }
+
     const results = [];
 
     for (const emp of employees || []) {
@@ -71,13 +113,22 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      const totalScore = scoreData?.[0]?.total_score || 0;
+      let totalScore = scoreData?.[0]?.total_score || 0;
       const trustLevel = scoreData?.[0]?.trust_level || "standard";
       const telemetryScore = scoreData?.[0]?.telemetry_score || 0;
       const auditScore = scoreData?.[0]?.audit_score || 0;
-      const peerScore = scoreData?.[0]?.peer_score || 0;
+      let peerScore = scoreData?.[0]?.peer_score || 0;
       const servicesCount = scoreData?.[0]?.services_count || 0;
       const disputesCount = scoreData?.[0]?.disputes_count || 0;
+
+      // Muestra insuficiente (< 2 votantes distintos, spec E5.2): el
+      // peer_score crudo no es confiable -- se neutraliza a 70 y se
+      // recalcula total_score con el mismo peso de 20% que usó el RPC, en
+      // vez de dejar que 1 solo voto decida el 20% del score compuesto.
+      if (!hasSufficientVoterSample(weekVotes, emp.id)) {
+        totalScore = totalScore - peerScore * PEER_SCORE_WEIGHT + NEUTRAL_PEER_SCORE * PEER_SCORE_WEIGHT;
+        peerScore = NEUTRAL_PEER_SCORE;
+      }
 
       // Upsert en employee_scores
       const { error: upsertError } = await supabase
@@ -110,6 +161,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       week_start: weekStart,
       processed: results.length,
+      collusionFlagsCreated: collusionPairs.length,
       results,
     }, { status: 200 });
   } catch (err: Error | unknown) {

@@ -5,6 +5,7 @@ import {
   summarizeByServiceType,
   summarizeByTeam,
   summarizeOverall,
+  computeProratedFixedCostsPerOrder,
   type OrderFinancialRecord,
 } from "@/lib/operational-accounting";
 
@@ -50,14 +51,28 @@ export async function GET(request: NextRequest) {
       byServiceType: summarizeByServiceType(empty),
       byTeam: summarizeByTeam(empty),
       overall: summarizeOverall(empty),
+      fixedCostsConfigured: false,
+      monthlyFixedCostsCents: 0,
     });
   }
 
-  const [{ data: reserves }, { data: payrollEntries }, { data: assignments }] = await Promise.all([
+  const [{ data: reserves }, { data: payrollEntries }, { data: assignments }, { data: fixedCostsCents }] = await Promise.all([
     supabase.from("chargeback_reserves").select("order_id, captured_amount").in("order_id", orderIds),
     supabase.from("payroll_entries").select("order_id, employee_id, gross_amount").in("order_id", orderIds).is("deleted_at", null),
     supabase.from("assignments").select("order_id, employee_id, employees(name)").in("order_id", orderIds),
+    supabase.rpc("get_current_monthly_fixed_costs_cents"),
   ]);
+
+  // v8.3 E9.1: "margen neto real" exige prorratear costos fijos mensuales
+  // (renta, seguros, software, compensación del dueño -- fixed_costs_settings,
+  // migración 134). Si el dueño nunca lo configuró (sigue en el seed $0),
+  // esto queda en $0 explícitamente -- nunca se simula un número que no
+  // existe. Lógica pura y testeada en src/lib/operational-accounting.ts.
+  const monthlyFixedCostsCents = Number(fixedCostsCents || 0);
+  const otherCostsPerOrderCents = computeProratedFixedCostsPerOrder(
+    monthlyFixedCostsCents,
+    (orders || []).map((o) => String(o.service_date))
+  );
 
   const collectedByOrder = new Map<string, number>();
   for (const r of reserves || []) {
@@ -91,6 +106,7 @@ export async function GET(request: NextRequest) {
       collectedCents: collectedByOrder.get(o.id) || 0,
       laborCostCents: laborByOrder.get(o.id) || 0,
       employerBurdenCents: 0, // ver nota arriba — no se prorratea sin snapshot de ciclo por orden
+      otherCostsCents: otherCostsPerOrderCents,
     };
   });
 
@@ -99,5 +115,7 @@ export async function GET(request: NextRequest) {
     byServiceType: summarizeByServiceType(records),
     byTeam: summarizeByTeam(records),
     overall: summarizeOverall(records),
+    fixedCostsConfigured: monthlyFixedCostsCents > 0,
+    monthlyFixedCostsCents,
   });
 }

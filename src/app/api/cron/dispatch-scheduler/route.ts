@@ -5,11 +5,13 @@ import { calculateTeamRequirements, getHHEForRange, type ServiceType } from "@/l
 import { buildTeam, enforceMaxTeamSize, type DispatchCandidate } from "@/lib/dispatch-team";
 import { evaluateWorkday } from "@/lib/workday";
 import { isVehicleInsuranceExpired } from "@/lib/vehicle-insurance";
+import { isEmployeeAssignableByCertification, type CertificationLevel } from "@/lib/certifications";
 import {
   evaluateDispatchDiscrepancyFallback,
   type DispatchDiscrepancyReason,
 } from "@/lib/dispatch-fallback";
 import { evaluateTeamSixAutoApproval } from "@/lib/dispatch-approval";
+import { publishUnifiedAlert } from "@/lib/unified-alerts";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -156,8 +158,52 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
       .map((e) => e.id)
   );
 
+  // v8.3 E9.4/E7/D.9: certificación química vigente es requisito para ser
+  // asignable ("no asignable sin vigencia") -- mismo patrón que el seguro
+  // vehicular vencido arriba.
+  const employeeIdsForCertCheck = (employees || []).map((e) => e.id);
+  const certificationsByEmployee = new Map<
+    string,
+    { level: CertificationLevel; expiresAtISO: string; revokedAtISO: string | null }[]
+  >();
+  if (employeeIdsForCertCheck.length > 0) {
+    const { data: certRows } = await supabase
+      .from("employee_certifications")
+      .select("employee_id, level, expires_at, revoked_at")
+      .in("employee_id", employeeIdsForCertCheck);
+    for (const c of certRows || []) {
+      const list = certificationsByEmployee.get(c.employee_id) || [];
+      list.push({
+        level: c.level as CertificationLevel,
+        expiresAtISO: c.expires_at,
+        revokedAtISO: c.revoked_at,
+      });
+      certificationsByEmployee.set(c.employee_id, list);
+    }
+  }
+  const nowIsoForCerts = new Date().toISOString();
+  // Cláusula de transición: solo se bloquea a un empleado que YA tiene al
+  // menos un registro de certificación (y todos vencidos/revocados). A un
+  // empleado sin ningún registro histórico (la tabla employee_certifications
+  // es nueva, migración 166) NO se le bloquea retroactivamente -- eso
+  // detendría el despacho completo el día del despliegue sin haber
+  // cargado datos reales. Una vez el admin registre certificaciones desde
+  // /admin/certificaciones, el bloqueo real empieza a aplicar para ese
+  // empleado. Ver src/lib/certifications.ts (la función pura sí trata
+  // "sin registros" como no-asignable -- ese es el comportamiento correcto
+  // en estado estable; aquí solo se amortigua el arranque en frío).
+  const uncertifiedEmployeeIds = new Set(
+    (employees || [])
+      .filter((e) => {
+        const records = certificationsByEmployee.get(e.id) || [];
+        if (records.length === 0) return false;
+        return !isEmployeeAssignableByCertification(records, nowIsoForCerts);
+      })
+      .map((e) => e.id)
+  );
+
   const availableEmployees = (employees || []).filter(
-    (e) => e.is_active && !expiredInsuranceEmployeeIds.has(e.id)
+    (e) => e.is_active && !expiredInsuranceEmployeeIds.has(e.id) && !uncertifiedEmployeeIds.has(e.id)
   );
   const availableTeams = availableEmployees.length;
 
@@ -176,6 +222,11 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
   if (expiredInsuranceEmployeeIds.size > 0) {
     pendingLanguage.push(
       `${expiredInsuranceEmployeeIds.size} empleado(s) excluido(s) del despacho: seguro de su vehículo vencido (v8.3 E7).`
+    );
+  }
+  if (uncertifiedEmployeeIds.size > 0) {
+    pendingLanguage.push(
+      `${uncertifiedEmployeeIds.size} empleado(s) excluido(s) del despacho: sin certificación química vigente (v8.3 E9.4).`
     );
   }
 
@@ -332,7 +383,21 @@ async function recordAndEscalateDispatchDiscrepancies(
         .from("tickets_disputas")
         .update({ status: "escalated", priority: "high" })
         .eq("id", t.id);
-      if (!error) escalated += 1;
+      if (!error) {
+        escalated += 1;
+        // v8.3 E0.6: bandeja unificada. La discrepancia de despacho llevaba
+        // >=10 min sin resolverse (B.2.12) — entra a la bandeja como
+        // respond_10min ya vencido, para visibilidad inmediata.
+        await publishUnifiedAlert(supabase, {
+          sourceModule: "dispatch_discrepancy",
+          sourceTable: "tickets_disputas",
+          sourceId: t.id as string,
+          tier: "respond_10min",
+          severity: "p1_urgent",
+          title: `Discrepancia de despacho escalada: ${(ctx.reason as string) ?? "sin razón"}`,
+          summary: `Orden ${ctx.order_id ?? "desconocida"} — sin resolución tras 10 min.`,
+        });
+      }
     }
   }
 

@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Star,
   Users,
+  Video,
 } from "lucide-react";
 import type { EmployeeService } from "@/types";
 import { downloadAndCacheDayBundle } from "@/lib/offline-day-cache";
@@ -401,6 +402,28 @@ export default function EmpleadoPage() {
               <span className="font-medium text-sm text-brand-ink">Peer Voting</span>
             </div>
             <p className="text-xs text-gray-400">Rate your teammates</p>
+          </a>
+          {/* v8.3 E8.13: ritual de inicio/fin de jornada (equipo, clima, ranking, ganancias, insignias) */}
+          <a
+            href={`/${safeLocale}/empleado/ritual`}
+            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Star className="w-4 h-4 text-brand-gold-dark" />
+              <span className="font-medium text-sm text-brand-ink">Shift Ritual</span>
+            </div>
+            <p className="text-xs text-gray-400">Team, weather, ranking &amp; earnings</p>
+          </a>
+          {/* v8.3 E10.8: consentimiento opcional para reels/insignias públicas */}
+          <a
+            href={`/${safeLocale}/empleado/marketing`}
+            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Video className="w-4 h-4 text-brand-navy" />
+              <span className="font-medium text-sm text-brand-ink">Marketing Consent</span>
+            </div>
+            <p className="text-xs text-gray-400">Optional — reels &amp; public badges</p>
           </a>
         </div>
 
