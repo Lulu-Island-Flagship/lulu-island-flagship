@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Package, Truck, Plus, Loader2, AlertTriangle, ShoppingCart, Check } from "lucide-react";
+import { Package, Truck, Plus, Loader2, AlertTriangle, ShoppingCart, Check, Calendar, Tag } from "lucide-react";
 
 interface Supplier {
   id: string;
@@ -18,6 +18,26 @@ interface InventoryItem {
   unit: string;
   current_stock: number;
   reorder_threshold: number;
+}
+
+interface EquipmentReservation {
+  id: string;
+  inventory_item_id: string;
+  reserved_date: string;
+  assignment_id: string | null;
+  inventory_items?: { id: string; name: string; category: string } | null;
+}
+
+interface CatalogEntry {
+  id: string;
+  supplier_id: string;
+  inventory_item_id: string;
+  unit_price_cents: number;
+  currency: string;
+  effective_from: string;
+  is_current: boolean;
+  suppliers?: { id: string; name: string } | null;
+  inventory_items?: { id: string; name: string; unit: string } | null;
 }
 
 interface ReorderSuggestion {
@@ -45,11 +65,13 @@ const CATEGORIES = [
 ];
 
 export default function InventarioPage() {
-  const [tab, setTab] = useState<"items" | "suppliers">("items");
+  const [tab, setTab] = useState<"items" | "suppliers" | "equipment">("items");
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [suggestions, setSuggestions] = useState<ReorderSuggestion[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [reservations, setReservations] = useState<EquipmentReservation[]>([]);
+  const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [poBusy, setPoBusy] = useState(false);
 
@@ -59,6 +81,9 @@ export default function InventarioPage() {
   const [supplierForm, setSupplierForm] = useState({
     name: "", contactName: "", contactPhone: "", contactEmail: "", leadTimeDays: "3",
   });
+  const [reservationForm, setReservationForm] = useState({ inventoryItemId: "", reservedDate: "" });
+  const [reservationError, setReservationError] = useState<string | null>(null);
+  const [catalogForm, setCatalogForm] = useState({ supplierId: "", inventoryItemId: "", unitPrice: "" });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -68,10 +93,12 @@ export default function InventarioPage() {
   async function load() {
     setLoading(true);
     try {
-      const [itemsRes, suppliersRes, poRes] = await Promise.all([
+      const [itemsRes, suppliersRes, poRes, reservationsRes, catalogRes] = await Promise.all([
         fetch("/api/admin/inventory-items", { credentials: "include" }),
         fetch("/api/admin/suppliers", { credentials: "include" }),
         fetch("/api/admin/purchase-orders", { credentials: "include" }),
+        fetch("/api/admin/equipment-reservations", { credentials: "include" }),
+        fetch("/api/admin/supplier-catalog", { credentials: "include" }),
       ]);
       if (itemsRes.ok) {
         const d = await itemsRes.json();
@@ -86,10 +113,71 @@ export default function InventarioPage() {
         const d = await poRes.json();
         setPurchaseOrders(d.purchaseOrders || []);
       }
+      if (reservationsRes.ok) {
+        const d = await reservationsRes.json();
+        setReservations(d.reservations || []);
+      }
+      if (catalogRes.ok) {
+        const d = await catalogRes.json();
+        setCatalog(d.catalog || []);
+      }
     } finally {
       setLoading(false);
     }
   }
+
+  async function addReservation(e: React.FormEvent) {
+    e.preventDefault();
+    setReservationError(null);
+    if (!reservationForm.inventoryItemId || !reservationForm.reservedDate) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/equipment-reservations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          inventoryItemId: reservationForm.inventoryItemId,
+          reservedDate: reservationForm.reservedDate,
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        setReservationError(d.error || "Could not create the reservation.");
+        return;
+      }
+      setReservationForm({ inventoryItemId: "", reservedDate: "" });
+      await load();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function addCatalogEntry(e: React.FormEvent) {
+    e.preventDefault();
+    if (!catalogForm.supplierId || !catalogForm.inventoryItemId || !catalogForm.unitPrice) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/supplier-catalog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          supplierId: catalogForm.supplierId,
+          inventoryItemId: catalogForm.inventoryItemId,
+          unitPriceCents: Math.round(parseFloat(catalogForm.unitPrice) * 100),
+        }),
+      });
+      if (res.ok) {
+        setCatalogForm({ supplierId: "", inventoryItemId: "", unitPrice: "" });
+        await load();
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const equipmentItems = items.filter((i) => i.category === "equipment");
 
   async function generatePO() {
     setPoBusy(true);
@@ -189,6 +277,12 @@ export default function InventarioPage() {
           >
             <Truck className="w-4 h-4 inline mr-1" /> Suppliers
           </button>
+          <button
+            onClick={() => setTab("equipment")}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium ${tab === "equipment" ? "bg-brand-navy text-white" : "bg-white text-gray-600"}`}
+          >
+            <Calendar className="w-4 h-4 inline mr-1" /> Equipment
+          </button>
         </div>
 
         {suggestions.length > 0 && (
@@ -243,6 +337,7 @@ export default function InventarioPage() {
           <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
         ) : tab === "items" ? (
           <>
+
             <form onSubmit={addItem} className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3 mb-4">
               <h2 className="text-sm font-semibold text-brand-ink">Add product</h2>
               <input
@@ -290,7 +385,7 @@ export default function InventarioPage() {
               ))}
             </div>
           </>
-        ) : (
+        ) : tab === "suppliers" ? (
           <>
             <form onSubmit={addSupplier} className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3 mb-4">
               <h2 className="text-sm font-semibold text-brand-ink">Add supplier</h2>
@@ -326,13 +421,107 @@ export default function InventarioPage() {
               </button>
             </form>
 
-            <div className="bg-white rounded-xl shadow-elevation-1 divide-y">
+            <div className="bg-white rounded-xl shadow-elevation-1 divide-y mb-4">
               {suppliers.length === 0 && <p className="p-4 text-sm text-gray-500">No suppliers yet.</p>}
               {suppliers.map((s) => (
                 <div key={s.id} className="p-3 text-sm">
                   <span className="font-medium">{s.name}</span>
                   {s.contact_name && <span className="text-gray-500"> — {s.contact_name}</span>}
                   {s.contact_phone && <span className="text-gray-500"> · {s.contact_phone}</span>}
+                </div>
+              ))}
+            </div>
+
+            <form onSubmit={addCatalogEntry} className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3 mb-4">
+              <h2 className="text-sm font-semibold text-brand-ink flex items-center gap-1">
+                <Tag className="w-4 h-4" /> Register current price (supplier × product)
+              </h2>
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  aria-label="Proveedor"
+                  value={catalogForm.supplierId}
+                  onChange={(e) => setCatalogForm({ ...catalogForm, supplierId: e.target.value })}
+                  className="text-sm border rounded-lg px-3 py-2"
+                >
+                  <option value="">Supplier…</option>
+                  {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+                <select
+                  aria-label="Producto"
+                  value={catalogForm.inventoryItemId}
+                  onChange={(e) => setCatalogForm({ ...catalogForm, inventoryItemId: e.target.value })}
+                  className="text-sm border rounded-lg px-3 py-2"
+                >
+                  <option value="">Product…</option>
+                  {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                </select>
+                <input
+                  type="number" step="0.01" aria-label="Precio unitario" placeholder="Unit price (CAD)" value={catalogForm.unitPrice}
+                  onChange={(e) => setCatalogForm({ ...catalogForm, unitPrice: e.target.value })}
+                  className="text-sm border rounded-lg px-3 py-2 col-span-2"
+                />
+              </div>
+              <button type="submit" disabled={saving} className="flex items-center gap-1 bg-brand-navy text-white px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+                <Plus className="w-4 h-4" /> Set current price
+              </button>
+            </form>
+
+            <div className="bg-white rounded-xl shadow-elevation-1 divide-y">
+              <div className="p-3 text-sm font-semibold text-brand-ink">Current prices</div>
+              {catalog.length === 0 && <p className="p-4 text-sm text-gray-500">No prices registered yet.</p>}
+              {catalog.map((c) => (
+                <div key={c.id} className="p-3 flex justify-between text-sm">
+                  <span className="font-medium">{c.inventory_items?.name} — {c.suppliers?.name}</span>
+                  <span className="text-gray-500">
+                    ${(c.unit_price_cents / 100).toFixed(2)} {c.currency} (since {new Date(c.effective_from).toLocaleDateString("en-CA")})
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <form onSubmit={addReservation} className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3 mb-4">
+              <h2 className="text-sm font-semibold text-brand-ink">Reserve expensive equipment (per team/day)</h2>
+              <p className="text-xs text-gray-500">
+                Vaporizer, HEPA, etc. — one reservation per implement per day; the system blocks double-booking.
+              </p>
+              {reservationError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs text-red-700">{reservationError}</div>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  aria-label="Implemento"
+                  value={reservationForm.inventoryItemId}
+                  onChange={(e) => setReservationForm({ ...reservationForm, inventoryItemId: e.target.value })}
+                  className="text-sm border rounded-lg px-3 py-2"
+                >
+                  <option value="">Equipment…</option>
+                  {equipmentItems.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                </select>
+                <input
+                  type="date" aria-label="Fecha de reserva" value={reservationForm.reservedDate}
+                  onChange={(e) => setReservationForm({ ...reservationForm, reservedDate: e.target.value })}
+                  className="text-sm border rounded-lg px-3 py-2"
+                />
+              </div>
+              <button type="submit" disabled={saving} className="flex items-center gap-1 bg-brand-navy text-white px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+                <Plus className="w-4 h-4" /> Reserve
+              </button>
+              {equipmentItems.length === 0 && (
+                <p className="text-xs text-gray-500">
+                  No products with category &quot;Equipment&quot; yet — add one in the Products tab first.
+                </p>
+              )}
+            </form>
+
+            <div className="bg-white rounded-xl shadow-elevation-1 divide-y">
+              <div className="p-3 text-sm font-semibold text-brand-ink">Upcoming reservations</div>
+              {reservations.length === 0 && <p className="p-4 text-sm text-gray-500">No reservations yet.</p>}
+              {reservations.map((r) => (
+                <div key={r.id} className="p-3 flex justify-between text-sm">
+                  <span className="font-medium">{r.inventory_items?.name || r.inventory_item_id}</span>
+                  <span className="text-gray-500">{new Date(r.reserved_date).toLocaleDateString("en-CA")}</span>
                 </div>
               ))}
             </div>

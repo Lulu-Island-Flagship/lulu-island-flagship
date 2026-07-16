@@ -106,3 +106,23 @@ export function nextCareerLevel(current: CareerLevel): CareerLevel | null {
   if (idx === -1 || idx === CAREER_LEVEL_ORDER.length - 1) return null;
   return CAREER_LEVEL_ORDER[idx + 1];
 }
+
+/**
+ * Meses completos de antigüedad entre hireDateISO y todayISO. Redondea hacia
+ * abajo (un mes que no se ha completado no cuenta), igual que el resto del
+ * sistema evalúa elegibilidad por antigüedad (ej. statutory-holidays.ts).
+ */
+export function tenureMonths(hireDateISO: string, todayISO: string): number {
+  const hire = new Date(hireDateISO);
+  const today = new Date(todayISO);
+  let months = (today.getFullYear() - hire.getFullYear()) * 12 + (today.getMonth() - hire.getMonth());
+  if (today.getDate() < hire.getDate()) months -= 1;
+  return Math.max(0, months);
+}
+
+/** Etiqueta legible (EN, mismo idioma que el resto de la PWA de empleado) por check verificable del sistema. */
+export const SENIOR_CHECK_LABEL: Record<string, string> = {
+  tenure: `At least ${SENIOR_MIN_TENURE_MONTHS} months of tenure`,
+  certificationLevel2: "Valid level 2 chemical handling certification",
+  sustainedScore: `Sustained score ≥ ${SENIOR_MIN_SUSTAINED_SCORE}`,
+};

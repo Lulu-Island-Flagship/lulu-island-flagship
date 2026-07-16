@@ -12,6 +12,8 @@ import {
   Minus,
   Trophy,
   TrendingUp,
+  CheckCircle2,
+  Circle,
 } from "lucide-react";
 import { BADGE_CATALOG, type BadgeKey } from "@/lib/badges";
 import { CAREER_LEVEL_ORDER, type CareerLevel } from "@/lib/career-path";
@@ -54,6 +56,13 @@ interface EarnedBadge {
   employee_badge_bonuses: { bonus_cents: number }[] | { bonus_cents: number } | null;
 }
 
+interface NextLevelInfo {
+  level: CareerLevel;
+  eligible: boolean;
+  checks: { label: string; passed: boolean }[];
+  unverifiableBySystem: string[];
+}
+
 interface EmployeeScoreData {
   employee: {
     id: string;
@@ -66,6 +75,7 @@ interface EmployeeScoreData {
   audits: Audit[];
   recentServices: RecentService[];
   badges: EarnedBadge[];
+  nextLevel: NextLevelInfo | null;
 }
 
 const CAREER_LEVEL_LABEL: Record<CareerLevel, string> = {
@@ -283,6 +293,41 @@ export default function EmpleadoScorePage() {
               <p className="text-xs text-gray-400 mt-2">
                 Current level since {new Date(data.employee.career_level_since).toLocaleDateString()}
               </p>
+
+              {data.nextLevel && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-brand-ink mb-2">
+                    Next: {CAREER_LEVEL_LABEL[data.nextLevel.level]}
+                  </p>
+                  {data.nextLevel.checks.length > 0 && (
+                    <ul className="space-y-1 mb-2">
+                      {data.nextLevel.checks.map((c) => (
+                        <li key={c.label} className="flex items-center gap-2 text-xs">
+                          {c.passed ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-state-success shrink-0" />
+                          ) : (
+                            <Circle className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                          )}
+                          <span className={c.passed ? "text-brand-ink" : "text-gray-500"}>{c.label}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {data.nextLevel.unverifiableBySystem.length > 0 && (
+                    <div className="text-xs text-gray-500">
+                      <p className="mb-1">Also required (confirmed by admin):</p>
+                      <ul className="space-y-1">
+                        {data.nextLevel.unverifiableBySystem.map((req) => (
+                          <li key={req} className="flex items-center gap-2">
+                            <Circle className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                            <span>{req}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Badges */}

@@ -86,9 +86,45 @@ export async function POST(request: NextRequest) {
 
     const reason = suggestions.map(formatReorderReason).join(" ");
 
+    // v8.3 E7 punto 6: el costo de la PO se lee del precio vigente
+    // (is_current = true) del catálogo de proveedores, no de un valor fijo.
+    // Si un producto tiene varios proveedores vigentes, se toma el más
+    // barato; si no tiene ninguno cargado todavía, la línea queda sin precio
+    // (unit_price_cents = null) — el admin lo completa a mano hasta que
+    // cargue el catálogo real.
+    const itemIds = suggestions.map((s) => s.itemId);
+    const { data: catalogRows, error: catalogError } = await supabase
+      .from("supplier_catalog")
+      .select("supplier_id, inventory_item_id, unit_price_cents")
+      .in("inventory_item_id", itemIds)
+      .eq("is_current", true);
+
+    if (catalogError) {
+      return NextResponse.json({ error: catalogError.message }, { status: 500 });
+    }
+
+    const cheapestBySupplierPerItem = new Map<string, { supplierId: string; unitPriceCents: number }>();
+    for (const row of catalogRows || []) {
+      const current = cheapestBySupplierPerItem.get(row.inventory_item_id);
+      if (!current || row.unit_price_cents < current.unitPriceCents) {
+        cheapestBySupplierPerItem.set(row.inventory_item_id, {
+          supplierId: row.supplier_id,
+          unitPriceCents: row.unit_price_cents,
+        });
+      }
+    }
+
+    // Si todas las líneas resuelven al mismo proveedor vigente, se asigna a
+    // la PO (sigue siendo humano cambiarlo después si hace falta).
+    const resolvedSupplierIds = new Set(
+      Array.from(cheapestBySupplierPerItem.values()).map((v) => v.supplierId)
+    );
+    const singleSupplierId =
+      resolvedSupplierIds.size === 1 ? Array.from(resolvedSupplierIds)[0] : null;
+
     const { data: po, error: poError } = await supabase
       .from("purchase_orders")
-      .insert({ status: "pending_approval", generated_reason: reason })
+      .insert({ status: "pending_approval", generated_reason: reason, supplier_id: singleSupplierId })
       .select()
       .single();
 
@@ -96,18 +132,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: poError.message }, { status: 500 });
     }
 
-    const lines = suggestions.map((s) => ({
-      purchase_order_id: po.id,
-      inventory_item_id: s.itemId,
-      quantity: s.deficit,
-    }));
+    const lines = suggestions.map((s) => {
+      const priced = cheapestBySupplierPerItem.get(s.itemId);
+      return {
+        purchase_order_id: po.id,
+        inventory_item_id: s.itemId,
+        quantity: s.deficit,
+        unit_price_cents: priced?.unitPriceCents ?? null,
+      };
+    });
 
     const { error: linesError } = await supabase.from("purchase_order_lines").insert(lines);
     if (linesError) {
       return NextResponse.json({ error: linesError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ purchaseOrder: po, suggestions }, { status: 201 });
+    const estimatedTotalCents = lines.reduce(
+      (sum, l) => sum + (l.unit_price_cents ?? 0) * (suggestions.find((s) => s.itemId === l.inventory_item_id)?.deficit ?? 0),
+      0
+    );
+
+    return NextResponse.json(
+      { purchaseOrder: po, suggestions, estimatedTotalCents },
+      { status: 201 }
+    );
   } catch (err: Error | unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

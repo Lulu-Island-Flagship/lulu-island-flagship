@@ -1,6 +1,15 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import {
+  evaluateSeniorEligibility,
+  evaluateManualOnlyLevel,
+  nextCareerLevel,
+  tenureMonths,
+  SENIOR_CHECK_LABEL,
+  type CareerLevel,
+} from "@/lib/career-path";
+import type { EmployeeCertificationRecord } from "@/lib/certifications";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -38,7 +47,7 @@ export async function GET() {
 
     const { data: me, error: meError } = await supabase
       .from("employees")
-      .select("id, name, trust_level, career_level, career_level_since")
+      .select("id, name, trust_level, career_level, career_level_since, hire_date")
       .eq("user_id", user.id)
       .single();
 
@@ -94,12 +103,68 @@ export async function GET() {
       console.error("Badges error:", badgesError);
     }
 
+    // v8.3 E8 (D.11) criterio de aceptación: "Un empleado ve su etapa de
+    // carrera y el requisito siguiente en la PWA" -- calculamos elegibilidad
+    // del SIGUIENTE nivel (nunca escribimos career_level, ver career-path.ts).
+    const nextLevel: CareerLevel | null = nextCareerLevel(me.career_level as CareerLevel);
+    let nextLevelInfo: {
+      level: CareerLevel;
+      eligible: boolean;
+      checks: { label: string; passed: boolean }[];
+      unverifiableBySystem: string[];
+    } | null = null;
+
+    if (nextLevel === "senior") {
+      const { data: certRows, error: certError } = await supabase
+        .from("employee_certifications")
+        .select("level, expires_at, revoked_at")
+        .eq("employee_id", me.id);
+      if (certError) console.error("Certifications error:", certError);
+
+      const certificationRecords: EmployeeCertificationRecord[] = (certRows || []).map((c) => ({
+        level: c.level as 1 | 2 | 3,
+        expiresAtISO: c.expires_at,
+        revokedAtISO: c.revoked_at,
+      }));
+
+      const todayISO = new Date().toISOString();
+      const recentTotals = (scores || []).slice(0, 4).map((s) => s.total_score);
+      const sustainedScoreAverage =
+        recentTotals.length > 0 ? recentTotals.reduce((a, b) => a + b, 0) / recentTotals.length : 0;
+
+      const result = evaluateSeniorEligibility({
+        tenureMonths: me.hire_date ? tenureMonths(me.hire_date, todayISO) : 0,
+        certificationRecords,
+        todayISO,
+        sustainedScoreAverage,
+      });
+
+      nextLevelInfo = {
+        level: nextLevel,
+        eligible: result.eligible,
+        checks: Object.entries(result.checks).map(([key, passed]) => ({
+          label: SENIOR_CHECK_LABEL[key] || key,
+          passed,
+        })),
+        unverifiableBySystem: result.unverifiableBySystem,
+      };
+    } else if (nextLevel && nextLevel !== "trabajador") {
+      const result = evaluateManualOnlyLevel(nextLevel);
+      nextLevelInfo = {
+        level: nextLevel,
+        eligible: result.eligible,
+        checks: [],
+        unverifiableBySystem: result.unverifiableBySystem,
+      };
+    }
+
     return NextResponse.json({
       employee: me,
       scores: scores || [],
       audits: audits || [],
       recentServices: recentServices || [],
       badges: badges || [],
+      nextLevel: nextLevelInfo,
     }, { status: 200 });
   } catch (err: Error | unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
