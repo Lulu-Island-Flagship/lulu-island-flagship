@@ -22,6 +22,8 @@ export type AdminResource =
   | "finance"
   | "compliance" // PIPEDA, brechas de datos, monitoreo legal — solo el dueño
   | "feature_flags" // interruptores del sistema — solo el dueño
+  | "security_backup_codes" // códigos de respaldo 2FA del propio owner_admin — solo el dueño
+  | "access_recovery" // aprobar/denegar solicitudes de recuperación de acceso de trusted_successors — solo el dueño
   // Operación — owner_admin + ops_coordinator
   | "dispatch"
   | "services"
@@ -49,6 +51,8 @@ const MATRIX: Record<AdminResource, AdminRole[]> = {
   finance: ["owner_admin"],
   compliance: ["owner_admin"],
   feature_flags: ["owner_admin"],
+  security_backup_codes: ["owner_admin"],
+  access_recovery: ["owner_admin"],
   dispatch: ["owner_admin", "ops_coordinator"],
   services: ["owner_admin", "ops_coordinator"],
   quotes_review: ["owner_admin", "ops_coordinator"],
