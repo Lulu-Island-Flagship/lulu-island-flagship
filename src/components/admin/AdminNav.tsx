@@ -56,6 +56,7 @@ function buildGroups(adminPath: string): NavGroup[] {
         { label: "Contabilidad", href: `${adminPath}/contabilidad` },
         { label: "Team Ranking", href: `${adminPath}/team-ranking` },
         { label: "Ajustes HHE", href: `${adminPath}/ajustes-hhe` },
+        { label: "Seguridad", href: `${adminPath}/seguridad` },
       ],
     },
   ];

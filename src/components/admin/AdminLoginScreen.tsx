@@ -7,10 +7,11 @@ import { Shield, Loader2 } from "lucide-react";
 export default function AdminLoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [mode, setMode] = useState<"options" | "email">("options");
+  const [mode, setMode] = useState<"options" | "email" | "backup-code">("options");
   const [email, setEmail] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  const [backupCode, setBackupCode] = useState("");
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
@@ -91,6 +92,43 @@ export default function AdminLoginScreen() {
     }
   };
 
+  // v8.3 E0 — Login con código de respaldo (backup code), para cuando el
+  // owner_admin no puede usar Google. Ver comentario extenso en
+  // src/app/api/admin/backup-codes/verify/route.ts sobre cómo se crea la
+  // sesión: ese endpoint valida el código (server-side, service role),
+  // marca el código como usado, y devuelve un token_hash de un magic-link
+  // nativo de Supabase generado para el email del dueño del código. Este
+  // handler solo hace el paso final -- canjear ese token_hash con el método
+  // público del SDK -- exactamente igual que un link de email real, salvo
+  // que el token llegó por esta respuesta en vez de por correo.
+  const handleBackupCodeSignIn = async () => {
+    if (!backupCode.trim()) {
+      setError("Please enter a backup code");
+      return;
+    }
+    setIsLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/backup-codes/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: backupCode }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Invalid backup code");
+
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        token_hash: json.tokenHash,
+        type: "magiclink",
+      });
+      if (verifyError) throw verifyError;
+      window.location.reload();
+    } catch (err: Error | unknown) {
+      setError(err instanceof Error ? err.message : "Backup code sign-in failed");
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-xl shadow-elevation-1 p-8 max-w-sm w-full text-center space-y-6">
@@ -141,7 +179,52 @@ export default function AdminLoginScreen() {
             >
               Use email verification code instead
             </button>
+            <button
+              onClick={() => setMode("backup-code")}
+              className="w-full text-sm text-gray-500 hover:text-gray-700 hover:underline"
+            >
+              Can&apos;t use Google? Sign in with a backup code
+            </button>
           </>
+        )}
+        {mode === "backup-code" && (
+          <div className="space-y-3 text-left">
+            <div>
+              <label htmlFor="admin-login-backup-code" className="block text-sm font-medium text-brand-ink mb-1">
+                Backup Code
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                Only for owner_admin. Enter one of the single-use codes generated in
+                Admin → Seguridad. Each code works once.
+              </p>
+              <input
+                id="admin-login-backup-code"
+                type="text"
+                value={backupCode}
+                onChange={(e) => setBackupCode(e.target.value)}
+                placeholder="XXXX-XXXX-XXXX"
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none text-center tracking-widest"
+              />
+            </div>
+            <button
+              onClick={handleBackupCodeSignIn}
+              disabled={isLoading}
+              aria-label={isLoading ? "Verifying backup code" : "Sign in with backup code"}
+              className="w-full bg-brand-navy text-white py-2.5 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
+            >
+              {isLoading ? "Verifying..." : "Sign In With Backup Code"}
+            </button>
+            <button
+              onClick={() => {
+                setMode("options");
+                setBackupCode("");
+                setError("");
+              }}
+              className="w-full text-sm text-gray-500 hover:text-gray-700"
+            >
+              ← Back
+            </button>
+          </div>
         )}
         {mode === "email" && !otpSent && (
           <div className="space-y-3 text-left">
