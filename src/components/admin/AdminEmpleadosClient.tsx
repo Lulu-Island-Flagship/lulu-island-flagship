@@ -55,6 +55,8 @@ export default function AdminEmpleadosClient() {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [offboardingEmployee, setOffboardingEmployee] = useState<Employee | null>(null);
+  const [activatingId, setActivatingId] = useState<string | null>(null);
+  const [activateError, setActivateError] = useState("");
 
   useEffect(() => {
     loadEmployees();
@@ -93,6 +95,29 @@ export default function AdminEmpleadosClient() {
     }
     const data = await res.json();
     setEmployees((prev) => prev.map((e) => (e.id === employeeId ? data.employee : e)));
+  }
+
+  // v8.3: activa a un empleado nuevo (is_active false -> true) y dispara la
+  // invitación al Portal de equipo (evento 'employee_invited', migración
+  // 202) desde el mismo PATCH -- ver src/app/api/admin/empleados/[id]/route.ts.
+  async function activateEmployee(employeeId: string) {
+    setActivatingId(employeeId);
+    setActivateError("");
+    try {
+      const res = await fetch(`/api/admin/empleados/${employeeId}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to activate employee");
+      setEmployees((prev) => prev.map((e) => (e.id === employeeId ? { ...e, ...data.employee } : e)));
+    } catch (err) {
+      setActivateError(err instanceof Error ? err.message : "Failed to activate employee");
+    } finally {
+      setActivatingId(null);
+    }
   }
 
   async function saveCareerLevel(employeeId: string, careerLevel: CareerLevel) {
@@ -155,6 +180,12 @@ export default function AdminEmpleadosClient() {
         </div>
       </div>
 
+      {activateError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-state-danger">
+          {activateError}
+        </div>
+      )}
+
       {employees.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
           <User className="w-10 h-10 text-gray-300 mx-auto mb-2" />
@@ -203,11 +234,26 @@ export default function AdminEmpleadosClient() {
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           Active
                         </span>
-                      ) : (
+                      ) : emp.terminated_at ? (
                         <span className="flex items-center gap-1 text-gray-400 text-xs">
                           <XCircle className="w-3.5 h-3.5" />
                           Inactive
                         </span>
+                      ) : (
+                        <div className="space-y-1">
+                          <span className="flex items-center gap-1 text-brand-gold-dark text-xs">
+                            <XCircle className="w-3.5 h-3.5" />
+                            Pending activation
+                          </span>
+                          <button
+                            onClick={() => activateEmployee(emp.id)}
+                            disabled={activatingId === emp.id}
+                            aria-label={activatingId === emp.id ? `Activando a ${emp.name}` : `Activar a ${emp.name} y enviar invitación`}
+                            className="text-xs text-brand-navy font-medium hover:underline disabled:opacity-50"
+                          >
+                            {activatingId === emp.id ? "Activating…" : "Activate & invite"}
+                          </button>
+                        </div>
                       )}
                     </td>
                     <td className="px-4 py-3 text-gray-600">${emp.day_rate}/day</td>

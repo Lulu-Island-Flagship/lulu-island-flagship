@@ -1,7 +1,8 @@
 "use client";
 
 import { useTranslations } from 'next-intl';
-import { Ship, Shield, Users, Clock, Star, MapPin } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Ship, Shield, Users, Clock, Star, MapPin, LogIn } from "lucide-react";
 import { QuoteButton } from "@/components/landing/QuoteButton";
 import { LanguageSelector } from "@/components/LanguageSelector";
 
@@ -59,6 +60,9 @@ function LocalBusinessSchema() {
 
 export default function HomePage() {
   const t = useTranslations();
+  const pathname = usePathname();
+  const pathLocale = pathname.match(/^\/(en|zh|fr)(\/|$)/);
+  const locale = pathLocale ? pathLocale[1] : "en";
 
   return (
     <main className="min-h-screen bg-white">
@@ -79,6 +83,16 @@ export default function HomePage() {
               <MapPin className="w-4 h-4" />
               {t('nav.location')}
             </span>
+            {/* v8.3: enlace visible para clientes que ya tienen cuenta --
+                antes solo se podía entrar a la cuenta empezando una
+                cotización nueva y topando con el AuthModal por accidente. */}
+            <a
+              href={`/${locale}/cuenta/servicios`}
+              className="flex items-center gap-1 text-brand-navy hover:text-brand-wave-blue transition-colors"
+            >
+              <LogIn className="w-4 h-4" />
+              Iniciar sesión
+            </a>
             <LanguageSelector />
           </nav>
         </div>
@@ -162,6 +176,15 @@ export default function HomePage() {
           <p className="text-sm">
             {t('footer.copyright')}
           </p>
+          {/* v8.3: enlace discreto al Portal de equipo (empleado, coordinador,
+              QC, manager) -- deliberadamente en el footer, no en el hero, para
+              no confundir a clientes potenciales con acceso de staff. */}
+          <a
+            href={`/${locale}/portal`}
+            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            Portal de equipo
+          </a>
         </div>
       </footer>
     </main>

@@ -51,15 +51,17 @@ export default function EmpleadoPage() {
     async function checkAuth() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        // Verify user is an active employee
-        const authorized = await verifyEmployee(user.id);
-        if (authorized) {
+        // v8.3: la verificación real (incluida la vinculación automática de
+        // employees.user_id en el primer login de un empleado invitado) vive
+        // en /api/staff/resolve-login (src/lib/staff-login.ts) -- único punto
+        // de autorización del Portal de equipo, compartido con /portal.
+        const result = await resolveEmployeeAccess();
+        if (result.authorized) {
           setIsAuthenticated(true);
           loadEmployeeData();
         } else {
-          // Not an authorized employee — sign out and show error
           await supabase.auth.signOut();
-          setAuthError("Not authorized — contact your administrator.");
+          setAuthError(result.message);
           setShowAuthModal(true);
           setLoadingServices(false);
         }
@@ -72,15 +74,15 @@ export default function EmpleadoPage() {
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        const authorized = await verifyEmployee(session.user.id);
-        if (authorized) {
+        const result = await resolveEmployeeAccess();
+        if (result.authorized) {
           setIsAuthenticated(true);
           setAuthError("");
           loadEmployeeData();
         } else {
           await supabase.auth.signOut();
           setIsAuthenticated(false);
-          setAuthError("Not authorized — contact your administrator.");
+          setAuthError(result.message);
           setShowAuthModal(true);
           setServices([]);
           setLoadingServices(false);
@@ -95,19 +97,25 @@ export default function EmpleadoPage() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // Verify if user_id exists in employees table with is_active = true
-  async function verifyEmployee(userId: string | undefined): Promise<boolean> {
-    if (!userId) return false;
+  // v8.3: delega en /api/staff/resolve-login (misma lógica que /portal) --
+  // reconoce empleado (area="empleado") y rechaza cualquier otra área o
+  // cuenta no registrada aquí, ya que esta pantalla es solo para empleados.
+  async function resolveEmployeeAccess(): Promise<{ authorized: boolean; message: string }> {
     try {
-      const { data, error } = await supabase
-        .from("employees")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("is_active", true)
-        .single();
-      return !error && !!data;
+      const res = await fetch("/api/staff/resolve-login", { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) {
+        return { authorized: false, message: data.error || "Not authorized — contact your administrator." };
+      }
+      if (data.path !== "/empleado") {
+        return {
+          authorized: false,
+          message: "This account is registered for the admin panel, not the employee app. Use the Team Portal instead.",
+        };
+      }
+      return { authorized: true, message: "" };
     } catch {
-      return false;
+      return { authorized: false, message: "Connection error verifying your account. Please try again." };
     }
   }
 
