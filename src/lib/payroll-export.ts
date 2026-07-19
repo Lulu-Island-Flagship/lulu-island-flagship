@@ -3,6 +3,21 @@
  * quincenal (payroll-cycle.ts) con el desglose de deducciones canadienses
  * (payroll-deductions.ts) en un solo reporte por empleado, exportable a
  * CSV/QBO. Funciones puras: reciben los YTD ya leídos de la base de datos.
+ *
+ * Fix de auditoría E9: el export no incluía días trabajados / Day Rate /
+ * minutos de rework pagados (el "factor" detrás del monto) -- se agregaron
+ * reusando cálculos que ya existían (payroll.ts calculatePayroll,
+ * payroll-cycle.ts aggregateCycle), sin inventar lógica nueva.
+ *
+ * PENDIENTE (fuera de alcance de este fix, requiere módulo nuevo):
+ *  - Comisiones y propinas de empleado: no existe HOY ningún dato/tabla de
+ *    comisiones o propinas por empleado en el esquema (partner-commissions.ts
+ *    es un dominio distinto: comisiones a SOCIOS referentes, no a
+ *    empleados). Agregar esto requeriría una tabla nueva + un punto de
+ *    captura (dónde se registra la propina/comisión) antes de poder
+ *    exportarla -- no es un campo derivable de cálculos existentes.
+ *  - PDF de nómina, integración real QBO Payroll y firma digital real
+ *    (Documenso/DocuSign): alcance mayor, no cubierto aquí.
  */
 
 import type { EmployeeCycleSummary, PayrollCycle } from "./payroll-cycle";
@@ -25,6 +40,13 @@ export interface CycleDeductionLine {
   employeeName: string;
   services: number;
   deductions: PayrollDeductionsResult;
+  /** v8.3 fix auditoría E9: pasa a través del EmployeeCycleSummary del
+   * ciclo (payroll-cycle.ts) -- días trabajados, Day Rate total y minutos
+   * de rework pagados, para que el reporte exportable de nómina no se
+   * quede solo con las deducciones canadienses. */
+  daysWorked: number;
+  dayRateCents: number;
+  reworkPaidMinutesTotal: number;
 }
 
 const ZERO_YTD = { ytdPensionableCents: 0, ytdInsurableCents: 0, ytdAssessableCents: 0 };
@@ -45,7 +67,15 @@ export function buildCycleDeductions(
       ytdInsurableCents: ytd.ytdInsurableCents,
       ytdAssessableCents: ytd.ytdAssessableCents,
     });
-    return { employeeId: s.employeeId, employeeName: s.employeeName, services: s.services, deductions };
+    return {
+      employeeId: s.employeeId,
+      employeeName: s.employeeName,
+      services: s.services,
+      deductions,
+      daysWorked: s.daysWorked,
+      dayRateCents: s.dayRateCents,
+      reworkPaidMinutesTotal: s.reworkPaidMinutesTotal,
+    };
   });
 }
 
@@ -65,6 +95,9 @@ export function cycleDeductionsToCsv(lines: CycleDeductionLine[], cycle: Payroll
     "vacation_pay_accrual_cad",
     "estimated_net_cad",
     "employer_cost_cad",
+    "days_worked",
+    "day_rate_cad",
+    "rework_paid_minutes",
   ].join(",");
 
   const rows = lines.map((l) => {
@@ -83,6 +116,9 @@ export function cycleDeductionsToCsv(lines: CycleDeductionLine[], cycle: Payroll
       (d.vacationPayAccrualCents / 100).toFixed(2),
       (d.estimatedNetCents / 100).toFixed(2),
       (d.employerCostCents / 100).toFixed(2),
+      l.daysWorked,
+      (l.dayRateCents / 100).toFixed(2),
+      l.reworkPaidMinutesTotal,
     ].join(",");
   });
 

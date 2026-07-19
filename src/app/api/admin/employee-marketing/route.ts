@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole } from "@/lib/admin";
+import { requireAdminRole, getServiceRoleClient } from "@/lib/admin";
 import { evaluateEmployeeMarketingVisibility, canAdminApprove } from "@/lib/employee-marketing";
 
 // GET /api/admin/employee-marketing — todos los features con visibilidad calculada.
@@ -7,15 +7,27 @@ import { evaluateEmployeeMarketingVisibility, canAdminApprove } from "@/lib/empl
 //   "approve" solo procede si canAdminApprove() lo permite (consentimiento vigente).
 //
 // Resource "finance": mismo bucket que seo-local/attribution/partners.
+//
+// v8.3 E11 (auditoría 2026-07-18): employee_marketing_features solo tiene
+// políticas RLS de self-select/self-update para el empleado dueño del
+// registro (migración 162); el acceso admin es `USING (false)` -- "vía
+// service role en la API" que nunca se implementó. requireAdminRole()
+// sigue autorizando (rol + audit log), pero las operaciones de datos del
+// lado admin usan el cliente service role. (El endpoint del empleado,
+// src/app/api/empleado/marketing-consent/route.ts, sigue con el cliente
+// de sesión normal -- ese sí lo cubre RLS.)
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdminRole("finance", { method: request.method, url: request.url });
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  const { supabase } = auth;
-  if (!supabase) {
+  if (!auth.supabase) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const supabase = getServiceRoleClient();
+  if (!supabase) {
+    return NextResponse.json({ error: "Server misconfigured (service role)" }, { status: 500 });
   }
 
   const { data, error } = await supabase
@@ -48,9 +60,13 @@ export async function POST(request: NextRequest) {
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  const { supabase, user } = auth;
-  if (!supabase) {
+  const { user } = auth;
+  if (!auth.supabase) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const supabase = getServiceRoleClient();
+  if (!supabase) {
+    return NextResponse.json({ error: "Server misconfigured (service role)" }, { status: 500 });
   }
 
   const body = await request.json();

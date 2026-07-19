@@ -103,6 +103,9 @@ export default function MarketingPage() {
               <div className="text-xs text-gray-400 mb-2">
                 Source: {p.source_trigger_type} · sample={p.source_sample_size}
               </div>
+              <div className="text-sm text-gray-800 whitespace-pre-wrap border rounded p-3 bg-gray-50 mb-3 max-h-64 overflow-y-auto">
+                {p.content || <span className="text-gray-400 italic">(no content)</span>}
+              </div>
               <div className="flex gap-2">
                 {p.status === "draft" && (
                   <button

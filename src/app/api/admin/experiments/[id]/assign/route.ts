@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
-import { assignVariant, type VariantConfig } from "@/lib/ab-experiments";
+import { assignVariant, isProtectedRecurringClient, type VariantConfig } from "@/lib/ab-experiments";
+import { computeClientSegment } from "@/lib/client-segmentation";
 
 /**
  * POST /api/admin/experiments/[id]/assign — { clientUserId }
  *
  * Asigna (o devuelve la asignación ya existente -- mismo cliente siempre ve
- * la misma variante, regla dura) usando assignVariant(). Determina
- * "isRecurring" consultando service_contracts activos del cliente; nunca
- * usa grupo demográfico para la asignación (el spec lo prohíbe).
+ * la misma variante, regla dura) usando assignVariant(). Nunca usa grupo
+ * demográfico para la asignación (el spec lo prohíbe).
+ *
+ * "isRecurring" (auditoría E10, fix): no basta con mirar
+ * service_contracts.status='active' -- eso deja sin protección a cualquier
+ * cliente VIP/Regular fiel que reserva a demanda sin contrato formal. Se
+ * calcula como isProtectedRecurringClient(hasActiveContract, segment), OR
+ * de ambas señales (src/lib/ab-experiments.ts + client-segmentation.ts),
+ * igual que /api/admin/client-segments.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdminRole("finance", { method: request.method, url: request.url });
@@ -52,7 +59,45 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     .select("id", { count: "exact", head: true })
     .eq("user_id", clientUserId)
     .eq("status", "active");
-  const isRecurring = (activeContracts ?? 0) > 0;
+  const hasActiveContract = (activeContracts ?? 0) > 0;
+
+  // Mismo cómputo de segmentación que /api/admin/client-segments (E5.14):
+  // services_count viene de client_profiles (trigger, migración 027), gasto
+  // mensual y último servicio se agregan aquí desde orders porque no hay
+  // columna que los mantenga.
+  const { data: profile } = await supabase
+    .from("client_profiles")
+    .select("services_count")
+    .eq("user_id", clientUserId)
+    .maybeSingle();
+
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const { data: completedOrders } = await supabase
+    .from("orders")
+    .select("service_date, total_paid")
+    .eq("user_id", clientUserId)
+    .eq("status", "completed")
+    .order("service_date", { ascending: false });
+
+  const nowMs = Date.now();
+  let daysSinceLastService = Infinity;
+  let monthlySpendCents = 0;
+  for (const o of completedOrders || []) {
+    if (daysSinceLastService === Infinity && o.service_date) {
+      daysSinceLastService = Math.floor((nowMs - new Date(`${o.service_date}T00:00:00Z`).getTime()) / (1000 * 60 * 60 * 24));
+    }
+    if (o.service_date && o.service_date >= thirtyDaysAgo) {
+      monthlySpendCents += Math.round((o.total_paid || 0) * 100);
+    }
+  }
+
+  const segment = computeClientSegment({
+    monthlySpendCents,
+    totalServicesCount: profile?.services_count || 0,
+    daysSinceLastService,
+  });
+
+  const isRecurring = isProtectedRecurringClient(hasActiveContract, segment);
 
   const result = assignVariant(
     { clientId: clientUserId, isRecurring },

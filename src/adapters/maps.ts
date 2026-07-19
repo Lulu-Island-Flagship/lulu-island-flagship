@@ -7,4 +7,31 @@
  * este archivo no necesita tocarse.
  */
 
-export { geocodeAddress, haversineDistance, GEOFENCE_RADIUS_METERS, type LatLng } from "@/lib/geocode";
+export {
+  geocodeAddress,
+  haversineDistance,
+  MEETING_POINT_RADIUS_METERS,
+  ARRIVAL_GEOFENCE_RADIUS_METERS,
+  type LatLng,
+} from "@/lib/geocode";
+
+import { geocodeAddress, type LatLng } from "@/lib/geocode";
+
+/**
+ * v8.3 E0 (auditoría 2026-07-18) — interfaz abstracta mínima + mock. Solo
+ * cubre `geocodeAddress` (la única llamada de red real del módulo) --
+ * `haversineDistance` es matemática pura, sin proveedor externo, y no
+ * necesita mockearse.
+ */
+export interface MapsAdapter {
+  geocodeAddress(address: string): Promise<LatLng | null>;
+}
+
+export const mapsAdapter: MapsAdapter = { geocodeAddress };
+
+export function createMockMapsAdapter(overrides?: Partial<MapsAdapter>): MapsAdapter {
+  return {
+    geocodeAddress: async (_address: string) => ({ lat: 49.2827, lng: -123.1207 }), // Vancouver, BC — valor determinista de prueba
+    ...overrides,
+  };
+}

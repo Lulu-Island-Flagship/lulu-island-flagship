@@ -5,6 +5,7 @@ import {
   type DemandSignals,
   type SeasonalCampaign,
 } from "@/lib/demand-signals";
+import { dispatchCommunication } from "@/lib/send-communication";
 
 /**
  * GET /api/admin/seasonal-campaigns — catálogo de 5 campañas + evaluaciones
@@ -18,10 +19,13 @@ import {
  *     (Environment Canada) todavía -- las señales las provee el admin a
  *     mano, igual de honesto que el patrón "not_configured" de sms.ts.
  *   { action: "approve" | "reject", runId } — decisión humana de un toque.
- *   { action: "dispatch", runId } — marca una corrida aprobada como
- *     despachada. El envío real (comunicación al cliente) queda fuera de
- *     alcance de esta tanda -- se conecta después a dispatchCommunication
- *     (send-communication.ts) cuando exista la plantilla de campaña.
+ *   { action: "dispatch", runId } — corrida aprobada: itera clientes
+ *     objetivo (client_profiles B2C con marketing_opt_in=true) y llama
+ *     dispatchCommunication() (send-communication.ts) con el event_key
+ *     'seasonal_campaign_dispatch' (migración 186) para cada uno, dejando
+ *     que el throttling anti-fatiga (arbitrateThrottle) y el gate CASL de
+ *     dispatchCommunication decidan por cliente si se envía, se pospone o
+ *     falla. Al final marca la corrida como 'dispatched'.
  */
 export async function GET() {
   const auth = await requireAdminRole("upsells_review");
@@ -158,7 +162,7 @@ export async function POST(request: NextRequest) {
       const { runId } = body;
       const { data: run } = await supabase
         .from("seasonal_campaign_runs")
-        .select("id, status")
+        .select("id, status, campaign_key")
         .eq("id", runId)
         .is("deleted_at", null)
         .maybeSingle();
@@ -168,6 +172,55 @@ export async function POST(request: NextRequest) {
       }
       if (run.status !== "approved") {
         return NextResponse.json({ error: "Only an approved run can be dispatched" }, { status: 400 });
+      }
+
+      const { data: campaign } = await supabase
+        .from("seasonal_campaigns")
+        .select("display_name")
+        .eq("campaign_key", run.campaign_key)
+        .maybeSingle();
+      const campaignName = campaign?.display_name || run.campaign_key;
+
+      // Clientes objetivo: mismo patrón que otros despachos masivos de
+      // marketing (cron communication-reengagement) -- B2C con
+      // marketing_opt_in=true. dispatchCommunication() sigue siendo el
+      // único punto que decide envío real (throttle + gate CASL), esto
+      // solo arma la lista de candidatos.
+      const { data: targetProfiles, error: targetError } = await supabase
+        .from("client_profiles")
+        .select("user_id, preferred_languages")
+        .eq("marketing_opt_in", true)
+        .eq("account_type", "b2c");
+      if (targetError) {
+        return NextResponse.json({ error: targetError.message }, { status: 500 });
+      }
+
+      let dispatchedCount = 0;
+      let postponedCount = 0;
+      let failedCount = 0;
+      for (const target of targetProfiles || []) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", target.user_id)
+          .maybeSingle();
+        const language = ((target.preferred_languages as string[] | undefined)?.[0] || "en") as "en" | "es" | "zh";
+
+        const result = await dispatchCommunication(supabase, {
+          eventKey: "seasonal_campaign_dispatch",
+          userId: target.user_id,
+          language,
+          vars: {
+            client_name: profile?.full_name || "cliente",
+            campaign_name: campaignName,
+            booking_link: `${process.env.NEXT_PUBLIC_APP_URL || ""}/cotizador`,
+          },
+          marketingWeight: 1,
+        });
+
+        if (result.status === "sent" || result.status === "queued") dispatchedCount++;
+        else if (result.status === "postponed") postponedCount++;
+        else failedCount++;
       }
 
       const { data: updated, error: updateError } = await supabase
@@ -181,7 +234,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: updateError.message }, { status: 500 });
       }
 
-      return NextResponse.json({ run: updated }, { status: 200 });
+      return NextResponse.json(
+        {
+          run: updated,
+          dispatchSummary: {
+            total: (targetProfiles || []).length,
+            dispatched: dispatchedCount,
+            postponed: postponedCount,
+            failed: failedCount,
+          },
+        },
+        { status: 200 }
+      );
     }
 
     return NextResponse.json({ error: "Unrecognized action" }, { status: 400 });

@@ -55,7 +55,14 @@ export async function GET() {
       return NextResponse.json({ error: "Employee not found" }, { status: 403 });
     }
 
-    // Scores históricos
+    // Scores históricos. v8.3 E8 FIX-1 (auditoría, bug crítico): esta ruta
+    // exponía total_score/telemetry_score/audit_score/peer_score en crudo al
+    // propio empleado, violando el spec ("sin score numérico visible al
+    // empleado"). Seguimos leyendo la fila completa de employee_scores
+    // porque sustainedScoreAverage (más abajo) SÍ necesita el número interno
+    // para calcular elegibilidad de nivel de carrera -- pero la respuesta
+    // JSON que sale de esta función nunca debe incluir esos 4 campos
+    // numéricos. Ver sanitización antes del NextResponse.json() al final.
     const { data: scores, error: scoresError } = await supabase
       .from("employee_scores")
       .select("*")
@@ -158,9 +165,24 @@ export async function GET() {
       };
     }
 
+    // v8.3 E8 FIX-1: no numérico hacia el empleado. Reemplazamos el score
+    // agregado semanal por un nivel cualitativo (mismo trust_level que ya
+    // usa el resto del sistema: elite/standard/observation/suspended) y
+    // quitamos total_score/telemetry_score/audit_score/peer_score del
+    // historial -- solo queda lo operativo (semana, conteo de servicios,
+    // disputas) que no funciona como "puntaje" competitivo.
+    const sanitizedScores = (scores || []).map((s) => ({
+      id: s.id,
+      week_start: s.week_start,
+      trust_level: s.trust_level,
+      services_count: s.services_count,
+      disputes_count: s.disputes_count,
+    }));
+
     return NextResponse.json({
       employee: me,
-      scores: scores || [],
+      qualitativeLevel: me.trust_level, // elite | standard | observation | suspended
+      scores: sanitizedScores,
       audits: audits || [],
       recentServices: recentServices || [],
       badges: badges || [],

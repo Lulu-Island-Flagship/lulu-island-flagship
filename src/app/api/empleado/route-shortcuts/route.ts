@@ -1,0 +1,79 @@
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+
+function getSupabaseClient() {
+  const cookieStore = cookies();
+  return createServerClient(supabaseUrl, supabaseKey, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value;
+      },
+      set(name: string, value: string, options: CookieOptions) {
+        cookieStore.set({ name, value, ...options });
+      },
+      remove(name: string, options: CookieOptions) {
+        cookieStore.set({ name, value: "", ...options });
+      },
+    },
+  });
+}
+
+// v8.3 E8 FIX-4 — "Ruta con aprendizaje": un empleado reporta un atajo real
+// que descubrió en campo. Un supervisor lo valida vía
+// /api/admin/route-shortcuts/[id]/validate, que paga el bono de +$10.
+
+// GET /api/empleado/route-shortcuts — mis atajos reportados
+export async function GET() {
+  const supabase = getSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data: employee } = await supabase.from("employees").select("id").eq("user_id", user.id).single();
+  if (!employee) return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
+
+  const { data, error } = await supabase
+    .from("route_shortcuts")
+    .select("id, description, uses_count, reported_at, validated_at")
+    .eq("employee_id", employee.id)
+    .is("deleted_at", null)
+    .order("reported_at", { ascending: false });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ shortcuts: data || [] }, { status: 200 });
+}
+
+// POST /api/empleado/route-shortcuts — { description: string }
+export async function POST(request: NextRequest) {
+  const supabase = getSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data: employee } = await supabase.from("employees").select("id").eq("user_id", user.id).single();
+  if (!employee) return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
+
+  try {
+    const body = await request.json();
+    const description = typeof body.description === "string" ? body.description.trim() : "";
+    if (!description) {
+      return NextResponse.json({ error: "description is required" }, { status: 400 });
+    }
+
+    const { data, error } = await supabase
+      .from("route_shortcuts")
+      .insert({ employee_id: employee.id, description })
+      .select("id, description, uses_count, reported_at, validated_at")
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json({ shortcut: data }, { status: 201 });
+  } catch (err: Error | unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

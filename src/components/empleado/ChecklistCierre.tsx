@@ -544,6 +544,7 @@ export function ChecklistCierre({
 
       {matchModalZone && confirmedColors && onConfirmedColorsChange && (
         <ChemicalMatchModal
+          orderId={orderId}
           zoneColor={matchModalZone.zoneColor}
           zoneLabel={matchModalZone.zoneLabel}
           confirmedColors={confirmedColors}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { evaluateSampledRejectionRate, decideGamingConsequence } from "@/lib/anti-gaming";
+import { calculatePayroll, DEFAULT_SERVICE_MINUTES } from "@/lib/payroll";
 
 // POST /api/admin/qc/[orderId]/review — aprobar o rechazar servicio
 export async function POST(
@@ -25,7 +26,11 @@ export async function POST(
       return NextResponse.json({ error: "Status and note are required" }, { status: 400 });
     }
 
-    if (!["approved", "rejected"].includes(status)) {
+    // v8.3 E5 (auditoría 2026-07-18, migración 190) — 'rework': el admin
+    // encontró un defecto menor y corregible, y le da al empleado 30 min
+    // para resubmitir en vez de rechazar directamente o aprobar algo
+    // incompleto.
+    if (!["approved", "rejected", "rework"].includes(status)) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
@@ -42,12 +47,108 @@ export async function POST(
 
     // Leer ANTES de actualizar: necesitamos saber si esta review venía del
     // muestreo 10% sobre auto-aprobados (sampling_reason ==
-    // 'elite_auto_approval_sample') para evaluar manipulación después.
+    // 'elite_auto_approval_sample') para evaluar manipulación después, y
+    // (v8.3 E2, auditoría 2026-07-18) los minutos de rework ya acumulados
+    // en esta orden para la validación de piso salarial de abajo.
     const { data: existingReview } = await supabase
       .from("qc_reviews")
-      .select("employee_id, sampling_reason")
+      .select("employee_id, sampling_reason, rework_minutes")
       .eq("order_id", orderId)
       .single();
+
+    const nowForUpdate = new Date();
+    const isRework = status === "rework";
+    let acceptedReworkWindowMinutes = 30; // se ajusta abajo con employees.max_rework_minutes
+
+    // v8.3 E2 (migración 186, auditoría 2026-07-18) — BLOQUEO PREVIO de
+    // rework que rompe el mínimo legal de BC ($18.25/h). Bug crítico
+    // encontrado: calculatePayroll() (src/lib/payroll.ts) siempre "tapaba"
+    // el hueco compensando hasta el mínimo legal de forma silenciosa,
+    // pagándose de más sin que nadie lo autorizara, en vez de bloquear el
+    // rework y forzar una decisión humana ANTES de comprometer esos
+    // minutos. Aquí, antes de aceptar 'rework', calculamos si el rework
+    // (acumulado + esta ventana de hasta max_rework_minutes) haría caer la
+    // tarifa efectiva por hora por debajo del mínimo legal -- si es así,
+    // rechazamos la transición con 422 y exigimos escalación a supervisor
+    // en vez de dejar que payroll lo subsidie después sin que nadie se
+    // entere. También se hace cumplir aquí el tope de max_rework_minutes
+    // (default 30) por si el acumulado ya lo superó en un ciclo anterior.
+    if (isRework && existingReview?.employee_id) {
+      const { data: wageEmployee } = await supabase
+        .from("employees")
+        .select("day_rate, max_rework_minutes, min_wage_floor_enabled")
+        .eq("id", existingReview.employee_id)
+        .single();
+
+      const maxReworkMinutes = wageEmployee?.max_rework_minutes ?? 30;
+      acceptedReworkWindowMinutes = maxReworkMinutes;
+      const priorReworkMinutes = existingReview.rework_minutes ?? 0;
+      // Ventana completa de este ciclo de rework: hasta max_rework_minutes
+      // (30 min por defecto) es lo que el empleado tiene para corregir;
+      // se evalúa el escenario de que use el máximo permitido, ya que es
+      // el costo salarial que este 'rework' puede llegar a comprometer.
+      const totalReworkMinutesIfUsed = priorReworkMinutes + maxReworkMinutes;
+
+      // Tope de 30 min (o el configurado por empleado) SIEMPRE se hace
+      // cumplir, sin importar el flag min_wage_floor_enabled -- es una
+      // regla operativa distinta al piso salarial.
+      if (priorReworkMinutes >= maxReworkMinutes) {
+        return NextResponse.json(
+          {
+            error:
+              `Este servicio ya acumuló ${priorReworkMinutes} min de rework, ` +
+              `igualando o superando el tope legal de ${maxReworkMinutes} min. ` +
+              `Requiere escalación a supervisor -- no se puede enviar a rework de nuevo automáticamente.`,
+            escalationRequired: true,
+            priorReworkMinutes,
+            maxReworkMinutes,
+          },
+          { status: 422 }
+        );
+      }
+
+      if (wageEmployee?.min_wage_floor_enabled !== false) {
+        if (wageEmployee?.day_rate != null) {
+          const payrollCheck = calculatePayroll({
+            dayRate: wageEmployee.day_rate,
+            estimatedServiceMinutes: DEFAULT_SERVICE_MINUTES,
+            reworkMinutes: totalReworkMinutesIfUsed,
+            maxReworkMinutes,
+          });
+
+          if (payrollCheck.minimumWageAdjustment > 0) {
+            // Registrar el intento bloqueado para que quede rastro de la
+            // escalación pendiente (no se persiste el rework, solo la
+            // señal de que hizo falta escalar).
+            await supabase
+              .from("qc_reviews")
+              .update({
+                rework_escalated_at: nowForUpdate.toISOString(),
+                rework_escalation_reason:
+                  `Rework bloqueado: tarifa efectiva caería a $${(
+                    (payrollCheck.grossAmount - payrollCheck.minimumWageAdjustment) /
+                    100 /
+                    (DEFAULT_SERVICE_MINUTES / 60)
+                  ).toFixed(2)}/h antes del ajuste de mínimo legal, por debajo de $18.25/h.`,
+              })
+              .eq("order_id", orderId);
+
+            return NextResponse.json(
+              {
+                error:
+                  "Este rework llevaría la tarifa efectiva del empleado por debajo del mínimo legal de BC ($18.25/h). " +
+                  "Se requiere escalación a supervisor para aprobar compensación adicional antes de continuar con el rework.",
+                escalationRequired: true,
+                priorReworkMinutes,
+                proposedTotalReworkMinutes: totalReworkMinutesIfUsed,
+                maxReworkMinutes,
+              },
+              { status: 422 }
+            );
+          }
+        }
+      }
+    }
 
     const { data, error } = await supabase
       .from("qc_reviews")
@@ -55,7 +156,23 @@ export async function POST(
         status,
         note,
         reviewer_id: reviewer.id,
-        reviewed_at: new Date().toISOString(),
+        reviewed_at: nowForUpdate.toISOString(),
+        // v8.3 E5 (migración 190): timer de 30 min. Se limpian los campos de
+        // rework anteriores si esta revisión NO es 'rework' (ej. tras
+        // resubmisión el admin aprueba/rechaza directamente).
+        rework_started_at: isRework ? nowForUpdate.toISOString() : null,
+        rework_deadline: isRework
+          ? new Date(nowForUpdate.getTime() + 30 * 60 * 1000).toISOString()
+          : null,
+        rework_note: isRework ? note : null,
+        rework_resubmitted_at: null,
+        rework_expired_at: null,
+        // v8.3 E2 (migración 186): acumular minutos de rework aceptados
+        // para que la próxima revisión pueda evaluar el tope/piso salarial
+        // sobre el total real, no solo esta ventana.
+        ...(isRework
+          ? { rework_minutes: (existingReview?.rework_minutes ?? 0) + acceptedReworkWindowMinutes }
+          : {}),
       })
       .eq("order_id", orderId)
       .select()

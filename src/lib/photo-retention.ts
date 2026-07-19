@@ -17,6 +17,24 @@
  * una disputa activa sería destruir prueba, invariante duro.
  */
 
+/**
+ * DEUDA TÉCNICA (auditoría E5, 2026-07-18): la auditoría pidió retención
+ * PREDICTIVA por metadata física del hallazgo (mascota -> 21d, grasa -> 45d,
+ * moho -> 30d, ventanas -> 60d) en vez de la retención fija actual (QC 1
+ * año / disputa 2 años). No se improvisó porque el checklist NO captura esa
+ * metadata en absoluto: service_checklist_items (migración 006) solo tiene
+ * item_id/item_label/notes(texto libre)/photo_url -- no hay un campo
+ * estructurado de "tipo de hallazgo" ni de severidad física del que derivar
+ * un plazo distinto por foto. sop_checklists.zone sí distingue "windows"
+ * como zona, pero no "mascota", "grasa" ni "moho" -- esos solo podrían vivir
+ * hoy dentro de `notes` como texto libre, no son consultables. Implementar
+ * esto bien requiere primero: (1) agregar una columna estructurada tipo
+ * `finding_type` (enum: pet/grease/mold/windows/none) a
+ * service_checklist_items, poblada por el empleado en el momento del
+ * checklist, y (2) recién entonces una función de retención análoga a
+ * decideOrderPhotoPurge que la lea. Agregar el campo sin que el checklist
+ * lo capture habría dejado triggers muertos que nunca disparan.
+ */
 export const QC_PHOTO_RETENTION_DAYS = 365;
 export const DISPUTE_PHOTO_RETENTION_DAYS = 730;
 

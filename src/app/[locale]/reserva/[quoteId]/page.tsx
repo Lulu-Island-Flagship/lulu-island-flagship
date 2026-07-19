@@ -12,6 +12,7 @@ import { StripeCardForm } from "@/components/reserva/StripeCardForm";
 import { ReservationSummary } from "@/components/reserva/ReservationSummary";
 import { CheckoutBenefitsPanel } from "@/components/reserva/CheckoutBenefitsPanel";
 import { PriceFreezeCountdown } from "@/components/reserva/PriceFreezeCountdown";
+import { AuthModal } from "@/components/cotizador/AuthModal";
 import {
   ChevronLeft,
   Shield,
@@ -66,9 +67,18 @@ export default function ReservaPage() {
   }, [quote?.priceFrozenUntil]);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [paypalEnabled, setPaypalEnabled] = useState(false);
+  // v8.3 fix (auditoría E2 2026-07-18): PayPal "solo primera reserva" debe
+  // basarse en el historial REAL del cliente (client_profiles.services_count,
+  // que solo se incrementa al completar una orden anterior), no en
+  // quote.serviceSubtype -- una etiqueta elegida por el cliente al cotizar
+  // que un cliente recurrente podía volver a marcar como "first_time" para
+  // reactivar la opción. El servidor (stripe/confirm) ya valida esto de
+  // forma autoritativa; este estado solo controla si el botón se muestra.
+  const [isFirstTimeClient, setIsFirstTimeClient] = useState(false);
 
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState("");
+  const [needsPhoneVerification, setNeedsPhoneVerification] = useState(false);
 
   // Fetch quote from Supabase and map snake_case → camelCase
   useEffect(() => {
@@ -124,7 +134,7 @@ export default function ReservaPage() {
 
       const { data: profile } = await supabase
         .from("client_profiles")
-        .select("account_type, services_count")
+        .select("account_type, services_count, phone_verified")
         .eq("user_id", data.user_id)
         .single();
 
@@ -135,6 +145,15 @@ export default function ReservaPage() {
         setLoading(false);
         return;
       }
+
+      setIsFirstTimeClient(profile?.services_count === 0);
+
+      // v8.3 fix (auditoría E1 2026-07-18): defensa en profundidad -- si un
+      // cliente llega aquí (p.ej. link guardado) sin haber verificado su
+      // teléfono (típico de login social Google/Apple), se bloquea con el
+      // mismo paso obligatorio que /cotizador. El servidor (/api/stripe/confirm)
+      // también rechaza esto de forma autoritativa aunque la UI fallara.
+      setNeedsPhoneVerification(!profile?.phone_verified);
 
       setQuote(mapped);
 
@@ -201,6 +220,41 @@ export default function ReservaPage() {
 
     recalculateQuote();
   }, [serviceDate, quote]);
+
+  // v8.3 fix (auditoría E1 2026-07-18): el freeze de precio (10 min, fijo)
+  // no se renovaba con la actividad del cliente -- alguien llenando datos de
+  // tarjeta / pasando por 3-D Secure podía perder su precio a mitad del
+  // flujo. Mientras la quote siga "pending" y sin confirmar, se hace un
+  // heartbeat periódico a /api/quote/freeze-ping que extiende
+  // price_frozen_until otros 10 min desde el momento del ping (con techo
+  // absoluto de 60 min desde la aceptación original, ver esa ruta). Esto es
+  // "latencia de red" -- el cliente sigue viendo el mismo aviso sutil de
+  // PriceFreezeCountdown, no un cronómetro que se reinicia visualmente cada
+  // vez (el countdown en sí solo se pone en evidencia en el último minuto).
+  useEffect(() => {
+    if (!quote?.id || quote.status !== "pending" || isConfirming) return;
+
+    const PING_INTERVAL_MS = 2 * 60 * 1000; // cada 2 min, bien dentro de la ventana de 10 min
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch("/api/quote/freeze-ping", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quoteId: quote.id }),
+        });
+        if (!res.ok) return; // no bloquear la UI por un ping fallido -- el countdown visible ya avisa
+        const { priceFrozenUntil } = await res.json();
+        if (priceFrozenUntil) {
+          setQuote((prev) => (prev ? { ...prev, priceFrozenUntil } : prev));
+        }
+      } catch {
+        // silencioso -- next tick reintenta
+      }
+    }, PING_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [quote?.id, quote?.status, isConfirming]);
 
   // Create SetupIntent when date/time selected and user authenticated
   useEffect(() => {
@@ -414,7 +468,7 @@ export default function ReservaPage() {
                   Payment Method
                 </h2>
 
-                {paypalEnabled && quote?.serviceSubtype === "first_time" && (
+                {paypalEnabled && isFirstTimeClient && (
                   <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
                     <button
                       type="button"
@@ -545,7 +599,7 @@ export default function ReservaPage() {
                 <button
                   aria-label="Confirmar y pagar la reserva"
                   onClick={handleConfirm}
-                  disabled={isConfirming}
+                  disabled={isConfirming || needsPhoneVerification}
                   className="w-full inline-flex items-center justify-center gap-2 bg-brand-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isConfirming ? (
@@ -560,6 +614,11 @@ export default function ReservaPage() {
                     </>
                   )}
                 </button>
+                {needsPhoneVerification && (
+                  <p className="text-xs text-state-danger mt-2 text-center">
+                    Phone verification required before confirming — see the popup.
+                  </p>
+                )}
                 <p className="text-xs text-gray-500 mt-3 text-center">
                   By confirming, you agree to our cancellation policy. Hold
                   authorization applies 72h before service.
@@ -569,6 +628,19 @@ export default function ReservaPage() {
           </div>
         </div>
       </div>
+
+      {/* v8.3 fix (auditoría E1 2026-07-18): verificación telefónica
+          obligatoria -- bloquea la reserva hasta que client_profiles.phone_verified
+          sea true. El servidor (/api/stripe/confirm) también lo exige. */}
+      {needsPhoneVerification && (
+        <AuthModal
+          onClose={() => {
+            /* no-op: sin "X" en forcePhoneVerification, no se puede cerrar */
+          }}
+          onSuccess={() => setNeedsPhoneVerification(false)}
+          forcePhoneVerification
+        />
+      )}
     </main>
   );
 }

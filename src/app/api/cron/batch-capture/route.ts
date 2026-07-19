@@ -6,7 +6,9 @@ import { getVancouverTodayString } from "@/lib/date-utils";
 import { calculateReserveSplit } from "@/lib/cash-reserve";
 import {
   evaluateCaptureEligibility,
+  evaluateQcGate,
   type OrderClaimForCaptureDecision,
+  type QcReviewStatus,
 } from "@/lib/batch-capture-eligibility";
 import { computePartialCaptureDecision } from "@/lib/batch-capture-partial";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
@@ -146,6 +148,7 @@ export async function GET(request: NextRequest) {
     { data: cashReserveFlag },
     { data: disputeExclusionFlag },
     { data: partialCaptureFlag },
+    { data: qcGateFlag },
   ] = await Promise.all([
     supabase.from("feature_flags").select("activo").eq("nombre", "chargeback_reserve_enabled").single(),
     supabase.from("feature_flags").select("activo").eq("nombre", "qbo_export_enabled").single(),
@@ -160,11 +163,23 @@ export async function GET(request: NextRequest) {
       .select("activo")
       .eq("nombre", "batch_capture_partial_on_dispute_enabled")
       .single(),
+    supabase
+      .from("feature_flags")
+      .select("activo")
+      .eq("nombre", "batch_capture_qc_gate_enabled")
+      .single(),
   ]);
   const chargebackEnabled = !!chargebackFlag?.activo;
   const qboEnabled = !!qboFlag?.activo;
   const cashReserveEnabled = !!cashReserveFlag?.activo;
   const disputeExclusionEnabled = !!disputeExclusionFlag?.activo;
+  // v8.3 E5 (auditoría 2026-07-18): el muro QC nunca se consultaba desde
+  // este cron. Apagado por defecto -- mismo patrón que los demás flags de
+  // dinero de este módulo: se activa solo tras confirmar en staging que no
+  // deja represada la caja de una operación pequeña donde QC pendiente es
+  // la norma para empleados no-élite (migración 016 crea qc_reviews
+  // 'pending' para todos los no-élite al completar el servicio).
+  const qcGateEnabled = !!qcGateFlag?.activo;
   // v8.3 E2 (2026-07-13, decisión del dueño): cuando hay disputa crítica
   // documentada, en vez de no cobrar nada, cobrar de inmediato el costo
   // laboral+10% y el resto a 24h. Solo tiene efecto si disputeExclusionEnabled
@@ -248,6 +263,54 @@ export async function GET(request: NextRequest) {
       }));
 
       const eligibility = evaluateCaptureEligibility(claimsForDecision);
+
+      // v8.3 E5 (auditoría 2026-07-18): el muro QC nunca se consultaba desde
+      // este cron -- se cobraba a las 7PM sin importar si qc_reviews seguía
+      // 'pending' (empleado no-élite recién completado), 'rejected' o
+      // 'rework' (servicio en corrección con timer de 30 min, migración
+      // rework). Detrás de flag apagado por defecto (ver arriba) para poder
+      // validar en staging antes de represar cobros reales.
+      if (qcGateEnabled) {
+        const { data: qcRow } = await supabase
+          .from("qc_reviews")
+          .select("status")
+          .eq("order_id", order.id)
+          .maybeSingle();
+
+        const qcStatus = (qcRow?.status ?? null) as QcReviewStatus;
+        const qcGate = evaluateQcGate(qcStatus);
+
+        if (!qcGate.qcPasses) {
+          results.skipped++;
+          results.errors.push({
+            orderId: order.id,
+            error: `EXCLUDED: ${qcGate.reason} (qc_status=${qcStatus ?? "none"})`,
+          });
+
+          await supabase
+            .from("orders")
+            .update({
+              capture_withheld_reason: qcGate.reason,
+              capture_withheld_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", order.id);
+
+          await supabase.from("tickets_disputas").insert({
+            order_id: order.id,
+            type: "discrepancy",
+            priority: "medium",
+            status: "open",
+            context: {
+              reason: "batch_capture_withheld_qc_not_approved",
+              qc_status: qcStatus,
+              quote_total: quoteTotal,
+            },
+          });
+
+          continue;
+        }
+      }
 
       if (!eligibility.shouldCapture) {
         // v8.3 E2 (2026-07-13): la captura parcial solo aplica a órdenes con
@@ -605,19 +668,26 @@ export async function GET(request: NextRequest) {
           });
         }
 
-        // QBO export line (determinista)
+        // QBO export line (determinista). v8.3 E2 (migración 187) — upsert
+        // por (order_id, transaction_type) para respetar el mismo índice
+        // único que se agregó por el bug de duplicación en qbo-sync: si el
+        // cron de batch-capture se reintenta sobre la misma orden, no debe
+        // insertar una segunda línea "capture".
         if (qboEnabled && amountCharged > 0) {
-          await supabase.from("qbo_export_lines").insert({
-            export_id: null,
-            order_id: order.id,
-            payment_intent_id: payments.balance || payments.hold || null,
-            transaction_type: "capture",
-            transaction_date: new Date().toISOString(),
-            gross_amount: amountCharged * 100,
-            fee_amount: stripeFeeCents,
-            net_amount: amountCharged * 100 - stripeFeeCents,
-            description: `Capture order ${order.id}`,
-          });
+          await supabase.from("qbo_export_lines").upsert(
+            {
+              export_id: null,
+              order_id: order.id,
+              payment_intent_id: payments.balance || payments.hold || null,
+              transaction_type: "capture",
+              transaction_date: new Date().toISOString(),
+              gross_amount: amountCharged * 100,
+              fee_amount: stripeFeeCents,
+              net_amount: amountCharged * 100 - stripeFeeCents,
+              description: `Capture order ${order.id}`,
+            },
+            { onConflict: "order_id,transaction_type" }
+          );
         }
 
         results.captured++;

@@ -1,4 +1,20 @@
 /**
+ * v8.3 E7 fix de auditoría — se evaluó si `computePolicyStatus`/
+ * `missingPolicyTypes` debían bloquear alguna operación real (a diferencia
+ * del seguro vehicular, que sí bloquea la asignación vía trigger SQL, ver
+ * comentario más abajo). Conclusión: NO hay un punto de aplicación
+ * operativo seguro para bloquear aquí -- una póliza del negocio vencida no
+ * impide despachar un servicio ni cobrar un pago, es una condición legal
+ * del NEGOCIO como entidad, no de una transacción puntual. El único punto
+ * de aplicación real que exige el spec (B.4 regla #25: "Nunca publicar
+ * asegurados/bonded en el sitio hasta que las pólizas reales estén
+ * contratadas") es el claim público "insured/bonded" -- y ahí SÍ había un
+ * bug real: src/app/[locale]/page.tsx afirmaba "insured" de forma
+ * incondicional en el JSON-LD, sin leer nunca allThreePoliciesReady. Ese es
+ * el fix aplicado (ver comentario en ese archivo). Forzar un bloqueo
+ * operativo aquí (ej. impedir crear órdenes) sería arbitrario: el spec
+ * nunca lo pide y rompería el negocio sin que el dueño lo haya pedido.
+ *
  * v8.3 E7 (D.9 punto 9) — estado de una póliza de seguro del negocio.
  * Misma lógica de "alerta 30 días / bloqueada si vencida" que ya existe
  * para vehículos, pero aquí como función pura (el bloqueo de vehículos vive

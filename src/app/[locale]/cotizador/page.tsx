@@ -140,6 +140,12 @@ export default function CotizadorPage() {
   // a la URL de redirect, pero ningún componente lo leía. El usuario volvía
   // sin sesión y sin ningún mensaje, indistinguible de un botón roto.
   const [authErrorMessage, setAuthErrorMessage] = useState("");
+  // v8.3 fix (auditoría E1 2026-07-18): un cliente que entra por Google/Apple
+  // nunca pasaba por verificación telefónica -- se agrega un paso obligatorio
+  // (AuthModal en modo forcePhoneVerification) antes de dejarlo avanzar a
+  // reservar, si client_profiles.phone_verified no es true.
+  const [needsPhoneVerification, setNeedsPhoneVerification] = useState(false);
+  const [pendingSubmitUserId, setPendingSubmitUserId] = useState<string | null>(null);
 
   // B2B review se deriva de la cotización server-side o, en ausencia de ella, de la categoría comercial
   const b2bReviewRequired =
@@ -423,17 +429,47 @@ export default function CotizadorPage() {
   };
 
   const handleAuthSuccess = async () => {
-    setShowAuthModal(false);
     try {
       const { data, error } = await supabase.auth.getUser();
       if (error) throw error;
-      if (data.user) {
-        // Pass the user ID directly to avoid stale closure
-        handleSubmit(data.user.id);
+      if (!data.user) {
+        setShowAuthModal(false);
+        return;
       }
+
+      // v8.3 fix (auditoría E1): verificación telefónica obligatoria antes
+      // de avanzar a reservar, sin importar el método de login usado.
+      const { data: profile } = await supabase
+        .from("client_profiles")
+        .select("phone_verified")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+
+      if (!profile?.phone_verified) {
+        setPendingSubmitUserId(data.user.id);
+        setNeedsPhoneVerification(true);
+        // showAuthModal se mantiene true -- el modal cambia a modo
+        // forcePhoneVerification (ver render de AuthModal más abajo).
+        return;
+      }
+
+      setShowAuthModal(false);
+      // Pass the user ID directly to avoid stale closure
+      handleSubmit(data.user.id);
     } catch (err: Error | unknown) {
       setSubmitError(err instanceof Error ? err.message : "Authentication failed. Please try again.");
       setShowAuthModal(true);
+    }
+  };
+
+  // Se llama cuando el paso de verificación telefónica obligatoria termina
+  // con éxito (ver AuthModal forcePhoneVerification más abajo).
+  const handlePhoneVerified = () => {
+    setNeedsPhoneVerification(false);
+    setShowAuthModal(false);
+    if (pendingSubmitUserId) {
+      handleSubmit(pendingSubmitUserId);
+      setPendingSubmitUserId(null);
     }
   };
 
@@ -690,9 +726,12 @@ export default function CotizadorPage() {
             clearPendingAuth();
             setShowAuthModal(false);
             setAuthErrorMessage("");
+            setNeedsPhoneVerification(false);
+            setPendingSubmitUserId(null);
           }}
-          onSuccess={handleAuthSuccess}
+          onSuccess={needsPhoneVerification ? handlePhoneVerified : handleAuthSuccess}
           initialError={authErrorMessage}
+          forcePhoneVerification={needsPhoneVerification}
         />
       )}
     </main>

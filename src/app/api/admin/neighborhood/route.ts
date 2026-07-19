@@ -93,6 +93,23 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // v8.3 E11 (auditoría 2026-07-18): client_properties.neighborhood_sensitive
+    // (migración 050) nunca se activaba -- el flujo real de quejas usa
+    // neighbor_complaints (migración 148), pero ninguna ruta marcaba la
+    // propiedad como sensible tras registrar una queja. La migración 050 lo
+    // dice explícitamente en su comentario: "Direcciones marcadas como
+    // 'sensibles' tras una queja". Se marca aquí, en el mismo insert que
+    // registra la queja -- best-effort: si falla, no se bloquea el registro
+    // de la queja (ya persistida), solo se loguea.
+    const { error: sensitiveError } = await supabase
+      .from("client_properties")
+      .update({ neighborhood_sensitive: true })
+      .eq("id", body.clientPropertyId);
+    if (sensitiveError) {
+      console.error("Failed to mark client_property as neighborhood_sensitive:", sensitiveError);
+    }
+
     return NextResponse.json({ complaint: data }, { status: 201 });
   }
 

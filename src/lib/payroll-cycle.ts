@@ -62,6 +62,12 @@ export interface CycleEntry {
   reworkAmountCents: number;
   minimumWageAdjustmentCents: number;
   grossAmountCents: number;
+  /** v8.3 fix auditoría E9: minutos de rework REALMENTE pagados (tope
+   * maxReworkMinutes, ver payroll.ts calculatePayroll) -- antes solo se
+   * exportaba el monto (reworkAmountCents), no el "factor" que lo explica.
+   * Opcional para no romper llamadores existentes (readiness/badges/etc.
+   * que no aplican rework); default 0. */
+  reworkPaidMinutes?: number;
 }
 
 export interface EmployeeCycleSummary {
@@ -74,11 +80,27 @@ export interface EmployeeCycleSummary {
   reworkCents: number;
   minWageAdjustmentCents: number;
   grossCents: number;
+  /** v8.3 fix auditoría E9: días calendario DISTINTOS trabajados en el
+   * ciclo -- distinto de `services` (que cuenta entradas: un mismo día
+   * puede tener varios servicios/créditos). Es el dato que espera nómina/
+   * contabilidad para "días trabajados". */
+  daysWorked: number;
+  /** v8.3 fix auditoría E9: suma de Day Rate pagado (mismo valor que
+   * baseCents, expuesto con nombre explícito porque el CSV/reporte de
+   * nómina debe declarar "Day Rate" como columna propia, no inferirlo de
+   * "base_cad"). */
+  dayRateCents: number;
+  /** v8.3 fix auditoría E9: total de minutos de rework pagados en el
+   * ciclo (el "factor" detrás de reworkCents) -- reusa el mismo cálculo
+   * que ya existe en payroll.ts (calculatePayroll -> reworkPaidMinutes),
+   * solo se agrega al agregador del ciclo. */
+  reworkPaidMinutesTotal: number;
 }
 
 export function aggregateCycle(entries: CycleEntry[], cycle: PayrollCycle): EmployeeCycleSummary[] {
   const inCycle = entries.filter((e) => e.serviceDate >= cycle.start && e.serviceDate <= cycle.end);
   const byEmp = new Map<string, EmployeeCycleSummary>();
+  const daysByEmp = new Map<string, Set<string>>();
   for (const e of inCycle) {
     const s =
       byEmp.get(e.employeeId) ??
@@ -93,6 +115,9 @@ export function aggregateCycle(entries: CycleEntry[], cycle: PayrollCycle): Empl
           reworkCents: 0,
           minWageAdjustmentCents: 0,
           grossCents: 0,
+          daysWorked: 0,
+          dayRateCents: 0,
+          reworkPaidMinutesTotal: 0,
         })
         .get(e.employeeId)!;
     s.services += 1;
@@ -102,13 +127,22 @@ export function aggregateCycle(entries: CycleEntry[], cycle: PayrollCycle): Empl
     s.reworkCents += e.reworkAmountCents;
     s.minWageAdjustmentCents += e.minimumWageAdjustmentCents;
     s.grossCents += e.grossAmountCents;
+    s.dayRateCents += e.baseAmountCents;
+    s.reworkPaidMinutesTotal += e.reworkPaidMinutes ?? 0;
+
+    const days = daysByEmp.get(e.employeeId) ?? daysByEmp.set(e.employeeId, new Set()).get(e.employeeId)!;
+    days.add(e.serviceDate);
+  }
+  for (const s of byEmp.values()) {
+    s.daysWorked = daysByEmp.get(s.employeeId)?.size ?? 0;
   }
   return Array.from(byEmp.values()).sort((a, b) => a.employeeName.localeCompare(b.employeeName));
 }
 
 /** Export CSV del ciclo (orden de columnas estable — consumible por QBO u hoja de cálculo). */
 export function cycleToCsv(summaries: EmployeeCycleSummary[], cycle: PayrollCycle): string {
-  const header = "cycle,employee_id,employee_name,services,base_cad,bonus_cad,penalty_cad,rework_cad,min_wage_adjustment_cad,gross_cad";
+  const header =
+    "cycle,employee_id,employee_name,services,base_cad,bonus_cad,penalty_cad,rework_cad,min_wage_adjustment_cad,gross_cad,days_worked,day_rate_cad,rework_paid_minutes";
   const rows = summaries.map((s) =>
     [
       cycle.label,
@@ -121,6 +155,9 @@ export function cycleToCsv(summaries: EmployeeCycleSummary[], cycle: PayrollCycl
       (s.reworkCents / 100).toFixed(2),
       (s.minWageAdjustmentCents / 100).toFixed(2),
       (s.grossCents / 100).toFixed(2),
+      s.daysWorked,
+      (s.dayRateCents / 100).toFixed(2),
+      s.reworkPaidMinutesTotal,
     ].join(",")
   );
   return [header, ...rows].join("\n");

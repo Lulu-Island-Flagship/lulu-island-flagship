@@ -23,7 +23,8 @@ import {
   Palette,
 } from "lucide-react";
 import type { EmployeeService, AssignmentStatus } from "@/types";
-import { haversineDistance, GEOFENCE_RADIUS_METERS } from "@/lib/geocode";
+import { haversineDistance, ARRIVAL_GEOFENCE_RADIUS_METERS } from "@/lib/geocode";
+import { compressImageToWebP } from "@/lib/image-compress";
 import { submitServiceEventOrQueue, submitPhotoOrQueue, triggerSyncCycle } from "@/lib/offline-sync-client";
 import { getAllQueuedEvents, planSync, type QueuedServiceEvent } from "@/lib/offline-queue";
 import { ChecklistCierre } from "@/components/empleado/ChecklistCierre";
@@ -69,6 +70,20 @@ export default function ServicioPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("timeline");
   const [geofenceStatus, setGeofenceStatus] = useState<"checking" | "inside" | "outside" | "bypass">("checking");
   const [bypassReason, setBypassReason] = useState("");
+  // v8.3 E4 fix (auditoría 2026-07-18) — el bypass de geocerca de T_in era
+  // instantáneo: un botón habilitado apenas se escribía cualquier texto en
+  // el campo de razón, sin foto de evidencia, sin categoría estructurada,
+  // y sin ninguna fricción que desincentive el uso reflejo del bypass.
+  // Ahora exige las 3 salvaguardas: (1) espera de 120s con countdown
+  // visible, (2) foto obligatoria (evidencia de dónde está parado), (3)
+  // razón de texto SIEMPRE obligatoria + categoría estructurada (no solo
+  // texto libre) para que el supervisor pueda filtrar patrones.
+  const BYPASS_WAIT_SECONDS = 120;
+  const [bypassCountdown, setBypassCountdown] = useState(BYPASS_WAIT_SECONDS);
+  const [bypassCategory, setBypassCategory] = useState<string>("");
+  const [bypassPhotoUrl, setBypassPhotoUrl] = useState<string | null>(null);
+  const [bypassPhotoUploading, setBypassPhotoUploading] = useState(false);
+  const [bypassPhotoError, setBypassPhotoError] = useState("");
   // Candado químico (E4, B.2.8): colores confirmados explícitamente en esta
   // sesión de servicio. Vive en el padre porque tanto el tab "Colors" como
   // el checklist lo necesitan.
@@ -112,7 +127,25 @@ export default function ServicioPage() {
   useEffect(() => {
     if (!orderId) return;
     loadService();
+    loadConfirmedColors();
   }, [orderId]);
+
+  // v8.3 E4 fix (auditoría 2026-07-18): el candado químico ahora persiste
+  // server-side (chemical_zone_confirmations, migración 185) — antes vivía
+  // solo en este useState y se perdía al refrescar la página, dejando la
+  // UI marcando zonas como bloqueadas otra vez aunque el servidor ya las
+  // tenía confirmadas (o viceversa, nunca coincidía con lo que el servidor
+  // realmente exige en POST /api/empleado/checklist).
+  async function loadConfirmedColors() {
+    try {
+      const res = await fetch(`/api/empleado/chemical-confirm?orderId=${orderId}`, { credentials: "include" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setConfirmedColors(new Set<string>(data.confirmedColors || []));
+    } catch (e) {
+      console.error("Load confirmed colors error:", e);
+    }
+  }
 
   async function loadService() {
     setLoading(true);
@@ -168,13 +201,19 @@ export default function ServicioPage() {
   };
 
   // Geocerca real: compara la ubicación del empleado con las coordenadas
-  // geocodificadas de la orden. Si no hay coordenadas o falla el GPS,
-  // permite bypass manual con advertencia (fallback operacional).
+  // geocodificadas de la orden (radio real de "llegada" = 50m, distinto del
+  // radio de 200m usado para el punto de encuentro del equipo — ver
+  // src/lib/geocode.ts). v8.3 E4 fix (auditoría 2026-07-18): antes, si no
+  // había señal GPS o no había coordenadas de referencia, el estado saltaba
+  // DIRECTO a "bypass" sin ninguna de las 3 salvaguardas (countdown, foto,
+  // razón) — el camino "sin GPS" era, contraintuitivamente, el más fácil de
+  // abusar. Ahora los 3 casos (fuera de rango, sin señal, sin referencia)
+  // caen todos en "outside" y exigen el mismo flujo de salvaguardas.
   const checkGeofence = async () => {
     setGeofenceStatus("checking");
     const loc = await getCurrentLocation();
     if (!loc) {
-      setGeofenceStatus("bypass");
+      setGeofenceStatus("outside");
       return false;
     }
 
@@ -183,8 +222,9 @@ export default function ServicioPage() {
       service.addressLat === undefined ||
       service.addressLng === undefined
     ) {
-      // Sin coordenadas de referencia: no podemos validar distancia.
-      setGeofenceStatus("bypass");
+      // Sin coordenadas de referencia: no podemos validar distancia, pero
+      // tampoco se confía a ciegas — exige las mismas salvaguardas.
+      setGeofenceStatus("outside");
       return false;
     }
 
@@ -193,7 +233,7 @@ export default function ServicioPage() {
       { lat: service.addressLat, lng: service.addressLng }
     );
 
-    if (distance <= GEOFENCE_RADIUS_METERS) {
+    if (distance <= ARRIVAL_GEOFENCE_RADIUS_METERS) {
       setGeofenceStatus("inside");
       return true;
     }
@@ -202,16 +242,83 @@ export default function ServicioPage() {
     return false;
   };
 
+  // v8.3 E4 fix (auditoría 2026-07-18): countdown de 120s obligatorio antes
+  // de poder confirmar el bypass — arranca apenas se entra en "outside" y
+  // se reinicia si se vuelve a "checking"/"inside" (ej. el empleado se
+  // movió y ahora sí entra en rango).
+  useEffect(() => {
+    if (geofenceStatus !== "outside") {
+      setBypassCountdown(BYPASS_WAIT_SECONDS);
+      return;
+    }
+    setBypassCountdown(BYPASS_WAIT_SECONDS);
+    const interval = setInterval(() => {
+      setBypassCountdown((n) => (n > 0 ? n - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geofenceStatus]);
+
+  const handleBypassPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !orderId) return;
+
+    setBypassPhotoUploading(true);
+    setBypassPhotoError("");
+    try {
+      let blob: Blob;
+      try {
+        const compressed = await compressImageToWebP(file);
+        blob = compressed.blob;
+      } catch {
+        blob = file;
+      }
+      const fileName = `${orderId}/geofence-bypass/${Date.now()}.webp`;
+      const { error: uploadError } = await supabase.storage
+        .from("service-photos")
+        .upload(fileName, blob, { contentType: "image/webp" });
+      if (uploadError) {
+        setBypassPhotoError("No se pudo subir la foto. Intenta de nuevo.");
+        return;
+      }
+      const { data: publicUrlData } = supabase.storage.from("service-photos").getPublicUrl(fileName);
+      setBypassPhotoUrl(publicUrlData.publicUrl);
+    } catch (err) {
+      console.error("Bypass photo upload error:", err);
+      setBypassPhotoError("No se pudo subir la foto. Intenta de nuevo.");
+    } finally {
+      setBypassPhotoUploading(false);
+    }
+  };
+
+  const bypassSafeguardsReady =
+    bypassCountdown === 0 && !!bypassPhotoUrl && !!bypassCategory && bypassReason.trim().length > 0;
+
+  const confirmBypass = () => {
+    if (!bypassSafeguardsReady) return;
+    setGeofenceStatus("bypass");
+  };
+
   const handleEvent = async (eventType: EventType) => {
     if (!orderId || isSubmitting) return;
 
-    // For T_in, check geofence first
-    if (eventType === "t_in") {
+    // For T_in, check geofence first — salvo que el empleado ya haya
+    // completado las 3 salvaguardas del bypass (confirmBypass), en cuyo
+    // caso NO se vuelve a correr checkGeofence: una nueva lectura de GPS
+    // ahí pisaría el estado "bypass" ya confirmado y perdería el trabajo
+    // hecho (countdown, foto, razón) sin ninguna ganancia de seguridad
+    // real, porque bypassSafeguardsReady ya certifica que se completaron.
+    if (eventType === "t_in" && geofenceStatus !== "bypass") {
       const inside = await checkGeofence();
-      if (!inside && geofenceStatus !== "bypass") {
+      if (!inside) {
         // Show bypass option
         return;
       }
+    }
+    if (eventType === "t_in" && geofenceStatus === "bypass" && !bypassSafeguardsReady) {
+      // Defensa extra: nunca enviar un bypass sin las 3 salvaguardas
+      // completas, aunque el estado ya diga "bypass" por alguna carrera de UI.
+      return;
     }
 
     setIsSubmitting(true);
@@ -219,16 +326,17 @@ export default function ServicioPage() {
     try {
       const loc = await getCurrentLocation();
 
-      // Si hay bypass de geocerca, registrar nota de auditoría (encola si no hay señal)
-      if (eventType === "t_in" && geofenceStatus === "bypass" && bypassReason.trim()) {
-        await submitServiceEventOrQueue(orderId, "note", {
-          notes: `Geofence bypass: ${bypassReason.trim()}`,
-        });
-      }
-
       const result = await submitServiceEventOrQueue(orderId, eventType, {
         locationLat: loc?.lat,
         locationLng: loc?.lng,
+        ...(eventType === "t_in" && geofenceStatus === "bypass"
+          ? {
+              geofenceBypass: true,
+              geofenceBypassCategory: bypassCategory,
+              geofenceBypassReason: bypassReason.trim(),
+              photoUrl: bypassPhotoUrl,
+            }
+          : {}),
       });
 
       if (!result.ok) {
@@ -533,26 +641,76 @@ export default function ServicioPage() {
         {!isCompleted && nextAction && (
           <div className="space-y-2">
             {geofenceStatus === "outside" && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700 space-y-2">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700 space-y-3">
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <span>You appear to be far from the service location. GPS may be inaccurate.</span>
+                  <span>
+                    You appear to be far from the service location (or GPS is unavailable). Bypassing this
+                    check is logged and reviewed by your supervisor.
+                  </span>
                 </div>
+
+                {/* Salvaguarda 1: espera obligatoria de 120s con countdown visible */}
+                <div className="text-xs font-medium">
+                  {bypassCountdown > 0
+                    ? `Please wait ${bypassCountdown}s before you can continue.`
+                    : "Wait time complete."}
+                </div>
+
+                {/* Salvaguarda 2: categoría estructurada del motivo — flag amarillo estructurado */}
+                <select
+                  aria-label="Categoría del motivo de bypass de geocerca"
+                  value={bypassCategory}
+                  onChange={(e) => setBypassCategory(e.target.value)}
+                  className="w-full text-sm border border-yellow-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white"
+                >
+                  <option value="">Select a reason category (required)...</option>
+                  <option value="gps_inaccurate">GPS is inaccurate / weak signal</option>
+                  <option value="building_entrance_far">Building entrance is far from the map pin</option>
+                  <option value="parking_restriction">Had to park/enter far from exact address</option>
+                  <option value="other">Other</option>
+                </select>
+
+                {/* Salvaguarda 2b: razón de texto SIEMPRE obligatoria además de la categoría */}
                 <input
                   type="text"
                   aria-label="Razón para omitir la verificación de geocerca"
                   value={bypassReason}
                   onChange={(e) => setBypassReason(e.target.value)}
-                  placeholder="Reason for bypass (required)..."
+                  placeholder="Describe the specific situation (required)..."
                   className="w-full text-sm border border-yellow-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 />
+
+                {/* Salvaguarda 3: foto obligatoria de evidencia */}
+                <div>
+                  {bypassPhotoUrl ? (
+                    <img src={bypassPhotoUrl} alt="Bypass evidence" className="w-20 h-20 rounded-lg object-cover" />
+                  ) : (
+                    <label className="inline-flex items-center gap-2 text-xs font-medium bg-white border border-yellow-300 rounded-lg px-3 py-2 cursor-pointer hover:bg-yellow-100">
+                      {bypassPhotoUploading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Camera className="w-4 h-4" />
+                      )}
+                      <span>Add evidence photo (required)</span>
+                      <input
+                        type="file"
+                        aria-label="Foto de evidencia obligatoria para el bypass de geocerca"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={handleBypassPhotoUpload}
+                        disabled={bypassPhotoUploading}
+                      />
+                    </label>
+                  )}
+                  {bypassPhotoError && <p className="text-xs text-red-600 mt-1">{bypassPhotoError}</p>}
+                </div>
+
                 <button
-                  onClick={() => {
-                    if (!bypassReason.trim()) return;
-                    setGeofenceStatus("bypass");
-                  }}
-                  disabled={!bypassReason.trim()}
-                  className="text-xs underline font-medium disabled:opacity-50"
+                  onClick={confirmBypass}
+                  disabled={!bypassSafeguardsReady}
+                  className="text-xs underline font-medium disabled:opacity-50 disabled:no-underline"
                 >
                   I am at the location — continue anyway
                 </button>

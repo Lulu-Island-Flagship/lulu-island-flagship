@@ -5,6 +5,11 @@ import {
   hasSufficientVoterSample,
   type PeerVote,
 } from "@/lib/peer-vote-integrity";
+import { evaluateLowScoreStreak, type WeeklyScoreRecord } from "@/lib/low-score-streak";
+import { publishUnifiedAlert } from "@/lib/unified-alerts";
+
+/** v8.3 E5: cuántas semanas anteriores hace falta mirar para detectar una racha de 3. */
+const STREAK_LOOKBACK_WEEKS = 2;
 
 /**
  * v8.3 E5: peer_score neutral cuando la muestra de votantes es insuficiente
@@ -156,6 +161,55 @@ export async function GET(request: NextRequest) {
         .from("employees")
         .update({ trust_level: trustLevel })
         .eq("id", emp.id);
+
+      // v8.3 E5 (auditoría 2026-07-18, migración 193) — causal documentable
+      // "<50 puntos x 3 semanas consecutivas". Solo documenta (tabla +
+      // alerta), NUNCA suspende ni despide automáticamente (B.2.23).
+      const { data: priorWeeksRaw } = await supabase
+        .from("employee_scores")
+        .select("week_start, total_score")
+        .eq("employee_id", emp.id)
+        .lt("week_start", weekStart)
+        .order("week_start", { ascending: false })
+        .limit(STREAK_LOOKBACK_WEEKS);
+
+      const priorWeeks: WeeklyScoreRecord[] = (priorWeeksRaw || []).map((w) => ({
+        weekStart: w.week_start,
+        totalScore: w.total_score,
+      }));
+
+      const streak = evaluateLowScoreStreak(
+        { weekStart, totalScore: Math.round(totalScore) },
+        priorWeeks
+      );
+
+      if (streak.isStreak) {
+        const { error: streakInsertError } = await supabase
+          .from("employee_low_score_streaks")
+          .upsert(
+            {
+              employee_id: emp.id,
+              week_start: weekStart,
+              consecutive_weeks_below_50: streak.consecutiveWeeksBelow50,
+              scores: streak.streakWeeks,
+            },
+            { onConflict: "employee_id,week_start" }
+          );
+
+        if (streakInsertError) {
+          console.error(`Low score streak insert error for ${emp.id}:`, streakInsertError);
+        } else {
+          await publishUnifiedAlert(supabase, {
+            sourceModule: "low_score_streak",
+            sourceTable: "employee_low_score_streaks",
+            sourceId: emp.id,
+            tier: "can_wait",
+            severity: "p2_automatic",
+            title: "Empleado con score < 50 por 3+ semanas consecutivas",
+            summary: `El empleado ${emp.id} acumula ${streak.consecutiveWeeksBelow50} semanas consecutivas con score total < 50 (semana actual: ${weekStart}). Registro informativo, ninguna acción automática tomada.`,
+          });
+        }
+      }
 
       results.push({ employee_id: emp.id, total_score: totalScore, trust_level: trustLevel });
     }

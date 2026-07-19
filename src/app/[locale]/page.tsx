@@ -10,7 +10,19 @@ function LocalBusinessSchema() {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
     "name": "Lulu Island Flagship Cleaning Services",
-    "description": "Verified, insured, and trained to care for your home — not just clean it. Full price from quote, no surprises.",
+    // v8.3 E7 fix de auditoría (D.9 punto 9 / B.4 regla #25): este texto
+    // decía literalmente "insured" de forma incondicional en el JSON-LD
+    // público, violando la regla explícita del spec ("Nunca publicar
+    // asegurados/bonded en el sitio hasta que las pólizas reales estén
+    // contratadas") sin importar el estado real de
+    // business_insurance_policies (src/lib/business-insurance.ts,
+    // GET /api/admin/business-insurance -> allThreePoliciesReady). Como este
+    // es un componente cliente estático (sin fetch a esa API), el punto de
+    // aplicación seguro es NO afirmar la cobertura aquí -- el mismo texto no
+    // se puede "bloquear" condicionalmente sin antes cablear un fetch server
+    // -> client de allThreePoliciesReady, que es trabajo aparte. Mientras
+    // esa condición no exista, la copia no debe mencionar "insured/bonded".
+    "description": "Vetted, trained cleaning professionals caring for your home — not just cleaning it. Full price from quote, no surprises.",
     "url": "https://luluislandflagship.ca",
     "email": "hello@luluislandflagship.ca",
     "address": {

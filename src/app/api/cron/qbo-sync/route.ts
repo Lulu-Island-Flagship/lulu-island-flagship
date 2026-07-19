@@ -127,19 +127,32 @@ export async function GET(request: NextRequest) {
         description: `Sales receipt order ${order.id}`,
       });
 
-      const { error: lineError } = await supabase.from("qbo_export_lines").insert({
-        order_id: order.id,
-        export_id: exportId,
-        payment_intent_id: pushResult.qboTransactionId,
-        transaction_type: "sales_receipt",
-        transaction_date: nowIso,
-        gross_amount: gross,
-        fee_amount: fee,
-        net_amount: net,
-        gst_amount: gst,
-        pst_amount: pst,
-        description: `Sales receipt order ${order.id}`,
-      });
+      // v8.3 E2 (migración 187) — upsert por (order_id, transaction_type) en
+      // vez de insert puro: mientras el adaptador QBO real no esté
+      // conectado (pushResult.status === "not_configured"),
+      // orders.qbo_export_status nunca llega a "exported", así que esta
+      // misma orden vuelve a calificar en la siguiente corrida del cron
+      // (mientras siga dentro de la ventana de 24h). Un insert puro
+      // duplicaba la línea "sales_receipt" en cada corrida; el upsert la
+      // actualiza in-place y mantiene el índice único
+      // qbo_export_lines_order_type_unique como garantía real de
+      // idempotencia (no solo aplicativa).
+      const { error: lineError } = await supabase.from("qbo_export_lines").upsert(
+        {
+          order_id: order.id,
+          export_id: exportId,
+          payment_intent_id: pushResult.qboTransactionId,
+          transaction_type: "sales_receipt",
+          transaction_date: nowIso,
+          gross_amount: gross,
+          fee_amount: fee,
+          net_amount: net,
+          gst_amount: gst,
+          pst_amount: pst,
+          description: `Sales receipt order ${order.id}`,
+        },
+        { onConflict: "order_id,transaction_type" }
+      );
 
       if (lineError) {
         console.error("QBO export line insert error:", lineError);

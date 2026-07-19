@@ -28,3 +28,51 @@
 export { stripe, assertStripe, getStripe as getStripeClientSide } from "@/lib/stripe";
 export { getStripe as getStripeServerSide } from "@/lib/stripe-client";
 export { verifyPayPalTransaction, type PayPalVerificationResult } from "@/lib/paypal";
+
+import { verifyPayPalTransaction, type PayPalVerificationResult } from "@/lib/paypal";
+
+/**
+ * v8.3 E0 (auditoría 2026-07-18) — interfaz abstracta mínima + mock, SOLO
+ * para PayPal (`verifyPayPalTransaction` ya tiene forma de entrada/salida
+ * propia y estable, fácil de mockear).
+ *
+ * DEUDA TÉCNICA DOCUMENTADA (decisión consciente, no descuido): `stripe`,
+ * `assertStripe`, `getStripeClientSide` y `getStripeServerSide` NO tienen
+ * interfaz/mock propios en este pase. Son re-exports directos del cliente
+ * oficial de Stripe (tipos del SDK `stripe`, cientos de métodos/objetos
+ * anidados) y de un getter que devuelve ese mismo cliente ya inicializado.
+ * Envolverlos en una interfaz mínima obligaría a elegir de antemano qué
+ * subconjunto de la superficie de Stripe "cuenta", y ese subconjunto ya
+ * cambia por endpoint (batch-capture, hold-authorize, no-show, etc. usan
+ * métodos distintos de `stripe.paymentIntents`/`stripe.refunds`/etc.) --
+ * hacerlo bien requeriría auditar cada caller primero, que es más trabajo
+ * del que cabe en este pase de bugs de auditoría y no es lo que se pidió acá.
+ * Los tests que hoy tocan Stripe ya lo resuelven mockeando el módulo
+ * `src/lib/stripe.ts` completo (ver tests/lib/*.test.ts) en vez de a través
+ * de este adaptador -- ese patrón se mantiene igual. Riesgo real: bajo (el
+ * adaptador ya aísla el punto de import; falta la interfaz formal, no el
+ * aislamiento).
+ */
+export interface PaymentsAdapter {
+  verifyPayPalTransaction(
+    transactionId: string,
+    expectedAmount?: number
+  ): Promise<PayPalVerificationResult>;
+}
+
+export const paymentsAdapter: PaymentsAdapter = { verifyPayPalTransaction };
+
+export function createMockPaymentsAdapter(
+  overrides?: Partial<PaymentsAdapter>
+): PaymentsAdapter {
+  return {
+    verifyPayPalTransaction: async (transactionId: string, _expectedAmount?: number) => ({
+      valid: true,
+      transactionId,
+      status: "COMPLETED",
+      amount: 0,
+      currency: "CAD",
+    }),
+    ...overrides,
+  };
+}

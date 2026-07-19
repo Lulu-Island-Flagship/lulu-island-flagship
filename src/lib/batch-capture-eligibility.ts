@@ -17,6 +17,14 @@
  * no construido), cualquier disputa que cumpla las 3 condiciones se trata
  * como "no concluyente" (B.3.3) y se escala a revisión humana en vez de
  * cobrarse a ciegas o congelarse indefinidamente.
+ *
+ * v8.3 E5 (auditoría 2026-07-18): el muro QC (qc_reviews, migración 010/016)
+ * nunca se consultaba desde este cron -- un servicio podía cobrarse a las
+ * 7PM aunque su qc_review siguiera 'pending', 'rejected' o (tras la
+ * migración de rework) 'rework'. Se agrega evaluateQcGate como función pura
+ * separada (mismo patrón que evaluateCaptureEligibility) para que el caller
+ * decida, detrás de un feature flag, si el cobro debe esperar a que QC esté
+ * 'approved' o 'auto'.
  */
 
 export type WarrantyClaimStatus =
@@ -78,4 +86,34 @@ export function evaluateCaptureEligibility(
     reason: hasAnyOpen ? "open_claims_not_critical_or_not_documented" : "no_open_claims",
     blockingClaimId: null,
   };
+}
+
+/**
+ * v8.3 E5 — QC status del servicio, tal como lo deja el muro QC
+ * (qc_reviews.status, migraciones 010/016/rework). `null` significa que no
+ * existe fila qc_reviews todavía (no debería pasar para una orden
+ * 'completed' con asignación, por el trigger de la migración 016, pero se
+ * trata igual que 'pending' por seguridad: no hay evidencia de que QC haya
+ * pasado).
+ */
+export type QcReviewStatus = "pending" | "approved" | "rejected" | "auto" | "rework" | null;
+
+export interface QcGateResult {
+  qcPasses: boolean;
+  /** Machine-readable reason code, siempre presente. */
+  reason: "qc_approved_or_auto" | "qc_not_approved";
+}
+
+/**
+ * Decide si el estado de QC de una orden permite que entre al cobro del
+ * Batch Capture 7PM. Solo 'approved' (revisión humana) y 'auto'
+ * (auto-aprobación élite) dejan pasar. 'pending', 'rejected' y 'rework'
+ * (servicio en corrección, timer de 30 min) NO -- el cobro espera a que QC
+ * se resuelva, igual que ya ocurre con las disputas críticas documentadas.
+ */
+export function evaluateQcGate(qcStatus: QcReviewStatus): QcGateResult {
+  if (qcStatus === "approved" || qcStatus === "auto") {
+    return { qcPasses: true, reason: "qc_approved_or_auto" };
+  }
+  return { qcPasses: false, reason: "qc_not_approved" };
 }

@@ -12,6 +12,25 @@
  * experimento premiaría regalar el servicio).
  */
 
+import type { ClientSegment } from "./client-segmentation";
+
+/**
+ * Auditoría E10 (fix): "cliente recurrente" no puede depender SOLO de tener
+ * un service_contract activo (M13/contratos recurrentes) -- eso deja fuera a
+ * cualquier VIP o Regular fiel que reserva a demanda sin contrato formal, y
+ * la restricción ética del spec es "clientes recurrentes SIEMPRE
+ * protegidos", no "clientes con contrato". Un cliente queda protegido si
+ * cualquiera de las dos señales lo marca como recurrente: contrato activo O
+ * segmentación VIP/Regular (src/lib/client-segmentation.ts).
+ */
+export function isProtectedRecurringClient(
+  hasActiveServiceContract: boolean,
+  segment: ClientSegment | null
+): boolean {
+  if (hasActiveServiceContract) return true;
+  return segment === "vip" || segment === "regular";
+}
+
 export type ExperimentType = "price" | "copy" | "ui_ux" | "batch_schedule";
 
 export interface ExperimentCandidate {

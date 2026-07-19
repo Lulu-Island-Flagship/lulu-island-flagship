@@ -1,17 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { isContractReviewDue, summarizeLegalChangesForReview } from "@/lib/contract-review";
+import {
+  isContractReviewDue,
+  wasReviewAlreadyTriggeredForAnniversary,
+  summarizeLegalChangesForReview,
+} from "@/lib/contract-review";
 import { getVancouverTodayString } from "@/lib/date-utils";
 
 /**
  * POST /api/cron/contract-review-scan — v8.3 E9.8.
  *
- * Diario: para cada contrato recurrente activo, si hoy cae exactamente 60
- * días antes de su próximo aniversario (src/lib/contract-review.ts),
- * junta los legal_change_alerts detectados desde la última revisión (o
- * desde el inicio del contrato si nunca hubo una) y crea una fila
- * pendiente en contract_reviews para que el admin decida si aplican y
- * arme la versión actualizada. Nunca aprueba ni firma solo.
+ * Diario: para cada contrato recurrente activo, si hoy cae DENTRO de la
+ * ventana de 60 días antes de su próximo aniversario (rango, no igualdad
+ * exacta -- fix de auditoría, ver src/lib/contract-review.ts
+ * isContractReviewDue), junta los legal_change_alerts detectados desde la
+ * última revisión (o desde el inicio del contrato si nunca hubo una) y
+ * crea una fila pendiente en contract_reviews para que el admin decida si
+ * aplican y arme la versión actualizada. Nunca aprueba ni firma solo.
+ * `review_triggered_for_anniversary` (migración 187) evita que el cron
+ * reintente la misma revisión cada uno de los 60 días de la ventana.
  *
  * Seguridad: requiere header Authorization: Bearer ${CRON_SECRET}
  */
@@ -44,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     const { data: contracts, error: contractsError } = await supabase
       .from("service_contracts")
-      .select("id, start_date, frequency, base_price, total, service_subtype")
+      .select("id, start_date, frequency, base_price, total, service_subtype, review_triggered_for_anniversary")
       .eq("status", "active");
     if (contractsError) return NextResponse.json({ error: contractsError.message }, { status: 500 });
 
@@ -59,6 +66,20 @@ export async function GET(request: NextRequest) {
 
     for (const contract of contracts || []) {
       if (!isContractReviewDue(contract.start_date, todayISO)) continue;
+      // Bug real de auditoría: isContractReviewDue ahora es un RANGO de 60
+      // días (antes era `===` de un único día), así que sin esta guarda el
+      // cron reintentaría crear la misma revisión los 60 días de la
+      // ventana. `review_triggered_for_anniversary` recuerda para qué
+      // aniversario ya se disparó y evita el reintento diario.
+      if (
+        wasReviewAlreadyTriggeredForAnniversary(
+          contract.start_date,
+          todayISO,
+          contract.review_triggered_for_anniversary
+        )
+      ) {
+        continue;
+      }
 
       const today = new Date(todayISO);
       let anniversary = new Date(Date.UTC(today.getUTCFullYear(), new Date(contract.start_date).getUTCMonth(), new Date(contract.start_date).getUTCDate()));
@@ -112,7 +133,15 @@ export async function GET(request: NextRequest) {
         continue;
       }
       const created = (inserted || []).length > 0;
-      if (created) reviewsCreated++;
+      if (created) {
+        reviewsCreated++;
+        // Marca este aniversario como ya disparado para que la ventana de
+        // 60 días no reintente el resto de los días (ver guarda arriba).
+        await supabase
+          .from("service_contracts")
+          .update({ review_triggered_at: new Date().toISOString(), review_triggered_for_anniversary: anniversaryISO })
+          .eq("id", contract.id);
+      }
       results.push({ contractId: contract.id, created });
     }
 

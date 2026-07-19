@@ -233,7 +233,17 @@ async function sendClosureCommunications(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { orderId, eventType, locationLat, locationLng, photoUrl, notes } = body;
+    const {
+      orderId,
+      eventType,
+      locationLat,
+      locationLng,
+      photoUrl,
+      notes,
+      geofenceBypass,
+      geofenceBypassCategory,
+      geofenceBypassReason,
+    } = body;
 
     if (!orderId || !eventType) {
       return NextResponse.json({ error: "Missing orderId or eventType" }, { status: 400 });
@@ -242,6 +252,32 @@ export async function POST(request: NextRequest) {
     const validEvents = ["t_in", "t_start", "t_out", "photo", "note"];
     if (!validEvents.includes(eventType)) {
       return NextResponse.json({ error: `Invalid eventType. Must be one of: ${validEvents.join(", ")}` }, { status: 400 });
+    }
+
+    // v8.3 E4 fix (auditoría 2026-07-18) — bypass de geocerca de T_in sin
+    // las 3 salvaguardas. La UI ya exige countdown de 120s + foto + razón
+    // + categoría antes de habilitar el botón de bypass, pero eso solo
+    // protege contra el uso normal de la app — nada impedía llamar a esta
+    // API directo con geofenceBypass:true y sin foto/razón. Server-side es
+    // donde realmente se hace cumplir: si se declara bypass, TODOS los
+    // campos son obligatorios, o se rechaza.
+    const validBypassCategories = ["gps_inaccurate", "building_entrance_far", "parking_restriction", "other"];
+    if (eventType === "t_in" && geofenceBypass === true) {
+      const reason = typeof geofenceBypassReason === "string" ? geofenceBypassReason.trim() : "";
+      if (
+        !validBypassCategories.includes(geofenceBypassCategory) ||
+        reason.length === 0 ||
+        typeof photoUrl !== "string" ||
+        photoUrl.length === 0
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Geofence bypass requires a reason category, a written reason, and an evidence photo — all three are mandatory.",
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const supabase = getSupabaseClient();
@@ -376,6 +412,7 @@ export async function POST(request: NextRequest) {
     const now = new Date();
     const vancouverOffset = now.toLocaleString("en-CA", { timeZone: "America/Vancouver", timeZoneName: "short" }).includes("PDT") ? "-07:00" : "-08:00";
     const vancouverTimestamp = now.toLocaleString("en-CA", { timeZone: "America/Vancouver", hour12: false }).replace(", ", "T") + vancouverOffset;
+    const isGeofenceBypass = eventType === "t_in" && geofenceBypass === true;
     const { data: log, error: logError } = await supabase
       .from("service_logs")
       .insert({
@@ -387,6 +424,9 @@ export async function POST(request: NextRequest) {
         location_lng: locationLng ?? null,
         photo_url: photoUrl ?? null,
         notes: notes ?? null,
+        geofence_bypass: isGeofenceBypass,
+        geofence_bypass_category: isGeofenceBypass ? geofenceBypassCategory : null,
+        geofence_bypass_reason: isGeofenceBypass ? String(geofenceBypassReason).trim() : null,
       })
       .select()
       .single();

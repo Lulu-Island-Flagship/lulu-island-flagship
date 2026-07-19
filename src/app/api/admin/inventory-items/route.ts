@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
-import { computeReorderSuggestions, type InventoryItemStock } from "@/lib/inventory-reorder";
+import {
+  computeReorderSuggestions,
+  computeConsumptionProjections,
+  formatConsumptionAlert,
+  type InventoryItemStock,
+  type InventoryItemWithConsumption,
+  type UpcomingServiceCount,
+} from "@/lib/inventory-reorder";
+
+// Ventana de proyección de consumo: "esta semana" (spec D.7.6).
+const CONSUMPTION_WINDOW_DAYS = 7;
 
 // GET /api/admin/inventory-items — listar productos + sugerencias de reposicion
 export async function GET(request: NextRequest) {
@@ -31,7 +41,52 @@ export async function GET(request: NextRequest) {
   }));
   const reorderSuggestions = computeReorderSuggestions(stockItems);
 
-  return NextResponse.json({ items: data || [], reorderSuggestions }, { status: 200 });
+  // v8.3 E7 fix de auditoría: además del umbral fijo, proyecta el consumo
+  // real de los servicios YA agendados en los próximos 7 días usando
+  // consumption_per_service (migración 048), que antes nunca se leía.
+  const windowStart = new Date();
+  const windowEnd = new Date(windowStart.getTime() + CONSUMPTION_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  const toDateStr = (d: Date) => d.toISOString().slice(0, 10);
+
+  const { data: upcomingOrders, error: ordersError } = await supabase
+    .from("orders")
+    .select("quotes(service_type)")
+    .gte("service_date", toDateStr(windowStart))
+    .lte("service_date", toDateStr(windowEnd))
+    .not("status", "in", ["cancelled", "no_show"]);
+
+  let consumptionAlerts: string[] = [];
+  if (!ordersError) {
+    type QuoteJoin = { service_type: string } | { service_type: string }[] | null;
+    const serviceCounts = new Map<string, number>();
+    for (const row of upcomingOrders || []) {
+      const quoteJoin = (row as { quotes: QuoteJoin }).quotes;
+      const quote = Array.isArray(quoteJoin) ? quoteJoin[0] : quoteJoin;
+      const serviceType = quote?.service_type;
+      if (!serviceType) continue;
+      serviceCounts.set(serviceType, (serviceCounts.get(serviceType) || 0) + 1);
+    }
+    const upcomingServices: UpcomingServiceCount[] = Array.from(serviceCounts.entries()).map(
+      ([serviceType, count]) => ({ serviceType, count })
+    );
+
+    const itemsWithConsumption: InventoryItemWithConsumption[] = (data || []).map((i) => ({
+      id: i.id,
+      name: i.name,
+      unit: i.unit,
+      currentStock: Number(i.current_stock),
+      reorderThreshold: Number(i.reorder_threshold),
+      consumptionPerService: (i.consumption_per_service as Record<string, number>) || {},
+    }));
+
+    const projections = computeConsumptionProjections(itemsWithConsumption, upcomingServices);
+    consumptionAlerts = projections.map(formatConsumptionAlert);
+  }
+
+  return NextResponse.json(
+    { items: data || [], reorderSuggestions, consumptionAlerts },
+    { status: 200 }
+  );
 }
 
 // POST /api/admin/inventory-items — crear producto

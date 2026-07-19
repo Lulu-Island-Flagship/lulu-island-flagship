@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
-import { isAuditSampleSelected } from "@/lib/field-audit-sampling";
+import { isAuditSampleSelected, getMandatoryAuditTriggers } from "@/lib/field-audit-sampling";
+import { NEW_CLIENT_MAX_SERVICES } from "@/lib/client-segmentation";
 
 // GET /api/admin/audits — servicios completados pendientes de auditoría + historial de evaluaciones
 export async function GET(request: NextRequest) {
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
       .from("orders")
       .select(`
         id,
+        user_id,
         service_date,
         service_time,
         status,
@@ -60,13 +62,102 @@ export async function GET(request: NextRequest) {
       console.error("Pending audits error:", pendingError);
     }
 
+    // v8.3 E3 fix: triggers obligatorios además del muestreo aleatorio ~20%.
+    // El muestreo aleatorio por sí solo puede dejar pasar días sin auditar a
+    // un cliente nuevo, una cuadrilla con score bajo, un empleado en zona
+    // roja o una orden que ya generó una disputa -- señales que no deberían
+    // depender de a qué lado del hash cayó la orden ese día.
+    type PendingOrderRow = {
+      id: string;
+      user_id: string;
+      assignments: { employee_id: string; status: string }[];
+    };
+    const pendingOrdersRows = (pendingOrders || []) as unknown as PendingOrderRow[];
+
+    const employeeIds = Array.from(
+      new Set(pendingOrdersRows.flatMap((o) => (o.assignments || []).map((a) => a.employee_id)))
+    );
+    const clientUserIds = Array.from(new Set(pendingOrdersRows.map((o) => o.user_id).filter(Boolean)));
+    const pendingOrderIds = pendingOrdersRows.map((o) => o.id);
+
+    // Score más reciente por empleado (employee_scores.total_score, 0-100).
+    const employeeScoreMap = new Map<string, number>();
+    if (employeeIds.length > 0) {
+      const { data: scoreRows, error: scoreError } = await supabase
+        .from("employee_scores")
+        .select("employee_id, total_score, week_start")
+        .in("employee_id", employeeIds)
+        .order("week_start", { ascending: false });
+      if (scoreError) {
+        console.error("Employee scores fetch error:", scoreError);
+      }
+      for (const row of scoreRows || []) {
+        if (!employeeScoreMap.has(row.employee_id)) {
+          employeeScoreMap.set(row.employee_id, row.total_score);
+        }
+      }
+    }
+
+    // Cantidad de servicios completados históricos por cliente (para detectar "nuevo").
+    const clientServiceCountMap = new Map<string, number>();
+    if (clientUserIds.length > 0) {
+      const { data: clientOrders, error: clientOrdersError } = await supabase
+        .from("orders")
+        .select("user_id")
+        .in("user_id", clientUserIds)
+        .eq("status", "completed");
+      if (clientOrdersError) {
+        console.error("Client order history fetch error:", clientOrdersError);
+      }
+      for (const row of clientOrders || []) {
+        clientServiceCountMap.set(row.user_id, (clientServiceCountMap.get(row.user_id) || 0) + 1);
+      }
+    }
+
+    // Disputas asociadas a estas órdenes (post-disputa = trigger obligatorio).
+    const disputedOrderIds = new Set<string>();
+    if (pendingOrderIds.length > 0) {
+      const { data: disputeRows, error: disputeError } = await supabase
+        .from("tickets_disputas")
+        .select("order_id")
+        .in("order_id", pendingOrderIds)
+        .eq("type", "dispute");
+      if (disputeError) {
+        console.error("Disputes fetch error:", disputeError);
+      }
+      for (const row of disputeRows || []) {
+        if (row.order_id) disputedOrderIds.add(row.order_id);
+      }
+    }
+
     // v8.3 E5: muestreo aleatorio ~20% (determinístico por dia) — no reemplaza
     // la eleccion manual del auditor, solo marca una muestra objetiva sugerida
     // para que la auditoria de campo no dependa solo de lo que "parece sospechoso".
-    const pendingOrdersWithSample = (pendingOrders || []).map((o: { id: string }) => ({
-      ...o,
-      suggestedForAudit: isAuditSampleSelected(o.id, today),
-    }));
+    const pendingOrdersWithSample = pendingOrdersRows.map((o) => {
+      const crewScores = (o.assignments || [])
+        .map((a) => employeeScoreMap.get(a.employee_id))
+        .filter((s): s is number => typeof s === "number");
+      const teamScore = crewScores.length > 0
+        ? crewScores.reduce((a, b) => a + b, 0) / crewScores.length
+        : null;
+      const employeeScore = crewScores.length > 0 ? Math.min(...crewScores) : null;
+      const isNewClient = (clientServiceCountMap.get(o.user_id) || 0) <= NEW_CLIENT_MAX_SERVICES;
+      const hasRecentDispute = disputedOrderIds.has(o.id);
+
+      const mandatoryReasons = getMandatoryAuditTriggers({
+        isNewClient,
+        teamScore,
+        employeeScore,
+        hasRecentDispute,
+      });
+
+      return {
+        ...o,
+        suggestedForAudit: isAuditSampleSelected(o.id, today) || mandatoryReasons.length > 0,
+        mandatoryAudit: mandatoryReasons.length > 0,
+        mandatoryReasons,
+      };
+    });
 
     // Evaluaciones existentes
     let auditsQuery = supabase
@@ -168,6 +259,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    // v8.3 E3 fix: validar rango 1-5 en servidor (coincide con field_audits.score
+    // CHECK BETWEEN 1 AND 5) en vez de dejar que la base de datos rechace con un
+    // 500 genérico cuando el cliente envía un valor fuera de rango.
+    if (typeof score !== "number" || !Number.isInteger(score) || score < 1 || score > 5) {
+      return NextResponse.json({ error: "score must be an integer between 1 and 5" }, { status: 400 });
+    }
+
     // Reuse the already-authenticated user from requireSupervisor
     const { data: auditor } = await supabase
       .from("employees")
@@ -186,7 +284,11 @@ export async function POST(request: NextRequest) {
     const avgCriteria = criteriaValues.length > 0
       ? criteriaValues.reduce((a, b) => a + b, 0) / criteriaValues.length
       : 3;
-    const dispatchProbability = Math.max(0, Math.min(1, Number((score / 100) * (avgCriteria / 5))));
+    // v8.3 E3 fix: score llega en escala 1-5 (igual que field_audits.score,
+    // CHECK BETWEEN 1 AND 5) -- este cálculo asumía 0-100 y siempre producía
+    // una probabilidad casi nula. Coherente ahora con el slider del cliente
+    // (admin/audits/page.tsx) y con la RPC compute_trust_score.
+    const dispatchProbability = Math.max(0, Math.min(1, Number((score / 5) * (avgCriteria / 5))));
     const shouldAnnounce = announceToClient === true || dispatchProbability >= 0.8;
 
     const { data, error } = await supabase

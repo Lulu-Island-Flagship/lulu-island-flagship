@@ -1,10 +1,9 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Lock, AlertTriangle, X } from "lucide-react";
+import { Lock, AlertTriangle, X, Loader2 } from "lucide-react";
 import {
   CHEMICAL_CODES,
-  applyConfirmation,
   detectHazard,
   type ChemicalCode,
 } from "@/lib/chemical-lockout";
@@ -43,6 +42,7 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 interface ChemicalMatchModalProps {
+  orderId: string;
   zoneColor: string;
   zoneLabel: string;
   confirmedColors: ReadonlySet<string>;
@@ -51,6 +51,7 @@ interface ChemicalMatchModalProps {
 }
 
 export function ChemicalMatchModal({
+  orderId,
   zoneColor,
   zoneLabel,
   confirmedColors,
@@ -61,10 +62,20 @@ export function ChemicalMatchModal({
   const [error, setError] = useState<string | null>(null);
   const [hazard, setHazard] = useState(false);
   const [wrongAttempts, setWrongAttempts] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
 
-  function handlePick(code: ChemicalCode) {
-    const hazardCheck = detectHazard(code.color, confirmedColors);
-    if (hazardCheck.hazard) {
+  // v8.3 E4 fix (auditoría 2026-07-18): la validación local con
+  // detectHazard()/applyConfirmation() era solo una preview de UI. La
+  // fuente de verdad real es POST /api/empleado/chemical-confirm, que
+  // vuelve a correr las mismas funciones puras server-side y persiste la
+  // confirmación en chemical_zone_confirmations — sin esa fila, el
+  // servidor rechaza is_completed=true en el checklist aunque el cliente
+  // haya "desbloqueado" la zona localmente.
+  async function handlePick(code: ChemicalCode) {
+    if (submitting) return;
+
+    const localHazard = detectHazard(code.color, confirmedColors);
+    if (localHazard.hazard) {
       setHazard(true);
       setError(
         `RIESGO DE GAS CLORO: ${code.textEs} es incompatible con un producto ya confirmado hoy. No lo uses en ninguna zona hasta ventilar y consultar a tu líder.`
@@ -72,22 +83,48 @@ export function ChemicalMatchModal({
       return;
     }
 
-    const result = applyConfirmation(confirmedColors, {
-      targetColor: zoneColor,
-      selectedColor: code.color,
-      selectedIcon: code.icon,
-      selectedText: code.textEn,
-    });
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/empleado/chemical-confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          orderId,
+          targetColor: zoneColor,
+          selectedColor: code.color,
+          selectedIcon: code.icon,
+          selectedText: code.textEn,
+        }),
+      });
+      const data = await res.json();
 
-    if (result.ok) {
-      onConfirmed(result.confirmedColors);
-      onClose();
-      return;
+      if (res.ok && data.ok) {
+        onConfirmed(new Set<string>(data.confirmedColors || []));
+        onClose();
+        return;
+      }
+
+      if (data.hazard) {
+        setHazard(true);
+        setError(
+          data.error ||
+            "RIESGO DE GAS CLORO: este producto es incompatible con uno ya confirmado hoy. No lo uses en ninguna zona hasta ventilar y consultar a tu líder."
+        );
+        return;
+      }
+
+      setHazard(false);
+      setWrongAttempts((n) => n + 1);
+      setError(
+        data.error || "Ese no es el producto correcto para esta zona. Revisa la etiqueta del envase físico."
+      );
+    } catch {
+      setError("Error de red al confirmar. Intenta de nuevo.");
+    } finally {
+      setSubmitting(false);
     }
-
-    setHazard(false);
-    setWrongAttempts((n) => n + 1);
-    setError("Ese no es el producto correcto para esta zona. Revisa la etiqueta del envase físico.");
   }
 
   return (
@@ -130,11 +167,15 @@ export function ChemicalMatchModal({
             <button
               key={code.color}
               type="button"
-              disabled={hazard}
+              disabled={hazard || submitting}
               onClick={() => handlePick(code)}
               className={`rounded-lg border p-3 text-left disabled:opacity-40 disabled:cursor-not-allowed ${BG_CLASS[code.color]}`}
             >
-              <div className="text-xl mb-1">{code.icon}</div>
+              {submitting ? (
+                <Loader2 className="w-5 h-5 animate-spin mb-1" />
+              ) : (
+                <div className="text-xl mb-1">{code.icon}</div>
+              )}
               <div className="text-xs font-bold leading-tight">{code.textEs}</div>
               <div className="text-[11px] opacity-80">{code.product}</div>
             </button>

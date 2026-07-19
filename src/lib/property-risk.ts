@@ -148,3 +148,33 @@ export function evaluateBookingRiskConsequence(
 export function normalizeAddressForMatch(address: string): string {
   return address.trim().toLowerCase().replace(/\s+/g, " ");
 }
+
+/**
+ * v8.3 E7 fix de auditoría — flag consultable de multas vehiculares impagas
+ * (vehicle_fines, migración 186). No es un RiskFlagType de dirección/
+ * propiedad (eso es exclusivamente sobre la PROPIEDAD del cliente) -- es una
+ * señal de riesgo de FLOTA aparte, expuesta en este mismo módulo temático de
+ * E7 por conveniencia del consumidor (admin), sin mezclarse con
+ * evaluatePropertyRisk. Función pura: el llamador (endpoint admin) es quien
+ * cuenta las multas impagas por vehículo desde vehicle_fines y le pasa el
+ * conteo/total aquí.
+ */
+export interface VehicleFineRiskInput {
+  unpaidFinesCount: number;
+  unpaidFinesTotalCents: number;
+}
+
+export interface VehicleFineRiskFlag {
+  hasOutstandingFines: boolean;
+  /** 3+ multas impagas acumuladas en el mismo vehículo: amerita revisión admin. */
+  requiresAdminReview: boolean;
+}
+
+export const VEHICLE_FINE_ADMIN_REVIEW_THRESHOLD_COUNT = 3;
+
+export function evaluateVehicleFineRisk(input: VehicleFineRiskInput): VehicleFineRiskFlag {
+  return {
+    hasOutstandingFines: input.unpaidFinesCount > 0,
+    requiresAdminReview: input.unpaidFinesCount >= VEHICLE_FINE_ADMIN_REVIEW_THRESHOLD_COUNT,
+  };
+}

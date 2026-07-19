@@ -41,6 +41,11 @@ export function TimeSlotPicker({
   const [slots, setSlots] = useState<CapacitySlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // v8.3 fix (auditoría E1 2026-07-18): /api/capacity ahora aplica
+  // prioridad Recurrente > Esporádico > Nuevo y devuelve
+  // newClientLimitReached cuando un cliente Nuevo (0 servicios completados)
+  // ya tiene una reserva activa -- antes no había ningún límite ni aviso.
+  const [newClientLimitReached, setNewClientLimitReached] = useState(false);
 
   useEffect(() => {
     if (!serviceDate) {
@@ -66,6 +71,7 @@ export function TimeSlotPicker({
         }
         const data = await res.json();
         setSlots(data.slots || []);
+        setNewClientLimitReached(!!data.newClientLimitReached);
       } catch {
         setError("Network error");
         setSlots([]);
@@ -102,7 +108,17 @@ export function TimeSlotPicker({
         </div>
       )}
 
-      {!error && slots.length > 0 && !hasAvailable && (
+      {!error && newClientLimitReached && (
+        <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>
+            New clients can have 1 active reservation at a time. Complete your first service before
+            booking another.
+          </span>
+        </div>
+      )}
+
+      {!error && !newClientLimitReached && slots.length > 0 && !hasAvailable && (
         <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
           <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <span>No available slots for this date/zone. Please choose another date.</span>

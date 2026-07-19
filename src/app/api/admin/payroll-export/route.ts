@@ -33,7 +33,9 @@ export async function GET(request: NextRequest) {
 
   const { data: entries, error: entriesError } = await supabase
     .from("payroll_entries")
-    .select("employee_id, gross_amount, base_amount, qc_bonus_amount, qc_penalty_amount, rework_amount, minimum_wage_adjustment, created_at, employees(name, hire_date)")
+    .select(
+      "employee_id, gross_amount, base_amount, qc_bonus_amount, qc_penalty_amount, rework_amount, rework_paid_minutes, minimum_wage_adjustment, created_at, employees(name, hire_date)"
+    )
     .gte("created_at", cycle.start)
     .lte("created_at", `${cycle.end}T23:59:59`)
     .is("deleted_at", null);
@@ -54,6 +56,7 @@ export async function GET(request: NextRequest) {
       bonusCents: e.qc_bonus_amount ?? 0,
       penaltyCents: e.qc_penalty_amount ?? 0,
       reworkAmountCents: e.rework_amount ?? 0,
+      reworkPaidMinutes: e.rework_paid_minutes ?? 0,
       minimumWageAdjustmentCents: e.minimum_wage_adjustment ?? 0,
       grossAmountCents: e.gross_amount,
     };

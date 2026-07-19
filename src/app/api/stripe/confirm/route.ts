@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
     // Verify quote exists and belongs to user
     const { data: quoteRow, error: quoteError } = await supabase
       .from("quotes")
-      .select("id, status, service_subtype, service_type, square_feet, zone, price_frozen_until, total, hold_amount, address_lat, address_lng, admin_review_required, user_id, pipa_alt_requires_audit, purchase_order, client_property_id, requires_field_auditor, property_risk_tier, addon_zones")
+      .select("id, status, service_subtype, service_type, square_feet, zone, price_frozen_until, total, hold_amount, address_lat, address_lng, admin_review_required, user_id, pipa_alt_requires_audit, purchase_order, client_property_id, requires_field_auditor, property_risk_tier, addon_zones, postal_code, is_gift_order")
       .eq("id", quoteId)
       .eq("user_id", user.id)
       .single();
@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
 
     const { data: clientProfile } = await supabase
       .from("client_profiles")
-      .select("account_type, services_count, preferred_languages")
+      .select("account_type, services_count, preferred_languages, phone_verified")
       .eq("user_id", quoteRow.user_id)
       .single();
 
@@ -191,9 +191,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validar opción de pago: PayPal solo para primer servicio
-    const isFirstTimeService =
-      quoteRow.service_subtype === "first_time" || clientProfile?.services_count === 0;
+    // v8.3 fix (auditoría E1 2026-07-18): un cliente que entra por Google/Apple
+    // nunca pasaba por verificación telefónica (AuthModal solo la exige en el
+    // paso de login por SMS). Se agrega el gate autoritativo aquí -- sin
+    // importar qué haga (o deje de hacer) la UI, el servidor nunca confirma
+    // una reserva sin client_profiles.phone_verified = true.
+    if (!clientProfile?.phone_verified) {
+      return NextResponse.json(
+        {
+          error: "Phone verification is required before confirming a reservation.",
+          code: "PHONE_VERIFICATION_REQUIRED",
+        },
+        { status: 403 }
+      );
+    }
+
+    // Validar opción de pago: PayPal solo para primer servicio.
+    // v8.3 fix (auditoría E2 2026-07-18): "primer servicio" se basaba en
+    // service_subtype === "first_time" (una etiqueta elegida por el cliente
+    // al cotizar, no un hecho verificado) además de services_count === 0.
+    // Un cliente recurrente podía volver a elegir/forzar el subtipo
+    // "first_time" en una cotización nueva y reactivar la opción PayPal
+    // reservada para primera vez. Ahora se basa ÚNICAMENTE en el historial
+    // real verificado server-side: client_profiles.services_count, que solo
+    // se incrementa cuando una orden anterior de ese cliente se completó
+    // (ver increment_client_services_count en
+    // supabase/migrations/027_modulo2_payment_flow_fixes.sql, invocada desde
+    // src/app/api/empleado/servicio/route.ts al cerrar la orden).
+    const isFirstTimeService = clientProfile?.services_count === 0;
 
     if (requestedOption === "paypal_first_time" && !isFirstTimeService) {
       return NextResponse.json(
@@ -285,6 +310,44 @@ export async function POST(request: NextRequest) {
         { error: "Payment method mismatch. Please try again." },
         { status: 400 }
       );
+    }
+
+    // v8.3 fix (auditoría E1 2026-07-18): la dirección de facturación
+    // (código postal capturado por Stripe en StripeCardForm.tsx, verificado
+    // vía AVS por la red de la tarjeta) nunca se comparaba contra el código
+    // postal del SERVICIO (quoteRow.postal_code) -- una tarjeta robada/de
+    // fraude con billing address en otra ciudad/provincia pasaba sin ningún
+    // chequeo. No se bloquea la reserva por esto (falsos positivos son
+    // comunes -- tarjeta de un familiar, tarjeta corporativa, o
+    // is_gift_order = true cuando exista ese flujo): se compara por FSA
+    // (los primeros 3 caracteres del código postal canadiense, que es la
+    // granularidad real que AVS de Stripe/Visa/Mastercard valida para
+    // Canadá) y, si no coincide, se marca la orden para revisión manual en
+    // vez de fallar silenciosamente sin chequeo alguno.
+    let billingPostalCode: string | null = null;
+    let billingAvsMismatch = false;
+    const skipAvsCheck =
+      clientProfile?.account_type === "b2b" ||
+      clientProfile?.account_type === "government" ||
+      quoteRow.is_gift_order === true;
+
+    if (!skipAvsCheck) {
+      try {
+        const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+        billingPostalCode = paymentMethod.billing_details?.address?.postal_code ?? null;
+        const servicePostalCode = quoteRow.postal_code as string | null;
+
+        if (billingPostalCode && servicePostalCode) {
+          const normalizedBilling = billingPostalCode.replace(/\s/g, "").toUpperCase().slice(0, 3);
+          const normalizedService = servicePostalCode.replace(/\s/g, "").toUpperCase().slice(0, 3);
+          billingAvsMismatch = normalizedBilling !== normalizedService;
+        }
+      } catch (avsErr) {
+        // Nunca bloquear la reserva porque Stripe no pudo devolver la
+        // billing_details -- solo queda sin verificar (no se marca mismatch
+        // sin evidencia).
+        console.error("AVS billing postal code check failed:", avsErr);
+      }
     }
 
     // Use the server-calculated amounts from the quote; ignore client-provided values.
@@ -398,6 +461,8 @@ export async function POST(request: NextRequest) {
         hold_amount: holdAmount,
         hold_authorized_amount: 0,
         cancellation_window_hours: 72,
+        billing_postal_code: billingPostalCode,
+        billing_avs_mismatch: billingAvsMismatch,
         address_lat: quoteRow.address_lat ?? null,
         address_lng: quoteRow.address_lng ?? null,
         pipa_alt_requires_audit: quoteRow.pipa_alt_requires_audit ?? false,
@@ -416,6 +481,12 @@ export async function POST(request: NextRequest) {
       })
       .select()
       .single();
+
+    if (billingAvsMismatch) {
+      console.warn(
+        `AVS mismatch on order for quote ${quoteId}: billing postal code area does not match service postal code area. Flagged for manual review (orders.billing_avs_mismatch).`
+      );
+    }
 
     if (orderError) {
       console.error("Order insert error:", orderError);

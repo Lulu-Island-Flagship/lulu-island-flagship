@@ -35,6 +35,7 @@ export type AdminResource =
   | "near_misses"
   | "inventory"
   | "wellbeing"
+  | "teams" // v8.3 E8 FIX-6: CRUD de equipos (identidad mínima, migración 099)
   // QC — owner_admin + ops_coordinator + qc_only
   | "qc_wall";
 
@@ -59,6 +60,7 @@ const MATRIX: Record<AdminResource, AdminRole[]> = {
   near_misses: ["owner_admin", "ops_coordinator"],
   inventory: ["owner_admin", "ops_coordinator"],
   wellbeing: ["owner_admin", "ops_coordinator"],
+  teams: ["owner_admin", "ops_coordinator"],
   qc_wall: ["owner_admin", "ops_coordinator", "qc_only"],
 };
 

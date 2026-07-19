@@ -108,6 +108,14 @@ export async function geocodeAddress(address: string): Promise<LatLng | null> {
 }
 
 /**
- * Radio de geocerca para considerar que el empleado está en el sitio.
+ * v8.3 fix (auditoría E4 2026-07-18): antes existía un solo radio de 200m
+ * usado tanto para "¿el punto de encuentro del equipo está cerca de donde
+ * arrancó el empleado?" (tolerancia amplia, GPS de bajo esfuerzo, sin
+ * consecuencia dura) como para "Registrar llegada" (T_in) al domicilio del
+ * cliente, que exige mucha más precisión — 200m en una calle residencial
+ * puede significar la casa de al lado o media cuadra más allá. Se separan
+ * en dos constantes con su propio significado; nunca deben volver a
+ * compartir un solo número.
  */
-export const GEOFENCE_RADIUS_METERS = 200;
+export const MEETING_POINT_RADIUS_METERS = 200;
+export const ARRIVAL_GEOFENCE_RADIUS_METERS = 50;

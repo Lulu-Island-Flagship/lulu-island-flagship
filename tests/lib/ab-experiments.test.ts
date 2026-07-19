@@ -4,6 +4,7 @@ import {
   validateVariantWeights,
   assignVariant,
   evaluateExperimentWinner,
+  isProtectedRecurringClient,
 } from "../../src/lib/ab-experiments";
 
 describe("validateVariantWeights", () => {
@@ -68,6 +69,52 @@ describe("assignVariant", () => {
     const a = assignVariant({ clientId: "c1", isRecurring: false, demographicGroup: "A" }, variants);
     const b = assignVariant({ clientId: "c1", isRecurring: false, demographicGroup: "B" }, variants);
     assert.equal(a.variant, b.variant);
+  });
+});
+
+describe("isProtectedRecurringClient", () => {
+  it("protege a un cliente con contrato activo (recurrente clasico)", () => {
+    assert.equal(isProtectedRecurringClient(true, null), true);
+  });
+
+  it("protege a un cliente VIP aunque NO tenga contrato activo (auditoria E10)", () => {
+    assert.equal(isProtectedRecurringClient(false, "vip"), true);
+  });
+
+  it("protege a un cliente Regular aunque NO tenga contrato activo (auditoria E10)", () => {
+    assert.equal(isProtectedRecurringClient(false, "regular"), true);
+  });
+
+  it("NO protege a un cliente Esporadico sin contrato activo", () => {
+    assert.equal(isProtectedRecurringClient(false, "sporadic"), false);
+  });
+
+  it("NO protege a un cliente Nuevo sin contrato activo", () => {
+    assert.equal(isProtectedRecurringClient(false, "new"), false);
+  });
+
+  it("NO protege a un cliente En riesgo sin contrato activo", () => {
+    assert.equal(isProtectedRecurringClient(false, "at_risk"), false);
+  });
+});
+
+describe("assignVariant + isProtectedRecurringClient integrados", () => {
+  const variants = [
+    { name: "control", weight: 0.8 },
+    { name: "b", weight: 0.2 },
+  ];
+
+  it("cliente VIP sin contrato activo queda excluido del experimento (no solo isRecurring por contrato)", () => {
+    const isRecurring = isProtectedRecurringClient(false, "vip");
+    const r = assignVariant({ clientId: "vip-sin-contrato", isRecurring }, variants);
+    assert.equal(r.variant, null);
+    assert.match(r.excludedReason!, /recurrente/i);
+  });
+
+  it("cliente Esporadico sin contrato SI puede entrar al experimento", () => {
+    const isRecurring = isProtectedRecurringClient(false, "sporadic");
+    const r = assignVariant({ clientId: "esporadico-sin-contrato", isRecurring }, variants);
+    assert.notEqual(r.variant, null);
   });
 });
 

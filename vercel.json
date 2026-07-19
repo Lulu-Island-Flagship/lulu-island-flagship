@@ -13,6 +13,10 @@
       "schedule": "0 5,6 * * *"
     },
     {
+      "path": "/api/cron/hold-preauth-check",
+      "schedule": "0 0,1 * * *"
+    },
+    {
       "path": "/api/cron/capture-remainder",
       "schedule": "0 * * * *"
     },
@@ -147,6 +151,22 @@
     {
       "path": "/api/cron/evaluate-badges",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/verify-hash-chains",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/key-escalation-check",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/qc-rework-expiry",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/appeal-deadline-check",
+      "schedule": "0 * * * *"
     }
   ]
 }

@@ -18,14 +18,12 @@ import {
 import { BADGE_CATALOG, type BadgeKey } from "@/lib/badges";
 import { CAREER_LEVEL_ORDER, type CareerLevel } from "@/lib/career-path";
 
+// v8.3 E8 FIX-1: la API (/api/empleado/score) ya no devuelve
+// total_score/telemetry_score/audit_score/peer_score en crudo -- ver
+// comentario en route.ts. Este shape refleja lo que realmente llega ahora.
 interface ScoreRecord {
   id: string;
-  employee_id: string;
   week_start: string;
-  total_score: number;
-  telemetry_score: number;
-  audit_score: number;
-  peer_score: number;
   trust_level: string;
   services_count: number;
   disputes_count: number;
@@ -183,11 +181,23 @@ export default function EmpleadoScorePage() {
     }
   };
 
-  const getScoreColor = (score: number) => {
+  // v8.3 E8 FIX-1: sin número visible al empleado para el score AGREGADO
+  // (semanal/competitivo). field_audits.score/100 más abajo es distinto:
+  // es el resultado de UNA auditoría puntual que el empleado necesita ver
+  // para decidir si apela dentro de las 72h -- sin ese número la apelación
+  // no tendría contexto. Se mantiene solo ahí, nunca como score agregado.
+  const getAuditScoreColor = (score: number) => {
     if (score >= 90) return "text-green-600";
     if (score >= 70) return "text-blue-600";
     if (score >= 50) return "text-yellow-600";
     return "text-red-600";
+  };
+
+  const TRUST_LEVEL_LABEL: Record<string, string> = {
+    elite: "Élite",
+    standard: "Estándar",
+    observation: "Observación",
+    suspended: "Suspendido",
   };
 
   const latestScore = data?.scores?.[0];
@@ -224,37 +234,12 @@ export default function EmpleadoScorePage() {
           <>
             {/* Score Card */}
             <div className="bg-white rounded-xl shadow-elevation-1 p-6 text-center">
-              <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium capitalize ${getTrustLevelColor(data.employee.trust_level)}`}>
+              <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${getTrustLevelColor(data.employee.trust_level)}`}>
                 {getTrustLevelIcon(data.employee.trust_level)}
-                {data.employee.trust_level}
+                {TRUST_LEVEL_LABEL[data.employee.trust_level] || data.employee.trust_level}
               </div>
 
-              <div className="mt-4">
-                <span className={`text-5xl font-bold ${getScoreColor(latestScore?.total_score || 0)}`}>
-                  {latestScore?.total_score || "—"}
-                </span>
-                <p className="text-sm text-gray-500 mt-1">Total Score</p>
-              </div>
-
-              {latestScore && (
-                <div className="grid grid-cols-3 gap-4 mt-6">
-                  <div>
-                    <p className="text-lg font-bold text-brand-navy">{latestScore.telemetry_score}</p>
-                    <p className="text-xs text-gray-500">Telemetry</p>
-                    <p className="text-xs text-gray-400">50%</p>
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold text-brand-navy">{latestScore.audit_score}</p>
-                    <p className="text-xs text-gray-500">Audits</p>
-                    <p className="text-xs text-gray-400">30%</p>
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold text-brand-navy">{latestScore.peer_score}</p>
-                    <p className="text-xs text-gray-500">Peers</p>
-                    <p className="text-xs text-gray-400">20%</p>
-                  </div>
-                </div>
-              )}
+              <p className="text-sm text-gray-500 mt-3">Your current standing level</p>
 
               <div className="mt-4 text-xs text-gray-400">
                 <p>Week of {latestScore?.week_start || "—"}</p>
@@ -368,10 +353,10 @@ export default function EmpleadoScorePage() {
               )}
             </div>
 
-            {/* Score History */}
+            {/* Weekly History — nivel cualitativo, nunca número (v8.3 E8 FIX-1) */}
             {data.scores.length > 1 && (
               <div>
-                <h2 className="text-lg font-semibold text-brand-ink mb-3">Score History</h2>
+                <h2 className="text-lg font-semibold text-brand-ink mb-3">Weekly History</h2>
                 <div className="space-y-2">
                   {data.scores.slice(1).map((score) => (
                     <div key={score.id} className="bg-white rounded-xl shadow-elevation-1 p-4 flex items-center justify-between">
@@ -381,8 +366,8 @@ export default function EmpleadoScorePage() {
                           {score.services_count} services · {score.disputes_count} disputes
                         </p>
                       </div>
-                      <span className={`text-lg font-bold ${getScoreColor(score.total_score)}`}>
-                        {score.total_score}
+                      <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${getTrustLevelColor(score.trust_level)}`}>
+                        {TRUST_LEVEL_LABEL[score.trust_level] || score.trust_level}
                       </span>
                     </div>
                   ))}
@@ -399,7 +384,7 @@ export default function EmpleadoScorePage() {
                     <div key={audit.id} className="bg-white rounded-xl shadow-elevation-1 p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className={`text-sm font-bold ${getScoreColor(audit.score)}`}>
+                          <span className={`text-sm font-bold ${getAuditScoreColor(audit.score)}`}>
                             {audit.score}/100
                           </span>
                           <span className="text-xs text-gray-400">

@@ -1,8 +1,28 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+
+// v8.3 E11 (auditoría 2026-07-18): varias tablas admin-only (ej.
+// financial_stress_scenario_runs, legacy_migration_checklist_items,
+// gbp_checklist_items, nap_consistency_checks, employee_marketing_features
+// para el lado admin) tienen políticas RLS `FOR ALL USING (false) WITH
+// CHECK (false)` con el comentario "solo admins vía service role en la
+// API" -- pero varios endpoints seguían usando el cliente anon+cookies de
+// getSupabaseClient() (vía requireAdminRole) para las operaciones sobre
+// esas tablas, así que TODAS sus lecturas/escrituras fallaban en silencio
+// (RLS bloquea, no hay excepción visible). requireAdminRole() sigue siendo
+// la única fuente de autorización (rol + audit log); este cliente es
+// exclusivamente para las operaciones de datos una vez ya autorizado,
+// mismo patrón que src/app/api/stripe/confirm/route.ts y
+// src/app/api/admin/empleados/route.ts.
+export function getServiceRoleClient() {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) return null;
+  return createClient(supabaseUrl, serviceKey);
+}
 
 export function getSupabaseClient() {
   const cookieStore = cookies();

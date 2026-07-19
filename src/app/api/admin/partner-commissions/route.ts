@@ -109,6 +109,30 @@ export async function POST(request: NextRequest) {
 
   if (body.action === "mark_paid") {
     if (!body.id) return NextResponse.json({ error: "id es obligatorio" }, { status: 400 });
+
+    const { data: commission, error: commissionError } = await supabase
+      .from("partner_commissions")
+      .select("id, partner_id, requires_t4a, partners:partner_id ( tax_id_for_t4a )")
+      .eq("id", body.id)
+      .single();
+    if (commissionError || !commission) {
+      return NextResponse.json({ error: "Comisión no encontrada" }, { status: 404 });
+    }
+
+    // No se puede marcar como pagada una comisión que exige T4A (CRA) si el
+    // partner no tiene tax_id_for_t4a registrado -- pagarla así deja al
+    // negocio sin cómo emitir el T4A a fin de año.
+    if (commission.requires_t4a) {
+      const partnerData = commission.partners as unknown as { tax_id_for_t4a: string | null } | { tax_id_for_t4a: string | null }[] | null;
+      const taxId = Array.isArray(partnerData) ? partnerData[0]?.tax_id_for_t4a : partnerData?.tax_id_for_t4a;
+      if (!taxId || !taxId.trim()) {
+        return NextResponse.json(
+          { error: "Esta comisión requiere T4A y el partner no tiene tax_id_for_t4a registrado. Actualiza el partner antes de marcar como pagada." },
+          { status: 400 }
+        );
+      }
+    }
+
     const { data, error } = await supabase
       .from("partner_commissions")
       .update({ status: "paid", paid_at: new Date().toISOString() })

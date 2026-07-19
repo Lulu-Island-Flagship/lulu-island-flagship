@@ -231,6 +231,20 @@ export default function AdminDashboardClient() {
       color: "bg-blue-50 text-blue-700",
     },
     {
+      title: "Teams",
+      description: "Minimal team identity (name + avatar) feeding the weekly Top-3 ranking (E8.9/E8.10)",
+      icon: Users,
+      href: `/${safeLocale}/admin/teams`,
+      color: "bg-indigo-50 text-indigo-700",
+    },
+    {
+      title: "Route Shortcuts",
+      description: "Employee-reported shortcuts pending validation — validating pays $10 (E8 learning route)",
+      icon: MapPin,
+      href: `/${safeLocale}/admin/route-shortcuts`,
+      color: "bg-cyan-50 text-cyan-700",
+    },
+    {
       title: "Coworker Rotation",
       description: "Minimum 3 distinct coworkers/month + \"never together\" exceptions (E8.14)",
       icon: Repeat,

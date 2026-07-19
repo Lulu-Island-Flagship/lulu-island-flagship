@@ -21,7 +21,7 @@ jobs:
         run: npm test
       - name: Tokens de diseño — cero hex de marca fuera de la fuente única
         run: |
-          if grep -rln -iE "#0B1E3D|#14315C|#2E6E96|#C9A961|#93712A|#10192B" src/ tailwind.config.ts \
+          if grep -rln -iE "#2E5C8A|#3E6D9E|#3A6E9E|#E3AAB8|#8A3A46|#1F2E3D" src/ tailwind.config.ts \
             --include="*.ts" --include="*.tsx" --include="*.css" \
             | grep -v "src/design/tokens.ts" | grep -v "src/app/tokens.css"; then
             echo "::error::Hex de marca fuera de src/design/tokens.ts (invariante E0-C5)"; exit 1

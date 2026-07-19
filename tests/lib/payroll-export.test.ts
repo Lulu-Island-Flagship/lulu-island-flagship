@@ -16,6 +16,9 @@ const summaries: EmployeeCycleSummary[] = [
     reworkCents: 0,
     minWageAdjustmentCents: 0,
     grossCents: 100000,
+    daysWorked: 5,
+    dayRateCents: 100000,
+    reworkPaidMinutesTotal: 0,
   },
   {
     employeeId: "e2",
@@ -27,6 +30,9 @@ const summaries: EmployeeCycleSummary[] = [
     reworkCents: 0,
     minWageAdjustmentCents: 0,
     grossCents: 60000,
+    daysWorked: 3,
+    dayRateCents: 60000,
+    reworkPaidMinutesTotal: 0,
   },
 ];
 
@@ -59,7 +65,7 @@ describe("cycleDeductionsToCsv", () => {
     const csv = cycleDeductionsToCsv(lines, cycle);
     const rows = csv.split("\n");
     assert.equal(rows.length, 3); // header + 2 empleados
-    assert.match(rows[0], /^cycle,employee_id,employee_name,services,gross_cad,cpp_cad,cpp2_cad,ei_employee_cad,ei_employer_cad,worksafebc_employer_cad,vacation_pay_accrual_cad,estimated_net_cad,employer_cost_cad$/);
+    assert.match(rows[0], /^cycle,employee_id,employee_name,services,gross_cad,cpp_cad,cpp2_cad,ei_employee_cad,ei_employer_cad,worksafebc_employer_cad,vacation_pay_accrual_cad,estimated_net_cad,employer_cost_cad,days_worked,day_rate_cad,rework_paid_minutes$/);
     assert.match(rows[1], /^2026-07 Q1,e1,"Ana López",5,/);
   });
 });

@@ -97,4 +97,37 @@ describe("aggregateCycle + cycleToCsv", () => {
     assert.equal(out[0].services, 2);
     assert.equal(out[0].grossCents, 40000);
   });
+
+  // v8.3 fix auditoría E9: EmployeeCycleSummary ahora expone días
+  // trabajados / Day Rate / minutos de rework pagados (antes faltaban en
+  // el export de nómina).
+  it("daysWorked cuenta días DISTINTOS, no servicios (varios servicios el mismo día = 1 día trabajado)", () => {
+    const out = aggregateCycle(
+      [entry({}), entry({ serviceDate: "2026-07-10" }), entry({ serviceDate: "2026-07-11" })],
+      cycle
+    );
+    assert.equal(out[0].services, 3);
+    assert.equal(out[0].daysWorked, 2);
+  });
+
+  it("dayRateCents suma el mismo total que baseCents (Day Rate pagado)", () => {
+    const out = aggregateCycle([entry({}), entry({ baseAmountCents: 25000 })], cycle);
+    assert.equal(out[0].dayRateCents, out[0].baseCents);
+    assert.equal(out[0].dayRateCents, 45000);
+  });
+
+  it("reworkPaidMinutesTotal suma los minutos de rework pagados del ciclo", () => {
+    const out = aggregateCycle(
+      [entry({ reworkPaidMinutes: 15 }), entry({ reworkPaidMinutes: 30 }), entry({})],
+      cycle
+    );
+    assert.equal(out[0].reworkPaidMinutesTotal, 45);
+  });
+
+  it("CSV incluye days_worked/day_rate_cad/rework_paid_minutes al final", () => {
+    const csv = cycleToCsv(aggregateCycle([entry({ reworkPaidMinutes: 10 })], cycle), cycle);
+    const [header, row] = csv.split("\n");
+    assert.match(header, /days_worked,day_rate_cad,rework_paid_minutes$/);
+    assert.match(row, /,1,200\.00,10$/);
+  });
 });

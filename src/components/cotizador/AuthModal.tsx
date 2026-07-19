@@ -10,10 +10,21 @@ interface AuthModalProps {
   // v8.3 fix (auditoría 2026-07-15): permite mostrar un error de OAuth
   // devuelto por /auth/callback (antes se perdía silenciosamente).
   initialError?: string;
+  // v8.3 fix (auditoría E1 2026-07-18): un cliente que entra por Google/Apple
+  // nunca pasaba por verificación telefónica (client_profiles.phone_verified
+  // se quedaba en false para siempre -- SMS de recordatorio, aviso de llegada
+  // del equipo, etc. dependen de un teléfono verificado). Cuando esta prop es
+  // true, el modal se abre DIRECTO en el paso de verificación de teléfono
+  // (sin "X" para saltarlo) y usa el flujo de vinculación de teléfono a la
+  // cuenta YA autenticada (updateUser + verifyOtp type "phone_change"), no
+  // un signInWithOtp nuevo (eso crearía una identidad separada).
+  forcePhoneVerification?: boolean;
 }
 
-export function AuthModal({ onClose, onSuccess, initialError }: AuthModalProps) {
-  const [mode, setMode] = useState<"options" | "email" | "phone">("options");
+export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerification }: AuthModalProps) {
+  const [mode, setMode] = useState<"options" | "email" | "phone" | "verify_phone">(
+    forcePhoneVerification ? "verify_phone" : "options"
+  );
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
@@ -103,6 +114,67 @@ export function AuthModal({ onClose, onSuccess, initialError }: AuthModalProps) 
     }
   };
 
+  // v8.3 fix (auditoría E1): a diferencia de handlePhoneOtpRequest (que hace
+  // signInWithOtp y crearía una cuenta/identidad NUEVA), aquí el usuario ya
+  // tiene sesión (llegó por Google/Apple) -- updateUser({ phone }) envía el
+  // código al número nuevo y lo asocia a la MISMA cuenta autenticada.
+  const handleLinkPhoneRequest = async () => {
+    if (!phone || phone.length < 10) {
+      setError("Please enter a valid phone number");
+      return;
+    }
+    const normalizedPhone = phone.startsWith("+") ? phone : `+1${phone}`;
+    setLoading(true);
+    setError("");
+    try {
+      const { error } = await supabase.auth.updateUser({ phone: normalizedPhone });
+      if (error) throw error;
+      setOtpSent(true);
+    } catch (err: Error | unknown) {
+      setError(err instanceof Error ? err.message : "Failed to send SMS code");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyLinkedPhone = async () => {
+    if (!otpCode || otpCode.length < 6) {
+      setError("Please enter the 6-digit code");
+      return;
+    }
+    if (!phone || phone.length < 10) {
+      setError("Phone number is required. Please go back and enter your phone.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const normalizedPhone = phone.startsWith("+") ? phone : `+1${phone}`;
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        phone: normalizedPhone,
+        token: otpCode,
+        type: "phone_change",
+      });
+      if (verifyError) throw verifyError;
+
+      // Persistir phone_verified=true en client_profiles -- es lo que el
+      // resto del sistema (reserva, recordatorios SMS) consulta. RLS
+      // (migración 018) permite que el usuario actualice su propia fila.
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user) {
+        await supabase
+          .from("client_profiles")
+          .update({ phone_verified: true, phone_number: normalizedPhone })
+          .eq("user_id", userData.user.id);
+      }
+
+      onSuccess();
+    } catch (err: Error | unknown) {
+      setError(err instanceof Error ? err.message : "Invalid verification code");
+      setLoading(false);
+    }
+  };
+
   const handleVerifyOtp = async () => {
     if (!otpCode || otpCode.length < 6) {
       setError("Please enter the 6-digit code");
@@ -136,6 +208,21 @@ export function AuthModal({ onClose, onSuccess, initialError }: AuthModalProps) 
         });
       }
       if (result.error) throw result.error;
+
+      // v8.3 fix (auditoría E1): el login por teléfono+OTP YA prueba
+      // posesión del número -- marcar phone_verified aquí evita pedirle
+      // este mismo paso de nuevo más adelante en la reserva.
+      if (mode === "phone") {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData.user) {
+          const normalizedPhone = phone.startsWith("+") ? phone : `+1${phone}`;
+          await supabase
+            .from("client_profiles")
+            .update({ phone_verified: true, phone_number: normalizedPhone })
+            .eq("user_id", userData.user.id);
+        }
+      }
+
       onSuccess();
     } catch (err: Error | unknown) {
       setError(err instanceof Error ? err.message : "Invalid verification code");
@@ -146,33 +233,109 @@ export function AuthModal({ onClose, onSuccess, initialError }: AuthModalProps) 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-elevation-3 max-w-md w-full p-6 relative">
-        <button
-          aria-label="Cerrar modal de inicio de sesión"
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {!forcePhoneVerification && (
+          <button
+            aria-label="Cerrar modal de inicio de sesión"
+            onClick={onClose}
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
 
         <h2 className="text-xl font-bold text-brand-ink mb-2">
-          Sign in to Reserve
+          {forcePhoneVerification ? "Verify Your Phone Number" : "Sign in to Reserve"}
         </h2>
         <p className="text-gray-600 text-sm mb-6">
-          {/* v8.3 fix (auditoría 2026-07-15): el texto anterior ("All methods
-              create the same secure account") era falso -- no existe account
-              linking en el código; Google, Apple y email/phone OTP crean
-              cuentas SEPARADAS en Supabase Auth por defecto. Un cliente que
-              reserva con Google y luego entra con email pierde su historial,
-              wallet y cotizaciones previas sin ningún aviso. Se corrige el
-              texto para reflejar la realidad y se pide explícitamente usar
-              siempre el mismo método. */}
-          Please use the same sign-in method every time — switching methods (e.g. Google, then
-          email) creates a separate account and you&apos;ll lose access to your history and wallet.
+          {forcePhoneVerification ? (
+            // v8.3 fix (auditoría E1): paso obligatorio tras login social
+            // (Google/Apple) -- sin esto, la cuenta nunca puede recibir
+            // recordatorios SMS ni confirmar identidad por teléfono, y el
+            // spec exige verificación telefónica para TODA reserva.
+            "For your security, we require a verified phone number before you can complete a reservation. This only takes a minute."
+          ) : (
+            <>
+              {/* v8.3 fix (auditoría 2026-07-15): el texto anterior ("All methods
+                  create the same secure account") era falso -- no existe account
+                  linking en el código; Google, Apple y email/phone OTP crean
+                  cuentas SEPARADAS en Supabase Auth por defecto. Un cliente que
+                  reserva con Google y luego entra con email pierde su historial,
+                  wallet y cotizaciones previas sin ningún aviso. Se corrige el
+                  texto para reflejar la realidad y se pide explícitamente usar
+                  siempre el mismo método. */}
+              Please use the same sign-in method every time — switching methods (e.g. Google, then
+              email) creates a separate account and you&apos;ll lose access to your history and wallet.
+            </>
+          )}
         </p>
 
         {error && (
           <div className="p-3 bg-state-danger/10 text-state-danger rounded-lg text-sm mb-4">
             {error}
+          </div>
+        )}
+
+        {mode === "verify_phone" && (
+          <div className="space-y-4">
+            {!otpSent ? (
+              <>
+                <div>
+                  <label htmlFor="auth-link-phone-input" className="block text-sm font-medium text-brand-ink mb-1">
+                    Phone Number
+                  </label>
+                  <input
+                    id="auth-link-phone-input"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                    placeholder="6041234567"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">BC/Canada numbers only</p>
+                </div>
+                <button
+                  aria-label="Enviar código SMS de verificación de teléfono"
+                  onClick={handleLinkPhoneRequest}
+                  disabled={loading}
+                  className="w-full bg-brand-navy text-white py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
+                >
+                  {loading ? "Sending..." : "Send SMS Code"}
+                </button>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label htmlFor="auth-otp-link-phone-input" className="block text-sm font-medium text-brand-ink mb-1">
+                    Enter 6-digit code sent to {phone}
+                  </label>
+                  <input
+                    id="auth-otp-link-phone-input"
+                    type="text"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="123456"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none text-center text-lg tracking-widest"
+                  />
+                </div>
+                <button
+                  aria-label="Verificar código de teléfono"
+                  onClick={handleVerifyLinkedPhone}
+                  disabled={loading}
+                  className="w-full bg-brand-navy text-white py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
+                >
+                  {loading ? "Verifying..." : "Verify Phone"}
+                </button>
+                <button
+                  onClick={() => {
+                    setOtpSent(false);
+                    setOtpCode("");
+                  }}
+                  className="w-full text-sm text-brand-wave-blue hover:underline"
+                >
+                  Resend code or use different phone
+                </button>
+              </>
+            )}
           </div>
         )}
 

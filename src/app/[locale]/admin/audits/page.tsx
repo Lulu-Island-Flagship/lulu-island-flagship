@@ -18,6 +18,9 @@ interface PendingOrder {
   quote_id: string;
   quotes: { address: string; service_type: string } | null;
   assignments: { employee_id: string; status: string }[];
+  suggestedForAudit?: boolean;
+  mandatoryAudit?: boolean;
+  mandatoryReasons?: string[];
 }
 
 interface FieldAudit {
@@ -40,6 +43,16 @@ interface PeerVoteAggregate {
   name: string;
 }
 
+// v8.3 E3 fix: labels descriptivos para la escala 1-5 del slider de puntaje
+// general (misma escala que field_audits.score, CHECK BETWEEN 1 AND 5).
+const OVERALL_SCORE_LABELS: Record<number, string> = {
+  1: "Deficiente",
+  2: "Regular",
+  3: "Aceptable",
+  4: "Bueno",
+  5: "Excelente",
+};
+
 export default function AuditsPage() {
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
   const [audits, setAudits] = useState<FieldAudit[]>([]);
@@ -48,7 +61,7 @@ export default function AuditsPage() {
   const [error, setError] = useState("");
 
   const [selectedOrder, setSelectedOrder] = useState<PendingOrder | null>(null);
-  const [auditScore, setAuditScore] = useState(80);
+  const [auditScore, setAuditScore] = useState(4);
   const [auditNotes, setAuditNotes] = useState("");
   const [announceToClient, setAnnounceToClient] = useState(false);
   const [criteria, setCriteria] = useState<Record<string, number>>({
@@ -60,7 +73,10 @@ export default function AuditsPage() {
   });
   const [submitting, setSubmitting] = useState(false);
 
-  const dispatchProbability = Math.max(0, Math.min(1, (auditScore / 100) * (Object.values(criteria).reduce((a, b) => a + b, 0) / Object.values(criteria).length / 5)));
+  // v8.3 E3 fix: auditScore vive en escala 1-5 (igual que field_audits.score,
+  // CHECK BETWEEN 1 AND 5) -- antes este cálculo asumía 0-100 y nunca coincidía
+  // con el rango real del slider ni con la RPC de score de confianza.
+  const dispatchProbability = Math.max(0, Math.min(1, (auditScore / 5) * (Object.values(criteria).reduce((a, b) => a + b, 0) / Object.values(criteria).length / 5)));
 
   useEffect(() => {
     loadData();
@@ -119,7 +135,7 @@ export default function AuditsPage() {
         return;
       }
       setSelectedOrder(null);
-      setAuditScore(80);
+      setAuditScore(4);
       setAuditNotes("");
       setCriteria({
         punctuality: 4,
@@ -136,6 +152,14 @@ export default function AuditsPage() {
     }
   }
 
+  // v8.3 E3 fix: antes esta función asumía escala 0-100 (igual que el slider
+  // roto) mientras field_audits.score vive en 1-5 (CHECK BETWEEN 1 AND 5,
+  // 010_modulo7_qc_score_tables.sql:43). En vez de reinventar la fórmula del
+  // score de confianza (esa vive en la RPC compute_trust_score,
+  // 011_modulo7_trust_level_fix.sql:159-169, que pondera auditoría 30% junto
+  // con telemetría y peer votes), este helper solo promedia las últimas 5
+  // evaluaciones del auditor de campo en su propia escala 1-5 -- coherente
+  // con lo que se muestra al lado (audit.score, también 1-5).
   function getMovingAverage5(employeeId: string) {
     const employeeAudits = audits
       .filter((a) => a.employee_id === employeeId)
@@ -143,13 +167,13 @@ export default function AuditsPage() {
       .slice(0, 5);
     if (employeeAudits.length === 0) return null;
     const sum = employeeAudits.reduce((acc, a) => acc + a.score, 0);
-    return Math.round(sum / employeeAudits.length);
+    return Math.round((sum / employeeAudits.length) * 10) / 10;
   }
 
   const getScoreColor = (score: number) => {
-    if (score >= 90) return "text-green-600";
-    if (score >= 70) return "text-blue-600";
-    if (score >= 50) return "text-yellow-600";
+    if (score >= 4.5) return "text-green-600";
+    if (score >= 3.5) return "text-blue-600";
+    if (score >= 2.5) return "text-yellow-600";
     return "text-red-600";
   };
 
@@ -187,11 +211,16 @@ export default function AuditsPage() {
                     <p className="text-xs text-gray-400 capitalize">
                       {order.quotes?.service_type?.replace(/_/g, " ") || "—"}
                     </p>
+                    {order.mandatoryAudit && (
+                      <p className="text-xs font-semibold text-red-600">
+                        Mandatory audit: {order.mandatoryReasons?.join(", ")}
+                      </p>
+                    )}
                   </div>
                   <button
                     onClick={() => {
                       setSelectedOrder(order);
-                      setAuditScore(80);
+                      setAuditScore(4);
                       setAuditNotes("");
                       setCriteria({
                         punctuality: 4,
@@ -236,7 +265,7 @@ export default function AuditsPage() {
                         {audit.employees?.name || "Unknown"}
                       </span>
                       <span className={`text-sm font-bold ${getScoreColor(audit.score)}`}>
-                        {audit.score}/100
+                        {audit.score}/5
                       </span>
                     </div>
                     <p className="text-xs text-gray-500">
@@ -311,17 +340,24 @@ export default function AuditsPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-brand-ink">Overall Score</label>
+              <label className="text-sm font-medium text-brand-ink">Overall Score (1-5)</label>
+              {/* v8.3 E3 fix: field_audits.score tiene CHECK (score BETWEEN 1 AND 5)
+                  -- este slider vivía en escala 0-100 con default 80, así que
+                  cualquier envío con el default rompía el constraint de la base
+                  de datos. Ahora coincide 1:1 con lo que espera el POST y la RPC. */}
               <input
-                aria-label="Puntaje general de la auditoría (0 a 100)"
+                aria-label="Puntaje general de la auditoría (1 a 5)"
                 type="range"
-                min="0"
-                max="100"
+                min="1"
+                max="5"
+                step="1"
                 value={auditScore}
                 onChange={(e) => setAuditScore(Number(e.target.value))}
                 className="w-full mt-1"
               />
-              <div className="text-center text-lg font-bold text-brand-navy">{auditScore}</div>
+              <div className="text-center text-lg font-bold text-brand-navy">
+                {auditScore}/5 — {OVERALL_SCORE_LABELS[auditScore] || ""}
+              </div>
             </div>
 
             <div className="space-y-3">

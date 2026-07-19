@@ -23,8 +23,8 @@
 
 export const CONTRACT_REVIEW_LEAD_DAYS = 60;
 
-/** ¿Hoy cae exactamente en la ventana de 60 días antes del próximo aniversario? */
-export function isContractReviewDue(startDateISO: string, todayISO: string): boolean {
+/** Próximo aniversario del contrato (hoy o en el futuro) como Date UTC. */
+function nextAnniversary(startDateISO: string, todayISO: string): Date {
   const start = new Date(startDateISO);
   const today = new Date(todayISO);
 
@@ -32,15 +32,48 @@ export function isContractReviewDue(startDateISO: string, todayISO: string): boo
   if (anniversary.getTime() < today.getTime()) {
     anniversary = new Date(Date.UTC(today.getUTCFullYear() + 1, start.getUTCMonth(), start.getUTCDate()));
   }
+  return anniversary;
+}
 
-  const triggerDate = new Date(anniversary);
-  triggerDate.setUTCDate(triggerDate.getUTCDate() - CONTRACT_REVIEW_LEAD_DAYS);
+/**
+ * ¿Hoy cae DENTRO de la ventana de 60 días antes del próximo aniversario?
+ *
+ * Bug real de auditoría: la versión anterior comparaba con `===` (día
+ * EXACTO 60), así que si el cron diario (contract-review-scan) se saltaba
+ * ese único día por cualquier motivo (deploy caído, retry fallido, cambio
+ * de horario en vercel.json que corriera el cron un día distinto en alguna
+ * zona horaria) el contrato NUNCA disparaba su revisión legal ese ciclo --
+ * silenciosamente, sin error visible. Ahora es un rango (0, 60] días antes
+ * del aniversario: cualquier corrida del cron dentro de esos 60 días la
+ * detecta. El re-disparo diario dentro de esa ventana lo evita quien llama
+ * esta función usando `review_triggered_at` (ver `wasReviewAlreadyTriggeredForAnniversary`
+ * más abajo) -- esta función solo responde "¿estamos en la ventana?", no
+ * "¿ya se disparó?".
+ */
+export function isContractReviewDue(startDateISO: string, todayISO: string): boolean {
+  const today = new Date(todayISO);
+  const anniversary = nextAnniversary(startDateISO, todayISO);
+  const daysUntilExpiry = Math.round((anniversary.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return daysUntilExpiry <= CONTRACT_REVIEW_LEAD_DAYS && daysUntilExpiry > 0;
+}
 
-  return (
-    triggerDate.getUTCFullYear() === today.getUTCFullYear() &&
-    triggerDate.getUTCMonth() === today.getUTCMonth() &&
-    triggerDate.getUTCDate() === today.getUTCDate()
-  );
+/**
+ * ¿Ya se disparó la revisión para ESTE aniversario específico? Compara
+ * `reviewTriggeredAtAnniversaryISO` (el aniversario para el que se guardó
+ * `review_triggered_at` en service_contracts, columna añadida en la
+ * migración 187) contra el aniversario objetivo de hoy -- si coinciden, ya
+ * se disparó dentro de esta misma ventana de 60 días y no debe repetirse
+ * cada día hasta que pase el aniversario y arranque el ciclo siguiente.
+ */
+export function wasReviewAlreadyTriggeredForAnniversary(
+  startDateISO: string,
+  todayISO: string,
+  reviewTriggeredAtAnniversaryISO: string | null
+): boolean {
+  if (!reviewTriggeredAtAnniversaryISO) return false;
+  const anniversary = nextAnniversary(startDateISO, todayISO);
+  const anniversaryISO = anniversary.toISOString().slice(0, 10);
+  return reviewTriggeredAtAnniversaryISO === anniversaryISO;
 }
 
 export interface LegalChangeSummary {

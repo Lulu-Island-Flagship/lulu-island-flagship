@@ -62,3 +62,59 @@ export function selectAuditSample(
   }
   return selected;
 }
+
+// ============================================================
+// v8.3 E3 fix — Triggers obligatorios del Auditor de Campo.
+//
+// El muestreo aleatorio ~20% de arriba es una muestra objetiva de fondo,
+// pero una auditoría de campo real no puede depender SOLO de una moneda al
+// aire: hay señales que, si aparecen, deben forzar una auditoría sí o sí,
+// sin importar en qué lado del hash cayó la orden ese día. Estos 4 triggers
+// son aditivos al muestreo aleatorio (isAuditSampleSelected sigue vivo tal
+// cual) -- una orden queda "para auditar" si CUALQUIERA de los dos caminos
+// la selecciona.
+// ============================================================
+
+export const TRIGGER_NEW_CLIENT = "new_client";
+export const TRIGGER_TEAM_SCORE_LOW = "team_score_below_70";
+export const TRIGGER_EMPLOYEE_SCORE_LOW = "employee_score_below_30";
+export const TRIGGER_POST_DISPUTE = "post_dispute";
+
+/** Umbral de score de equipo (0-100, employee_scores.total_score promedio de la cuadrilla). */
+export const TEAM_SCORE_THRESHOLD = 70;
+/** Umbral de score individual (0-100, employee_scores.total_score). */
+export const EMPLOYEE_SCORE_THRESHOLD = 30;
+
+export interface MandatoryAuditInput {
+  /** Cliente con 1-2 servicios históricos (ver NEW_CLIENT_MAX_SERVICES en client-segmentation.ts). */
+  isNewClient?: boolean;
+  /** Promedio de employee_scores.total_score (0-100) de la cuadrilla asignada a la orden. */
+  teamScore?: number | null;
+  /** El peor employee_scores.total_score (0-100) entre la cuadrilla asignada. */
+  employeeScore?: number | null;
+  /** La orden (o el empleado asignado) tiene una disputa reciente asociada (tickets_disputas). */
+  hasRecentDispute?: boolean;
+}
+
+/**
+ * Evalúa los 4 triggers obligatorios y devuelve la lista de los que aplican.
+ * Lista vacía = ningún trigger obligatorio (la orden solo entra por muestreo
+ * aleatorio, si le toca).
+ */
+export function getMandatoryAuditTriggers(input: MandatoryAuditInput): string[] {
+  const reasons: string[] = [];
+  if (input.isNewClient) reasons.push(TRIGGER_NEW_CLIENT);
+  if (typeof input.teamScore === "number" && input.teamScore < TEAM_SCORE_THRESHOLD) {
+    reasons.push(TRIGGER_TEAM_SCORE_LOW);
+  }
+  if (typeof input.employeeScore === "number" && input.employeeScore < EMPLOYEE_SCORE_THRESHOLD) {
+    reasons.push(TRIGGER_EMPLOYEE_SCORE_LOW);
+  }
+  if (input.hasRecentDispute) reasons.push(TRIGGER_POST_DISPUTE);
+  return reasons;
+}
+
+/** true si al menos un trigger obligatorio aplica. */
+export function isMandatoryAudit(input: MandatoryAuditInput): boolean {
+  return getMandatoryAuditTriggers(input).length > 0;
+}

@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { assertStripe } from "@/lib/stripe";
 import { getVancouverTodayString } from "@/lib/date-utils";
-import { sendPaymentUpdateSms, buildPaymentUpdateLink } from "@/lib/sms";
+import { buildPaymentUpdateLink } from "@/lib/sms";
 import { calculateReserveSplit } from "@/lib/cash-reserve";
+import { dispatchCommunication } from "@/lib/send-communication";
 import {
   evaluateCaptureEligibility,
   type OrderClaimForCaptureDecision,
@@ -403,15 +404,35 @@ export async function GET(request: NextRequest) {
         if (newAttempts >= MAX_ATTEMPTS) {
           const { data: profile } = await supabase
             .from("profiles")
-            .select("phone")
+            .select("full_name")
             .eq("id", order.user_id)
             .maybeSingle();
+          const { data: clientProfile } = await supabase
+            .from("client_profiles")
+            .select("preferred_languages")
+            .eq("user_id", order.user_id)
+            .maybeSingle();
+          const language = ((clientProfile?.preferred_languages as string[] | undefined)?.[0] ||
+            "en") as "en" | "es" | "zh";
 
           const paymentLink = buildPaymentUpdateLink(order.id, appBaseUrl);
-          const smsResult = await sendPaymentUpdateSms({
+
+          // v8.3 E6 (Auditoría E6): antes se llamaba sendPaymentUpdateSms
+          // directo, con el mensaje hardcodeado fuera del catálogo
+          // (communication_events/communication_templates, migración 045) y
+          // sin pasar por arbitrateThrottle ni quedar en communication_log.
+          // dispatchCommunication reusa la plantilla 'payment_failed'
+          // (migración 185) igual que cualquier otro evento del catálogo.
+          const dispatchResult = await dispatchCommunication(supabase, {
+            eventKey: "payment_failed",
+            userId: order.user_id,
             orderId: order.id,
-            phoneNumber: profile?.phone || "",
-            paymentLink,
+            language,
+            vars: {
+              client_name: profile?.full_name || "cliente",
+              order_id: order.id,
+              payment_link: paymentLink,
+            },
           });
 
           await supabase.from("payment_recovery_notifications").insert({
@@ -419,8 +440,8 @@ export async function GET(request: NextRequest) {
             channel: "sms",
             trigger_reason: "capture_attempts_exhausted",
             payment_link: paymentLink,
-            status: smsResult.status,
-            provider_response: smsResult.providerResponse,
+            status: dispatchResult.status,
+            provider_response: dispatchResult.detail ?? null,
           });
 
           await supabase.from("tickets_disputas").insert({
@@ -432,7 +453,7 @@ export async function GET(request: NextRequest) {
               reason: "capture_attempts_exhausted",
               max_attempts: MAX_ATTEMPTS,
               last_error: message.slice(0, 500),
-              sms_status: smsResult.status,
+              sms_status: dispatchResult.status,
             },
           });
 

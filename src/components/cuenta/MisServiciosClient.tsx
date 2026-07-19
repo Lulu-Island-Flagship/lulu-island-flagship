@@ -176,6 +176,14 @@ export default function MisServiciosClient() {
                         View photos & checklist
                       </a>
                     )}
+                    {order.status === "confirmed" && (
+                      <a
+                        href={`servicios/${order.id}/tracking`}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-navy hover:underline"
+                      >
+                        Track your team
+                      </a>
+                    )}
                     {order.status === "completed" && order.claimableZones.length > 0 && (
                       <button
                         onClick={() => setClaimingOrderId(claimingOrderId === order.id ? null : order.id)}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { SERVICE_TYPES, type ServiceType } from "@/lib/pricing";
+import { computeClientSegment, type ClientSegment } from "@/lib/client-segmentation";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -20,6 +21,43 @@ function getSupabaseClient() {
         cookieStore.set({ name, value: "", ...options });
       },
     },
+  });
+}
+
+// v8.3 E3 fix: buffer de emergencia invisible al cliente. Antes Slots =
+// Capacidad_Neta - HHE_comprometidas (sin buffer), así que un día podía
+// venderse al 100% de su capacidad publicada sin dejar margen para SOS,
+// no-shows encadenados o reasignaciones de último minuto. Ahora se retiene
+// 1 slot/día por zona: Slots = Capacidad_Neta - HHE_comprometidas - buffer.
+// El buffer NUNCA se expone en la respuesta (ni como campo, ni como razón en
+// blockedReason) -- el cliente solo ve available:false, igual que un slot
+// realmente lleno.
+const EMERGENCY_BUFFER_SLOTS_PER_DAY = 1;
+
+function applyEmergencyBuffer<T extends { available: boolean; maxTeams: number; committedTeams: number }>(
+  slots: T[]
+): T[] {
+  // Presupuesto de "unidades de capacidad" restantes del día para esta
+  // zona, después de restar el buffer. Cada slot disponible consume su
+  // propia capacidad remanente (maxTeams - committedTeams) del presupuesto;
+  // en cuanto el presupuesto se agota, los slots siguientes (los últimos en
+  // orden cronológico, no necesariamente los últimos del array) se marcan
+  // no disponibles -- exactamente como si estuvieran llenos.
+  const totalRemaining = slots.reduce(
+    (sum, s) => sum + Math.max(0, s.maxTeams - s.committedTeams),
+    0
+  );
+  let budget = totalRemaining - EMERGENCY_BUFFER_SLOTS_PER_DAY;
+
+  return slots.map((s) => {
+    if (!s.available) return s;
+    const slotRemaining = Math.max(0, s.maxTeams - s.committedTeams);
+    if (budget <= 0) {
+      budget -= slotRemaining;
+      return { ...s, available: false };
+    }
+    budget -= slotRemaining;
+    return s;
   });
 }
 
@@ -125,12 +163,104 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    if (!cutoffLocked) {
+      enriched = applyEmergencyBuffer(enriched);
+    }
+
+    // v8.3 fix (auditoría E1 2026-07-18): no existía prioridad de slots
+    // Recurrente > Esporádico > Nuevo, ni el límite de 1 reserva activa para
+    // clientes Nuevos hasta completar su primer servicio sin disputa -- un
+    // cliente Nuevo podía competir en igualdad de condiciones por el último
+    // cupo del día contra un cliente Recurrente de años, y podía además
+    // acumular varias reservas activas simultáneas antes de tener ningún
+    // historial real con la empresa.
+    let newClientLimitReached = false;
+    let clientSegment: ClientSegment | null = null;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from("client_profiles")
+        .select("services_count, score")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const totalServicesCount = profile?.services_count ?? 0;
+
+      const { data: lastOrder } = await supabase
+        .from("orders")
+        .select("service_datetime")
+        .eq("user_id", user.id)
+        .eq("status", "completed")
+        .order("service_datetime", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const daysSinceLastService = lastOrder?.service_datetime
+        ? Math.max(0, Math.round((Date.now() - new Date(lastOrder.service_datetime).getTime()) / (1000 * 60 * 60 * 24)))
+        : 9999;
+
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentOrders } = await supabase
+        .from("orders")
+        .select("total_paid")
+        .eq("user_id", user.id)
+        .gte("service_datetime", thirtyDaysAgo);
+      const monthlySpendCents = Math.round(
+        (recentOrders || []).reduce((sum, o) => sum + Number(o.total_paid || 0), 0) * 100
+      );
+
+      clientSegment = computeClientSegment({
+        monthlySpendCents,
+        totalServicesCount,
+        daysSinceLastService,
+      });
+
+      if (clientSegment === "new") {
+        // Límite: 1 reserva activa hasta completar el primer servicio sin
+        // disputa. "Activa" = no cancelada; "sin disputa" ya está implícito
+        // porque services_count solo sube cuando el servicio se completó sin
+        // disputa abierta (ver score/E5). Mientras totalServicesCount sea 0,
+        // cualquier orden activa existente agota el cupo del cliente Nuevo.
+        if (totalServicesCount === 0) {
+          const { data: activeOrders } = await supabase
+            .from("orders")
+            .select("id")
+            .eq("user_id", user.id)
+            .neq("status", "cancelled")
+            .neq("status", "completed");
+          newClientLimitReached = (activeOrders?.length ?? 0) >= 1;
+        }
+
+        // Prioridad Recurrente > Esporádico > Nuevo: en el/los últimos cupos
+        // del día (después del buffer de emergencia), un cliente Nuevo no
+        // puede tomar el cupo -- se reserva para clientes con historial. No
+        // afecta la disponibilidad general (otros clientes sí lo ven
+        // disponible); solo lo que esta respuesta, para ESTE cliente, marca
+        // como reservable.
+        enriched = enriched.map((s) => {
+          if (!s.available) return s;
+          const remaining = s.maxTeams - s.committedTeams;
+          if (remaining <= 1) {
+            return {
+              ...s,
+              available: false,
+              blockedReason: "Priority slot reserved for returning clients during high demand",
+            };
+          }
+          return s;
+        });
+      }
+    }
+
     return NextResponse.json(
       {
         date,
         zone,
         cutoffLocked,
         slots: enriched,
+        clientSegment,
+        newClientLimitReached,
       },
       { status: 200 }
     );

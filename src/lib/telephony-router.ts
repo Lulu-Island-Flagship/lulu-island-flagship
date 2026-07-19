@@ -33,6 +33,31 @@
  *    cualquier tono de enojo que no use estas palabras NO se detecta. Un
  *    detector de sentimiento real (modelo de audio/prosodia) queda fuera de
  *    alcance de este módulo — no se simula uno falso.
+ *
+ * DEUDA TÉCNICA (Auditoría E6, 2026-07-18): los ~10 mensajes IVR de este
+ * archivo (DISCLOSURE_PREFIX, NO_MATCH_MESSAGE, COMPLETED_MESSAGE,
+ * CANCELLED_MESSAGE, NO_SHOW_MESSAGE, ARRIVED_MESSAGE, IN_PROGRESS_MESSAGE,
+ * etaMessage, RUNNING_LATE_MESSAGE, scheduledMsg) viven como constantes TS
+ * en/es/zh en vez de en el catálogo central (communication_events /
+ * communication_templates, migración 045; ver src/lib/send-communication.ts).
+ * NO se migraron en esta pasada porque el catálogo está diseñado para
+ * despacho ASÍNCRONO fuera de banda (SMS/email vía dispatchCommunication,
+ * con arbitrateThrottle y communication_log) mientras que buildInformResponse
+ * es SÍNCRONO dentro de la respuesta TwiML de una llamada en curso —
+ * moverlo requeriría (a) agregar event_keys nuevos tipo 'ivr_eta',
+ * 'ivr_no_match', 'ivr_completed', etc. con placeholders numéricos/timestamp
+ * ({minutes}, {scheduled}) que renderTemplate ya soporta, (b) que el
+ * webhook de telefonía (aún no ubicado/implementado en el repo — ver TODO
+ * en el orquestador que arma DispatchMatrixEntry) llame a un fetch de
+ * plantilla SÍNCRONO de baja latencia (la llamada telefónica no puede
+ * esperar un round-trip lento a Supabase sin degradar la UX de la línea
+ * automatizada), y (c) tests de telephony-router.test.ts actualizados para
+ * mockear ese fetch en vez de comparar contra los strings literales
+ * actuales. Candidatos a migrar primero si se retoma: etaMessage (el más
+ * usado, ~80% de llamadas según la meta del plan), NO_MATCH_MESSAGE
+ * (bypass a humano) y COMPLETED_MESSAGE. Mientras tanto, este archivo sigue
+ * siendo la única fuente de verdad de estos textos — cualquier cambio de
+ * copy debe hacerse aquí, en los 3 idiomas, no en el catálogo.
  */
 
 // ------------------------------------------------------------

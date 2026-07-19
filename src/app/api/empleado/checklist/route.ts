@@ -255,13 +255,43 @@ export async function POST(request: NextRequest) {
     // Se lee del checklist SOP, no del body — el cliente nunca decide esto.
     const { data: checklistZone } = await supabase
       .from("sop_checklists")
-      .select("items")
+      .select("items, zone_color")
       .eq("id", checklistId)
       .maybeSingle();
     const itemDef = ((checklistZone?.items as { id: string; hotSurface?: boolean }[]) || []).find(
       (i) => i.id === itemId
     );
     const isHotSurfaceItem = itemDef?.hotSurface === true;
+
+    // v8.3 E4 fix (auditoría 2026-07-18) [CRÍTICO] — poka-yoke químico sin
+    // enforcement server-side. Antes, la confirmación de color+ícono+texto
+    // (ChemicalMatchModal.tsx) solo vivía en un useState del cliente:
+    // cualquier llamada directa a esta API con isCompleted=true marcaba el
+    // ítem como hecho sin haber confirmado nunca el producto correcto para
+    // esa zona de riesgo químico. Ahora se exige una fila real en
+    // chemical_zone_confirmations (persistida por
+    // POST /api/empleado/chemical-confirm, que revalida color+ícono+texto
+    // server-side) antes de aceptar is_completed=true.
+    const zoneColor = checklistZone?.zone_color;
+    if (isCompleted === true && zoneColor) {
+      const { data: confirmation } = await supabase
+        .from("chemical_zone_confirmations")
+        .select("id")
+        .eq("order_id", orderId)
+        .eq("employee_id", employee.id)
+        .eq("zone_color", zoneColor)
+        .maybeSingle();
+
+      if (!confirmation) {
+        return NextResponse.json(
+          {
+            error:
+              "Candado químico: confirma el producto correcto para esta zona (color, ícono y texto) antes de marcar ítems como completados.",
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     // Verificar si ya existe un registro para este item (con RLS, solo ve los del empleado)
     const { data: existing } = await supabase

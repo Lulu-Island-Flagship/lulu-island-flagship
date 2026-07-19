@@ -8,3 +8,32 @@
  */
 
 export { pushSalesReceipt, type PushSalesReceiptInput, type PushSalesReceiptResult } from "@/lib/qbo-adapter";
+
+import {
+  pushSalesReceipt,
+  type PushSalesReceiptInput,
+  type PushSalesReceiptResult,
+} from "@/lib/qbo-adapter";
+
+/**
+ * v8.3 E0 (auditoría 2026-07-18) — interfaz abstracta mínima + mock. Ver
+ * mismo patrón en esignature.ts/maps.ts/communications.ts de este directorio.
+ */
+export interface AccountingAdapter {
+  pushSalesReceipt(input: PushSalesReceiptInput): Promise<PushSalesReceiptResult>;
+}
+
+export const accountingAdapter: AccountingAdapter = { pushSalesReceipt };
+
+export function createMockAccountingAdapter(
+  overrides?: Partial<AccountingAdapter>
+): AccountingAdapter {
+  return {
+    pushSalesReceipt: async (_input: PushSalesReceiptInput) => ({
+      status: "not_configured",
+      qboTransactionId: null,
+      providerResponse: null,
+    }),
+    ...overrides,
+  };
+}
