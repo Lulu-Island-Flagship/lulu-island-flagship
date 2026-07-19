@@ -36,6 +36,7 @@ export type AdminResource =
   | "inventory"
   | "wellbeing"
   | "teams" // v8.3 E8 FIX-6: CRUD de equipos (identidad mínima, migración 099)
+  | "phone_booking" // v8.3 E6.6: reserva por teléfono (coordinador reusa el cotizador real)
   // QC — owner_admin + ops_coordinator + qc_only
   | "qc_wall";
 
@@ -61,6 +62,7 @@ const MATRIX: Record<AdminResource, AdminRole[]> = {
   inventory: ["owner_admin", "ops_coordinator"],
   wellbeing: ["owner_admin", "ops_coordinator"],
   teams: ["owner_admin", "ops_coordinator"],
+  phone_booking: ["owner_admin", "ops_coordinator"],
   qc_wall: ["owner_admin", "ops_coordinator", "qc_only"],
 };
 

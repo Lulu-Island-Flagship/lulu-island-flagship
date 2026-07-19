@@ -33,6 +33,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/cron/appointment-confirmation-24h",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/dispatch-scheduler",
       "schedule": "*/15 * * * *"
     },

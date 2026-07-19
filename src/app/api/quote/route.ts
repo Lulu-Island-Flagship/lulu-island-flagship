@@ -33,6 +33,7 @@ import {
   SERVICE_SUBTYPES,
   PET_TYPES,
   type ServiceCategory,
+  computePrintedInvoiceCharge,
 } from "@/lib/pricing";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
@@ -284,6 +285,7 @@ export async function POST(request: NextRequest) {
       purchaseOrder,
       preferredLanguages,
       acquisitionChannel,
+      printedInvoiceRequested,
     } = rawInput;
 
     // Obtener o crear perfil de cliente para score y tipo de cuenta
@@ -327,6 +329,25 @@ export async function POST(request: NextRequest) {
         clientProfile = updatedProfile;
       } else {
         console.error("Failed to update client preferred languages:", langUpdateError);
+      }
+    }
+
+    // v8.3 E6.6: factura impresa opcional (+$2 B2C por correo; B2B/Gov
+    // siempre true sin recargo vía trigger, migración 201). Se persiste
+    // como preferencia de cuenta (no por-cotización) para que futuras
+    // reservas del mismo cliente no tengan que repetirlo.
+    if (clientProfile.id && printedInvoiceRequested !== undefined) {
+      const { data: updatedProfile, error: printedInvoiceUpdateError } = await supabase
+        .from("client_profiles")
+        .update({ printed_invoice_requested: !!printedInvoiceRequested, updated_at: new Date().toISOString() })
+        .eq("id", clientProfile.id)
+        .select()
+        .single();
+
+      if (!printedInvoiceUpdateError && updatedProfile) {
+        clientProfile = updatedProfile;
+      } else {
+        console.error("Failed to update client printed invoice preference:", printedInvoiceUpdateError);
       }
     }
 
@@ -483,8 +504,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // v8.3 E6.6: recargo de factura impresa (+$2 B2C; $0 B2B/Gov, ver
+    // src/lib/pricing.ts computePrintedInvoiceCharge). Se registra como una
+    // AppliedRule sintética (no una regla real de pricing_rules) para que
+    // quede visible en el desglose y auditable en quotes.applied_rules sin
+    // agregar una columna dedicada.
+    const finalPrintedInvoiceRequested =
+      printedInvoiceRequested !== undefined ? !!printedInvoiceRequested : !!clientProfile.printed_invoice_requested;
+    const printedInvoiceCharge = computePrintedInvoiceCharge(finalPrintedInvoiceRequested, accountType as "b2c" | "b2b" | "government");
+    if (printedInvoiceCharge > 0) {
+      ruleResult.appliedRules.push({
+        ruleId: "printed_invoice_surcharge",
+        name: "Printed invoice by mail (+$2)",
+        actionType: "price_add",
+        actionValue: printedInvoiceCharge,
+        adjustment: printedInvoiceCharge,
+      });
+    }
+
     // Recalcular totales con ajuste de reglas (subtotal siempre entero para DB)
-    const subtotalAfterRules = Math.round(Math.max(0, baseBreakdown.subtotal + ruleResult.adjustment));
+    const subtotalAfterRules = Math.round(Math.max(0, baseBreakdown.subtotal + ruleResult.adjustment + printedInvoiceCharge));
     const gst = Math.round(subtotalAfterRules * GST_RATE * 100) / 100;
     const pst = Math.round(subtotalAfterRules * PST_RATE * 100) / 100;
     const totalAfterRules = Math.round((subtotalAfterRules + gst + pst) * 100) / 100;
@@ -560,7 +599,7 @@ export async function POST(request: NextRequest) {
         logistics_surcharge: baseBreakdown.logisticsSurcharge,
         addon_zones: validatedAddonZones,
         addon_zones_charge: baseBreakdown.addonZonesCharge,
-        rule_adjustment: ruleResult.adjustment,
+        rule_adjustment: ruleResult.adjustment + printedInvoiceCharge,
         applied_rules: ruleResult.appliedRules,
         subtotal: subtotalAfterRules,
         gst,
@@ -614,6 +653,7 @@ export async function POST(request: NextRequest) {
         quoteId: data.id,
         serverCalculated: true,
         appliedRules: ruleResult.appliedRules,
+        printedInvoiceCharge,
         adminReviewRequired,
         accountType,
         b2bReviewRequired: accountType === "b2b" || accountType === "government",

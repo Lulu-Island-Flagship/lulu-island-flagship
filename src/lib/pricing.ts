@@ -308,6 +308,22 @@ export function marginIsBelowFloor(subtotal: number, laborCost: number): boolean
   return calculateMarginContribution(subtotal, laborCost) < MARGIN_FLOOR_PERCENT;
 }
 
+// ─── E6.6: Factura impresa opcional ────────────────────────────────
+// Del plan: "Factura impresa opcional (+$2 correo; B2B siempre impresa+digital)".
+// B2B/government ya reciben ambos formatos por defecto sin recargo (ver
+// trigger trg_b2b_printed_invoice_default, migración 201) -- el recargo
+// solo aplica a B2C que lo solicita explícitamente (cliente en el cotizador
+// web, o coordinador en su nombre en una reserva telefónica).
+export const PRINTED_INVOICE_SURCHARGE = 2;
+
+export function computePrintedInvoiceCharge(
+  printedInvoiceRequested: boolean,
+  accountType: "b2c" | "b2b" | "government"
+): number {
+  if (accountType !== "b2c") return 0; // B2B/Gov: incluido, sin recargo
+  return printedInvoiceRequested ? PRINTED_INVOICE_SURCHARGE : 0;
+}
+
 // ─── Módulo 3: Capacidad y equipos ─────────────────────────────────
 
 export const DEFAULT_BASE_SCHEDULE_MINUTES = 480; // 8 horas

@@ -885,7 +885,7 @@ export default function ServicioPage() {
                   confirmedColors={confirmedColors}
                   onConfirmedColorsChange={setConfirmedColors}
                 />
-                <ClosureProtocolPanel orderId={orderId} />
+                <ClosureProtocolPanel orderId={orderId} noSmartphoneFlow={!!service?.noSmartphoneFlow} />
               </div>
             )}
 

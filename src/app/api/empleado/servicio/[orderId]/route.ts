@@ -70,6 +70,7 @@ export async function GET(
       .from("orders")
       .select(`
         id,
+        user_id,
         service_date,
         service_time,
         status,
@@ -98,6 +99,19 @@ export async function GET(
 
     const quote = order.quotes as unknown as Record<string, unknown> | null;
 
+    // v8.3 E6.6: el líder necesita saber si este cliente está en el flujo
+    // "sin smartphone" para mostrar la sección de pago alternativo
+    // (e-transfer/cheque/efectivo + recibo firmado) en el cierre.
+    let noSmartphoneFlow = false;
+    if (order.user_id) {
+      const { data: clientProfile } = await supabase
+        .from("client_profiles")
+        .select("no_smartphone_flow")
+        .eq("user_id", order.user_id)
+        .maybeSingle();
+      noSmartphoneFlow = !!clientProfile?.no_smartphone_flow;
+    }
+
     return NextResponse.json({
       service: {
         assignmentId: assignment.id,
@@ -124,6 +138,7 @@ export async function GET(
         residents: quote?.residents || 0,
         addressLat: order.address_lat ?? undefined,
         addressLng: order.address_lng ?? undefined,
+        noSmartphoneFlow,
       },
     }, { status: 200 });
   } catch (err: Error | unknown) {

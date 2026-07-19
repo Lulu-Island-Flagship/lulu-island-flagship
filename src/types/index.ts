@@ -29,6 +29,8 @@ export interface QuoteInput {
   acquisitionChannel?: string;
   /** v8.3 E4 (D.7): códigos de zonas add-on (ej. "garage") seleccionadas por el cliente. */
   addonZones?: string[];
+  /** v8.3 E6.6: factura impresa por correo, +$2 (B2C). B2B/Gov siempre true sin recargo. */
+  printedInvoiceRequested?: boolean;
 }
 
 export interface QuoteData extends QuoteInput {
@@ -380,6 +382,8 @@ export interface EmployeeService {
   clientPhone?: string;
   addressLat?: number;
   addressLng?: number;
+  /** v8.3 E6.6: cliente sin smartphone -- habilita pago alternativo con recibo firmado en el cierre. */
+  noSmartphoneFlow?: boolean;
 }
 
 // ─── Módulo 4: Ejecución Física ───────────────────────────────────────

@@ -171,7 +171,7 @@ async function sendClosureCommunications(
 
   const { data: clientProfile } = await supabase
     .from("client_profiles")
-    .select("preferred_languages")
+    .select("preferred_languages, no_smartphone_flow")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -180,16 +180,32 @@ async function sendClosureCommunications(
   const clientName = profile?.full_name || "cliente";
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://app.luluisland.ca").replace(/\/$/, "");
 
-  await dispatchCommunication(supabase, {
-    eventKey: "service_completed",
-    userId,
-    orderId,
-    language,
-    vars: {
-      client_name: clientName,
-      gallery_link: `${baseUrl}/orders/${orderId}/galeria`,
-    },
-  });
+  // v8.3 E6.6: cliente sin smartphone -- en vez del link de galería de fotos
+  // (que no puede abrir cómodamente), se le avisa que recibirá una llamada
+  // de seguimiento en ~2h. 'no_smartphone_callback' usa default_channel='call'
+  // (migración 201): dispatchCommunication lo registra siempre como 'queued'
+  // porque no hay proveedor de voz conectado todavía (mismo estado honesto
+  // que telephony-router.ts) -- nunca se finge que la llamada ocurrió.
+  if (clientProfile?.no_smartphone_flow) {
+    await dispatchCommunication(supabase, {
+      eventKey: "no_smartphone_callback",
+      userId,
+      orderId,
+      language,
+      vars: { client_name: clientName },
+    });
+  } else {
+    await dispatchCommunication(supabase, {
+      eventKey: "service_completed",
+      userId,
+      orderId,
+      language,
+      vars: {
+        client_name: clientName,
+        gallery_link: `${baseUrl}/orders/${orderId}/galeria`,
+      },
+    });
+  }
 
   // Invariante B.2.18 (anti-gating Google/FTC): se solicita a TODOS los
   // servicios completos. Única exclusión: discrepancia crítica aún abierta.
