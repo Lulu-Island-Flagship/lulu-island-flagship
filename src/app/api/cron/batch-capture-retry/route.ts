@@ -41,13 +41,15 @@ interface OrderRow {
   stripe_hold_payment_intent_id: string | null;
   stripe_customer_id: string | null;
   stripe_payment_method_id: string | null;
-  hold_amount: number;
-  hold_authorized_amount: number;
+  // RAÍZ-3 (2026-07-21, migración 229): en CENTAVOS enteros (antes dólares
+  // enteros). paypal_advance_amount NO se tocó -- sigue en dólares.
+  hold_amount_cents: number;
+  hold_authorized_amount_cents: number;
   hold_captured_at: string | null;
   paypal_advance_amount: number;
   capture_attempts: number;
   capture_force_full_by: string | null;
-  wallet_amount_used: number | null;
+  wallet_amount_used_cents: number | null;
   quotes: { total: number }[] | null;
 }
 
@@ -158,7 +160,7 @@ export async function GET(request: NextRequest) {
     const { data: orders, error } = await supabase
       .from("orders")
       .select(
-        "id, quote_id, user_id, payment_option, stripe_hold_payment_intent_id, stripe_customer_id, stripe_payment_method_id, hold_amount, hold_authorized_amount, paypal_advance_amount, capture_attempts, capture_force_full_by, wallet_amount_used, quotes(total)"
+        "id, quote_id, user_id, payment_option, stripe_hold_payment_intent_id, stripe_customer_id, stripe_payment_method_id, hold_amount_cents, hold_authorized_amount_cents, paypal_advance_amount, capture_attempts, capture_force_full_by, wallet_amount_used_cents, quotes(total)"
       )
       .eq("service_date", todayStr)
       .eq("status", "completed")
@@ -204,14 +206,16 @@ export async function GET(request: NextRequest) {
       results.processed++;
 
       // Fix B-P0-5 (auditoría 2026-07-21): batch-capture (7PM) descuenta el
-      // crédito de billetera aplicado (orders.wallet_amount_used, dólares)
-      // ANTES de calcular Hold/saldo; este retry no lo hacía, cobrando por
-      // Stripe el total completo de nuevo aunque el cliente ya hubiera
-      // cubierto parte con su wallet (sobrecobro real). Mismo cálculo.
-      const quoteTotalBeforeWallet = Math.round(Number(order.quotes?.[0]?.total ?? 0));
-      const walletAppliedDollars = Math.max(0, order.wallet_amount_used || 0);
-      const quoteTotal = Math.max(0, quoteTotalBeforeWallet - walletAppliedDollars);
-      if (quoteTotalBeforeWallet <= 0) {
+      // crédito de billetera aplicado (orders.wallet_amount_used_cents,
+      // CENTAVOS -- RAÍZ-3, migración 229) ANTES de calcular Hold/saldo;
+      // este retry no lo hacía, cobrando por Stripe el total completo de
+      // nuevo aunque el cliente ya hubiera cubierto parte con su wallet
+      // (sobrecobro real). Mismo cálculo, y ahora enteramente en centavos
+      // (quotes.total sigue en dólares, fuera de alcance -- se escala x100).
+      const quoteTotalBeforeWalletCents = Math.round(Number(order.quotes?.[0]?.total ?? 0) * 100);
+      const walletAppliedCents = Math.max(0, order.wallet_amount_used_cents || 0);
+      const quoteTotalCents = Math.max(0, quoteTotalBeforeWalletCents - walletAppliedCents);
+      if (quoteTotalBeforeWalletCents <= 0) {
         results.errors.push({ orderId: order.id, error: "Missing quote total" });
         continue;
       }
@@ -247,7 +251,7 @@ export async function GET(request: NextRequest) {
             context: {
               reason: "batch_capture_retry_withheld_critical_dispute",
               warranty_claim_id: eligibility.blockingClaimId,
-              quote_total: quoteTotal,
+              quote_total_cents: quoteTotalCents,
               source: "batch_capture_retry",
             },
           });
@@ -260,17 +264,19 @@ export async function GET(request: NextRequest) {
       }
 
       try {
-        let amountCharged = 0;
+        // RAÍZ-3 (2026-07-21, migración 229): amountChargedCents ya está en
+        // centavos (antes "amountCharged" acumulaba dólares).
+        let amountChargedCents = 0;
         const payments: { hold?: string; balance?: string } = {};
 
         if (order.payment_option === "card") {
-          const holdAmount = Math.min(
-            Math.max(0, order.hold_authorized_amount || order.hold_amount || 0),
-            quoteTotal
+          const holdAmountCents = Math.min(
+            Math.max(0, order.hold_authorized_amount_cents || order.hold_amount_cents || 0),
+            quoteTotalCents
           );
-          const balanceAmount = Math.max(0, quoteTotal - holdAmount);
+          const balanceAmountCents = Math.max(0, quoteTotalCents - holdAmountCents);
 
-          if (holdAmount > 0 && !order.hold_captured_at) {
+          if (holdAmountCents > 0 && !order.hold_captured_at) {
             if (!order.stripe_hold_payment_intent_id) {
               throw new Error("Missing hold PaymentIntent for card order");
             }
@@ -278,23 +284,23 @@ export async function GET(request: NextRequest) {
             if (holdPi.status === "requires_capture") {
               await stripe.paymentIntents.capture(
                 order.stripe_hold_payment_intent_id,
-                { amount_to_capture: holdAmount * 100 },
+                { amount_to_capture: holdAmountCents },
                 { idempotencyKey: `${order.id}:batch-capture-retry-hold` }
               );
             } else if (holdPi.status !== "succeeded") {
               throw new Error(`Hold PaymentIntent status: ${holdPi.status}`);
             }
             payments.hold = order.stripe_hold_payment_intent_id;
-            amountCharged += holdAmount;
+            amountChargedCents += holdAmountCents;
           }
 
-          if (balanceAmount > 0) {
+          if (balanceAmountCents > 0) {
             if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
               throw new Error("Missing customer or payment method for balance charge");
             }
             const balancePi = await stripe.paymentIntents.create(
               {
-                amount: balanceAmount * 100,
+                amount: balanceAmountCents,
                 currency: "cad",
                 customer: order.stripe_customer_id,
                 payment_method: order.stripe_payment_method_id,
@@ -316,22 +322,22 @@ export async function GET(request: NextRequest) {
               throw new Error(`Balance PaymentIntent status: ${balancePi.status}`);
             }
             payments.balance = balancePi.id;
-            amountCharged += balanceAmount;
+            amountChargedCents += balanceAmountCents;
           }
         } else if (order.payment_option === "paypal_first_time") {
-          const paypalAdvance = Math.min(
-            Math.max(0, order.paypal_advance_amount || Math.round(order.hold_amount * 0.5)),
-            quoteTotal
+          const paypalAdvanceCents = Math.min(
+            Math.max(0, Math.round((order.paypal_advance_amount || 0) * 100) || Math.round(order.hold_amount_cents * 0.5)),
+            quoteTotalCents
           );
-          const balanceAmount = Math.max(0, quoteTotal - paypalAdvance);
+          const balanceAmountCents = Math.max(0, quoteTotalCents - paypalAdvanceCents);
 
-          if (balanceAmount > 0) {
+          if (balanceAmountCents > 0) {
             if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
               throw new Error("Missing card registration for PayPal order balance charge");
             }
             const balancePi = await stripe.paymentIntents.create(
               {
-                amount: balanceAmount * 100,
+                amount: balanceAmountCents,
                 currency: "cad",
                 customer: order.stripe_customer_id,
                 payment_method: order.stripe_payment_method_id,
@@ -345,7 +351,7 @@ export async function GET(request: NextRequest) {
                   quote_id: order.quote_id,
                   user_id: order.user_id,
                   charge_type: "paypal_balance_retry_10pm",
-                  paypal_advance: paypalAdvance,
+                  paypal_advance_cents: paypalAdvanceCents,
                 },
               },
               { idempotencyKey: `${order.id}:batch-capture-retry-paypal-balance` }
@@ -354,24 +360,24 @@ export async function GET(request: NextRequest) {
               throw new Error(`PayPal balance PaymentIntent status: ${balancePi.status}`);
             }
             payments.balance = balancePi.id;
-            amountCharged += balanceAmount;
+            amountChargedCents += balanceAmountCents;
           }
         }
 
         // Stripe fee aproximada para QBO (2.9% + 0.30 CAD) — mismo cálculo
         // que batch-capture.
-        const stripeFeeCents = Math.round(amountCharged * 100 * 0.029 + 30);
+        const stripeFeeCents = Math.round(amountChargedCents * 0.029 + 30);
 
         // Fix B-P0-5 (auditoría 2026-07-21): batch-capture escribe el cobro
         // real en shadow_ledger_entries antes/en paralelo a QBO; este retry
         // no lo hacía, dejando cobros reales sin registro contable interno.
-        if (amountCharged > 0) {
+        if (amountChargedCents > 0) {
           await supabase.from("shadow_ledger_entries").insert(
             buildShadowLedgerEntry({
               eventType: "balance_captured",
               orderId: order.id,
               userId: order.user_id,
-              amountCents: amountCharged * 100,
+              amountCents: amountChargedCents,
               processor: "stripe",
               externalReference: payments.balance || payments.hold || null,
               occurredAt: new Date(),
@@ -386,12 +392,14 @@ export async function GET(request: NextRequest) {
             hold_captured_at: payments.hold ? new Date().toISOString() : order.hold_captured_at,
             stripe_capture_payment_intent_id: payments.balance || null,
             capture_captured_at: payments.balance ? new Date().toISOString() : null,
-            capture_authorized_amount: amountCharged,
-            total_paid:
-              amountCharged +
-              walletAppliedDollars +
-              (order.payment_option === "paypal_first_time" ? order.paypal_advance_amount : 0),
-            card_amount_charged: amountCharged,
+            // capture_authorized_amount es columna fuera de alcance de RAÍZ-3
+            // (sigue en dólares) -- se preserva su unidad original.
+            capture_authorized_amount: Math.round(amountChargedCents / 100),
+            total_paid_cents:
+              amountChargedCents +
+              walletAppliedCents +
+              (order.payment_option === "paypal_first_time" ? Math.round((order.paypal_advance_amount || 0) * 100) : 0),
+            card_amount_charged_cents: amountChargedCents,
             capture_attempts: 0,
             capture_last_error: null,
             updated_at: new Date().toISOString(),
@@ -402,7 +410,7 @@ export async function GET(request: NextRequest) {
         // upsert idempotente por (order_id, transaction_type); este retry no
         // lo hacía, dejando el cobro invisible para contabilidad si fallaba
         // a las 7PM y se cobraba recién en el reintento de las 10PM.
-        if (qboEnabled && amountCharged > 0) {
+        if (qboEnabled && amountChargedCents > 0) {
           await supabase.from("qbo_export_lines").upsert(
             {
               export_id: null,
@@ -410,16 +418,16 @@ export async function GET(request: NextRequest) {
               payment_intent_id: payments.balance || payments.hold || null,
               transaction_type: "capture",
               transaction_date: new Date().toISOString(),
-              gross_amount: amountCharged * 100,
+              gross_amount: amountChargedCents,
               fee_amount: stripeFeeCents,
-              net_amount: amountCharged * 100 - stripeFeeCents,
+              net_amount: amountChargedCents - stripeFeeCents,
               description: `Capture retry order ${order.id}`,
             },
             { onConflict: "order_id,transaction_type" }
           );
         }
 
-        if (chargebackEnabled && amountCharged > 0) {
+        if (chargebackEnabled && amountChargedCents > 0) {
           const { data: settings } = await supabase
             .from("chargeback_settings")
             .select("reserve_percentage, reserve_cap_amount")
@@ -429,7 +437,7 @@ export async function GET(request: NextRequest) {
 
           const reservePercentage = settings?.reserve_percentage ? Number(settings.reserve_percentage) : 2.0;
           const reserveCap = settings?.reserve_cap_amount ? Number(settings.reserve_cap_amount) : null;
-          let reserveAmount = Math.round(amountCharged * 100 * (reservePercentage / 100));
+          let reserveAmount = Math.round(amountChargedCents * (reservePercentage / 100));
           if (reserveCap !== null && reserveCap > 0) {
             reserveAmount = Math.min(reserveAmount, reserveCap);
           }
@@ -437,7 +445,7 @@ export async function GET(request: NextRequest) {
           await supabase.from("chargeback_reserves").insert({
             order_id: order.id,
             payment_intent_id: payments.balance || payments.hold || null,
-            captured_amount: amountCharged * 100,
+            captured_amount: amountChargedCents,
             reserve_percentage: reservePercentage,
             reserve_amount: reserveAmount,
             released_amount: 0,
@@ -446,8 +454,8 @@ export async function GET(request: NextRequest) {
           });
         }
 
-        if (cashReserveEnabled && amountCharged > 0) {
-          const split = calculateReserveSplit({ grossAmountCents: amountCharged * 100 });
+        if (cashReserveEnabled && amountChargedCents > 0) {
+          const split = calculateReserveSplit({ grossAmountCents: amountChargedCents });
           await supabase.from("cash_tax_reserve_ledger").insert({
             order_id: order.id,
             gross_amount_cents: split.grossAmountCents,

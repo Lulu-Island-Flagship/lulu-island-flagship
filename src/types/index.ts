@@ -94,7 +94,9 @@ export interface Order {
   stripePaymentMethodId?: string;
   stripeSetupIntentId?: string;
   paymentOption: "card" | "paypal_first_time";
+  /** RAÍZ-3 (2026-07-21): orders.hold_amount_cents — centavos enteros, no dólares. */
   holdAmount: number;
+  /** RAÍZ-3 (2026-07-21): orders.hold_authorized_amount_cents — centavos enteros, no dólares. */
   holdAuthorizedAmount: number;
   holdCapturedAt?: string;
   holdReleasedAt?: string;
@@ -105,8 +107,11 @@ export interface Order {
   warrantyStatus: WarrantyStatus;
   warrantyResolvedAt?: string;
   warrantyResolutionNotes?: string;
+  /** RAÍZ-3 (2026-07-21): orders.wallet_amount_used_cents — centavos enteros, no dólares. */
   walletAmountUsed: number;
+  /** RAÍZ-3 (2026-07-21): orders.card_amount_charged_cents — centavos enteros, no dólares. */
   cardAmountCharged: number;
+  /** RAÍZ-3 (2026-07-21): orders.total_paid_cents — centavos enteros, no dólares. */
   totalPaid: number;
   addressLat?: number;
   addressLng?: number;

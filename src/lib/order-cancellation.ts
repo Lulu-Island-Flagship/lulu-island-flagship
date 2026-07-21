@@ -6,6 +6,16 @@
  * sin tocar Stripe/PayPal ni la base de datos. El route.ts ejecuta lo que
  * esta función decide.
  *
+ * RAÍZ-3 (2026-07-21, migración 229): esta función es agnóstica a la unidad
+ * monetaria (solo hace min/max/round sobre los inputs) -- el caller pasa
+ * TODOS los montos en la misma unidad. Desde la migración 229, el caller
+ * (cancel/route.ts) pasa CENTAVOS (orders.hold_amount_cents/
+ * hold_authorized_amount_cents ya nacen en centavos; quotes.total y
+ * paypal_advance_amount, que siguen en dólares fuera de alcance, se escalan
+ * x100 antes de invocar esta función). Los docs de abajo dicen "dólares"
+ * porque así se documentó originalmente -- léase como "la unidad que use el
+ * caller", hoy centavos.
+ *
  * Reglas (D.3, ya vigentes en producción antes de esta sesión — esta
  * función no cambia el comportamiento, lo hace testeable):
  *   >72h antes del servicio:  Hold liberado, SIN cargo.
@@ -24,14 +34,14 @@ export type PaymentOption = "card" | "paypal_first_time";
 export interface CancellationDecisionInput {
   /** Horas hasta el servicio (puede ser negativo si ya pasó / no-show). */
   hoursUntilService: number;
-  /** Total de la cotización sellada, en dólares. */
+  /** Total de la cotización sellada. Unidad = la que use el caller (centavos desde la migración 229; ver nota RAÍZ-3 arriba). */
   quoteTotal: number;
-  /** order.hold_authorized_amount, en dólares (puede ser 0/null). */
+  /** order.hold_authorized_amount_cents (RAÍZ-3, migración 229). Puede ser 0/null. */
   holdAuthorizedAmount: number;
-  /** order.hold_amount, en dólares (fallback si no hay authorized). */
+  /** order.hold_amount_cents (RAÍZ-3, migración 229). Fallback si no hay authorized. */
   holdAmount: number;
   paymentOption: PaymentOption;
-  /** order.paypal_advance_amount, en dólares (0 si no aplica). */
+  /** order.paypal_advance_amount, escalado a la unidad del resto de inputs por el caller (0 si no aplica). */
   paypalAdvanceAmount: number;
 }
 

@@ -71,10 +71,10 @@ export const ORDER_CLIENT_COLUMNS = [
   "service_datetime",
   "status",
   "payment_option",
-  "hold_amount",
+  "hold_amount_cents",
   "cancellation_window_hours",
-  "wallet_amount_used",
-  "total_paid",
+  "wallet_amount_used_cents",
+  "total_paid_cents",
   "warranty_status",
   "created_at",
 ].join(", ") as "*"; // cast: ver nota arriba

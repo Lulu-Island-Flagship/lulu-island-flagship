@@ -26,6 +26,20 @@ import { requireAdminRole } from "@/lib/admin";
  * UPDATE (.eq("status", expected)), no en un SELECT previo separado. Si
  * la fila ya cambió de estado entre el SELECT informativo y el UPDATE,
  * la actualización afecta 0 filas y se responde 409.
+ *
+ * C-H6 (auditoría 2026-07-21): segregación de funciones. POST
+ * /admin/purchase-orders (crear) y esta ruta (aprobar/marcar
+ * ordenada/recibir) usaban el mismo recurso RBAC "inventory", y
+ * purchase_orders no tenía columna created_by -- nada impedía que la misma
+ * persona creara y aprobara su propia orden de compra, ni había forma de
+ * auditarlo después. Fix: purchase_orders.created_by (migración 232) +
+ * bloqueo de autoaprobación abajo, solo en la acción "approve" (mark_ordered
+ * y receive no tienen el mismo riesgo: ya requieren que la PO exista y esté
+ * aprobada por alguien). Se decidió bloquear la autoaprobación SIEMPRE, sin
+ * excepción para owner_admin -- determinar de forma segura si "no hay otro
+ * admin disponible" requeriría consultar en vivo cuántos admins con acceso
+ * a "inventory" existen y no están inactivos, lo cual introduce su propia
+ * superficie de error; se prefiere el control simple y siempre activo.
  */
 
 type Action = "approve" | "mark_ordered" | "receive";
@@ -75,7 +89,7 @@ export async function POST(
     // lógicamente, algo que antes no se filtraba en absoluto.
     const { data: po, error: fetchError } = await supabase
       .from("purchase_orders")
-      .select("id, status")
+      .select("id, status, created_by")
       .eq("id", id)
       .is("deleted_at", null)
       .maybeSingle();
@@ -92,6 +106,19 @@ export async function POST(
           error: `No se puede aplicar '${action}': estado actual es '${po.status}', se requiere '${transition.from}'.`,
         },
         { status: 400 }
+      );
+    }
+
+    // C-H6: segregación de funciones -- quien crea la PO no puede aprobarla.
+    // Solo aplica a "approve" (el paso donde se compromete el gasto); no a
+    // mark_ordered/receive.
+    if (action === "approve" && po.created_by && po.created_by === auth.user?.id) {
+      return NextResponse.json(
+        {
+          error:
+            "No puedes aprobar una orden de compra que tú mismo creaste — requiere un segundo aprobador.",
+        },
+        { status: 409 }
       );
     }
 

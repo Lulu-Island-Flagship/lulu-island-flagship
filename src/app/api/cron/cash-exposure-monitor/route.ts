@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
     // el batch de las 7PM ni por el retry de las 10PM).
     const { data: pendingOrders, error } = await supabase
       .from("orders")
-      .select("hold_authorized_amount, hold_amount")
+      .select("hold_authorized_amount_cents, hold_amount_cents")
       .eq("service_date", todayStr)
       .not("status", "in", "(cancelled,no_show)")
       .is("hold_captured_at", null);
@@ -80,9 +80,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // RAÍZ-3 (2026-07-21, migración 229): hold_authorized_amount_cents/
+    // hold_amount_cents ya están en centavos -- sin *100.
     const pendingExposureCents = (pendingOrders || []).reduce((sum, o) => {
-      const amount = Number(o.hold_authorized_amount || o.hold_amount || 0);
-      return sum + Math.round(amount * 100);
+      const amount = Number(o.hold_authorized_amount_cents || o.hold_amount_cents || 0);
+      return sum + Math.round(amount);
     }, 0);
 
     const evaluation = evaluateDailyCashExposure({ pendingExposureCents, dailyCapCents });

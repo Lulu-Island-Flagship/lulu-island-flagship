@@ -28,7 +28,8 @@ interface ClientOrder {
   service_date: string;
   service_time: string;
   status: string;
-  total_paid: number;
+  // RAÍZ-3 (2026-07-21, migración 229): orders.total_paid_cents -- centavos, no dólares.
+  total_paid_cents: number;
   warranty_status: string;
   quotes: { service_category?: string; service_subtype?: string; address?: string; zone?: string } | null;
   claimableZones: ClaimableZone[];

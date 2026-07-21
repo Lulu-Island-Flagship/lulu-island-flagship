@@ -17,7 +17,8 @@ interface UnpaidOrder {
   id: string;
   service_date: string;
   status: string;
-  wallet_amount_used: number;
+  // RAÍZ-3 (2026-07-21, migración 229): orders.wallet_amount_used_cents -- centavos, no dólares.
+  wallet_amount_used_cents: number;
   canApplyWalletCredit: boolean;
 }
 

@@ -62,10 +62,10 @@ export async function GET() {
   // ORDER_CLIENT_COLUMNS a propósito) -- solo si la orden todavía admite
   // aplicar crédito de billetera (ver /api/client/wallet/apply).
   const canApplyWalletCreditByOrder = new Map<string, boolean>();
-  for (const o of (orders || []) as { id: string; hold_captured_at: string | null; capture_captured_at: string | null; wallet_amount_used: number }[]) {
+  for (const o of (orders || []) as { id: string; hold_captured_at: string | null; capture_captured_at: string | null; wallet_amount_used_cents: number }[]) {
     canApplyWalletCreditByOrder.set(
       o.id,
-      !o.hold_captured_at && !o.capture_captured_at && !o.wallet_amount_used
+      !o.hold_captured_at && !o.capture_captured_at && !o.wallet_amount_used_cents
     );
   }
 

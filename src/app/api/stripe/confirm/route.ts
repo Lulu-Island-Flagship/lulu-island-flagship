@@ -507,8 +507,12 @@ export async function POST(request: NextRequest) {
         paypal_transaction_id: selectedPaymentOption === "paypal_first_time" ? paypalTransactionId || null : null,
         paypal_payer_email: selectedPaymentOption === "paypal_first_time" ? paypalPayerEmail || null : null,
         paypal_advance_amount: selectedPaymentOption === "paypal_first_time" ? paypalAdvanceAmount : 0,
-        hold_amount: holdAmount,
-        hold_authorized_amount: 0,
+        // RAÍZ-3 (2026-07-21, migración 229): orders.hold_amount_cents está en
+        // centavos; holdAmount (derivado de quotes.hold_amount, dólares) se
+        // escala x100 al escribirlo aquí. hold_authorized_amount_cents nace en
+        // 0 igual que antes (se autoriza recién en el cron T-72h).
+        hold_amount_cents: Math.round(holdAmount * 100),
+        hold_authorized_amount_cents: 0,
         cancellation_window_hours: 72,
         billing_postal_code: billingPostalCode,
         billing_avs_mismatch: billingAvsMismatch,

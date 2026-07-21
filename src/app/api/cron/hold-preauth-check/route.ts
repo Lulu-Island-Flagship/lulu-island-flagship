@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     const { data: orders, error } = await supabase
       .from("orders")
       .select(
-        "id, quote_id, user_id, service_datetime, stripe_customer_id, stripe_payment_method_id, stripe_hold_payment_intent_id, hold_authorized_amount, hold_amount, hold_reauth_attempts"
+        "id, quote_id, user_id, service_datetime, stripe_customer_id, stripe_payment_method_id, stripe_hold_payment_intent_id, hold_authorized_amount_cents, hold_amount_cents, hold_reauth_attempts"
       )
       .eq("payment_option", "card")
       .not("stripe_hold_payment_intent_id", "is", null)
@@ -144,12 +144,13 @@ export async function GET(request: NextRequest) {
       // con el mismo monto/tarjeta antes del Batch Capture de esta noche.
       const paymentMethodId = order.stripe_payment_method_id;
       const customerId = order.stripe_customer_id;
-      const holdAmount = Math.max(
+      // RAÍZ-3 (2026-07-21, migración 229): ya en centavos, sin *100 al ir a Stripe.
+      const holdAmountCents = Math.max(
         0,
-        Math.round(Number(order.hold_authorized_amount ?? order.hold_amount ?? 0))
+        Math.round(Number(order.hold_authorized_amount_cents ?? order.hold_amount_cents ?? 0))
       );
 
-      if (!paymentMethodId || !customerId || holdAmount <= 0) {
+      if (!paymentMethodId || !customerId || holdAmountCents <= 0) {
         results.reauthFailed++;
         const message = "Missing payment method, customer, or hold amount for re-auth";
         results.errors.push({ orderId: order.id, error: message });
@@ -167,7 +168,7 @@ export async function GET(request: NextRequest) {
       try {
         const newPi = await stripe.paymentIntents.create(
           {
-            amount: holdAmount * 100,
+            amount: holdAmountCents,
             currency: "cad",
             customer: customerId,
             payment_method: paymentMethodId,
@@ -182,7 +183,7 @@ export async function GET(request: NextRequest) {
               quote_id: order.quote_id,
               user_id: order.user_id,
               hold_type: "t2h_reauth",
-              hold_amount: holdAmount,
+              hold_amount_cents: holdAmountCents,
             },
           },
           // Cada intento de reauth es legítimamente distinto (el hold previo
@@ -199,7 +200,7 @@ export async function GET(request: NextRequest) {
           .from("orders")
           .update({
             stripe_hold_payment_intent_id: newPi.id,
-            hold_authorized_amount: holdAmount,
+            hold_authorized_amount_cents: holdAmountCents,
             hold_authorized_at: nowIso,
             hold_preauth_checked_at: nowIso,
             hold_reauth_attempts: 0,

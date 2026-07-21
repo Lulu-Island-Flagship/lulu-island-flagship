@@ -80,7 +80,7 @@ export async function POST(
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .select(
-        "id, user_id, status, service_datetime, payment_option, stripe_hold_payment_intent_id, hold_authorized_amount, hold_amount, paypal_advance_amount, paypal_transaction_id, stripe_customer_id, stripe_payment_method_id, wallet_amount_used, quotes(total, zone)"
+        "id, user_id, status, service_datetime, payment_option, stripe_hold_payment_intent_id, hold_authorized_amount_cents, hold_amount_cents, paypal_advance_amount, paypal_transaction_id, stripe_customer_id, stripe_payment_method_id, wallet_amount_used_cents, quotes(total, zone)"
       )
       .eq("id", orderId)
       .single();
@@ -102,20 +102,28 @@ export async function POST(
     }
 
     const quoteRow = (order.quotes as unknown as { total: number; zone: string | null }[] | null)?.[0];
-    const quoteTotal = Math.round(Number(quoteRow?.total ?? 0));
+    // RAÍZ-3 (2026-07-21, migración 229): quotes.total sigue en dólares
+    // (fuera de alcance) -- se escala x100 para operar en centavos junto a
+    // hold_amount_cents/hold_authorized_amount_cents. computeCancellationDecision
+    // es agnóstica a la unidad (solo hace min/max/round), así que basta con
+    // pasarle todo en la misma unidad -- centavos, de aquí en adelante.
+    const quoteTotalCents = Math.round(Number(quoteRow?.total ?? 0) * 100);
     const orderZone = quoteRow?.zone ?? null;
     const hoursLeft = hoursUntilService(order.service_datetime);
 
     const decision = computeCancellationDecision({
       hoursUntilService: hoursLeft,
-      quoteTotal,
-      holdAuthorizedAmount: order.hold_authorized_amount || 0,
-      holdAmount: order.hold_amount || 0,
+      quoteTotal: quoteTotalCents,
+      holdAuthorizedAmount: order.hold_authorized_amount_cents || 0,
+      holdAmount: order.hold_amount_cents || 0,
       paymentOption: order.payment_option,
-      paypalAdvanceAmount: order.paypal_advance_amount || 0,
+      paypalAdvanceAmount: Math.round((order.paypal_advance_amount || 0) * 100),
     });
 
-    let penaltyCharged = decision.paypalAmountRetained;
+    // RAÍZ-3 (2026-07-21, migración 229): penaltyCharged ahora se acumula en
+    // CENTAVOS (todos los inputs de computeCancellationDecision ya se pasan
+    // en centavos arriba).
+    let penaltyChargedCents = decision.paypalAmountRetained;
     let holdCancelled = false;
     const paypalRefundRequired = decision.paypalRefundRequired;
     const payments: { hold?: string; penalty?: string } = {};
@@ -142,15 +150,15 @@ export async function POST(
         if (pi.status === "requires_capture") {
           await stripe.paymentIntents.capture(
             order.stripe_hold_payment_intent_id,
-            { amount_to_capture: decision.captureFromExistingHold * 100 },
+            { amount_to_capture: decision.captureFromExistingHold },
             { idempotencyKey: `${orderId}:cancel-hold-capture` }
           );
           payments.hold = order.stripe_hold_payment_intent_id;
-          penaltyCharged += decision.captureFromExistingHold;
+          penaltyChargedCents += decision.captureFromExistingHold;
         } else if (pi.status === "succeeded") {
           // Ya estaba capturado por otro flujo (p.ej. batch capture corrió antes);
           // el cargo real es el hold completo, no solo la penalidad prevista.
-          penaltyCharged += order.hold_authorized_amount || order.hold_amount || 0;
+          penaltyChargedCents += order.hold_authorized_amount_cents || order.hold_amount_cents || 0;
         }
       } catch (err) {
         console.error(`Failed to capture hold penalty for order ${orderId}:`, err);
@@ -170,7 +178,7 @@ export async function POST(
         }
         const penaltyPi = await stripe.paymentIntents.create(
           {
-            amount: decision.stripeAdditionalChargeAmount * 100,
+            amount: decision.stripeAdditionalChargeAmount,
             currency: "cad",
             customer: order.stripe_customer_id,
             payment_method: order.stripe_payment_method_id,
@@ -187,7 +195,7 @@ export async function POST(
           throw new Error(`Penalty PaymentIntent status: ${penaltyPi.status}`);
         }
         payments.penalty = penaltyPi.id;
-        penaltyCharged += decision.stripeAdditionalChargeAmount;
+        penaltyChargedCents += decision.stripeAdditionalChargeAmount;
       } catch (err) {
         console.error(`Failed to charge PayPal late cancellation penalty for order ${orderId}:`, err);
         return NextResponse.json(
@@ -197,17 +205,20 @@ export async function POST(
       }
     }
 
+    // RAÍZ-3 (2026-07-21, migración 229): total_paid_cents/
+    // card_amount_charged_cents ya están en centavos -- paypal_advance_amount
+    // sigue en dólares (fuera de alcance), se escala x100 al restarlo.
     await supabase
       .from("orders")
       .update({
         status: "cancelled",
         hold_released_at: holdCancelled ? new Date().toISOString() : null,
         hold_captured_at: payments.hold ? new Date().toISOString() : null,
-        total_paid: penaltyCharged,
-        card_amount_charged:
+        total_paid_cents: penaltyChargedCents,
+        card_amount_charged_cents:
           order.payment_option === "paypal_first_time"
-            ? Math.max(0, penaltyCharged - (order.paypal_advance_amount || 0))
-            : penaltyCharged,
+            ? Math.max(0, penaltyChargedCents - Math.round((order.paypal_advance_amount || 0) * 100))
+            : penaltyChargedCents,
         paypal_refund_required: paypalRefundRequired,
         paypal_refund_status: paypalRefundRequired ? "pending" : "not_required",
         capture_last_error: null,
@@ -229,15 +240,16 @@ export async function POST(
       .not("status", "in", "(completed,cancelled)");
 
     // v8.3 fix (auditoría 2026-07-15): si el cliente había aplicado crédito
-    // de Lulu Wallet a esta orden (orders.wallet_amount_used, en DÓLARES —
-    // ver /api/client/wallet/apply), ese crédito se perdía para siempre al
-    // cancelar: nunca se revertía el débito ni se restauraba el saldo de
-    // client_wallets. Se revierte SIEMPRE, independiente de la penalidad de
-    // cancelación (son conceptos distintos: la penalidad es lo que se cobra
-    // por cancelar tarde; el wallet es dinero propio del cliente que ya no
-    // necesita cubrir un servicio que no va a ocurrir).
-    const walletAmountUsedDollars = Math.max(0, order.wallet_amount_used || 0);
-    if (walletAmountUsedDollars > 0) {
+    // de Lulu Wallet a esta orden (orders.wallet_amount_used_cents -- RAÍZ-3,
+    // migración 229: CENTAVOS -- ver /api/client/wallet/apply), ese crédito
+    // se perdía para siempre al cancelar: nunca se revertía el débito ni se
+    // restauraba el saldo de client_wallets. Se revierte SIEMPRE,
+    // independiente de la penalidad de cancelación (son conceptos distintos:
+    // la penalidad es lo que se cobra por cancelar tarde; el wallet es
+    // dinero propio del cliente que ya no necesita cubrir un servicio que no
+    // va a ocurrir).
+    const walletAmountUsedCents = Math.max(0, order.wallet_amount_used_cents || 0);
+    if (walletAmountUsedCents > 0) {
       try {
         const { data: wallet } = await supabase
           .from("client_wallets")
@@ -246,7 +258,7 @@ export async function POST(
           .maybeSingle();
 
         if (wallet) {
-          const refundCents = Math.round(walletAmountUsedDollars * 100);
+          const refundCents = walletAmountUsedCents;
           // v8.3 fix (auditoría 2026-07-15): mutación atómica vía RPC
           // (migración 180) en vez de read-then-write sin bloqueo.
           const { error: rpcError } = await supabase.rpc("apply_wallet_delta", {
@@ -310,7 +322,7 @@ export async function POST(
         status: "cancelled",
         hoursUntilService: Math.max(0, Math.round(hoursLeft * 10) / 10),
         window: decision.window,
-        penaltyCharged,
+        penaltyChargedCents,
         holdCancelled,
         paypalRefundRequired,
       },

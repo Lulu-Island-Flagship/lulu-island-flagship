@@ -95,8 +95,13 @@ export function mapOrderFromSupabase(data: Record<string, unknown>): Order {
     paypalTransactionId: data.paypal_transaction_id as string | undefined,
     paypalPayerEmail: data.paypal_payer_email as string | undefined,
     paypalAdvanceAmount: (data.paypal_advance_amount as number) ?? 0,
-    holdAmount: data.hold_amount as number,
-    holdAuthorizedAmount: (data.hold_authorized_amount as number) ?? 0,
+    // RAÍZ-3 (2026-07-21, migración 229): las 5 columnas monetarias de
+    // `orders` se renombraron a *_cents y ahora están en centavos enteros
+    // (antes dólares enteros). Los campos camelCase de Order conservan su
+    // nombre por compatibilidad de tipo, pero SU VALOR AHORA ES CENTAVOS —
+    // ver comentarios en src/types/index.ts.
+    holdAmount: data.hold_amount_cents as number,
+    holdAuthorizedAmount: (data.hold_authorized_amount_cents as number) ?? 0,
     holdCapturedAt: data.hold_captured_at as string | undefined,
     holdReleasedAt: data.hold_released_at as string | undefined,
     stripeHoldPaymentIntentId: data.stripe_hold_payment_intent_id as string | undefined,
@@ -104,9 +109,9 @@ export function mapOrderFromSupabase(data: Record<string, unknown>): Order {
       (data.warranty_status as WarrantyClaim["status"] | undefined) ?? "none",
     warrantyResolvedAt: data.warranty_resolved_at as string | undefined,
     warrantyResolutionNotes: data.warranty_resolution_notes as string | undefined,
-    walletAmountUsed: (data.wallet_amount_used as number) ?? 0,
-    cardAmountCharged: (data.card_amount_charged as number) ?? 0,
-    totalPaid: (data.total_paid as number) ?? 0,
+    walletAmountUsed: (data.wallet_amount_used_cents as number) ?? 0,
+    cardAmountCharged: (data.card_amount_charged_cents as number) ?? 0,
+    totalPaid: (data.total_paid_cents as number) ?? 0,
     addressLat: data.address_lat as number | undefined,
     addressLng: data.address_lng as number | undefined,
     cancellationWindowHours: data.cancellation_window_hours as number,

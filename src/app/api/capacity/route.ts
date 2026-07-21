@@ -203,11 +203,13 @@ export async function GET(request: NextRequest) {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const { data: recentOrders } = await supabase
         .from("orders")
-        .select("total_paid")
+        .select("total_paid_cents")
         .eq("user_id", user.id)
         .gte("service_datetime", thirtyDaysAgo);
+      // RAÍZ-3 (2026-07-21, migración 229): total_paid_cents ya está en
+      // centavos -- sin *100.
       const monthlySpendCents = Math.round(
-        (recentOrders || []).reduce((sum, o) => sum + Number(o.total_paid || 0), 0) * 100
+        (recentOrders || []).reduce((sum, o) => sum + Number(o.total_paid_cents || 0), 0)
       );
 
       clientSegment = computeClientSegment({

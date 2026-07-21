@@ -161,25 +161,28 @@ export async function GET(request: NextRequest) {
         })
       );
 
-      // Suma al total_paid existente (la captura parcial ya dejó un valor
-      // previo ahí) en vez de sobreescribirlo -- por eso se lee antes.
+      // Suma al total_paid_cents existente (la captura parcial ya dejó un
+      // valor previo ahí) en vez de sobreescribirlo -- por eso se lee antes.
+      // RAÍZ-3 (2026-07-21, migración 229): total_paid_cents/
+      // card_amount_charged_cents ya están en centavos -- se suma
+      // remainingCents directo, sin la conversión a dólares que existía
+      // antes (remainingDollars = remainingCents / 100).
       const { data: currentOrder } = await supabase
         .from("orders")
-        .select("total_paid, card_amount_charged")
+        .select("total_paid_cents, card_amount_charged_cents")
         .eq("id", order.id)
         .single();
 
-      const previousTotalPaid = Number(currentOrder?.total_paid || 0);
-      const previousCardCharged = Number(currentOrder?.card_amount_charged || 0);
-      const remainingDollars = remainingCents / 100;
+      const previousTotalPaidCents = Number(currentOrder?.total_paid_cents || 0);
+      const previousCardChargedCents = Number(currentOrder?.card_amount_charged_cents || 0);
 
       await supabase
         .from("orders")
         .update({
           capture_remaining_captured_at: new Date().toISOString(),
           capture_remaining_payment_intent_id: pi.id,
-          total_paid: previousTotalPaid + remainingDollars,
-          card_amount_charged: previousCardCharged + remainingDollars,
+          total_paid_cents: previousTotalPaidCents + remainingCents,
+          card_amount_charged_cents: previousCardChargedCents + remainingCents,
           updated_at: new Date().toISOString(),
         })
         .eq("id", order.id);

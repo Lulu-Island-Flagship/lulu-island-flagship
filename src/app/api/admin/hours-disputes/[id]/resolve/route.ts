@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { publishUnifiedAlert } from "@/lib/unified-alerts";
 
 /**
  * POST /api/admin/hours-disputes/[id]/resolve
@@ -18,6 +19,21 @@ import { requireAdminRole } from "@/lib/admin";
  *     al valor corregido. Si el log no existe (ej. nunca se registró
  *     t_out por falla técnica), lo crea.
  *   - reject: deja el registro tal cual estaba, con la nota del admin.
+ *
+ * D-P1-4 (auditoría 2026-07-21): ganar una disputa de horas corrige
+ * service_logs pero el modelo de pago real es por Day Rate
+ * (employees.day_rate), no por horas registradas -- no existe en el repo
+ * ningún cálculo de "más horas registradas = más pago" que aplicar aquí de
+ * forma automática (verificado: src/lib/payroll.ts no tiene ninguna
+ * referencia a "dispute", y no existe una tabla de "ajustes pendientes de
+ * nómina" tipo hhe-adjustments para disputas). Inventar un cálculo
+ * automático sobre nómina real sin especificación de negocio de cómo se
+ * traduce una corrección de horas a un ajuste de Day Rate sería más
+ * arriesgado que no tocarlo. Mitigación mínima: cuando la disputa se
+ * resuelve a favor del empleado (approve_correction), se publica una
+ * alerta en unified_alerts dirigida a nómina para que un humano revise si
+ * corresponde un ajuste manual -- en vez de dejarlo completamente
+ * silencioso, que es el comportamiento actual sin este cambio.
  */
 export async function POST(
   request: NextRequest,
@@ -125,6 +141,30 @@ export async function POST(
 
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    // D-P1-4: la disputa se resolvió a favor del empleado. No hay cálculo
+    // automático de ajuste de nómina (ver nota arriba) -- se deja una
+    // alerta visible en la bandeja unificada para que nómina lo procese a
+    // mano. `publishUnifiedAlert` nunca lanza: si falla, no bloquea la
+    // resolución de la disputa (que ya se guardó arriba), solo se pierde la
+    // notificación.
+    if (action === "approve_correction") {
+      const alertResult = await publishUnifiedAlert(supabase, {
+        sourceModule: "hours_dispute_resolution",
+        sourceTable: "tickets_disputas",
+        sourceId: ticketId,
+        tier: "can_wait",
+        severity: "p1_urgent",
+        title: "Disputa de horas resuelta a favor del empleado — revisar ajuste de nómina",
+        summary:
+          `El ticket ${ticketId} (empleado ${ticket.employee_id}, orden ${ticket.order_id}) se resolvió corrigiendo service_logs. ` +
+          `El pago es por Day Rate, no por horas registradas: no hay ajuste automático de nómina. ` +
+          `Nómina debe revisar manualmente si corresponde compensación adicional.`,
+      });
+      if (!alertResult.success) {
+        console.error("publishUnifiedAlert failed for hours dispute resolution:", alertResult.error);
+      }
     }
 
     return NextResponse.json({ ticket: updatedTicket, action, resolvedBy: userId }, { status: 200 });

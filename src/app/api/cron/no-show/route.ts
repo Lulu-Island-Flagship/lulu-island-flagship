@@ -61,31 +61,35 @@ async function captureNoShowPenalty(
     quote_id: string;
     payment_option: string;
     stripe_hold_payment_intent_id: string | null;
-    hold_authorized_amount: number;
-    hold_amount: number;
+    // RAÍZ-3 (2026-07-21, migración 229): en CENTAVOS enteros (antes dólares
+    // enteros). paypal_advance_amount NO se tocó -- sigue en dólares.
+    hold_authorized_amount_cents: number;
+    hold_amount_cents: number;
     paypal_advance_amount: number;
     stripe_customer_id: string | null;
     stripe_payment_method_id: string | null;
   },
-  quoteTotal: number
-): Promise<{ amountCharged: number; payments: { hold?: string; penalty?: string } }> {
-  const result = { amountCharged: 0, payments: {} as { hold?: string; penalty?: string } };
+  quoteTotalCents: number
+): Promise<{ amountChargedCents: number; payments: { hold?: string; penalty?: string } }> {
+  const result = { amountChargedCents: 0, payments: {} as { hold?: string; penalty?: string } };
 
   if (order.payment_option === "paypal_first_time") {
-    // PayPal: el anticipo ya cubre el 50% del hold. Se cobra la diferencia hasta el hold completo.
-    const paypalAdvance = Math.min(
-      Math.max(0, order.paypal_advance_amount || Math.round(order.hold_amount * 0.5)),
-      quoteTotal
+    // PayPal: el anticipo ya cubre el 50% del hold. Se cobra la diferencia
+    // hasta el hold completo. paypal_advance_amount sigue en dólares -- se
+    // escala x100 para operar en centavos junto al resto.
+    const paypalAdvanceCents = Math.min(
+      Math.max(0, Math.round((order.paypal_advance_amount || 0) * 100) || Math.round(order.hold_amount_cents * 0.5)),
+      quoteTotalCents
     );
-    const penaltyDue = Math.max(0, order.hold_amount - paypalAdvance);
+    const penaltyDueCents = Math.max(0, order.hold_amount_cents - paypalAdvanceCents);
 
-    if (penaltyDue > 0) {
+    if (penaltyDueCents > 0) {
       if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
         throw new Error("Missing card registration for PayPal no-show penalty");
       }
       const penaltyPi = await stripe.paymentIntents.create(
         {
-          amount: penaltyDue * 100,
+          amount: penaltyDueCents,
           currency: "cad",
           customer: order.stripe_customer_id,
           payment_method: order.stripe_payment_method_id,
@@ -107,7 +111,7 @@ async function captureNoShowPenalty(
         throw new Error(`PayPal no-show penalty PaymentIntent status: ${penaltyPi.status}`);
       }
       result.payments.penalty = penaltyPi.id;
-      result.amountCharged += penaltyDue;
+      result.amountChargedCents += penaltyDueCents;
     }
 
     // Liberar cualquier hold autorizado (no debería existir, pero por seguridad)
@@ -123,11 +127,11 @@ async function captureNoShowPenalty(
     }
   } else {
     // Tarjeta: capturar hold completo como penalidad.
-    const holdAmount = Math.min(
-      Math.max(0, order.hold_authorized_amount || order.hold_amount || 0),
-      quoteTotal
+    const holdAmountCents = Math.min(
+      Math.max(0, order.hold_authorized_amount_cents || order.hold_amount_cents || 0),
+      quoteTotalCents
     );
-    if (holdAmount > 0) {
+    if (holdAmountCents > 0) {
       if (!order.stripe_hold_payment_intent_id) {
         throw new Error("Missing hold PaymentIntent for card no-show");
       }
@@ -135,14 +139,14 @@ async function captureNoShowPenalty(
       if (holdPi.status === "requires_capture") {
         await stripe.paymentIntents.capture(
           order.stripe_hold_payment_intent_id,
-          { amount_to_capture: holdAmount * 100 },
+          { amount_to_capture: holdAmountCents },
           { idempotencyKey: `${order.id}:no-show-hold-capture` }
         );
       } else if (holdPi.status !== "succeeded") {
         throw new Error(`Hold PaymentIntent status: ${holdPi.status}`);
       }
       result.payments.hold = order.stripe_hold_payment_intent_id;
-      result.amountCharged += holdAmount;
+      result.amountChargedCents += holdAmountCents;
     }
   }
 
@@ -173,7 +177,7 @@ export async function GET(request: NextRequest) {
     const { data: todaysOrders, error: ordersError } = await supabase
       .from("orders")
       .select(
-        "id, quote_id, user_id, service_time, service_datetime, status, payment_option, stripe_hold_payment_intent_id, hold_authorized_amount, hold_amount, paypal_advance_amount, stripe_customer_id, stripe_payment_method_id, quotes(total)"
+        "id, quote_id, user_id, service_time, service_datetime, status, payment_option, stripe_hold_payment_intent_id, hold_authorized_amount_cents, hold_amount_cents, paypal_advance_amount, stripe_customer_id, stripe_payment_method_id, quotes(total)"
       )
       .eq("service_date", today)
       .eq("status", "confirmed");
@@ -210,7 +214,10 @@ export async function GET(request: NextRequest) {
         .eq("order_id", order.id)
         .maybeSingle();
 
-      const quoteTotal = Math.round(Number((order.quotes as unknown as { total: number }[] | null)?.[0]?.total ?? 0));
+      // RAÍZ-3 (2026-07-21, migración 229): quotes.total sigue en dólares
+      // (fuera de alcance) -- se escala x100 una vez para operar en
+      // centavos junto a hold_amount_cents/hold_authorized_amount_cents.
+      const quoteTotalCents = Math.round(Number((order.quotes as unknown as { total: number }[] | null)?.[0]?.total ?? 0) * 100);
 
       if (!existingNoShow) {
         // Obtener assignment original
@@ -229,6 +236,21 @@ export async function GET(request: NextRequest) {
         // nunca iba a llegar sería una penalidad injusta y una fuente
         // real de disputas/chargebacks. Se distingue revisando si el
         // empleado asignado registró jornada_start hoy.
+        // v8.3 fix (auditoría 2026-07-21, A-15): jornada_start sigue siendo
+        // OPCIONAL -- el fix de hoy a empleado/jornada/route.ts (D-P1-1)
+        // impuso una máquina de estados (no doble start, no end sin start),
+        // pero nunca obligó a que exista un jornada_start en absoluto. Un
+        // empleado que trabajó todo el día sin pulsar "iniciar jornada" en
+        // la app quedaba injustamente marcado cause='employee' aquí. Además
+        // jornada_start es una señal de NIVEL DE DÍA (no sabe a qué orden
+        // fue el empleado), mientras que cualquier service_logs de ESTA
+        // orden concreta (t_in ya se filtró arriba y sabemos que no existe
+        // para esta orden; pero foto/nota sí pueden existir sin t_in formal
+        // -- p.ej. evidencia de un intento de acceso bloqueado por el
+        // cliente, ya que esos event_type no están gateados por la máquina
+        // de estados de servicio/route.ts) es evidencia MÁS específica y
+        // más fuerte de que el empleado sí llegó al sitio de ESTA orden.
+        // cause='employee' solo si NINGUNA de las dos señales existe.
         let cause: "client" | "employee" | "unknown" = "unknown";
         if (assignment?.employee_id) {
           const { data: jornadaLogs } = await supabase
@@ -238,7 +260,18 @@ export async function GET(request: NextRequest) {
             .eq("event_type", "jornada_start")
             .gte("timestamp", getVancouverTodayMidnight().toISOString())
             .limit(1);
-          cause = jornadaLogs && jornadaLogs.length > 0 ? "client" : "employee";
+
+          const { data: orderSpecificLogs } = await supabase
+            .from("service_logs")
+            .select("id")
+            .eq("employee_id", assignment.employee_id)
+            .eq("order_id", order.id)
+            .limit(1);
+
+          const hasJornadaStart = !!jornadaLogs && jornadaLogs.length > 0;
+          const hasOrderSpecificEvidence = !!orderSpecificLogs && orderSpecificLogs.length > 0;
+
+          cause = hasJornadaStart || hasOrderSpecificEvidence ? "client" : "employee";
         }
 
         await supabase.from("no_show_logs").insert({
@@ -322,15 +355,19 @@ export async function GET(request: NextRequest) {
       } else if (existingNoShow.status === "waiting" && existingNoShow.client_notified_at) {
         // Cliente fue notificado previamente y no respondió → confirmar no-show + penalidad.
         try {
-          const captureResult = await captureNoShowPenalty(stripe, supabase, order, quoteTotal);
+          const captureResult = await captureNoShowPenalty(stripe, supabase, order, quoteTotalCents);
 
+          // RAÍZ-3 (2026-07-21, migración 229): total_paid_cents/
+          // card_amount_charged_cents ya están en centavos --
+          // paypal_advance_amount sigue en dólares (fuera de alcance), se
+          // escala x100 al sumarlo.
           await supabase
             .from("orders")
             .update({
               status: "no_show",
               hold_captured_at: captureResult.payments.hold ? now.toISOString() : null,
-              total_paid: (order.paypal_advance_amount || 0) + captureResult.amountCharged,
-              card_amount_charged: captureResult.amountCharged,
+              total_paid_cents: Math.round((order.paypal_advance_amount || 0) * 100) + captureResult.amountChargedCents,
+              card_amount_charged_cents: captureResult.amountChargedCents,
               capture_last_error: null,
               updated_at: now.toISOString(),
             })
@@ -340,7 +377,7 @@ export async function GET(request: NextRequest) {
             .from("no_show_logs")
             .update({
               status: "unrecovered",
-              notes: `No-show confirmed. Penalty charged: $${captureResult.amountCharged.toFixed(2)}`,
+              notes: `No-show confirmed. Penalty charged: $${(captureResult.amountChargedCents / 100).toFixed(2)}`,
               updated_at: now.toISOString(),
             })
             .eq("id", existingNoShow.id);

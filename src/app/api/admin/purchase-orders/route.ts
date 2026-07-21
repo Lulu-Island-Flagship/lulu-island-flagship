@@ -40,8 +40,8 @@ export async function POST(request: NextRequest) {
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  const { supabase } = auth;
-  if (!supabase) {
+  const { supabase, user } = auth;
+  if (!supabase || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -122,9 +122,17 @@ export async function POST(request: NextRequest) {
     const singleSupplierId =
       resolvedSupplierIds.size === 1 ? Array.from(resolvedSupplierIds)[0] : null;
 
+    // C-H6 (auditoría 2026-07-21): registra quién creó la PO -- sin esto no
+    // había forma de detectar después que la misma persona la creó y la
+    // aprobó (ver bloqueo de autoaprobación en [id]/approve/route.ts).
     const { data: po, error: poError } = await supabase
       .from("purchase_orders")
-      .insert({ status: "pending_approval", generated_reason: reason, supplier_id: singleSupplierId })
+      .insert({
+        status: "pending_approval",
+        generated_reason: reason,
+        supplier_id: singleSupplierId,
+        created_by: user.id,
+      })
       .select()
       .single();
 

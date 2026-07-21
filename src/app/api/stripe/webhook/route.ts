@@ -319,9 +319,13 @@ async function handleRefund(
   // realmente reembolsado. Se guarda el acumulado ya conocido en
   // `stripe_amount_refunded_cents` (migración 208) y se resta solo el
   // delta real entre el acumulado nuevo y el anterior.
+  //
+  // RAÍZ-3 (2026-07-21, migración 229): total_paid_cents/card_amount_charged_cents
+  // ya están en centavos -- se resta deltaCents directo, sin la conversión
+  // a dólares que existía antes (refundedAmount = deltaCents / 100).
   const { data: orders } = await supabase
     .from("orders")
-    .select("id, user_id, total_paid, stripe_amount_refunded_cents")
+    .select("id, user_id, total_paid_cents, stripe_amount_refunded_cents")
     .or(`stripe_hold_payment_intent_id.eq.${paymentIntentId},stripe_capture_payment_intent_id.eq.${paymentIntentId}`)
     .limit(1);
 
@@ -339,16 +343,15 @@ async function handleRefund(
     return;
   }
 
-  const refundedAmount = deltaCents / 100; // cents -> dollars, delta real
-  const newTotalPaid = Math.max(0, (order.total_paid ?? 0) - refundedAmount);
+  const newTotalPaidCents = Math.max(0, (order.total_paid_cents ?? 0) - deltaCents);
 
   await supabase
     .from("orders")
     .update({
-      total_paid: newTotalPaid,
-      card_amount_charged: newTotalPaid,
+      total_paid_cents: newTotalPaidCents,
+      card_amount_charged_cents: newTotalPaidCents,
       stripe_amount_refunded_cents: newCumulativeRefundedCents,
-      warranty_status: newTotalPaid === 0 ? "resolved_client" : undefined,
+      warranty_status: newTotalPaidCents === 0 ? "resolved_client" : undefined,
       updated_at: new Date().toISOString(),
     })
     .eq("id", order.id);

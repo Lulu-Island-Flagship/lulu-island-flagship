@@ -48,6 +48,22 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/admin/qc — crear QC review (auto-aprobar élite con muestreo)
+//
+// v8.3 fix (migración 231, auditoría 2026-07-21, A-6): esta ruta corría en
+// carrera contra trigger_create_qc_review_on_complete() (AFTER UPDATE ON
+// orders, misma transacción que pone la orden en 'completed') y SIEMPRE
+// perdía -- el trigger insertaba primero con ON CONFLICT (order_id) DO
+// NOTHING, así que el INSERT de aquí abajo nunca se ejecutaba en la práctica
+// para el flujo normal de cierre de servicio. La migración 231 portó el
+// muestreo del 10% (isQcSampleSelected) DENTRO del trigger para que sea la
+// única fuente de verdad de qc_reviews en el camino normal.
+//
+// Esta ruta queda como creación manual/directa de una qc_review (p.ej. para
+// re-encolar una revisión fuera del flujo de completar orden) y ya NO debe
+// competir por el INSERT: reutiliza la misma lógica de muestreo por si se
+// invoca antes de que el trigger corra, pero usa upsert con
+// ignoreDuplicates para ceder ante lo que el trigger ya haya insertado en
+// vez de fallar o duplicar.
 export async function POST(request: NextRequest) {
   const auth = await requireAdminRole("qc_wall", { method: request.method, url: request.url });
   if (auth.error) {
@@ -81,26 +97,44 @@ export async function POST(request: NextRequest) {
     const isSampled = isElite && isQcSampleSelected(orderId, getVancouverTodayString());
 
     let reviewStatus = "pending";
-    let samplingReason = null;
+    // Literal alineado con trigger_create_qc_review_on_complete() (migración
+    // 231): ambos caminos deben producir el mismo sampling_reason para el
+    // mismo caso, o admin/qc/[orderId]/review/route.ts leería valores
+    // distintos según quién ganó la carrera.
+    let samplingReason: string | null = null;
 
     if (isElite && !isSampled) {
       reviewStatus = "auto";
-      samplingReason = "elite_auto_approved";
+      samplingReason = "Elite auto-approval";
     } else if (isElite && isSampled) {
       // Habría sido auto-aprobado, pero cayó en el 10% que igual pasa por
       // revisión humana (ver evaluateSampledRejectionRate en el resolve).
       samplingReason = "elite_auto_approval_sample";
     }
 
+    // upsert + ignoreDuplicates: si el trigger de la orden ya insertó esta
+    // fila (order_id UNIQUE), no fallamos ni duplicamos -- devolvemos la
+    // fila existente, que es la fuente de verdad.
+    const { error: upsertError } = await supabase
+      .from("qc_reviews")
+      .upsert(
+        {
+          order_id: orderId,
+          employee_id: employeeId,
+          status: reviewStatus,
+          sampling_reason: samplingReason,
+        },
+        { onConflict: "order_id", ignoreDuplicates: true }
+      );
+
+    if (upsertError) {
+      return NextResponse.json({ error: upsertError.message }, { status: 500 });
+    }
+
     const { data, error } = await supabase
       .from("qc_reviews")
-      .insert({
-        order_id: orderId,
-        employee_id: employeeId,
-        status: reviewStatus,
-        sampling_reason: samplingReason,
-      })
       .select()
+      .eq("order_id", orderId)
       .single();
 
     if (error) {

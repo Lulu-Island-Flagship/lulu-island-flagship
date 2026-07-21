@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
   let ordersQuery = supabase
     .from("orders")
-    .select("id, quote_id, service_date, total_paid, quotes(zone, service_type)")
+    .select("id, quote_id, service_date, total_paid_cents, quotes(zone, service_type)")
     .eq("status", "completed");
   if (from) ordersQuery = ordersQuery.gte("service_date", from);
   if (to) ordersQuery = ordersQuery.lte("service_date", to);
@@ -78,8 +78,9 @@ export async function GET(request: NextRequest) {
   // chargeback_reserves.captured_amount, que únicamente se puebla si el
   // flag chargeback_reserve_enabled está encendido (apagado por defecto,
   // migración 024). Con la configuración default, el panel reportaba $0
-  // de ingresos con órdenes completadas y cobradas de verdad. orders.total_paid
-  // se escribe siempre por las rutas de captura (hold, batch-capture,
+  // de ingresos con órdenes completadas y cobradas de verdad.
+  // orders.total_paid_cents (RAÍZ-3, migración 229: ya en centavos) se
+  // escribe siempre por las rutas de captura (hold, batch-capture,
   // capture-remainder, cancel, no-show) independientemente del flag, así
   // que es la fuente primaria confiable; chargeback_reserves se usa solo
   // como refinamiento cuando el flag SÍ está activo y da un dato más
@@ -92,7 +93,7 @@ export async function GET(request: NextRequest) {
   const collectedByOrder = new Map<string, number>();
   for (const o of orders || []) {
     const reserveCaptured = reserveCapturedByOrder.get(o.id);
-    const totalPaidCents = Math.round(Number(o.total_paid ?? 0) * 100);
+    const totalPaidCents = Math.round(Number(o.total_paid_cents ?? 0));
     collectedByOrder.set(o.id, reserveCaptured !== undefined ? reserveCaptured : totalPaidCents);
   }
 

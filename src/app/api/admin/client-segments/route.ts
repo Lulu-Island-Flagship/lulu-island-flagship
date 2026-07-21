@@ -31,19 +31,21 @@ export async function GET(request: NextRequest) {
 
   const { data: completedOrders, error: ordersError } = await supabase
     .from("orders")
-    .select("user_id, service_date, total_paid")
+    .select("user_id, service_date, total_paid_cents")
     .eq("status", "completed")
     .order("service_date", { ascending: false });
   if (ordersError) return NextResponse.json({ error: ordersError.message }, { status: 500 });
 
   const lastServiceByClient = new Map<string, string>();
   const monthlySpendByClient = new Map<string, number>();
+  // RAÍZ-3 (2026-07-21, migración 229): total_paid_cents ya está en
+  // centavos -- sin *100.
   for (const o of completedOrders || []) {
     if (!lastServiceByClient.has(o.user_id)) {
       lastServiceByClient.set(o.user_id, o.service_date);
     }
     if (o.service_date >= thirtyDaysAgo) {
-      monthlySpendByClient.set(o.user_id, (monthlySpendByClient.get(o.user_id) || 0) + Math.round((o.total_paid || 0) * 100));
+      monthlySpendByClient.set(o.user_id, (monthlySpendByClient.get(o.user_id) || 0) + Math.round(o.total_paid_cents || 0));
     }
   }
 

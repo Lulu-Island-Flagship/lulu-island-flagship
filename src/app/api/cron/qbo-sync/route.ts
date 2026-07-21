@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     const { data: orders, error } = await supabase
       .from("orders")
       .select(
-        "id, user_id, total_paid, card_amount_charged, gst, pst, subtotal, qbo_sync_attempts, qbo_last_attempt_at"
+        "id, user_id, total_paid_cents, card_amount_charged_cents, gst, pst, subtotal, qbo_sync_attempts, qbo_last_attempt_at"
       )
       .in("qbo_export_status", ["pending", "failed"])
       .gte("capture_captured_at", since)
@@ -113,7 +113,10 @@ export async function GET(request: NextRequest) {
       }
 
       // action === "attempt_now"
-      const gross = Math.round((order.total_paid || 0) * 100);
+      // RAÍZ-3 (2026-07-21, migración 229): total_paid_cents ya está en
+      // centavos -- sin *100. gst/pst siguen en dólares (columnas de
+      // `orders`, fuera de alcance de la migración 229), se escalan x100.
+      const gross = Math.round(order.total_paid_cents || 0);
       const gst = Math.round(((order as { gst?: number }).gst || 0) * 100);
       const pst = Math.round(((order as { pst?: number }).pst || 0) * 100);
       const fee = Math.round(gross * 0.029 + 30);

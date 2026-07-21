@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     // que aún no tienen hold y no han superado los reintentos.
     const { data: orders, error } = await supabase
       .from("orders")
-      .select("id, quote_id, user_id, service_datetime, stripe_customer_id, stripe_payment_method_id, hold_amount, hold_attempts, quotes(total)")
+      .select("id, quote_id, user_id, service_datetime, stripe_customer_id, stripe_payment_method_id, hold_amount_cents, hold_attempts, quotes(total)")
       .eq("payment_option", "card")
       .is("stripe_hold_payment_intent_id", null)
       .gte("service_datetime", windowStart)
@@ -81,9 +81,11 @@ export async function GET(request: NextRequest) {
       const paymentMethodId = order.stripe_payment_method_id;
       const customerId = order.stripe_customer_id;
       // Spec v8.2: Hold = MAX(fórmula_base, 40% del total). Nunca autorizar el total.
-      const holdAmount = Math.max(0, Math.round(Number(order.hold_amount ?? 0)));
+      // RAÍZ-3 (2026-07-21, migración 229): hold_amount_cents ya está en
+      // centavos -- holdAmountCents se usa directo contra Stripe, sin *100.
+      const holdAmountCents = Math.max(0, Math.round(Number(order.hold_amount_cents ?? 0)));
 
-      if (!paymentMethodId || !customerId || holdAmount <= 0) {
+      if (!paymentMethodId || !customerId || holdAmountCents <= 0) {
         results.skipped++;
         results.errors.push({
           orderId: order.id,
@@ -103,7 +105,7 @@ export async function GET(request: NextRequest) {
       try {
         const paymentIntent = await stripe.paymentIntents.create(
           {
-            amount: holdAmount * 100, // Stripe usa centavos
+            amount: holdAmountCents, // RAÍZ-3: ya en centavos, sin *100
             currency: "cad",
             customer: customerId,
             payment_method: paymentMethodId,
@@ -118,7 +120,7 @@ export async function GET(request: NextRequest) {
               quote_id: order.quote_id,
               user_id: order.user_id,
               hold_type: "t72h",
-              hold_amount: holdAmount,
+              hold_amount_cents: holdAmountCents,
             },
           },
           { idempotencyKey: `${order.id}:hold-authorize` }
@@ -132,7 +134,7 @@ export async function GET(request: NextRequest) {
           .from("orders")
           .update({
             stripe_hold_payment_intent_id: paymentIntent.id,
-            hold_authorized_amount: holdAmount,
+            hold_authorized_amount_cents: holdAmountCents,
             hold_authorized_at: new Date().toISOString(),
             hold_attempts: 0,
             hold_last_error: null,

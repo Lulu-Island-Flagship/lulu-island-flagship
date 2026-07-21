@@ -45,7 +45,7 @@ export async function PATCH(
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .select(
-        "id, quote_id, user_id, status, payment_option, stripe_hold_payment_intent_id, stripe_customer_id, stripe_payment_method_id, hold_amount, hold_authorized_amount, hold_captured_at, capture_partial_at, capture_partial_amount, capture_remaining_amount, capture_remaining_captured_at, capture_force_full_by, card_amount_charged, total_paid, quotes(total)"
+        "id, quote_id, user_id, status, payment_option, stripe_hold_payment_intent_id, stripe_customer_id, stripe_payment_method_id, hold_amount_cents, hold_authorized_amount_cents, hold_captured_at, capture_partial_at, capture_partial_amount, capture_remaining_amount, capture_remaining_captured_at, capture_force_full_by, card_amount_charged_cents, total_paid_cents, quotes(total)"
       )
       .eq("id", params.id)
       .is("deleted_at", null)
@@ -92,8 +92,10 @@ export async function PATCH(
     if (neverCapturedAnything) {
       // Caso A: nada se cobró todavía -- Hold + balance por el total, igual
       // que el flujo normal del batch de las 7PM.
+      // RAÍZ-3 (2026-07-21, migración 229): hold_amount_cents/
+      // hold_authorized_amount_cents ya están en centavos -- sin *100.
       const holdAmountCents = Math.min(
-        Math.round(Math.max(0, order.hold_authorized_amount || order.hold_amount || 0) * 100),
+        Math.round(Math.max(0, order.hold_authorized_amount_cents || order.hold_amount_cents || 0)),
         quoteTotal * 100
       );
       const balanceCents = Math.max(0, quoteTotal * 100 - holdAmountCents);
@@ -201,9 +203,12 @@ export async function PATCH(
       );
     }
 
-    const previousTotalPaid = Number(order.total_paid || 0);
-    const previousCardCharged = Number(order.card_amount_charged || 0);
-    const capturedNowDollars = capturedNowCents / 100;
+    // RAÍZ-3 (2026-07-21, migración 229): total_paid_cents/
+    // card_amount_charged_cents ya están en centavos -- se suma
+    // capturedNowCents directo, sin dividir a dólares.
+    const previousTotalPaidCents = Number(order.total_paid_cents || 0);
+    const previousCardChargedCents = Number(order.card_amount_charged_cents || 0);
+    const capturedNowDollars = capturedNowCents / 100; // solo para el mensaje/response al admin
 
     const { data: updated, error: updateError } = await supabase
       .from("orders")
@@ -214,8 +219,8 @@ export async function PATCH(
         capture_remaining_amount: 0,
         capture_remaining_captured_at: new Date().toISOString(),
         hold_captured_at: order.hold_captured_at || (neverCapturedAnything ? new Date().toISOString() : order.hold_captured_at),
-        total_paid: previousTotalPaid + capturedNowDollars,
-        card_amount_charged: previousCardCharged + capturedNowDollars,
+        total_paid_cents: previousTotalPaidCents + capturedNowCents,
+        card_amount_charged_cents: previousCardChargedCents + capturedNowCents,
         // Fix B-P0-1 (auditoría 2026-07-21): si esta orden había fallado en
         // el batch de las 7PM (capture_attempts >= 1), el retry de las 10PM
         // no filtraba capture_force_full_by y volvía a cobrarla completa

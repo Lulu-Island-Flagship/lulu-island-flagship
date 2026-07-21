@@ -20,7 +20,7 @@ export async function POST(
   try {
     const { orderId } = await params;
     const body = await request.json();
-    const { status, note } = body;
+    const { status, note, confirmReopenPaidOrder } = body;
 
     if (!status || !note) {
       return NextResponse.json({ error: "Status and note are required" }, { status: 400 });
@@ -52,9 +52,42 @@ export async function POST(
     // en esta orden para la validación de piso salarial de abajo.
     const { data: existingReview } = await supabase
       .from("qc_reviews")
-      .select("employee_id, sampling_reason, rework_minutes")
+      .select("status, employee_id, sampling_reason, rework_minutes")
       .eq("order_id", orderId)
       .single();
+
+    // v8.3 fix (migración N/A -- solo API, auditoría 2026-07-21, A-8): esta
+    // ruta no validaba el estado previo antes de mutar una review terminal.
+    // Una review ya 'approved' de una orden ya COBRADA (capture_captured_at
+    // no nulo) podía volverse 'rejected'/'rework' días después sin ningún
+    // aviso ni confirmación explícita -- a diferencia de
+    // /api/empleado/qc-resubmit, que sí valida estado previo. Se bloquea
+    // con 409 salvo que el body incluya confirmReopenPaidOrder:true.
+    if (existingReview?.status === "approved") {
+      const { data: orderForReopenCheck } = await supabase
+        .from("orders")
+        .select("capture_captured_at")
+        .eq("id", orderId)
+        .maybeSingle();
+
+      if (orderForReopenCheck?.capture_captured_at && confirmReopenPaidOrder !== true) {
+        return NextResponse.json(
+          {
+            error:
+              "Esta QC review ya está 'approved' y la orden ya fue COBRADA " +
+              `(capture_captured_at: ${orderForReopenCheck.capture_captured_at}). ` +
+              "Cambiar su estado ahora reabre una revisión terminal sobre dinero ya capturado: " +
+              "puede disparar rework/rechazo retroactivo, ajustes de nómina del empleado y " +
+              "posibles reembolsos que ningún cron reconcilia automáticamente (ver B-P2-2 en el " +
+              "informe de auditoría). Si de verdad quieres reabrirla, reenvía la petición con " +
+              "{ confirmReopenPaidOrder: true } en el body.",
+            requiresConfirmation: true,
+            confirmField: "confirmReopenPaidOrder",
+          },
+          { status: 409 }
+        );
+      }
+    }
 
     const nowForUpdate = new Date();
     const isRework = status === "rework";

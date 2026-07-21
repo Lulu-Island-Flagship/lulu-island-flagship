@@ -74,7 +74,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const { data: completedOrders } = await supabase
     .from("orders")
-    .select("service_date, total_paid")
+    .select("service_date, total_paid_cents")
     .eq("user_id", clientUserId)
     .eq("status", "completed")
     .order("service_date", { ascending: false });
@@ -82,12 +82,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const nowMs = Date.now();
   let daysSinceLastService = Infinity;
   let monthlySpendCents = 0;
+  // RAÍZ-3 (2026-07-21, migración 229): total_paid_cents ya está en
+  // centavos -- sin *100.
   for (const o of completedOrders || []) {
     if (daysSinceLastService === Infinity && o.service_date) {
       daysSinceLastService = Math.floor((nowMs - new Date(`${o.service_date}T00:00:00Z`).getTime()) / (1000 * 60 * 60 * 24));
     }
     if (o.service_date && o.service_date >= thirtyDaysAgo) {
-      monthlySpendCents += Math.round((o.total_paid || 0) * 100);
+      monthlySpendCents += Math.round(o.total_paid_cents || 0);
     }
   }
 

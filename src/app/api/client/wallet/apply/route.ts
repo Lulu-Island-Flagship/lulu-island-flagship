@@ -34,9 +34,11 @@ function getSupabaseClient() {
  * v8.3 E2.10: aplica el saldo disponible de la billetera (créditos vigentes,
  * no vencidos) a una orden propia que AÚN no fue cobrada (hold_captured_at Y
  * capture_captured_at ambos null, status='confirmed'). El monto aplicado se
- * guarda en orders.wallet_amount_used (en dólares, mismo formato que el
- * resto de columnas monetarias de `orders`) y el Batch Capture de las 7PM lo
- * resta del total antes de calcular Hold/saldo (ver cron/batch-capture).
+ * guarda en orders.wallet_amount_used_cents (RAÍZ-3, migración 229: CENTAVOS
+ * ENTEROS, mismo formato que client_wallets/wallet_transactions -- antes de
+ * esa migración esta ruta truncaba a dólares enteros al guardar, descuadrando
+ * el ledger en cada uso, B-P0-5) y el Batch Capture de las 7PM lo resta del
+ * total antes de calcular Hold/saldo (ver cron/batch-capture).
  *
  * No permite aplicar a una orden ya capturada -- el precio ya sellado (B.2.11)
  * no se reabre; si el cliente quiere usar su crédito, debe hacerlo ANTES del
@@ -61,7 +63,7 @@ export async function POST(request: NextRequest) {
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("id, user_id, status, hold_captured_at, capture_captured_at, wallet_amount_used, quote_id, quotes(total)")
+    .select("id, user_id, status, hold_captured_at, capture_captured_at, wallet_amount_used_cents, quote_id, quotes(total)")
     .eq("id", body.orderId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -71,7 +73,7 @@ export async function POST(request: NextRequest) {
   if (order.hold_captured_at || order.capture_captured_at) {
     return NextResponse.json({ error: "Esta orden ya fue cobrada; no se puede aplicar crédito ahora." }, { status: 400 });
   }
-  if (order.wallet_amount_used && order.wallet_amount_used > 0) {
+  if (order.wallet_amount_used_cents && order.wallet_amount_used_cents > 0) {
     return NextResponse.json({ error: "Ya se aplicó crédito de billetera a esta orden." }, { status: 400 });
   }
 
@@ -124,12 +126,16 @@ export async function POST(request: NextRequest) {
   if (rpcError) return NextResponse.json({ error: rpcError.message }, { status: 500 });
   const newBalance = rpcResult?.[0]?.new_balance ?? wallet.balance - applyCents;
 
-  const applyDollars = applyCents / 100;
+  // RAÍZ-3 (2026-07-21, migración 229): wallet_amount_used_cents ya está en
+  // centavos -- se guarda applyCents directo, sin dividir por 100. Antes esta
+  // línea truncaba a dólares enteros (applyDollars = applyCents / 100) y
+  // guardaba eso en una columna INTEGER dólares, perdiendo centavos y
+  // descuadrando el ledger contra client_wallets/wallet_transactions (B-P0-5).
   const { data: updatedOrder, error: orderUpdateError } = await supabase
     .from("orders")
-    .update({ wallet_amount_used: applyDollars, updated_at: nowIso })
+    .update({ wallet_amount_used_cents: applyCents, updated_at: nowIso })
     .eq("id", order.id)
-    .select("id, wallet_amount_used")
+    .select("id, wallet_amount_used_cents")
     .single();
   if (orderUpdateError) return NextResponse.json({ error: orderUpdateError.message }, { status: 500 });
 

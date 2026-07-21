@@ -37,7 +37,7 @@ function getSupabaseClient() {
  * HONESTO sobre el alcance: esto es solo lectura/informativo. NO aplica
  * el saldo de wallet al total de esta reserva -- esa aplicación sigue
  * ocurriendo donde ya existía (billetera / batch-capture,
- * orders.wallet_amount_used), porque el precio de la cotización está
+ * orders.wallet_amount_used_cents -- RAÍZ-3, migración 229), porque el precio de la cotización está
  * sellado server-side (B.2.11) y esta pantalla todavía trabaja sobre una
  * quote, no sobre una order ya creada. Cambiar eso sería tocar el motor
  * de precios/Hold, que se evita deliberadamente aquí.

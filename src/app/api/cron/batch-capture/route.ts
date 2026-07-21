@@ -54,13 +54,16 @@ interface OrderRow {
   stripe_hold_payment_intent_id: string | null;
   stripe_customer_id: string | null;
   stripe_payment_method_id: string | null;
-  hold_amount: number;
-  hold_authorized_amount: number;
+  // RAÍZ-3 (2026-07-21, migración 229): estas 3 ahora están en CENTAVOS
+  // enteros (antes dólares enteros). paypal_advance_amount NO se tocó en
+  // esa migración -- sigue en dólares.
+  hold_amount_cents: number;
+  hold_authorized_amount_cents: number;
   hold_captured_at: string | null;
   paypal_advance_amount: number;
   capture_attempts: number;
   capture_force_full_by: string | null;
-  wallet_amount_used: number | null;
+  wallet_amount_used_cents: number | null;
   quotes: { total: number }[] | null;
 }
 
@@ -211,7 +214,7 @@ export async function GET(request: NextRequest) {
     const { data: orders, error } = await supabase
       .from("orders")
       .select(
-        "id, quote_id, user_id, payment_option, stripe_hold_payment_intent_id, stripe_customer_id, stripe_payment_method_id, hold_amount, hold_authorized_amount, paypal_advance_amount, capture_attempts, capture_force_full_by, wallet_amount_used, quotes(total)"
+        "id, quote_id, user_id, payment_option, stripe_hold_payment_intent_id, stripe_customer_id, stripe_payment_method_id, hold_amount_cents, hold_authorized_amount_cents, paypal_advance_amount, capture_attempts, capture_force_full_by, wallet_amount_used_cents, quotes(total)"
       )
       .eq("service_date", todayStr)
       .eq("status", "completed")
@@ -236,17 +239,21 @@ export async function GET(request: NextRequest) {
       results.processed++;
 
       // v8.3 E2.10: Billetera Lulu -- si el cliente aplicó crédito de
-      // billetera a esta orden (orders.wallet_amount_used, mismo formato en
-      // DÓLARES que el resto de columnas monetarias de `orders` -- ya
-      // descontado del saldo disponible al momento de aplicarlo, ver
-      // /api/client/wallet/apply), se resta ANTES de calcular Hold/saldo. El
-      // precio de la cotización sigue sellado (B.2.11): esto no muta
-      // quotes.total, solo reduce lo que hay que cobrar por tarjeta/PayPal
-      // para ESTA orden puntual.
-      const quoteTotalBeforeWallet = Math.round(Number(order.quotes?.[0]?.total ?? 0));
-      const walletAppliedDollars = Math.max(0, order.wallet_amount_used || 0);
-      const quoteTotal = Math.max(0, quoteTotalBeforeWallet - walletAppliedDollars);
-      if (quoteTotalBeforeWallet <= 0) {
+      // billetera a esta orden (orders.wallet_amount_used_cents -- RAÍZ-3,
+      // migración 229: CENTAVOS, mismo formato que client_wallets/
+      // wallet_transactions -- ya descontado del saldo disponible al momento
+      // de aplicarlo, ver /api/client/wallet/apply), se resta ANTES de
+      // calcular Hold/saldo. El precio de la cotización sigue sellado
+      // (B.2.11): esto no muta quotes.total, solo reduce lo que hay que
+      // cobrar por tarjeta/PayPal para ESTA orden puntual.
+      //
+      // RAÍZ-3: quotes.total sigue en DÓLARES (fuera de alcance de la
+      // migración 229) -- todo el cálculo de esta función se hace en
+      // CENTAVOS a partir de aquí, escalando quotes.total x100 una sola vez.
+      const quoteTotalBeforeWalletCents = Math.round(Number(order.quotes?.[0]?.total ?? 0) * 100);
+      const walletAppliedCents = Math.max(0, order.wallet_amount_used_cents || 0);
+      const quoteTotalCents = Math.max(0, quoteTotalBeforeWalletCents - walletAppliedCents);
+      if (quoteTotalBeforeWalletCents <= 0) {
         results.skipped++;
         results.errors.push({ orderId: order.id, error: "Missing quote total" });
         continue;
@@ -325,7 +332,7 @@ export async function GET(request: NextRequest) {
             context: {
               reason: "batch_capture_withheld_qc_not_approved",
               qc_status: qcStatus,
-              quote_total: quoteTotal,
+              quote_total_cents: quoteTotalCents,
             },
           });
 
@@ -361,7 +368,7 @@ export async function GET(request: NextRequest) {
               : null;
 
           const decision = computePartialCaptureDecision({
-            quoteTotalCents: quoteTotal * 100,
+            quoteTotalCents,
             laborCostCents,
             forceFullCapture: false,
             now: new Date(),
@@ -375,7 +382,7 @@ export async function GET(request: NextRequest) {
             context: {
               reason: "batch_capture_partial_critical_dispute",
               warranty_claim_id: eligibility.blockingClaimId,
-              quote_total: quoteTotal,
+              quote_total_cents: quoteTotalCents,
               capture_now_cents: decision.captureNowCents,
               capture_remaining_cents: decision.remainingCents,
               decision_reason: decision.reason,
@@ -397,8 +404,13 @@ export async function GET(request: NextRequest) {
                   decision.remainingCents > 0 ? Math.round(decision.remainingCents / 100) : 0,
                 capture_remaining_due_at: decision.remainingDueAt,
                 stripe_hold_payment_intent_id: order.stripe_hold_payment_intent_id,
-                total_paid: Math.round(decision.captureNowCents / 100) + walletAppliedDollars,
-                card_amount_charged: Math.round(decision.captureNowCents / 100),
+                // RAÍZ-3 (2026-07-21, migración 229): total_paid_cents/
+                // card_amount_charged_cents ya están en centavos -- se suma
+                // decision.captureNowCents directo, sin dividir/redondear a
+                // dólares (capture_remaining_amount SÍ sigue siendo una
+                // columna fuera de alcance, en dólares, sin cambios arriba).
+                total_paid_cents: decision.captureNowCents + walletAppliedCents,
+                card_amount_charged_cents: decision.captureNowCents,
                 updated_at: new Date().toISOString(),
               })
               .eq("id", order.id);
@@ -480,7 +492,7 @@ export async function GET(request: NextRequest) {
             context: {
               reason: "batch_capture_withheld_critical_dispute",
               warranty_claim_id: eligibility.blockingClaimId,
-              quote_total: quoteTotal,
+              quote_total_cents: quoteTotalCents,
             },
           });
 
@@ -497,18 +509,23 @@ export async function GET(request: NextRequest) {
       }
 
       try {
-        let amountCharged = 0;
+        // RAÍZ-3 (2026-07-21, migración 229): amountChargedCents acumula en
+        // CENTAVOS (antes "amountCharged" acumulaba dólares). captured_amount
+        // (chargeback_reserves), gross_amount (qbo_export_lines) y
+        // grossAmountCents (cash-reserve.ts) ya esperaban centavos --
+        // aquí ya no hace falta *100 al pasarlos.
+        let amountChargedCents = 0;
         const payments: { hold?: string; balance?: string } = {};
 
         if (order.payment_option === "card") {
           // Tarjeta: capturar Hold + cobrar saldo restante.
-          const holdAmount = Math.min(
-            Math.max(0, order.hold_authorized_amount || order.hold_amount || 0),
-            quoteTotal
+          const holdAmountCents = Math.min(
+            Math.max(0, order.hold_authorized_amount_cents || order.hold_amount_cents || 0),
+            quoteTotalCents
           );
-          const balanceAmount = Math.max(0, quoteTotal - holdAmount);
+          const balanceAmountCents = Math.max(0, quoteTotalCents - holdAmountCents);
 
-          if (holdAmount > 0) {
+          if (holdAmountCents > 0) {
             if (!order.stripe_hold_payment_intent_id) {
               throw new Error("Missing hold PaymentIntent for card order");
             }
@@ -516,29 +533,28 @@ export async function GET(request: NextRequest) {
             if (holdPi.status === "requires_capture") {
               await stripe.paymentIntents.capture(
                 order.stripe_hold_payment_intent_id,
-                { amount_to_capture: Math.round(holdAmount * 100) },
+                { amount_to_capture: holdAmountCents },
                 { idempotencyKey: `${order.id}:batch-capture-hold` }
               );
             } else if (holdPi.status !== "succeeded") {
               throw new Error(`Hold PaymentIntent status: ${holdPi.status}`);
             }
             payments.hold = order.stripe_hold_payment_intent_id;
-            amountCharged += holdAmount;
+            amountChargedCents += holdAmountCents;
           }
 
-          if (balanceAmount > 0) {
+          if (balanceAmountCents > 0) {
             if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
               throw new Error("Missing customer or payment method for balance charge");
             }
-            // Fix RAÍZ-3 (auditoría 2026-07-21): `balanceAmount * 100` sobre
-            // un número que puede traer resto de punto flotante (proviene de
-            // quoteTotal - walletAppliedDollars, ambos derivados de columnas
-            // dólares) producía valores como 32498.999999999996 -- Stripe
-            // exige un entero de centavos y rechazaba la captura completa.
-            // Math.round() al convertir a centavos, siempre.
+            // Fix RAÍZ-3 (auditoría 2026-07-21): balanceAmountCents ya es un
+            // entero de centavos (quoteTotalCents/holdAmountCents se derivan
+            // con Math.round desde el origen) -- ya no hace falta el
+            // Math.round(x*100) que existía cuando estas columnas eran
+            // dólares con posible resto de punto flotante.
             const balancePi = await stripe.paymentIntents.create(
               {
-                amount: Math.round(balanceAmount * 100),
+                amount: balanceAmountCents,
                 currency: "cad",
                 customer: order.stripe_customer_id,
                 payment_method: order.stripe_payment_method_id,
@@ -560,23 +576,25 @@ export async function GET(request: NextRequest) {
               throw new Error(`Balance PaymentIntent status: ${balancePi.status}`);
             }
             payments.balance = balancePi.id;
-            amountCharged += balanceAmount;
+            amountChargedCents += balanceAmountCents;
           }
         } else if (order.payment_option === "paypal_first_time") {
-          // PayPal: el anticipo ya fue cobrado. Solo cobrar el saldo restante por Stripe.
-          const paypalAdvance = Math.min(
-            Math.max(0, order.paypal_advance_amount || Math.round(order.hold_amount * 0.5)),
-            quoteTotal
+          // PayPal: el anticipo ya fue cobrado. paypal_advance_amount sigue
+          // en DÓLARES (columna fuera de alcance de la migración 229) --
+          // se escala x100 aquí para operar en centavos junto al resto.
+          const paypalAdvanceCents = Math.min(
+            Math.max(0, Math.round((order.paypal_advance_amount || order.hold_amount_cents * 0.5 / 100) * 100)),
+            quoteTotalCents
           );
-          const balanceAmount = Math.max(0, quoteTotal - paypalAdvance);
+          const balanceAmountCents = Math.max(0, quoteTotalCents - paypalAdvanceCents);
 
-          if (balanceAmount > 0) {
+          if (balanceAmountCents > 0) {
             if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
               throw new Error("Missing card registration for PayPal order balance charge");
             }
             const balancePi = await stripe.paymentIntents.create(
               {
-                amount: Math.round(balanceAmount * 100),
+                amount: balanceAmountCents,
                 currency: "cad",
                 customer: order.stripe_customer_id,
                 payment_method: order.stripe_payment_method_id,
@@ -590,7 +608,7 @@ export async function GET(request: NextRequest) {
                   quote_id: order.quote_id,
                   user_id: order.user_id,
                   charge_type: "paypal_balance",
-                  paypal_advance: paypalAdvance,
+                  paypal_advance_cents: paypalAdvanceCents,
                 },
               },
               { idempotencyKey: `${order.id}:batch-capture-paypal-balance` }
@@ -599,7 +617,7 @@ export async function GET(request: NextRequest) {
               throw new Error(`PayPal balance PaymentIntent status: ${balancePi.status}`);
             }
             payments.balance = balancePi.id;
-            amountCharged += balanceAmount;
+            amountChargedCents += balanceAmountCents;
           }
 
           // Cancelar cualquier hold autorizado para este pedido PayPal (no debería existir,
@@ -617,20 +635,20 @@ export async function GET(request: NextRequest) {
         }
 
         // Stripe fee aproximada para QBO (2.9% + 0.30 CAD)
-        const stripeFeeCents = Math.round(amountCharged * 100 * 0.029 + 30);
+        const stripeFeeCents = Math.round(amountChargedCents * 0.029 + 30);
 
         // v8.3 E2.5/C.2.4 (2026-07-13): Shadow Ledger -- registrar el cobro
         // real ANTES/en paralelo a QBO, independiente de si QBO responde.
         // Este módulo existía desde la migración 081 pero nada lo llamaba
         // todavía; aprovechando que este archivo se está tocando para la
         // captura parcial, se cierra ese hueco también en el camino normal.
-        if (amountCharged > 0) {
+        if (amountChargedCents > 0) {
           await supabase.from("shadow_ledger_entries").insert(
             buildShadowLedgerEntry({
               eventType: "balance_captured",
               orderId: order.id,
               userId: order.user_id,
-              amountCents: amountCharged * 100,
+              amountCents: amountChargedCents,
               processor: "stripe",
               externalReference: payments.balance || payments.hold || null,
               occurredAt: new Date(),
@@ -645,12 +663,14 @@ export async function GET(request: NextRequest) {
             hold_captured_at: payments.hold ? new Date().toISOString() : order.hold_captured_at,
             stripe_capture_payment_intent_id: payments.balance || null,
             capture_captured_at: payments.balance ? new Date().toISOString() : null,
-            capture_authorized_amount: amountCharged,
-            total_paid:
-              amountCharged +
-              walletAppliedDollars +
-              (order.payment_option === "paypal_first_time" ? order.paypal_advance_amount : 0),
-            card_amount_charged: amountCharged,
+            // capture_authorized_amount es columna fuera de alcance de RAÍZ-3
+            // (sigue en dólares) -- se preserva su unidad original.
+            capture_authorized_amount: Math.round(amountChargedCents / 100),
+            total_paid_cents:
+              amountChargedCents +
+              walletAppliedCents +
+              (order.payment_option === "paypal_first_time" ? Math.round((order.paypal_advance_amount || 0) * 100) : 0),
+            card_amount_charged_cents: amountChargedCents,
             capture_attempts: 0,
             capture_last_error: null,
             updated_at: new Date().toISOString(),
@@ -658,7 +678,7 @@ export async function GET(request: NextRequest) {
           .eq("id", order.id);
 
         // Chargeback reserve
-        if (chargebackEnabled && amountCharged > 0) {
+        if (chargebackEnabled && amountChargedCents > 0) {
           const { data: settings } = await supabase
             .from("chargeback_settings")
             .select("reserve_percentage, reserve_cap_amount")
@@ -668,7 +688,7 @@ export async function GET(request: NextRequest) {
 
           const reservePercentage = settings?.reserve_percentage ? Number(settings.reserve_percentage) : 2.0;
           const reserveCap = settings?.reserve_cap_amount ? Number(settings.reserve_cap_amount) : null;
-          let reserveAmount = Math.round((amountCharged * 100) * (reservePercentage / 100));
+          let reserveAmount = Math.round(amountChargedCents * (reservePercentage / 100));
           if (reserveCap !== null && reserveCap > 0) {
             reserveAmount = Math.min(reserveAmount, reserveCap);
           }
@@ -676,7 +696,7 @@ export async function GET(request: NextRequest) {
           await supabase.from("chargeback_reserves").insert({
             order_id: order.id,
             payment_intent_id: payments.balance || payments.hold || null,
-            captured_amount: amountCharged * 100,
+            captured_amount: amountChargedCents,
             reserve_percentage: reservePercentage,
             reserve_amount: reserveAmount,
             released_amount: 0,
@@ -689,8 +709,8 @@ export async function GET(request: NextRequest) {
         // TODO: hoy no hay dato de propina/no-gravable separado a este
         // nivel; se trata el monto capturado como base gravable completa
         // hasta que el desglose de propina exista aguas arriba.
-        if (cashReserveEnabled && amountCharged > 0) {
-          const split = calculateReserveSplit({ grossAmountCents: amountCharged * 100 });
+        if (cashReserveEnabled && amountChargedCents > 0) {
+          const split = calculateReserveSplit({ grossAmountCents: amountChargedCents });
           await supabase.from("cash_tax_reserve_ledger").insert({
             order_id: order.id,
             gross_amount_cents: split.grossAmountCents,
@@ -708,7 +728,7 @@ export async function GET(request: NextRequest) {
         // único que se agregó por el bug de duplicación en qbo-sync: si el
         // cron de batch-capture se reintenta sobre la misma orden, no debe
         // insertar una segunda línea "capture".
-        if (qboEnabled && amountCharged > 0) {
+        if (qboEnabled && amountChargedCents > 0) {
           await supabase.from("qbo_export_lines").upsert(
             {
               export_id: null,
@@ -716,9 +736,9 @@ export async function GET(request: NextRequest) {
               payment_intent_id: payments.balance || payments.hold || null,
               transaction_type: "capture",
               transaction_date: new Date().toISOString(),
-              gross_amount: amountCharged * 100,
+              gross_amount: amountChargedCents,
               fee_amount: stripeFeeCents,
-              net_amount: amountCharged * 100 - stripeFeeCents,
+              net_amount: amountChargedCents - stripeFeeCents,
               description: `Capture order ${order.id}`,
             },
             { onConflict: "order_id,transaction_type" }
@@ -737,7 +757,7 @@ export async function GET(request: NextRequest) {
             eventType: "capture_failed",
             orderId: order.id,
             userId: order.user_id,
-            amountCents: quoteTotal * 100,
+            amountCents: quoteTotalCents,
             processor: "stripe",
             externalReference: null,
             occurredAt: new Date(),
@@ -807,8 +827,10 @@ async function executePartialCapture(
     return { capturedNowCents: 0, paymentIntentId: null };
   }
 
+  // RAÍZ-3 (2026-07-21, migración 229): hold_authorized_amount_cents/
+  // hold_amount_cents ya están en centavos -- sin *100.
   const holdAuthorizedCents = Math.round(
-    Math.max(0, order.hold_authorized_amount || order.hold_amount || 0) * 100
+    Math.max(0, order.hold_authorized_amount_cents || order.hold_amount_cents || 0)
   );
 
   const captureFromHoldCents = Math.min(decision.captureNowCents, holdAuthorizedCents);

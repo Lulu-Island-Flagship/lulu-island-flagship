@@ -393,30 +393,52 @@ export async function POST(request: NextRequest) {
             .eq("id", orderId)
             .single();
 
-          await supabase
+          // v8.3 fix (auditoría 2026-07-21, A-14): compare-and-swap real.
+          // Antes este UPDATE no llevaba .eq("status", ...) como guarda, así
+          // que dos t_out casi simultáneos del último miembro del equipo (o
+          // dos reintentos de red del mismo request) podían AMBOS leer
+          // allTeamDone===true y ambos disparar sendClosureCommunications +
+          // increment_client_services_count -- dos emails de galería y dos
+          // solicitudes de reseña al mismo cliente. Ahora el UPDATE exige
+          // status='confirmed' (único estado previo válido antes de
+          // completar) y se revisa cuántas filas afectó: solo la petición
+          // que realmente ganó la carrera (transicionó la fila) dispara los
+          // efectos secundarios. La que pierde ve 0 filas afectadas y no
+          // hace nada más -- sin error, sin duplicar.
+          const { data: updatedOrders } = await supabase
             .from("orders")
             .update({ status: "completed", updated_at: new Date().toISOString() })
-            .eq("id", orderId);
+            .eq("id", orderId)
+            .eq("status", "confirmed")
+            .select("id");
 
-          // Incrementar contador de servicios completados del cliente
-          if (order?.user_id) {
-            await supabase.rpc("increment_client_services_count", {
-              target_user_id: order.user_id,
-            });
-          }
+          const wonRace = !!updatedOrders && updatedOrders.length > 0;
 
-          // E6 Sesión H — confirmación de cierre de servicio + entrega real de
-          // reseña (B.2.18 anti-gating). El UPDATE de arriba ya disparó
-          // generate_review_token_trigger (migración 014), así que releemos la
-          // orden para obtener el review_token recién generado. Un fallo de
-          // comunicaciones nunca debe revertir un T_out ya válido — por eso va
-          // en su propio try/catch, después de que el cierre quedó confirmado.
-          if (order?.user_id) {
-            try {
-              await sendClosureCommunications(supabase, orderId, order.user_id);
-            } catch (commErr) {
-              console.error("Error disparando comunicaciones de cierre (T_out):", commErr);
+          if (wonRace) {
+            // Incrementar contador de servicios completados del cliente
+            if (order?.user_id) {
+              await supabase.rpc("increment_client_services_count", {
+                target_user_id: order.user_id,
+              });
             }
+
+            // E6 Sesión H — confirmación de cierre de servicio + entrega real de
+            // reseña (B.2.18 anti-gating). El UPDATE de arriba ya disparó
+            // generate_review_token_trigger (migración 014), así que releemos la
+            // orden para obtener el review_token recién generado. Un fallo de
+            // comunicaciones nunca debe revertir un T_out ya válido — por eso va
+            // en su propio try/catch, después de que el cierre quedó confirmado.
+            if (order?.user_id) {
+              try {
+                await sendClosureCommunications(supabase, orderId, order.user_id);
+              } catch (commErr) {
+                console.error("Error disparando comunicaciones de cierre (T_out):", commErr);
+              }
+            }
+          } else {
+            console.log(
+              `[t_out] Orden ${orderId}: otra petición concurrente ya la marcó 'completed' primero -- se omiten comunicaciones/incremento duplicados (A-14).`
+            );
           }
         }
       }
