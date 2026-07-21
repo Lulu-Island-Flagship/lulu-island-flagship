@@ -46,6 +46,18 @@ export default async function middleware(request: NextRequest) {
   // acá específicamente para que el refresh de token ocurra de verdad.
   await supabase.auth.getUser();
 
+  // v8.3 fix G-5: src/app/[locale]/admin/layout.tsx necesita el pathname
+  // actual (para detectar el locale y setear AdminNav/mensajes en el idioma
+  // correcto) pero, al ser un Server Component, no tiene acceso directo a la
+  // URL del request -- solo puede leerlo de un header que alguien más tenga
+  // que setear. Ese layout ya intentaba leer "x-invoke-path" (típico de
+  // otros hostings) con fallback a "x-pathname", pero ningún lado del
+  // pipeline seteaba NINGUNO de los dos -- el fallback hardcodeado a
+  // "/en/admin" siempre ganaba, y el panel admin quedaba en inglés sin
+  // importar el locale real de la URL. Este es el único lugar del pipeline
+  // (middleware) con acceso simultáneo al NextRequest y a la response.
+  response.headers.set("x-pathname", request.nextUrl.pathname);
+
   return response;
 }
 

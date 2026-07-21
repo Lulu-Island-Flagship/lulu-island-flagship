@@ -15,6 +15,8 @@ import {
   computeInstallmentSplit,
   computeInstallmentSecondDueDate,
 } from "@/lib/installment-payment";
+import { isSmsProviderConfigured } from "@/lib/sms";
+import { publishUnifiedAlert } from "@/lib/unified-alerts";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -196,7 +198,25 @@ export async function POST(request: NextRequest) {
     // paso de login por SMS). Se agrega el gate autoritativo aquí -- sin
     // importar qué haga (o deje de hacer) la UI, el servidor nunca confirma
     // una reserva sin client_profiles.phone_verified = true.
-    if (!clientProfile?.phone_verified) {
+    //
+    // v8.3 P0-2 (auditoría Fable5, 2026-07-19): ese gate era absoluto e
+    // incondicional -- y la verificación telefónica depende de un proveedor
+    // de SMS (Twilio u otro) configurado en Supabase Auth
+    // (supabase/config.toml -> [auth.sms.twilio], hoy `enabled = false` sin
+    // credenciales). Sin proveedor, Supabase Auth NUNCA entrega el código
+    // OTP, `phone_verified` nunca puede volverse true, y el gate de arriba
+    // bloqueaba el 100% de las reservas -- no una degradación, un apagón
+    // total del negocio. Decisión del dueño: el bloqueo se vuelve
+    // CONDICIONAL a que exista un proveedor real. isSmsProviderConfigured()
+    // (src/lib/sms.ts) es la única fuente de verdad de "¿hay proveedor?" en
+    // todo el sistema -- se reusa aquí en vez de inventar un chequeo nuevo.
+    // Si mañana el dueño configura TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN (y
+    // el proveedor correspondiente en Supabase Auth), este gate vuelve a
+    // exigir phone_verified automáticamente, sin tocar código de nuevo --
+    // la condición se evalúa en cada request, no es un flag manual que
+    // alguien deba recordar apagar.
+    const smsProviderConfigured = isSmsProviderConfigured();
+    if (smsProviderConfigured && !clientProfile?.phone_verified) {
       return NextResponse.json(
         {
           error: "Phone verification is required before confirming a reservation.",
@@ -204,6 +224,35 @@ export async function POST(request: NextRequest) {
         },
         { status: 403 }
       );
+    }
+
+    // Reserva completada SIN verificación telefónica porque no hay
+    // proveedor de SMS -- no debe desaparecer en silencio (P0-3 ya
+    // documenta que las comunicaciones salientes son silenciosas por
+    // diseño; esto es exactamente el tipo de brecha que la bandeja
+    // unificada de alertas (E0.6, migración 147) existe para exponer).
+    // publishUnifiedAlert nunca lanza -- un fallo al insertar la alerta no
+    // debe bloquear la reserva real del cliente, que es la acción
+    // principal de este endpoint.
+    if (!smsProviderConfigured && !clientProfile?.phone_verified) {
+      const alertClient = getServiceRoleClient();
+      if (alertClient) {
+        await publishUnifiedAlert(alertClient, {
+          sourceModule: "phone_verification_bypass",
+          sourceTable: "quotes",
+          sourceId: quoteId,
+          tier: "can_wait",
+          severity: "p2_automatic",
+          title: "Reserva completada sin verificación telefónica (sin proveedor de SMS)",
+          summary:
+            "No hay proveedor de SMS configurado (TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN ausentes). Esta reserva se confirmó sin verificar el teléfono del cliente. Configura un proveedor de SMS para que la verificación vuelva a exigirse automáticamente.",
+        });
+      } else {
+        console.warn(
+          "stripe/confirm: reserva confirmada sin verificación telefónica (sin proveedor SMS) y SUPABASE_SERVICE_ROLE_KEY no configurada -- no se pudo publicar la alerta unificada.",
+          { quoteId }
+        );
+      }
     }
 
     // Validar opción de pago: PayPal solo para primer servicio.

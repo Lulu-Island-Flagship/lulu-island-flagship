@@ -2,6 +2,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getTranslations } from 'next-intl/server';
 import type { Metadata } from "next";
 import { Inter, Noto_Sans_SC } from "next/font/google";
+import { isPublicInsuredClaimReady } from "@/lib/business-insurance";
 import "../globals.css";
 
 const inter = Inter({
@@ -19,9 +20,15 @@ const notoSansSC = Noto_Sans_SC({
 
 export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
   const t = await getTranslations({ locale: params.locale, namespace: 'meta' });
+  // v8.3 P0-4 fix (auditoría Fable5, B.4/B.2.25): el meta description NUNCA
+  // debe afirmar "insured" hasta que las 3 pólizas reales estén contratadas
+  // y registradas en business_insurance_policies. generateMetadata corre en
+  // servidor, así que el check se hace directo aquí (fail-closed a false).
+  const insuredClaimReady = await isPublicInsuredClaimReady();
+  const description = t(insuredClaimReady ? 'descriptionInsured' : 'description');
   return {
     title: t('title'),
-    description: t('description'),
+    description,
     keywords: t('keywords')
       .split(',')
       .map((k: string) => k.trim()),
@@ -31,7 +38,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
     manifest: "/manifest.json",
     openGraph: {
       title: t('title'),
-      description: t('description'),
+      description,
       type: "website",
     },
   };

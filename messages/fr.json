@@ -1,35 +1,39 @@
 {
   "meta": {
-    "title": "Lulu Island Flagship | Cleaning Services | Richmond, BC",
-    "description": "The same trusted team, every time. Verified, insured, and trained to care for your home — not just clean it. Full price from quote, no surprises. Serving Richmond, Vancouver, North Vancouver, West Vancouver & UBC.",
-    "keywords": "cleaning services, house cleaning, Richmond BC, Vancouver cleaning, deep cleaning, move-in cleaning"
+    "title": "Lulu Island Flagship | Services de nettoyage | Richmond, C.-B.",
+    "description": "La même équipe de confiance, à chaque fois. Vérifiée et formée pour prendre soin de votre maison — pas seulement la nettoyer. Prix complet dès la soumission, sans surprise. Nous desservons Richmond, Vancouver, North Vancouver, West Vancouver et UBC.",
+    "descriptionInsured": "La même équipe de confiance, à chaque fois. Vérifiée, assurée et formée pour prendre soin de votre maison — pas seulement la nettoyer. Prix complet dès la soumission, sans surprise. Nous desservons Richmond, Vancouver, North Vancouver, West Vancouver et UBC.",
+    "keywords": "services de nettoyage, nettoyage résidentiel, Richmond C.-B., nettoyage Vancouver, nettoyage en profondeur, nettoyage déménagement"
   },
   "nav": {
-    "location": "Richmond, BC"
+    "location": "Richmond, C.-B."
   },
   "hero": {
-    "badge": "Serving Richmond, Vancouver, North & West Vancouver, UBC",
-    "title": "The same trusted team,",
-    "titleHighlight": "every time.",
-    "description": "Verified, insured, and trained to care for your home — not just clean it. Full price from quote, no surprises.",
-    "ctaPrimary": "Get Your Quote",
-    "ctaSecondary": "Start Your Quote",
-    "timeEstimate": "Takes less than 90 seconds"
+    "badge": "Nous desservons Richmond, Vancouver, North & West Vancouver, UBC",
+    "title": "La même équipe de confiance,",
+    "titleHighlight": "à chaque fois.",
+    "description": "Vérifiée et formée pour prendre soin de votre maison — pas seulement la nettoyer. Prix complet dès la soumission, sans surprise.",
+    "descriptionInsured": "Vérifiée, assurée et formée pour prendre soin de votre maison — pas seulement la nettoyer. Prix complet dès la soumission, sans surprise.",
+    "ctaPrimary": "Obtenir votre soumission",
+    "ctaSecondary": "Commencer votre soumission",
+    "timeEstimate": "Moins de 90 secondes"
   },
   "trust": {
-    "verifiedTitle": "Verified & Insured",
-    "verifiedDesc": "Every team member is background-checked, bonded, and covered by comprehensive insurance.",
-    "teamTitle": "Same Team, Always",
-    "teamDesc": "No strangers. The same dedicated team returns to your home, knowing your preferences.",
-    "guaranteeTitle": "Premium Guarantee",
-    "guaranteeDesc": "Full price shown upfront. Every service backed by photo evidence and our satisfaction guarantee."
+    "verifiedTitle": "Vérifiée et formée",
+    "verifiedDesc": "Chaque membre de l'équipe a fait l'objet d'une vérification d'antécédents et d'une formation avant de mettre les pieds chez vous.",
+    "verifiedTitleInsured": "Vérifiée et assurée",
+    "verifiedDescInsured": "Chaque membre de l'équipe a fait l'objet d'une vérification d'antécédents, est cautionné et couvert par une assurance complète.",
+    "teamTitle": "Toujours la même équipe",
+    "teamDesc": "Pas d'inconnus chez vous. La même équipe dédiée revient à chaque visite et connaît vos préférences.",
+    "guaranteeTitle": "Garantie Premium",
+    "guaranteeDesc": "Le prix complet est affiché dès le départ. Chaque service est appuyé par des photos et notre garantie de satisfaction."
   },
   "cta": {
-    "title": "Ready for a cleaner home?",
-    "description": "Get your personalized quote in under 90 seconds. No hidden fees, no surprises."
+    "title": "Prêt pour une maison plus propre?",
+    "description": "Obtenez votre soumission personnalisée en moins de 90 secondes. Aucuns frais cachés, aucune surprise."
   },
   "footer": {
-    "copyright": "© 2026 Lulu Island Flagship Cleaning Services. Richmond, BC, Canada."
+    "copyright": "© 2026 Lulu Island Flagship Cleaning Services. Richmond, C.-B., Canada."
   },
   "language": {
     "en": "EN",
@@ -37,44 +41,44 @@
     "fr": "FR"
   },
   "employee": {
-    "loginTitle": "Employee Login",
-    "loginSubtitle": "Sign in with your work email",
-    "otpSubtitle": "Enter the code sent to your email",
-    "workEmail": "Work Email",
-    "sendCode": "Send Code",
-    "verifySignIn": "Verify & Sign In",
-    "backToEmail": "Back to email",
-    "sixDigitCode": "6-Digit Code",
-    "goodMorning": "Good morning",
-    "team": "Team",
-    "startShift": "Start Shift",
-    "shiftStarted": "Shift Started",
-    "readyToWork": "Ready to work",
-    "todaysServices": "Today's Services",
-    "noServices": "No services assigned for today.",
-    "openService": "Open Service",
-    "clientBrief": "Client Brief",
-    "serviceTimeline": "Service Timeline",
-    "noEventsYet": "No events yet.",
+    "loginTitle": "Connexion employé",
+    "loginSubtitle": "Connectez-vous avec votre courriel de travail",
+    "otpSubtitle": "Entrez le code envoyé à votre courriel",
+    "workEmail": "Courriel de travail",
+    "sendCode": "Envoyer le code",
+    "verifySignIn": "Vérifier et se connecter",
+    "backToEmail": "Retour au courriel",
+    "sixDigitCode": "Code à 6 chiffres",
+    "goodMorning": "Bon matin",
+    "team": "Équipe",
+    "startShift": "Commencer le quart",
+    "shiftStarted": "Quart commencé",
+    "readyToWork": "Prêt à travailler",
+    "todaysServices": "Services d'aujourd'hui",
+    "noServices": "Aucun service assigné pour aujourd'hui.",
+    "openService": "Ouvrir le service",
+    "clientBrief": "Fiche client",
+    "serviceTimeline": "Chronologie du service",
+    "noEventsYet": "Aucun événement pour l'instant.",
     "photos": "Photos",
-    "addPhoto": "Add Photo",
-    "addNote": "Add a note...",
-    "serviceCompleted": "Service Completed",
-    "greatWork": "Great work! This service is finished.",
-    "backToDashboard": "Back to Dashboard",
-    "serviceNotFound": "Service Not Found",
-    "notAssigned": "This service is not assigned to you.",
+    "addPhoto": "Ajouter une photo",
+    "addNote": "Ajouter une note...",
+    "serviceCompleted": "Service terminé",
+    "greatWork": "Excellent travail! Ce service est terminé.",
+    "backToDashboard": "Retour au tableau de bord",
+    "serviceNotFound": "Service introuvable",
+    "notAssigned": "Ce service ne vous est pas assigné.",
     "status": {
-      "pending": "Pending",
-      "en_route": "En Route",
-      "arrived": "Arrived",
-      "in_progress": "In Progress",
-      "completed": "Completed"
+      "pending": "En attente",
+      "en_route": "En route",
+      "arrived": "Arrivé",
+      "in_progress": "En cours",
+      "completed": "Terminé"
     },
     "actions": {
-      "iArrived": "I Arrived",
-      "startCleaning": "Start Cleaning",
-      "finishService": "Finish Service"
+      "iArrived": "Je suis arrivé",
+      "startCleaning": "Commencer le nettoyage",
+      "finishService": "Terminer le service"
     }
   }
 }

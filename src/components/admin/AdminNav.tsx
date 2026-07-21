@@ -8,11 +8,27 @@
 // (desktop: dropdowns; mobile: acordeón deslizable) y se agrega el único
 // link que existía en el dashboard de tarjetas pero no en el nav
 // (Quote Reviews, ver AdminDashboardClient.tsx).
+//
+// v8.3 fix G-4 (auditoría staff/admin): este nav renderizaba TODOS los links
+// sin importar el rol admin del usuario -- un qc_only (que solo debería ver
+// "QC") veía el menú completo de un owner_admin, incluyendo Pricing Rules,
+// Employees (nómina) y Seguridad (backup codes). Cada link ahora declara su
+// AdminResource (misma matriz que ya protege las APIs, ver
+// src/lib/admin-rbac.ts) y se filtra con roleAllows() contra los roles reales
+// del usuario, que ahora llegan como prop desde admin/layout.tsx. Un grupo
+// que se queda sin links visibles no se renderiza.
+//
+// v8.3 fix G-3: se agregan 5 páginas admin que existían y funcionaban pero
+// no tenían ningún link en la UI (warranty-claims, phone-booking, wallet,
+// comunicaciones, config-history) -- solo alcanzables escribiendo la URL a
+// mano. El resource RBAC de cada una se tomó de su API real
+// (requireAdminRole(...) en src/app/api/admin/**/route.ts), no inventado.
 
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Menu, X } from "lucide-react";
+import { roleAllows, type AdminRole, type AdminResource } from "@/lib/admin-rbac";
 
-type NavLink = { label: string; href: string };
+type NavLink = { label: string; href: string; resource: AdminResource };
 type NavGroup = { label: string; links: NavLink[] };
 
 function buildGroups(adminPath: string): NavGroup[] {
@@ -20,46 +36,80 @@ function buildGroups(adminPath: string): NavGroup[] {
     {
       label: "Operations",
       links: [
-        { label: "Services", href: `${adminPath}/servicios` },
-        { label: "Employees", href: `${adminPath}/empleados` },
-        { label: "Vehicles", href: `${adminPath}/vehicles` },
-        { label: "Checklists", href: `${adminPath}/checklists` },
-        { label: "Inventario", href: `${adminPath}/inventario` },
+        { label: "Services", href: `${adminPath}/servicios`, resource: "services" },
+        { label: "Employees", href: `${adminPath}/empleados`, resource: "employees_admin" },
+        { label: "Vehicles", href: `${adminPath}/vehicles`, resource: "vehicles" },
+        { label: "Checklists", href: `${adminPath}/checklists`, resource: "checklists_sop" },
+        { label: "Inventario", href: `${adminPath}/inventario`, resource: "inventory" },
       ],
     },
     {
       label: "Quality & Risk",
       links: [
-        { label: "QC", href: `${adminPath}/qc` },
-        { label: "Audits", href: `${adminPath}/audits` },
-        { label: "Near-Misses", href: `${adminPath}/near-misses` },
-        { label: "Riesgo", href: `${adminPath}/riesgo` },
-        { label: "SOS", href: `${adminPath}/sos` },
-        { label: "Disaster Recovery", href: `${adminPath}/recuperacion-desastres` },
+        { label: "QC", href: `${adminPath}/qc`, resource: "qc_wall" },
+        { label: "Audits", href: `${adminPath}/audits`, resource: "field_audits" },
+        { label: "Near-Misses", href: `${adminPath}/near-misses`, resource: "near_misses" },
+        { label: "Riesgo", href: `${adminPath}/riesgo`, resource: "risk_assessments" },
+        // SOS usa el resource "tickets" -- ver comentario en
+        // src/app/api/admin/safety-aborts/route.ts: un SOS es, en esencia,
+        // el ticket de máxima prioridad del sistema, no un resource propio.
+        { label: "SOS", href: `${adminPath}/sos`, resource: "tickets" },
+        // Disaster Recovery consume /api/admin/dr-drill, que usa el
+        // resource "feature_flags" (interruptores del sistema, solo owner_admin).
+        { label: "Disaster Recovery", href: `${adminPath}/recuperacion-desastres`, resource: "feature_flags" },
       ],
     },
     {
       label: "Sales & Customer",
       links: [
-        { label: "Tickets", href: `${adminPath}/tickets` },
-        { label: "Quote Reviews", href: `${adminPath}/quotes-review` },
-        { label: "Upsells", href: `${adminPath}/upsells` },
-        { label: "Marketing", href: `${adminPath}/marketing` },
-        { label: "Competencia", href: `${adminPath}/competencia` },
+        { label: "Tickets", href: `${adminPath}/tickets`, resource: "tickets" },
+        { label: "Quote Reviews", href: `${adminPath}/quotes-review`, resource: "quotes_review" },
+        { label: "Upsells", href: `${adminPath}/upsells`, resource: "upsells_review" },
+        { label: "Marketing", href: `${adminPath}/marketing`, resource: "upsells_review" },
+        // Competencia usa el resource "finance" en su API
+        // (src/app/api/admin/competencia/route.ts).
+        { label: "Competencia", href: `${adminPath}/competencia`, resource: "finance" },
+        // v8.3 fix G-3: reclamos de garantía reportados por el cliente --
+        // API usa el resource "tickets" (src/app/api/admin/warranty-claims/route.ts).
+        { label: "Warranty Claims", href: `${adminPath}/warranty-claims`, resource: "tickets" },
+        // v8.3 fix G-3: reserva por teléfono, resource propio "phone_booking".
+        { label: "Phone Booking", href: `${adminPath}/phone-booking`, resource: "phone_booking" },
       ],
     },
     {
       label: "Finance & Settings",
       links: [
-        { label: "Pricing Rules", href: `${adminPath}/pricing-rules` },
-        { label: "Pricing Settings", href: `${adminPath}/pricing-settings` },
-        { label: "Contabilidad", href: `${adminPath}/contabilidad` },
-        { label: "Team Ranking", href: `${adminPath}/team-ranking` },
-        { label: "Ajustes HHE", href: `${adminPath}/ajustes-hhe` },
-        { label: "Seguridad", href: `${adminPath}/seguridad` },
+        { label: "Pricing Rules", href: `${adminPath}/pricing-rules`, resource: "pricing_rules" },
+        { label: "Pricing Settings", href: `${adminPath}/pricing-settings`, resource: "pricing_settings" },
+        { label: "Contabilidad", href: `${adminPath}/contabilidad`, resource: "finance" },
+        { label: "Team Ranking", href: `${adminPath}/team-ranking`, resource: "wellbeing" },
+        { label: "Ajustes HHE", href: `${adminPath}/ajustes-hhe`, resource: "hhe_settings" },
+        { label: "Seguridad", href: `${adminPath}/seguridad`, resource: "security_backup_codes" },
+        // v8.3 fix G-3: wallet de créditos/reembolsos de cliente -- API usa
+        // el resource "finance" (src/app/api/admin/wallet/route.ts).
+        { label: "Wallet", href: `${adminPath}/wallet`, resource: "finance" },
+        // v8.3 fix G-3: plantillas de comunicación -- API usa el resource
+        // "finance" (src/app/api/admin/communication-templates/route.ts).
+        { label: "Comunicaciones", href: `${adminPath}/comunicaciones`, resource: "finance" },
+        // v8.3 fix G-3: historial de cambios de configuración -- API usa el
+        // resource "finance" (src/app/api/admin/config-history/route.ts).
+        { label: "Config History", href: `${adminPath}/config-history`, resource: "finance" },
+        // v8.3 fix B-2: alta/revocación de owner_admin/ops_coordinator/qc_only
+        // -- resource dedicado "admin_roles_management", solo owner_admin.
+        { label: "Roles", href: `${adminPath}/roles`, resource: "admin_roles_management" },
       ],
     },
   ];
+}
+
+/** Filtra grupos/links por los roles admin reales del usuario; quita grupos vacíos. */
+function filterGroupsByRole(groups: NavGroup[], roles: AdminRole[]): NavGroup[] {
+  return groups
+    .map((group) => ({
+      ...group,
+      links: group.links.filter((link) => roleAllows(roles, link.resource)),
+    }))
+    .filter((group) => group.links.length > 0);
 }
 
 function DesktopDropdown({ group }: { group: NavGroup }) {
@@ -101,8 +151,8 @@ function DesktopDropdown({ group }: { group: NavGroup }) {
   );
 }
 
-export default function AdminNav({ adminPath }: { adminPath: string }) {
-  const groups = buildGroups(adminPath);
+export default function AdminNav({ adminPath, roles }: { adminPath: string; roles: AdminRole[] }) {
+  const groups = filterGroupsByRole(buildGroups(adminPath), roles);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileGroupOpen, setMobileGroupOpen] = useState<string | null>(null);
 

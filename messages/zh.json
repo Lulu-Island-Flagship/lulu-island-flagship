@@ -1,35 +1,39 @@
 {
   "meta": {
-    "title": "Lulu Island Flagship | Cleaning Services | Richmond, BC",
-    "description": "The same trusted team, every time. Verified, insured, and trained to care for your home — not just clean it. Full price from quote, no surprises. Serving Richmond, Vancouver, North Vancouver, West Vancouver & UBC.",
-    "keywords": "cleaning services, house cleaning, Richmond BC, Vancouver cleaning, deep cleaning, move-in cleaning"
+    "title": "Lulu Island Flagship | 清洁服务 | 里士满，卑诗省",
+    "description": "始终如一的信赖团队。经过背景审查与专业培训,用心呵护您的家,而不只是打扫。报价即为最终价格,绝无隐藏费用。服务范围覆盖里士满、温哥华、北温哥华、西温哥华及UBC地区。",
+    "descriptionInsured": "始终如一的信赖团队。经过认证、投保并专业培训,用心呵护您的家,而不只是打扫。报价即为最终价格,绝无隐藏费用。服务范围覆盖里士满、温哥华、北温哥华、西温哥华及UBC地区。",
+    "keywords": "清洁服务, 家庭清洁, 里士满清洁, 温哥华清洁, 深度清洁, 搬家清洁"
   },
   "nav": {
-    "location": "Richmond, BC"
+    "location": "里士满，卑诗省"
   },
   "hero": {
-    "badge": "Serving Richmond, Vancouver, North & West Vancouver, UBC",
-    "title": "The same trusted team,",
-    "titleHighlight": "every time.",
-    "description": "Verified, insured, and trained to care for your home — not just clean it. Full price from quote, no surprises.",
-    "ctaPrimary": "Get Your Quote",
-    "ctaSecondary": "Start Your Quote",
-    "timeEstimate": "Takes less than 90 seconds"
+    "badge": "服务里士满、温哥华、北温及西温、UBC地区",
+    "title": "始终如一的信赖团队,",
+    "titleHighlight": "每一次都值得托付。",
+    "description": "经过背景审查与专业培训,用心呵护您的家,而不只是打扫。报价即为最终价格,绝无隐藏费用。",
+    "descriptionInsured": "经过认证、投保并专业培训,用心呵护您的家,而不只是打扫。报价即为最终价格,绝无隐藏费用。",
+    "ctaPrimary": "获取报价",
+    "ctaSecondary": "开始获取报价",
+    "timeEstimate": "不到90秒即可完成"
   },
   "trust": {
-    "verifiedTitle": "Verified & Insured",
-    "verifiedDesc": "Every team member is background-checked, bonded, and covered by comprehensive insurance.",
-    "teamTitle": "Same Team, Always",
-    "teamDesc": "No strangers. The same dedicated team returns to your home, knowing your preferences.",
-    "guaranteeTitle": "Premium Guarantee",
-    "guaranteeDesc": "Full price shown upfront. Every service backed by photo evidence and our satisfaction guarantee."
+    "verifiedTitle": "身份核实 · 专业培训",
+    "verifiedDesc": "每位团队成员在进入您家之前,均已通过背景审查并完成专业培训。",
+    "verifiedTitleInsured": "身份核实 · 已投保",
+    "verifiedDescInsured": "每位团队成员均经过背景审查、担保认证,并享有全面保险保障。",
+    "teamTitle": "始终是同一支团队",
+    "teamDesc": "拒绝陌生面孔。同一支专属团队每次上门服务,了解您的每一个偏好。",
+    "guaranteeTitle": "尊享保障",
+    "guaranteeDesc": "价格提前透明公示。每次服务均附照片记录,并有满意度保障承诺。"
   },
   "cta": {
-    "title": "Ready for a cleaner home?",
-    "description": "Get your personalized quote in under 90 seconds. No hidden fees, no surprises."
+    "title": "准备好拥有一个更整洁的家了吗？",
+    "description": "不到90秒即可获取专属报价。无隐藏费用,无意外惊吓。"
   },
   "footer": {
-    "copyright": "© 2026 Lulu Island Flagship Cleaning Services. Richmond, BC, Canada."
+    "copyright": "© 2026 Lulu Island Flagship Cleaning Services。里士满，卑诗省，加拿大。"
   },
   "language": {
     "en": "EN",
@@ -37,44 +41,44 @@
     "fr": "FR"
   },
   "employee": {
-    "loginTitle": "Employee Login",
-    "loginSubtitle": "Sign in with your work email",
-    "otpSubtitle": "Enter the code sent to your email",
-    "workEmail": "Work Email",
-    "sendCode": "Send Code",
-    "verifySignIn": "Verify & Sign In",
-    "backToEmail": "Back to email",
-    "sixDigitCode": "6-Digit Code",
-    "goodMorning": "Good morning",
-    "team": "Team",
-    "startShift": "Start Shift",
-    "shiftStarted": "Shift Started",
-    "readyToWork": "Ready to work",
-    "todaysServices": "Today's Services",
-    "noServices": "No services assigned for today.",
-    "openService": "Open Service",
-    "clientBrief": "Client Brief",
-    "serviceTimeline": "Service Timeline",
-    "noEventsYet": "No events yet.",
-    "photos": "Photos",
-    "addPhoto": "Add Photo",
-    "addNote": "Add a note...",
-    "serviceCompleted": "Service Completed",
-    "greatWork": "Great work! This service is finished.",
-    "backToDashboard": "Back to Dashboard",
-    "serviceNotFound": "Service Not Found",
-    "notAssigned": "This service is not assigned to you.",
+    "loginTitle": "员工登录",
+    "loginSubtitle": "使用您的工作邮箱登录",
+    "otpSubtitle": "请输入发送至您邮箱的验证码",
+    "workEmail": "工作邮箱",
+    "sendCode": "发送验证码",
+    "verifySignIn": "验证并登录",
+    "backToEmail": "返回邮箱输入",
+    "sixDigitCode": "6位验证码",
+    "goodMorning": "早上好",
+    "team": "团队",
+    "startShift": "开始今日班次",
+    "shiftStarted": "班次已开始",
+    "readyToWork": "准备就绪",
+    "todaysServices": "今日服务安排",
+    "noServices": "今天暂无分配的服务。",
+    "openService": "打开服务详情",
+    "clientBrief": "客户须知",
+    "serviceTimeline": "服务进度时间线",
+    "noEventsYet": "暂无记录事件。",
+    "photos": "照片",
+    "addPhoto": "添加照片",
+    "addNote": "添加备注...",
+    "serviceCompleted": "服务已完成",
+    "greatWork": "辛苦了！本次服务已顺利完成。",
+    "backToDashboard": "返回工作台",
+    "serviceNotFound": "未找到该服务",
+    "notAssigned": "此服务未分配给您。",
     "status": {
-      "pending": "Pending",
-      "en_route": "En Route",
-      "arrived": "Arrived",
-      "in_progress": "In Progress",
-      "completed": "Completed"
+      "pending": "待处理",
+      "en_route": "前往途中",
+      "arrived": "已到达",
+      "in_progress": "服务进行中",
+      "completed": "已完成"
     },
     "actions": {
-      "iArrived": "I Arrived",
-      "startCleaning": "Start Cleaning",
-      "finishService": "Finish Service"
+      "iArrived": "我已到达",
+      "startCleaning": "开始清洁",
+      "finishService": "完成服务"
     }
   }
 }

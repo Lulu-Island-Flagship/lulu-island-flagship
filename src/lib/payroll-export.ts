@@ -18,6 +18,16 @@
  *    exportarla -- no es un campo derivable de cálculos existentes.
  *  - PDF de nómina, integración real QBO Payroll y firma digital real
  *    (Documenso/DocuSign): alcance mayor, no cubierto aquí.
+ *
+ * v8.3 P0-8 (auditoría Fable5, 2026-07-19): se agrega soporte OPCIONAL de
+ * SIN descifrado al export (attachSinToLines / cycleDeductionsToCsvWithSin).
+ * Es una capa aparte de buildCycleDeductions/cycleDeductionsToCsv (que NO
+ * se tocan, para no romper el contrato/tests existentes del CSV base) --
+ * el caller (payroll-export/route.ts) decide si la llama, y solo debe
+ * hacerlo tras descifrar el SIN vía get_employee_banking_info() (RPC,
+ * migración 204), que ya exige rol owner_admin por su cuenta. Esta capa
+ * nunca toca la base de datos ni el cifrado -- son funciones puras que
+ * reciben el SIN ya en texto plano y solo lo insertan en la fila/CSV.
  */
 
 import type { EmployeeCycleSummary, PayrollCycle } from "./payroll-cycle";
@@ -122,6 +132,41 @@ export function cycleDeductionsToCsv(lines: CycleDeductionLine[], cycle: Payroll
     ].join(",");
   });
 
+  return [header, ...rows].join("\n");
+}
+
+/**
+ * v8.3 P0-8: fila de export con SIN en texto plano adjunto. Tipo separado
+ * (no se agrega `sin` a CycleDeductionLine) para que quede explícito en el
+ * sistema de tipos cuándo una lista de líneas SÍ trae el dato más sensible
+ * de todo el sistema de nómina, y para que sea imposible pasarla por error
+ * a cycleDeductionsToCsv() (el CSV base, sin SIN, sigue exactamente igual).
+ */
+export interface CycleDeductionLineWithSin extends CycleDeductionLine {
+  /** SIN en texto plano, ya descifrado por get_employee_banking_info(). null si el empleado aún no tiene SIN capturado. */
+  sin: string | null;
+}
+
+/** Adjunta el SIN (ya descifrado por el caller vía RPC) a cada línea. Función pura -- no descifra nada aquí. */
+export function attachSinToLines(
+  lines: CycleDeductionLine[],
+  sinByEmployee: Map<string, string | null>
+): CycleDeductionLineWithSin[] {
+  return lines.map((l) => ({ ...l, sin: sinByEmployee.get(l.employeeId) ?? null }));
+}
+
+/**
+ * CSV con SIN incluido -- SOLO debe generarse cuando el caller ya verificó
+ * que quien pide el export es owner_admin (ver payroll-export/route.ts,
+ * resource 'payroll' en admin-rbac.ts está restringido a owner_admin).
+ * Nunca usar esta función para una respuesta que no vaya a manos del propio
+ * flujo de nómina -- el SIN es información regulada (CRA T4).
+ */
+export function cycleDeductionsToCsvWithSin(lines: CycleDeductionLineWithSin[], cycle: PayrollCycle): string {
+  const baseCsv = cycleDeductionsToCsv(lines, cycle);
+  const baseRows = baseCsv.split("\n");
+  const header = `${baseRows[0]},sin`;
+  const rows = lines.map((l, i) => `${baseRows[i + 1]},${l.sin ?? ""}`);
   return [header, ...rows].join("\n");
 }
 

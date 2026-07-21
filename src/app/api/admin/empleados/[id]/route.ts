@@ -35,12 +35,69 @@ export async function PATCH(
 
   try {
     const body = await request.json();
-    const { languages, languageLevels, careerLevel, isActive } = body as {
+    const { languages, languageLevels, careerLevel, isActive, sin, bankTransitNumber, bankInstitutionNumber, bankAccountNumber } = body as {
       languages?: unknown;
       languageLevels?: unknown;
       careerLevel?: unknown;
       isActive?: unknown;
+      sin?: unknown;
+      bankTransitNumber?: unknown;
+      bankInstitutionNumber?: unknown;
+      bankAccountNumber?: unknown;
     };
+
+    // v8.3 P0-8 (auditoría Fable5, 2026-07-19): SIN/datos bancarios NUNCA se
+    // escriben con un UPDATE directo sobre employees -- las 4 columnas
+    // sensibles ni siquiera son visibles en el `.select(...)` de este
+    // endpoint (ver migración 204: REVOKE SELECT sobre sin_encrypted/
+    // banking_details_encrypted para anon/authenticated). Si vienen en el
+    // body, se validan aquí (mismo nivel de validación que el resto del
+    // endpoint) y se escriben con el RPC set_employee_banking_info(), que
+    // vuelve a exigir owner_admin por su cuenta y cifra con pgp_sym_encrypt
+    // usando PAYROLL_ENCRYPTION_KEY (variable de entorno de servidor).
+    // Los 4 campos son "todo o nada": actualizar SIN sin banking (o
+    // viceversa) dejaría la otra mitad en null sobre datos que ya existían
+    // -- se exige que vengan juntos si se envía cualquiera de los cuatro.
+    const bankingFieldsProvided = [sin, bankTransitNumber, bankInstitutionNumber, bankAccountNumber].some(
+      (v) => v !== undefined
+    );
+    if (bankingFieldsProvided) {
+      if (typeof sin !== "string" || !/^[0-9]{9}$/.test(sin)) {
+        return NextResponse.json({ error: "sin must be exactly 9 digits" }, { status: 400 });
+      }
+      if (typeof bankTransitNumber !== "string" || !/^[0-9]{5}$/.test(bankTransitNumber)) {
+        return NextResponse.json({ error: "bankTransitNumber must be exactly 5 digits" }, { status: 400 });
+      }
+      if (typeof bankInstitutionNumber !== "string" || !/^[0-9]{3}$/.test(bankInstitutionNumber)) {
+        return NextResponse.json({ error: "bankInstitutionNumber must be exactly 3 digits" }, { status: 400 });
+      }
+      if (typeof bankAccountNumber !== "string" || !/^[0-9]{7,12}$/.test(bankAccountNumber)) {
+        return NextResponse.json({ error: "bankAccountNumber must be 7-12 digits" }, { status: 400 });
+      }
+
+      const encryptionKey = process.env.PAYROLL_ENCRYPTION_KEY;
+      if (!encryptionKey) {
+        return NextResponse.json(
+          {
+            error:
+              "PAYROLL_ENCRYPTION_KEY is not configured on the server. Generate one with `openssl rand -base64 32` and set it as a server-only environment variable before capturing SIN/banking data.",
+          },
+          { status: 500 }
+        );
+      }
+
+      const { error: bankingError } = await supabase.rpc("set_employee_banking_info", {
+        p_employee_id: params.id,
+        p_sin: sin,
+        p_bank_transit_number: bankTransitNumber,
+        p_bank_institution_number: bankInstitutionNumber,
+        p_bank_account_number: bankAccountNumber,
+        p_encryption_key: encryptionKey,
+      });
+      if (bankingError) {
+        return NextResponse.json({ error: bankingError.message }, { status: 500 });
+      }
+    }
 
     const update: Record<string, unknown> = {};
     let activationRequested = false;
@@ -98,7 +155,11 @@ export async function PATCH(
       update.language_levels = languageLevels;
     }
 
-    if (Object.keys(update).length === 0) {
+    // v8.3 P0-8: una llamada que SOLO trae sin/banking (sin languages/
+    // careerLevel/isActive) ya hizo su escritura completa arriba vía
+    // set_employee_banking_info() -- `update` queda vacío legítimamente en
+    // ese caso, no es un "no mandaste nada" real.
+    if (Object.keys(update).length === 0 && !bankingFieldsProvided) {
       return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
     }
 
@@ -161,7 +222,15 @@ async function sendEmployeeInvitation(
   supabase: any,
   employee: { id: string; name: string; email: string; languages: string[] | null }
 ): Promise<{ status: string; detail?: string }> {
-  const supportedLanguage = (employee.languages || []).find((l) => ["en", "es", "zh"].includes(l));
+  // v8.3 fix G-6: esta lista usaba ["en","es","zh"], pero src/i18n/config.ts
+  // declara locales = ['en', 'zh', 'fr'] -- no existe 'es' como locale de la
+  // app, y 'fr' faltaba aquí por completo. Con la lista vieja, un empleado
+  // con languages=['fr'] nunca matcheaba nada y el link del correo de
+  // invitación podía terminar apuntando a un idioma que ni siquiera es una
+  // ruta válida. Ver migración 205 (205_e0_employee_invited_fr_template.sql)
+  // para la plantilla 'fr' que hacía falta para que este idioma también
+  // tenga contenido que enviar.
+  const supportedLanguage = (employee.languages || []).find((l) => ["en", "zh", "fr"].includes(l));
   const language = supportedLanguage || "en";
 
   const { data: template } = await supabase

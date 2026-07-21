@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
       .is("stripe_hold_payment_intent_id", null)
       .gte("service_datetime", windowStart)
       .lte("service_datetime", windowEnd)
-      .not("status", "in", ["cancelled", "no_show"])
+      .not("status", "in", "(cancelled,no_show)")
       .lt("hold_attempts", MAX_ATTEMPTS)
       .order("service_datetime", { ascending: true });
 

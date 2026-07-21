@@ -85,3 +85,59 @@ export function missingPolicyTypes(registeredTypes: string[]): PolicyType[] {
   const registered = new Set(registeredTypes);
   return REQUIRED_POLICY_TYPES.filter((t) => !registered.has(t));
 }
+
+/**
+ * v8.3 P0-4 fix (auditoría Fable5): función pura que decide si el claim
+ * público "asegurados/bonded/insured" puede mostrarse (B.4, B.2.25). Reusa
+ * la misma regla que ya calculaba GET /api/admin/business-insurance
+ * (allThreePoliciesReady), extraída aquí para no duplicarla entre esa ruta
+ * admin y el endpoint público de solo-lectura que consume la copia visible
+ * del sitio (src/app/api/public/insured-status/route.ts).
+ */
+export function computeAllThreePoliciesReady(
+  policies: { policy_type: string; status: PolicyStatus; meetsRequiredCoverage: boolean }[]
+): boolean {
+  const missing = missingPolicyTypes(policies.map((p) => p.policy_type));
+  return missing.length === 0 && policies.every((p) => p.status !== "expired" && p.meetsRequiredCoverage);
+}
+
+/**
+ * v8.3 P0-4 fix — check server-side, fail-closed, para el claim público
+ * "insured". Cualquier error, credencial faltante, o pólizas incompletas =>
+ * false (nunca se afirma "insured" sin certeza total). Usa el service role
+ * porque corre sin sesión de usuario (mismo patrón que los crons, ver
+ * src/app/api/cron/wellbeing-chemical-reassign/route.ts) -- pero a
+ * diferencia de esos crons, esta función NUNCA expone los datos crudos de
+ * las pólizas, solo el booleano derivado.
+ */
+export async function isPublicInsuredClaimReady(): Promise<boolean> {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseServiceKey) return false;
+
+    const { createClient } = await import("@supabase/supabase-js");
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { data: policies, error } = await supabase
+      .from("business_insurance_policies")
+      .select("policy_type, coverage_amount_cents, expiry_date")
+      .eq("is_active", true)
+      .is("deleted_at", null);
+
+    if (error || !policies || policies.length === 0) return false;
+
+    const enriched = policies.map((p: { policy_type: string; coverage_amount_cents: number; expiry_date: string }) => ({
+      policy_type: p.policy_type,
+      status: computePolicyStatus({ expiryDate: p.expiry_date }),
+      meetsRequiredCoverage: meetsRequiredCoverage({
+        policyType: p.policy_type as PolicyType,
+        coverageAmountCents: p.coverage_amount_cents,
+      }),
+    }));
+
+    return computeAllThreePoliciesReady(enriched);
+  } catch {
+    return false;
+  }
+}

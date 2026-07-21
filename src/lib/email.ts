@@ -7,17 +7,19 @@
  * ningún adaptador real para ese canal y lo dejaba en 'queued' de forma
  * permanente ("Canal 'email' sin adaptador real todavía (TODO E6)").
  *
- * TODO(dueño/infra): no hay proveedor de email contratado todavía. El stack
- * canónico (C.1) es SendGrid. Antes de usar esto en producción, integrar el
- * proveedor real y setear las credenciales como variables de entorno (nunca
- * hardcodeadas). Esta función es la interfaz estable que el resto del
- * sistema debe llamar; solo cambia la implementación interna cuando exista
- * contrato con un proveedor.
+ * v8.3 B-3 (auditoría go-live 2026-07-20): sendEmail() era un stub
+ * permanente que siempre devolvía "not_configured", incluso si alguien
+ * seteaba credenciales. Se implementa un adaptador real con Resend
+ * (https://resend.com/docs/api-reference/emails/send-email) vía fetch nativo
+ * -- sin SDK adicional, para no tocar el lockfile mientras otros agentes
+ * trabajan en paralelo en el mismo repo. El fallback "not_configured" sin
+ * RESEND_API_KEY se conserva intacto (comportamiento correcto para dev/
+ * staging sin proveedor contratado) -- este bloque solo se ejecuta si la
+ * variable está seteada.
  *
- * Mientras no haya proveedor configurado, sendEmail() nunca intenta una
- * llamada de red: devuelve status "not_configured" de forma determinista,
- * igual que sendSms(), para que el caller pueda registrar el intento sin
- * fallar silenciosamente ni inventar una integración que no existe.
+ * Esta función es la interfaz estable que el resto del sistema debe llamar
+ * (SendEmailInput/SendEmailResult sin cambios -- 8 archivos ya la consumen);
+ * solo cambia la implementación interna.
  */
 
 export interface SendEmailInput {
@@ -54,21 +56,42 @@ export function maskEmail(email: string): string {
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
   const maskedEmail = maskEmail(input.toEmail);
 
-  // TODO(dueño/infra): reemplazar este bloque por la llamada real al
-  // proveedor de email una vez exista contrato + credenciales. Ejemplo de
-  // forma esperada (NO implementado, NO son credenciales reales):
-  //
-  //   const client = getEmailProviderClient(); // SendGrid
-  //   const response = await client.send({
-  //     to: input.toEmail,
-  //     subject: input.subject,
-  //     text: input.body,
-  //   });
-  //   return { status: "sent", maskedEmail, providerResponse: response.messageId };
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    return {
+      status: "not_configured",
+      maskedEmail,
+      providerResponse: null,
+    };
+  }
 
-  return {
-    status: "not_configured",
-    maskedEmail,
-    providerResponse: null,
-  };
+  const from = process.env.EMAIL_FROM_ADDRESS || "Lulu Island Flagship <noreply@luluislandflagship.ca>";
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: [input.toEmail],
+        subject: input.subject,
+        text: input.body,
+      }),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      console.error("Resend send error:", res.status, errBody);
+      return { status: "failed", maskedEmail, providerResponse: null };
+    }
+
+    const data = (await res.json()) as { id?: string };
+    return { status: "sent", maskedEmail, providerResponse: data.id ?? null };
+  } catch (err) {
+    console.error("Resend send exception:", err instanceof Error ? err.message : err);
+    return { status: "failed", maskedEmail, providerResponse: null };
+  }
 }

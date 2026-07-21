@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       .from("orders")
       .select("id, quotes:quote_id ( user_id, zone, address )")
       .eq("service_date", today)
-      .not("status", "in", ["cancelled", "no_show", "completed"]);
+      .not("status", "in", "(cancelled,no_show,completed)");
 
     if (ordersError) {
       return NextResponse.json({ error: ordersError.message }, { status: 500 });

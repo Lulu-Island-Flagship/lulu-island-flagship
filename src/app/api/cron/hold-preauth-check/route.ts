@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       )
       .eq("payment_option", "card")
       .not("stripe_hold_payment_intent_id", "is", null)
-      .not("status", "in", ["cancelled", "no_show"])
+      .not("status", "in", "(cancelled,no_show)")
       .gte("service_datetime", todayStart.toISOString())
       .lte("service_datetime", todayEnd.toISOString());
 

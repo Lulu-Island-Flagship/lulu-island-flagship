@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
       )
       .eq("service_date", todayStr)
       .eq("status", "completed")
-      .not("status", "in", ["cancelled", "no_show"])
+      .not("status", "in", "(cancelled,no_show)")
       .gte("capture_attempts", 1)
       .lt("capture_attempts", MAX_ATTEMPTS)
       .order("service_datetime", { ascending: true });

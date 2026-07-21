@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
           .select("order_id, employee_id")
           .in("order_id", orderIds)
           .is("deleted_at", null)
-          .not("status", "in", ["cancelled"]);
+          .not("status", "in", "(cancelled)");
 
   if (assignError) return NextResponse.json({ error: assignError.message }, { status: 500 });
 

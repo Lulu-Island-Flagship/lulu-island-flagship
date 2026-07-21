@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     .select("quotes(service_type)")
     .gte("service_date", toDateStr(windowStart))
     .lte("service_date", toDateStr(windowEnd))
-    .not("status", "in", ["cancelled", "no_show"]);
+    .not("status", "in", "(cancelled,no_show)");
 
   let consumptionAlerts: string[] = [];
   if (!ordersError) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useTranslations } from 'next-intl';
 import { usePathname } from "next/navigation";
 import { Ship, Shield, Users, Clock, Star, MapPin, LogIn } from "lucide-react";
@@ -17,12 +18,15 @@ function LocalBusinessSchema() {
     // asegurados/bonded en el sitio hasta que las pólizas reales estén
     // contratadas") sin importar el estado real de
     // business_insurance_policies (src/lib/business-insurance.ts,
-    // GET /api/admin/business-insurance -> allThreePoliciesReady). Como este
-    // es un componente cliente estático (sin fetch a esa API), el punto de
-    // aplicación seguro es NO afirmar la cobertura aquí -- el mismo texto no
-    // se puede "bloquear" condicionalmente sin antes cablear un fetch server
-    // -> client de allThreePoliciesReady, que es trabajo aparte. Mientras
-    // esa condición no exista, la copia no debe mencionar "insured/bonded".
+    // GET /api/admin/business-insurance -> allThreePoliciesReady).
+    //
+    // v8.3 P0-4 fix (auditoría Fable5): el resto de la copia VISIBLE de esta
+    // página (bloque "trust" + hero + meta description en layout.tsx) SÍ
+    // quedó condicionada, vía GET /api/public/insured-status (fail-closed) —
+    // ver `insuredClaimReady` más abajo. Este JSON-LD sigue sin afirmar
+    // "insured/bonded" en absoluto, a propósito: es un componente estático
+    // sin acceso a ese estado en build time, así que el texto base se
+    // mantiene siempre neutro en vez de intentar condicionarlo aquí también.
     "description": "Vetted, trained cleaning professionals caring for your home — not just cleaning it. Full price from quote, no surprises.",
     "url": "https://luluislandflagship.ca",
     "email": "hello@luluislandflagship.ca",
@@ -64,6 +68,28 @@ export default function HomePage() {
   const pathLocale = pathname.match(/^\/(en|zh|fr)(\/|$)/);
   const locale = pathLocale ? pathLocale[1] : "en";
 
+  // v8.3 P0-4 fix (auditoría Fable5, B.4/B.2.25): la copia visible NUNCA
+  // afirma "insured" por defecto -- fail-closed a `false` hasta que
+  // /api/public/insured-status confirme que las 3 pólizas reales están
+  // activas y registradas. Ese endpoint nunca expone datos de las pólizas,
+  // solo el booleano derivado (ver src/lib/business-insurance.ts).
+  const [insuredClaimReady, setInsuredClaimReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/public/insured-status")
+      .then((res) => (res.ok ? res.json() : { insuredClaimReady: false }))
+      .then((data) => {
+        if (!cancelled) setInsuredClaimReady(Boolean(data.insuredClaimReady));
+      })
+      .catch(() => {
+        if (!cancelled) setInsuredClaimReady(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <main className="min-h-screen bg-white">
       <LocalBusinessSchema />
@@ -95,6 +121,21 @@ export default function HomePage() {
             </a>
             <LanguageSelector />
           </nav>
+          {/* v8.3 fix (auditoría M-1): el link de "Iniciar sesión" vivía SOLO
+              dentro del <nav> "hidden md:flex" -- en mobile (menos de md)
+              el cliente no tenía ninguna forma de llegar a /cuenta. Se
+              agrega este link duplicado, visible únicamente por debajo de
+              md (md:hidden), fuera del nav oculto. No se toca el resto del
+              nav (LanguageSelector, ubicación) para no alterar el layout
+              mobile existente en otras partes del header. */}
+          <a
+            href={`/${locale}/cuenta/servicios`}
+            aria-label="Iniciar sesión"
+            className="md:hidden flex items-center gap-1 text-brand-navy hover:text-brand-wave-blue transition-colors text-sm"
+          >
+            <LogIn className="w-5 h-5" />
+            <span className="sr-only">Iniciar sesión</span>
+          </a>
         </div>
       </header>
 
@@ -111,7 +152,7 @@ export default function HomePage() {
               <span className="text-brand-navy">{t('hero.titleHighlight')}</span>
             </h2>
             <p className="text-lg md:text-xl text-gray-600 mb-8 leading-relaxed">
-              {t('hero.description')}
+              {t(insuredClaimReady ? 'hero.descriptionInsured' : 'hero.description')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <QuoteButton variant="primary">{t('hero.ctaPrimary')}</QuoteButton>
@@ -132,8 +173,8 @@ export default function HomePage() {
               <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center mb-4 shadow-elevation-1">
                 <Shield className="w-6 h-6 text-brand-navy" />
               </div>
-              <h3 className="text-lg font-semibold text-brand-ink mb-2">{t('trust.verifiedTitle')}</h3>
-              <p className="text-gray-600 text-sm">{t('trust.verifiedDesc')}</p>
+              <h3 className="text-lg font-semibold text-brand-ink mb-2">{t(insuredClaimReady ? 'trust.verifiedTitleInsured' : 'trust.verifiedTitle')}</h3>
+              <p className="text-gray-600 text-sm">{t(insuredClaimReady ? 'trust.verifiedDescInsured' : 'trust.verifiedDesc')}</p>
             </div>
             <div className="bg-brand-ice p-6 rounded-lg">
               <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center mb-4 shadow-elevation-1">

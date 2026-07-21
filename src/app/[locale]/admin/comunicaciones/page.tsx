@@ -10,6 +10,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { Loader2, Pencil, History, Save, X, Plus } from "lucide-react";
 
 interface TemplateRow {
@@ -41,6 +42,13 @@ const LANGUAGES: { code: string; label: string }[] = [
 ];
 
 export default function ComunicacionesPage() {
+  // v8.3 M-2 (auditoría go-live 2026-07-20): el link de abajo apuntaba a
+  // /admin/config-history sin prefijo de locale -- rompía la navegación en
+  // rutas no-en (ej. /zh/admin/comunicaciones). Se obtiene el locale actual
+  // vía useParams(), mismo patrón que
+  // src/app/[locale]/admin/comunicaciones/[orderId]/page.tsx.
+  const params = useParams();
+  const locale = (params?.locale as string) || "en";
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -152,7 +160,7 @@ export default function ComunicacionesPage() {
             className="rounded-md border border-brand-ice px-3 py-1.5 text-sm"
           />
           <Link
-            href="/admin/config-history?table=communication_templates"
+            href={`/${locale}/admin/config-history?table=communication_templates`}
             className="flex items-center gap-1 rounded-md border border-brand-navy px-3 py-1.5 text-sm text-brand-navy hover:bg-brand-ice"
           >
             <History className="h-4 w-4" />

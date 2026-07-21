@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { EmployeeAuthModal } from "@/components/empleado/EmployeeAuthModal";
 import {
   Shield,
   MapPin,
@@ -30,11 +29,26 @@ import { downloadAndCacheDayBundle } from "@/lib/offline-day-cache";
 type JornadaStatus = "not_started" | "started";
 type OfflineDownloadStatus = "idle" | "downloading" | "ready" | "failed";
 
+// v8.3 fix G-1: /empleado ya no tiene su propio login (EmployeeAuthModal,
+// eliminado) -- el único punto de entrada de staff es /portal
+// (StaffLoginScreen.tsx). Cualquier visita sin sesión válida, o con una
+// cuenta que no resuelve a area="empleado", redirige ahí en vez de mostrar
+// un modal propio.
+type EmployeeAccessResult =
+  | { status: "authorized" }
+  // v8.3 fix G-2: esta cuenta SÍ está autorizada (admin/qc), solo no es de
+  // empleado -- no hay que cerrar sesión, solo mandarla a /portal para que
+  // resuelva su destino real.
+  | { status: "wrong_area" }
+  // El servidor (/api/staff/resolve-login) ya cerró la sesión para este
+  // caso (not_registered / pending_activation) antes de responder 403 --
+  // ver comentario en resolveEmployeeAccess() más abajo.
+  | { status: "rejected"; message: string };
+
 export default function EmpleadoPage() {
   const router = useRouter();
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [authError, setAuthError] = useState("");
   const [employeeName, setEmployeeName] = useState("");
   const [employeeRole, setEmployeeRole] = useState("");
@@ -46,6 +60,15 @@ export default function EmpleadoPage() {
   // v8.3 E4 (D.10.1-2): estado de la precarga offline (ruta+SOP+accesos del día).
   const [offlineDownloadStatus, setOfflineDownloadStatus] = useState<OfflineDownloadStatus>("idle");
 
+  // Detect locale from pathname (needed both by the auth effect below and by
+  // navigation links further down) -- movido arriba del useEffect para que
+  // esté disponible en el primer render sin depender del orden textual.
+  const locale = (typeof window !== "undefined"
+    ? window.location.pathname.split("/")[1]
+    : "en") as string;
+  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+  const portalUrl = `/${safeLocale}/portal?next=/${safeLocale}/empleado`;
+
   // Check auth on mount — verify employee authorization
   useEffect(() => {
     async function checkAuth() {
@@ -56,18 +79,21 @@ export default function EmpleadoPage() {
         // en /api/staff/resolve-login (src/lib/staff-login.ts) -- único punto
         // de autorización del Portal de equipo, compartido con /portal.
         const result = await resolveEmployeeAccess();
-        if (result.authorized) {
+        if (result.status === "authorized") {
           setIsAuthenticated(true);
           loadEmployeeData();
+        } else if (result.status === "wrong_area") {
+          router.replace(portalUrl);
         } else {
-          await supabase.auth.signOut();
           setAuthError(result.message);
-          setShowAuthModal(true);
           setLoadingServices(false);
+          router.replace(portalUrl);
         }
       } else {
-        setShowAuthModal(true);
+        // v8.3 fix G-1: ya no existe un login propio en /empleado -- redirige
+        // al Portal de equipo unificado en vez de mostrar EmployeeAuthModal.
         setLoadingServices(false);
+        router.replace(portalUrl);
       }
     }
     checkAuth();
@@ -75,17 +101,20 @@ export default function EmpleadoPage() {
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         const result = await resolveEmployeeAccess();
-        if (result.authorized) {
+        if (result.status === "authorized") {
           setIsAuthenticated(true);
           setAuthError("");
           loadEmployeeData();
-        } else {
-          await supabase.auth.signOut();
+        } else if (result.status === "wrong_area") {
           setIsAuthenticated(false);
-          setAuthError(result.message);
-          setShowAuthModal(true);
           setServices([]);
           setLoadingServices(false);
+          router.replace(portalUrl);
+        } else {
+          setIsAuthenticated(false);
+          setServices([]);
+          setLoadingServices(false);
+          router.replace(portalUrl);
         }
       } else {
         setIsAuthenticated(false);
@@ -95,27 +124,37 @@ export default function EmpleadoPage() {
     });
 
     return () => listener.subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // v8.3: delega en /api/staff/resolve-login (misma lógica que /portal) --
   // reconoce empleado (area="empleado") y rechaza cualquier otra área o
   // cuenta no registrada aquí, ya que esta pantalla es solo para empleados.
-  async function resolveEmployeeAccess(): Promise<{ authorized: boolean; message: string }> {
+  //
+  // v8.3 fix G-2: antes esta función devolvía un simple {authorized, message}
+  // y el caller SIEMPRE llamaba supabase.auth.signOut() cuando authorized
+  // era false -- incluso cuando la única razón era "esta cuenta es de
+  // admin/qc, no de empleado" (data.path !== "/empleado"), lo que cerraba la
+  // sesión de un admin/QC legítimo que solo visitó /empleado por error. Ahora
+  // se distingue: "wrong_area" (cuenta válida, área equivocada -- NUNCA
+  // signOut, solo redirigir a /portal) vs "rejected" (not_registered /
+  // pending_activation -- /api/staff/resolve-login YA ejecuta signOut()
+  // server-side en este caso antes de responder con status 403, ver
+  // src/app/api/staff/resolve-login/route.ts, así que no hace falta
+  // duplicarlo aquí).
+  async function resolveEmployeeAccess(): Promise<EmployeeAccessResult> {
     try {
       const res = await fetch("/api/staff/resolve-login", { method: "POST", credentials: "include" });
       const data = await res.json();
       if (!res.ok) {
-        return { authorized: false, message: data.error || "Not authorized — contact your administrator." };
+        return { status: "rejected", message: data.error || "Not authorized — contact your administrator." };
       }
       if (data.path !== "/empleado") {
-        return {
-          authorized: false,
-          message: "This account is registered for the admin panel, not the employee app. Use the Team Portal instead.",
-        };
+        return { status: "wrong_area" };
       }
-      return { authorized: true, message: "" };
+      return { status: "authorized" };
     } catch {
-      return { authorized: false, message: "Connection error verifying your account. Please try again." };
+      return { status: "rejected", message: "Connection error verifying your account. Please try again." };
     }
   }
 
@@ -125,8 +164,9 @@ export default function EmpleadoPage() {
       const res = await fetch("/api/empleado/servicios", { credentials: "include" });
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
+          // v8.3 fix G-1: sin modal propio -- al Portal de equipo.
           setIsAuthenticated(false);
-          setShowAuthModal(true);
+          router.replace(portalUrl);
         }
         setLoadingServices(false);
         return;
@@ -168,12 +208,6 @@ export default function EmpleadoPage() {
     }
   }
 
-  // Detect locale from pathname for navigation
-  const locale = (typeof window !== "undefined"
-    ? window.location.pathname.split("/")[1]
-    : "en") as string;
-  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setIsAuthenticated(false);
@@ -181,7 +215,9 @@ export default function EmpleadoPage() {
     setEmployeeName("");
     setJornadaStatus("not_started");
     setAuthError("");
-    setShowAuthModal(true);
+    // v8.3 fix G-1: sin modal propio -- de vuelta al Portal de equipo para
+    // un login limpio.
+    router.push(`/${safeLocale}/portal`);
   };
 
   async function sendVehicleLocation() {
@@ -291,21 +327,22 @@ export default function EmpleadoPage() {
   };
 
   if (!isAuthenticated) {
+    // v8.3 fix G-1: sin sesión de empleado válida, siempre estamos en
+    // camino a /portal (ver router.replace(portalUrl) más arriba) -- este
+    // estado solo se ve un instante mientras el redirect ocurre.
     return (
-      <main className="min-h-screen bg-brand-ice flex items-center justify-center">
-        {showAuthModal && (
-          <EmployeeAuthModal
-            onClose={() => setShowAuthModal(false)}
-            onError={(msg) => setAuthError(msg)}
-          />
-        )}
-        {authError && (
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white rounded-lg shadow-elevation-2 p-4 max-w-sm w-full mx-4">
-            <div className="p-3 bg-state-danger/10 text-state-danger rounded-lg text-sm text-center">
-              {authError}
+      <main className="min-h-screen bg-brand-ice flex items-center justify-center px-4">
+        <div className="text-center space-y-3">
+          <Loader2 className="w-6 h-6 animate-spin text-brand-gold mx-auto" />
+          <p className="text-sm text-gray-500">Redirecting to the Team Portal…</p>
+          {authError && (
+            <div className="bg-white rounded-lg shadow-elevation-2 p-4 max-w-sm w-full mx-auto mt-4">
+              <div className="p-3 bg-state-danger/10 text-state-danger rounded-lg text-sm text-center">
+                {authError}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </main>
     );
   }

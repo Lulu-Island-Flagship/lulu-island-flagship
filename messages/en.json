@@ -1,7 +1,8 @@
 {
   "meta": {
     "title": "Lulu Island Flagship | Cleaning Services | Richmond, BC",
-    "description": "The same trusted team, every time. Verified, insured, and trained to care for your home — not just clean it. Full price from quote, no surprises. Serving Richmond, Vancouver, North Vancouver, West Vancouver & UBC.",
+    "description": "The same trusted team, every time. Background-checked and trained to care for your home — not just clean it. Full price from quote, no surprises. Serving Richmond, Vancouver, North Vancouver, West Vancouver & UBC.",
+    "descriptionInsured": "The same trusted team, every time. Verified, insured, and trained to care for your home — not just clean it. Full price from quote, no surprises. Serving Richmond, Vancouver, North Vancouver, West Vancouver & UBC.",
     "keywords": "cleaning services, house cleaning, Richmond BC, Vancouver cleaning, deep cleaning, move-in cleaning"
   },
   "nav": {
@@ -11,14 +12,17 @@
     "badge": "Serving Richmond, Vancouver, North & West Vancouver, UBC",
     "title": "The same trusted team,",
     "titleHighlight": "every time.",
-    "description": "Verified, insured, and trained to care for your home — not just clean it. Full price from quote, no surprises.",
+    "description": "Background-checked and trained to care for your home — not just clean it. Full price from quote, no surprises.",
+    "descriptionInsured": "Verified, insured, and trained to care for your home — not just clean it. Full price from quote, no surprises.",
     "ctaPrimary": "Get Your Quote",
     "ctaSecondary": "Start Your Quote",
     "timeEstimate": "Takes less than 90 seconds"
   },
   "trust": {
-    "verifiedTitle": "Verified & Insured",
-    "verifiedDesc": "Every team member is background-checked, bonded, and covered by comprehensive insurance.",
+    "verifiedTitle": "Verified & Trained",
+    "verifiedDesc": "Every team member is background-checked and trained before they ever set foot in your home.",
+    "verifiedTitleInsured": "Verified & Insured",
+    "verifiedDescInsured": "Every team member is background-checked, bonded, and covered by comprehensive insurance.",
     "teamTitle": "Same Team, Always",
     "teamDesc": "No strangers. The same dedicated team returns to your home, knowing your preferences.",
     "guaranteeTitle": "Premium Guarantee",

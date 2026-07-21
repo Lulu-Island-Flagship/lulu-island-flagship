@@ -11,6 +11,36 @@ SET search_path TO public, extensions;
 SELECT set_config('app.change_reason', 'db reset: seed de staging v8.3', false);
 
 -- ============================================================
+-- SALVAGUARDA: este archivo NUNCA debe correr contra producción
+-- ============================================================
+-- `supabase db reset` (que ejecuta este seed.sql automáticamente después de
+-- las migraciones) es una herramienta SOLO para entornos locales/staging.
+-- BORRA y recrea toda la base de datos y luego siembra usuarios de prueba
+-- con contraseña en texto plano "password" (incluye un owner_admin
+-- permanente, aeonwalk3r@gmail.com, y 7 cuentas @example.com). Contra un
+-- proyecto de producción esto sería catastrófico e irreversible.
+--
+-- En producción NUNCA se debe ejecutar `supabase db reset`. Solo se aplican
+-- migraciones (`supabase db push` o el flujo de CI/CD correspondiente), que
+-- no tocan este archivo.
+--
+-- NOTA (corregido 2026-07-20): una versión anterior de esta salvaguarda
+-- exigía un `set_config` manual antes de correr el archivo, bloqueando con
+-- RAISE EXCEPTION si no estaba presente. Se revirtió porque rompía el
+-- flujo normal de `supabase start`/`db reset` en local (ambos ejecutan
+-- este seed en un solo paso automático, sin oportunidad de fijar esa
+-- variable antes) sin aportar protección real: `supabase db reset` es un
+-- comando que SOLO opera sobre el stack local de Docker -- no existe forma
+-- de que apunte al proyecto de producción por esa vía (para aplicar
+-- migraciones a producción se usa `supabase db push`, que nunca ejecuta
+-- seed.sql). El único escenario de riesgo real es que alguien copie este
+-- archivo a mano en una sesión de `psql` conectada directo a producción --
+-- contra eso, un bloqueo por variable mágica no protege nada (se bypassea
+-- con la misma facilidad que se lee este comentario). La protección real
+-- contra ESE escenario es la advertencia de arriba, bien visible antes de
+-- cualquier INSERT.
+
+-- ============================================================
 -- 1. Usuarios de prueba (auth.users)
 -- ============================================================
 -- HALLAZGO REAL (verificación visual, 2026-07-11): este INSERT nunca fijaba

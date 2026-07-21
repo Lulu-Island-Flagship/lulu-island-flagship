@@ -1,0 +1,220 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { requireAdminRole } from "@/lib/admin";
+import type { AdminRole } from "@/lib/admin-rbac";
+
+/**
+ * v8.3 B-2 (auditoría go-live 2026-07-20) — alta/baja de roles administrativos.
+ *
+ * Hallazgo: `admin_roles` (owner_admin/ops_coordinator/qc_only, migración
+ * 040_e0_admin_rbac.sql) es un sistema de rol totalmente separado de
+ * `employees.role` (rol de campo, que sí tiene UI de alta completa en
+ * /api/admin/empleados). Antes de este fix, CERO endpoints insertaban o
+ * actualizaban admin_roles -- la única forma de nombrar a un manager/
+ * coordinador/QC era una fila insertada a mano vía SQL directo en Supabase.
+ * Este endpoint cierra ese hueco, reusando el mismo patrón exacto que
+ * /api/admin/empleados/route.ts (auth.admin.inviteUserByEmail /
+ * listUsers para resolver o crear la cuenta auth.users detrás del email).
+ *
+ * Usa el resource dedicado "admin_roles_management" (src/lib/admin-rbac.ts),
+ * restringido a ["owner_admin"] -- gestionar quién tiene acceso
+ * administrativo es de los recursos más sensibles del sistema (puede
+ * escalar su propio acceso a finanzas/nómina), así que se registra en
+ * admin_action_logs bajo su propio nombre en vez de compartir el de
+ * "compliance".
+ */
+
+const VALID_ROLES: AdminRole[] = ["owner_admin", "ops_coordinator", "qc_only"];
+
+function getAdminSupabase() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !supabaseServiceKey) return null;
+  return createClient(supabaseUrl, supabaseServiceKey);
+}
+
+// GET /api/admin/roles — lista roles administrativos activos con email del usuario.
+export async function GET() {
+  const auth = await requireAdminRole("admin_roles_management");
+  if (auth.error || !auth.supabase) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
+  }
+
+  try {
+    const { data, error } = await auth.supabase
+      .from("admin_roles")
+      .select("id, user_id, role, granted_by, created_at")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("admin_roles fetch error:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const rows = data || [];
+
+    // Enriquecer con el email de auth.users vía Auth Admin API (mismo patrón
+    // que /api/admin/empleados). Si el service role no está configurado, se
+    // devuelven las filas sin email en vez de fallar toda la petición.
+    const adminSupabase = getAdminSupabase();
+    let roles = rows.map((r) => ({ ...r, email: null as string | null }));
+
+    if (adminSupabase) {
+      roles = await Promise.all(
+        rows.map(async (r) => {
+          try {
+            const { data: userData } = await adminSupabase.auth.admin.getUserById(r.user_id);
+            return { ...r, email: userData?.user?.email ?? null };
+          } catch {
+            return { ...r, email: null };
+          }
+        })
+      );
+    }
+
+    return NextResponse.json({ roles }, { status: 200 });
+  } catch (err: Error | unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("Admin roles list error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+/**
+ * POST /api/admin/roles — asigna un rol administrativo a un email.
+ *
+ * Si el email no tiene cuenta en auth.users todavía, se invita (mismo flujo
+ * que el onboarding de empleados). Si ya tiene un rol admin_roles activo con
+ * ese mismo rol, se rechaza con 409 (la restricción UNIQUE(user_id, role) de
+ * la migración 040 ya lo impediría a nivel DB, pero se valida antes para dar
+ * un mensaje claro).
+ */
+export async function POST(request: NextRequest) {
+  const auth = await requireAdminRole("admin_roles_management", {
+    method: request.method,
+    url: request.url,
+  });
+  if (auth.error || !auth.supabase) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { email, role } = body as { email?: unknown; role?: unknown };
+
+    if (typeof email !== "string" || !email.trim() || !email.includes("@")) {
+      return NextResponse.json({ error: "A valid email is required" }, { status: 400 });
+    }
+    if (typeof role !== "string" || !VALID_ROLES.includes(role as AdminRole)) {
+      return NextResponse.json({ error: `role must be one of: ${VALID_ROLES.join(", ")}` }, { status: 400 });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const adminSupabase = getAdminSupabase();
+    if (!adminSupabase) {
+      return NextResponse.json({ error: "Supabase service credentials not configured" }, { status: 500 });
+    }
+
+    // Reutilizar la cuenta auth si ya existe; si no, crear e invitar --
+    // mismo patrón que POST /api/admin/empleados.
+    let targetUserId: string;
+    const { data: inviteData, error: inviteError } = await adminSupabase.auth.admin.inviteUserByEmail(
+      normalizedEmail
+    );
+
+    if (inviteError) {
+      const { data: existingUsers, error: listError } = await adminSupabase.auth.admin.listUsers();
+      const existingAuthUser = !listError
+        ? existingUsers.users.find((u) => u.email?.toLowerCase() === normalizedEmail)
+        : undefined;
+
+      if (!existingAuthUser) {
+        console.error("Admin role invite error:", inviteError, listError);
+        return NextResponse.json({ error: inviteError.message }, { status: 500 });
+      }
+      targetUserId = existingAuthUser.id;
+    } else {
+      targetUserId = inviteData.user.id;
+    }
+
+    const { data: existingRole } = await auth.supabase
+      .from("admin_roles")
+      .select("id")
+      .eq("user_id", targetUserId)
+      .eq("role", role)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (existingRole) {
+      return NextResponse.json({ error: "This user already has this admin role" }, { status: 409 });
+    }
+
+    const { data: newRole, error: insertError } = await auth.supabase
+      .from("admin_roles")
+      .insert({
+        user_id: targetUserId,
+        role,
+        granted_by: auth.user?.id ?? null,
+      })
+      .select("id, user_id, role, granted_by, created_at")
+      .single();
+
+    if (insertError) {
+      return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
+
+    return NextResponse.json(
+      { role: { ...newRole, email: normalizedEmail }, invited: !inviteError },
+      { status: 201 }
+    );
+  } catch (err: Error | unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("Admin role create error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/admin/roles?id=<admin_roles.id> — revoca un rol administrativo
+ * (soft-delete: deleted_at, consistente con el resto del esquema -- la tabla
+ * tiene un trigger prevent_hard_delete() que bloquea el DELETE físico).
+ */
+export async function DELETE(request: NextRequest) {
+  const auth = await requireAdminRole("admin_roles_management", {
+    method: request.method,
+    url: request.url,
+  });
+  if (auth.error || !auth.supabase) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
+  }
+
+  try {
+    const id = request.nextUrl.searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ error: "id query param is required" }, { status: 400 });
+    }
+
+    const { data: revoked, error: updateError } = await auth.supabase
+      .from("admin_roles")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+    if (!revoked) {
+      return NextResponse.json({ error: "Admin role not found or already revoked" }, { status: 404 });
+    }
+
+    return NextResponse.json({ revoked: true }, { status: 200 });
+  } catch (err: Error | unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("Admin role revoke error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

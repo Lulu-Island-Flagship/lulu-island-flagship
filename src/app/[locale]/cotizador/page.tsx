@@ -445,7 +445,24 @@ export default function CotizadorPage() {
         .eq("user_id", data.user.id)
         .maybeSingle();
 
-      if (!profile?.phone_verified) {
+      // v8.3 P0-2 (auditoría Fable5): condicional a que exista proveedor de
+      // SMS real -- sin proveedor, Supabase Auth OTP nunca entrega el
+      // código y este modal (sin botón de cerrar) dejaría al cliente
+      // atorado para siempre. Mismo chequeo que /api/stripe/confirm
+      // (isSmsProviderConfigured(), expuesto vía /api/system/sms-status).
+      let smsConfigured = true;
+      try {
+        const statusRes = await fetch("/api/system/sms-status");
+        const statusData = await statusRes.json();
+        smsConfigured = Boolean(statusData?.configured);
+      } catch {
+        // Falla cerrado hacia el comportamiento MÁS estricto (exigir
+        // verificación), nunca hacia dejar pasar sin verificar por un
+        // error de red al consultar el estado.
+        smsConfigured = true;
+      }
+
+      if (smsConfigured && !profile?.phone_verified) {
         setPendingSubmitUserId(data.user.id);
         setNeedsPhoneVerification(true);
         // showAuthModal se mantiene true -- el modal cambia a modo

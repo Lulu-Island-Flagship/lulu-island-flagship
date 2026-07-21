@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { getCycleForDate, getPreviousCycle, aggregateCycle, type CycleEntry } from "@/lib/payroll-cycle";
-import { buildCycleDeductions, cycleDeductionsToCsv, totalCycleDeductions } from "@/lib/payroll-export";
+import {
+  buildCycleDeductions,
+  cycleDeductionsToCsv,
+  cycleDeductionsToCsvWithSin,
+  attachSinToLines,
+  totalCycleDeductions,
+} from "@/lib/payroll-export";
 import { getVancouverTodayString } from "@/lib/date-utils";
 
 // GET /api/admin/payroll-export?date=YYYY-MM-DD&format=csv|json&cycle=current|previous
@@ -340,7 +346,42 @@ export async function GET(request: NextRequest) {
   }
 
   if (format === "csv") {
-    const csv = cycleDeductionsToCsv(lines, cycle);
+    // v8.3 P0-8 (auditoría Fable5): el CSV de nómina real (el que va a CRA/
+    // contabilidad) debe incluir el SIN descifrado. `resource: "payroll"`
+    // ya está restringido a owner_admin en admin-rbac.ts (MATRIX.payroll =
+    // ["owner_admin"]) -- requireAdminRole() de arriba ya lo garantizó antes
+    // de llegar aquí, así que quien pide format=csv siempre es owner_admin.
+    // get_employee_banking_info() (RPC, migración 204) vuelve a exigir el
+    // mismo rol por su cuenta -- nunca se lee sin_encrypted directo de la
+    // tabla. Si PAYROLL_ENCRYPTION_KEY no está configurada (staging/dev sin
+    // nómina real todavía) o el RPC falla para un empleado puntual, el
+    // export degrada a SIN vacío para ese empleado en vez de tumbar todo el
+    // CSV -- un problema de un empleado sin SIN capturado no debe bloquear
+    // el pago del resto.
+    const encryptionKey = process.env.PAYROLL_ENCRYPTION_KEY;
+    const sinByEmployee = new Map<string, string | null>();
+    if (!encryptionKey) {
+      console.warn(
+        "payroll-export: PAYROLL_ENCRYPTION_KEY no configurada -- el CSV se genera SIN columna de SIN. Configúrala antes de la primera nómina real (ver comentario en supabase/migrations/204_e9_employee_sin_banking_encrypted.sql)."
+      );
+    } else {
+      for (const employeeId of employeeIds) {
+        const { data: bankingRows, error: bankingError } = await supabase.rpc("get_employee_banking_info", {
+          p_employee_id: employeeId,
+          p_encryption_key: encryptionKey,
+        });
+        if (bankingError) {
+          console.error(`payroll-export: get_employee_banking_info falló para ${employeeId}:`, bankingError.message);
+          sinByEmployee.set(employeeId, null);
+          continue;
+        }
+        const row = Array.isArray(bankingRows) ? bankingRows[0] : bankingRows;
+        sinByEmployee.set(employeeId, row?.sin ?? null);
+      }
+    }
+
+    const linesWithSin = attachSinToLines(lines, sinByEmployee);
+    const csv = cycleDeductionsToCsvWithSin(linesWithSin, cycle);
     return new NextResponse(csv, {
       status: 200,
       headers: {

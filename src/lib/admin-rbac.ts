@@ -24,6 +24,7 @@ export type AdminResource =
   | "feature_flags" // interruptores del sistema — solo el dueño
   | "security_backup_codes" // códigos de respaldo 2FA del propio owner_admin — solo el dueño
   | "access_recovery" // aprobar/denegar solicitudes de recuperación de acceso de trusted_successors — solo el dueño
+  | "admin_roles_management" // v8.3 fix B-2 (auditoría 2026-07-20): alta/revocación de owner_admin/ops_coordinator/qc_only — solo el dueño, nunca delegable
   // Operación — owner_admin + ops_coordinator
   | "dispatch"
   | "services"
@@ -53,6 +54,7 @@ const MATRIX: Record<AdminResource, AdminRole[]> = {
   feature_flags: ["owner_admin"],
   security_backup_codes: ["owner_admin"],
   access_recovery: ["owner_admin"],
+  admin_roles_management: ["owner_admin"],
   dispatch: ["owner_admin", "ops_coordinator"],
   services: ["owner_admin", "ops_coordinator"],
   quotes_review: ["owner_admin", "ops_coordinator"],

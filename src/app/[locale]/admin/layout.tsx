@@ -1,8 +1,9 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { headers } from "next/headers";
-import AdminLoginScreen from "@/components/admin/AdminLoginScreen";
+import { redirect } from "next/navigation";
 import AdminNav from "@/components/admin/AdminNav";
+import type { AdminRole } from "@/lib/admin-rbac";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -57,7 +58,14 @@ export default async function AdminLayout({
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    return <AdminLoginScreen />;
+    // v8.3 fix G-1: colapsa las 3 puertas de entrada de staff en una sola
+    // (/portal, ver StaffLoginScreen.tsx). Antes este layout renderizaba su
+    // propio AdminLoginScreen con redirectTo hardcodeado a /admin -- ahora
+    // solo redirige al login unificado, que resuelve el destino real
+    // (empleado/admin/qc) contra employees + admin_roles vía
+    // /api/staff/resolve-login, sin importar por qué puerta entró el
+    // usuario.
+    redirect(`/${safeLocale}/portal?next=/${safeLocale}/admin`);
   }
 
   // v8.3 E0 (2026-07-11): hallazgo de auditoría externa (verificado y
@@ -70,15 +78,29 @@ export default async function AdminLayout({
   // cualquier fila activa en admin_roles, sin importar cuál rol.
   const { data: isSupervisor } = await supabase.rpc("is_supervisor", { user_uuid: user.id });
 
-  let hasAdminAccess = !!isSupervisor;
-  if (!hasAdminAccess) {
-    const { data: roleRows } = await supabase
-      .from("admin_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .is("deleted_at", null)
-      .limit(1);
-    hasAdminAccess = !!roleRows && roleRows.length > 0;
+  // v8.3 fix G-4: antes esta query solo confirmaba EXISTENCIA de alguna fila
+  // en admin_roles (select("role").limit(1)) para decidir sí/no acceso, y
+  // nunca le pasaba los roles concretos a AdminNav -- por eso el nav
+  // renderizaba TODOS los links sin importar el rol real (un qc_only veía el
+  // menú completo de un owner_admin). Ahora se trae la lista completa de
+  // roles del usuario para filtrar el nav con la misma matriz RBAC que ya
+  // protege las APIs (ver src/lib/admin-rbac.ts, roleAllows/allowedResources).
+  const { data: roleRows } = await supabase
+    .from("admin_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .is("deleted_at", null);
+
+  const adminRoles = (roleRows ?? []).map((r) => r.role as AdminRole);
+  const hasAdminAccess = !!isSupervisor || adminRoles.length > 0;
+
+  // is_supervisor() puede ser true por employees.role='supervisor' sin que
+  // exista fila en admin_roles (ver comentario arriba, v8.3 E0 2026-07-11) --
+  // en ese caso no hay un AdminRole real que pasarle al nav. Se trata como
+  // ops_coordinator (el rol operativo más cercano a "supervisor de campo")
+  // para que al menos vea el nav operativo en vez de nada.
+  if (adminRoles.length === 0 && isSupervisor) {
+    adminRoles.push("ops_coordinator");
   }
 
   if (!hasAdminAccess) {
@@ -116,7 +138,7 @@ export default async function AdminLayout({
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <a href={adminPath} className="font-bold text-lg shrink-0">Admin</a>
-            <AdminNav adminPath={adminPath} />
+            <AdminNav adminPath={adminPath} roles={adminRoles} />
           </div>
           <form action="/auth/signout" method="post">
             <button type="submit" className="text-sm text-white/70 hover:text-white transition-colors shrink-0">

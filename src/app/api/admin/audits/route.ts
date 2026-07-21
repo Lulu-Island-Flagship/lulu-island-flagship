@@ -53,7 +53,10 @@ export async function GET(request: NextRequest) {
       .limit(50);
 
     if (auditedIds.length > 0) {
-      pendingQuery = pendingQuery.not("id", "in", auditedIds);
+      // postgrest-js interpola el 3er argumento de .not() directamente en el
+      // querystring sin serializar arrays: hay que pasar el string ya
+      // envuelto en paréntesis como exige PostgREST para "in".
+      pendingQuery = pendingQuery.not("id", "in", `(${auditedIds.join(",")})`);
     }
 
     const { data: pendingOrders, error: pendingError } = await pendingQuery;

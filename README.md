@@ -22,13 +22,23 @@ npm install
 
 1. Crear proyecto en [supabase.com](https://supabase.com) (free tier)
 2. Ir a Project Settings → API → copiar `URL` y `anon public`
-3. Copiar `env.example` a `.env.local` y pegar tus credenciales:
+3. Copiar `.env.example` a `.env.local` y pegar tus credenciales:
 
 ```bash
-cp env.example .env.local
+cp .env.example .env.local
 ```
 
 4. Editar `.env.local` con tus valores.
+
+> **ADVERTENCIA — base de datos:** NUNCA ejecutar `supabase db reset` contra
+> el proyecto de producción — reinicia toda la base y corre `seed.sql` con
+> credenciales de prueba (usuarios `@example.com` y un owner_admin de prueba
+> con contraseña en texto plano `"password"`). `db reset` es solo para
+> entornos locales/staging. En producción solo se aplican migraciones
+> (`supabase db push` o el flujo de CI/CD correspondiente). Como salvaguarda
+> adicional, `supabase/seed.sql` aborta automáticamente a menos que se fije
+> primero la variable de sesión `app.allow_staging_seed` (ver comentarios al
+> inicio del archivo).
 
 ### 3. Configurar Auth Providers en Supabase
 

@@ -153,7 +153,25 @@ export default function ReservaPage() {
       // teléfono (típico de login social Google/Apple), se bloquea con el
       // mismo paso obligatorio que /cotizador. El servidor (/api/stripe/confirm)
       // también rechaza esto de forma autoritativa aunque la UI fallara.
-      setNeedsPhoneVerification(!profile?.phone_verified);
+      //
+      // v8.3 P0-2 (auditoría Fable5): este bloqueo ahora es CONDICIONAL a que
+      // exista un proveedor de SMS real -- sin proveedor, Supabase Auth OTP
+      // nunca puede entregar un código, así que phone_verified nunca podría
+      // volverse true y este modal (sin botón de cerrar) dejaría al cliente
+      // atorado para siempre. /api/system/sms-status expone el mismo chequeo
+      // que ya usa /api/stripe/confirm (isSmsProviderConfigured()).
+      let smsConfigured = true;
+      try {
+        const statusRes = await fetch("/api/system/sms-status");
+        const statusData = await statusRes.json();
+        smsConfigured = Boolean(statusData?.configured);
+      } catch {
+        // Si el chequeo falla, se asume que SÍ hay proveedor (falla cerrado
+        // hacia el comportamiento MÁS estricto -- exigir verificación --
+        // nunca hacia dejar pasar reservas sin verificar por un error de red).
+        smsConfigured = true;
+      }
+      setNeedsPhoneVerification(smsConfigured && !profile?.phone_verified);
 
       setQuote(mapped);
 

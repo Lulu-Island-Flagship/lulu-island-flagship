@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
         .from("assignments")
         .select("employee_id, employees(role, trust_level)")
         .eq("order_id", flaggedAssignment.order_id)
-        .not("status", "in", ["cancelled", "no_show"]);
+        .not("status", "in", "(cancelled,no_show)");
 
       type EmployeeJoin = { role: string; trust_level: string } | { role: string; trust_level: string }[] | null;
       const teammates = (teammateAssignments || []).map((a) => {

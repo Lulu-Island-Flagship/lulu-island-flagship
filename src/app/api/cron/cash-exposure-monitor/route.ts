@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
       .from("orders")
       .select("hold_authorized_amount, hold_amount")
       .eq("service_date", todayStr)
-      .not("status", "in", ["cancelled", "no_show"])
+      .not("status", "in", "(cancelled,no_show)")
       .is("hold_captured_at", null);
 
     if (error) {

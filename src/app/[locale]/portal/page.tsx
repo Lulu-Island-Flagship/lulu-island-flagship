@@ -86,8 +86,16 @@ function PortalContent() {
     return () => {
       cancelled = true;
     };
+    // v8.3 fix M-4: antes las deps eran [] -- si el usuario volvía a
+    // /portal con un ?auth_error= distinto (ej. reintenta el login y falla
+    // de nuevo) el efecto no se re-evaluaba porque React nunca lo veía como
+    // "cambiado". searchParams sí cambia de referencia cuando cambia la
+    // query string, así que agregarlo como dep hace que un nuevo
+    // auth_error se procese sin necesitar un full reload. router/locale no
+    // se agregan: son estables entre renders de esta página y agregarlos no
+    // cambia el comportamiento, solo ruido en el array.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
 
   if (phase === "checking" || phase === "resolving") {
     return (
