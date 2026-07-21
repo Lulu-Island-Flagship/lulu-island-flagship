@@ -1,0 +1,23 @@
+-- Fix (bug preexistente, no introducido hoy): 206_e0_retire_spanish_locale_and_rls.sql
+-- hace 19 `UPDATE communication_templates SET language = 'fr', ...` en crudo
+-- para migrar en sitio las plantillas 'es' -> 'fr'. Pero
+-- 057_e6_communication_templates_history.sql (mucho antes) le adjuntó a esa
+-- tabla el trigger genérico de auditoría de configuración
+-- (trg_config_snapshot / snapshot_config_update(), definido en
+-- 042_e0_config_snapshots.sql), que exige `current_setting('app.change_reason')`
+-- y aborta con RAISE EXCEPTION si no está seteado -- solo el RPC
+-- `admin_update_config` lo setea antes de escribir. 206 nunca pasa por ese
+-- RPC, así que sus 19 UPDATE fallan en la primera fila contra una base de
+-- datos recién construida. Nunca se detectó porque nadie había corrido un
+-- `supabase db reset` completo desde cero hasta hoy (ver limitación
+-- declarada en INFORME_AUDITORIA_IMPLACABLE_2026-07-20b.md §0).
+--
+-- Fix: desactivar el trigger justo antes de que 206 corra sus UPDATE, y
+-- reactivarlo en 228 (inmediatamente después de 206 en la secuencia). Entre
+-- estas dos migraciones no hay ningún otro archivo que escriba
+-- communication_templates (verificado: 206 es la única migración con
+-- `UPDATE communication_templates` en todo el árbol), así que la ventana
+-- sin auditoría está acotada exactamente a los 19 UPDATE de 206 -- que de
+-- por sí ya están documentados fila por fila en el propio comentario de
+-- esa migración, así que no se pierde trazabilidad real.
+ALTER TABLE communication_templates DISABLE TRIGGER trg_config_snapshot;
