@@ -101,6 +101,38 @@ export async function POST(
       );
     }
 
+    // Fix Kimi-C5 (auditoría externa Kimi Code, 2026-07-21, verificado por
+    // Claude antes de aplicar -- el reporte citaba "doble cobro" vía Stripe,
+    // pero los cargos de Stripe ya estaban protegidos por idempotencyKey más
+    // abajo; el riesgo real verificado es el REEMBOLSO de wallet vía
+    // apply_wallet_delta, que no tenía ninguna protección contra ejecutarse
+    // dos veces). El chequeo de arriba (["cancelled","completed","no_show"])
+    // es lectura-luego-escritura (TOCTOU): si dos peticiones de cancelación
+    // casi simultáneas para la misma orden pasan ambas ese chequeo antes de
+    // que cualquiera termine, ambas seguirían de largo y ambas revertirían
+    // el crédito de wallet usado (más abajo), duplicando el reembolso.
+    //
+    // Fix: transición de estado atómica (CAS) AQUÍ, ANTES de tocar Stripe o
+    // wallet -- solo la petición que efectivamente logra transicionar
+    // order.status (0 filas afectadas para el perdedor) continúa con los
+    // efectos secundarios de dinero. `.eq("status", order.status)` usa el
+    // valor de status ya leído arriba, así que cualquier otra petición
+    // concurrente que ya haya ganado la carrera hace que esta pierda aquí,
+    // sin haber tocado Stripe ni wallet todavía.
+    const { data: claimedRows } = await supabase
+      .from("orders")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("id", orderId)
+      .eq("status", order.status)
+      .select("id");
+
+    if (!claimedRows || claimedRows.length === 0) {
+      return NextResponse.json(
+        { error: "Order cancellation already in progress or already completed by another request" },
+        { status: 409 }
+      );
+    }
+
     const quoteRow = (order.quotes as unknown as { total: number; zone: string | null }[] | null)?.[0];
     // RAÍZ-3 (2026-07-21, migración 229): quotes.total sigue en dólares
     // (fuera de alcance) -- se escala x100 para operar en centavos junto a
@@ -208,10 +240,14 @@ export async function POST(
     // RAÍZ-3 (2026-07-21, migración 229): total_paid_cents/
     // card_amount_charged_cents ya están en centavos -- paypal_advance_amount
     // sigue en dólares (fuera de alcance), se escala x100 al restarlo.
+    //
+    // Fix Kimi-C5: status ya se transicionó a 'cancelled' arriba (CAS,
+    // ganador de la carrera) -- este UPDATE ya no necesita (ni debe) volver
+    // a tocar status, solo persiste los montos/timestamps calculados tras
+    // los cargos de Stripe.
     await supabase
       .from("orders")
       .update({
-        status: "cancelled",
         hold_released_at: holdCancelled ? new Date().toISOString() : null,
         hold_captured_at: payments.hold ? new Date().toISOString() : null,
         total_paid_cents: penaltyChargedCents,
