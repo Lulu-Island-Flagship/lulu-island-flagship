@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
           .select("full_name")
           .eq("id", target.user_id)
           .maybeSingle();
-        const language = ((target.preferred_languages as string[] | undefined)?.[0] || "en") as "en" | "es" | "zh";
+        const language = ((target.preferred_languages as string[] | undefined)?.[0] || "en") as "en" | "zh" | "fr";
 
         const result = await dispatchCommunication(supabase, {
           eventKey: "seasonal_campaign_dispatch",

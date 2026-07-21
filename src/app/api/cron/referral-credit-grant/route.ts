@@ -129,8 +129,8 @@ export async function GET(request: NextRequest) {
         .maybeSingle();
       const language = ((referrerProfile?.preferred_languages as string[] | undefined)?.[0] || "en") as
         | "en"
-        | "es"
-        | "zh";
+        | "zh"
+        | "fr";
 
       const dispatchResult = await dispatchCommunication(supabase, {
         eventKey: "referral_credited",

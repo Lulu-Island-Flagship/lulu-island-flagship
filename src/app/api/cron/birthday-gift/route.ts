@@ -100,8 +100,8 @@ export async function GET(request: NextRequest) {
 
       const language = ((profile.preferred_languages as string[] | undefined)?.[0] || "en") as
         | "en"
-        | "es"
-        | "zh";
+        | "zh"
+        | "fr";
 
       const result = await dispatchCommunication(supabase, {
         eventKey: "birthday_gift",

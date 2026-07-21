@@ -204,6 +204,53 @@ src/
 | 4 | PWA del empleado | 🔒 |
 | 5 | Marketing in-situ | 🔒 |
 
+## Despliegue — requisito de plan Vercel (Pro, no Hobby)
+
+**Este proyecto requiere Vercel Pro (o equivalente) para desplegarse.** El
+plan Hobby de Vercel solo permite crons con cadencia diaria (una vez al
+día); `vercel.json` define ~14 crons con cadencia sub-diaria (cada hora o más
+frecuente), que fallarán a desplegar en Hobby. Esto no es un descuido — cada
+uno existe por una razón de negocio/seguridad real y se revisó explícitamente
+en la auditoría m-2 (2026-07-20b) para relajar los que se podían relajar sin
+romper su propósito:
+
+**Relajados en esta auditoría** (ya no corren más seguido de lo necesario,
+pero siguen siendo sub-diarios):
+- `appointment-confirmation-24h`: de `*/15min` a hourly — el canal de
+  llamada aún no tiene adaptador real (solo encola), y la ventana de
+  coincidencia de 1h ya tolera una cadencia horaria sin perder órdenes.
+- `qc-rework-expiry`: de `*/5min` a `*/15min` — el timer real es de 30 min;
+  el peor caso solo retrasa el auto-rechazo automático ~15 min adicionales,
+  sin cambiar el resultado para el empleado.
+- `paypal-refunds`: de hourly a cada 4h — la obligación es reembolsar dentro
+  de la ventana de >72h, así que 4h de cadencia no compromete el plazo.
+- `purchase-order-reminders`: de hourly a cada 4h — los umbrales son de
+  48h/72h, una cadencia más fina no aporta nada observable.
+
+**Dejados igual, sub-diarios por diseño** (necesitan esa cadencia; no se
+relajan porque degradaría una garantía de seguridad, dinero o SLA real):
+- `safety-abort-escalation` (`*/2min`): escalación de aborto de seguridad en
+  campo — el caso más crítico del sistema, no admite demora.
+- `wellbeing-chemical-reassign` (`*/5min`): timer de 10 min de exposición
+  química sin respuesta de admin → reasignación real de personal.
+- `key-escalation-check` (`*/5min`): timer de 15 min de incidente de acceso
+  a la propiedad del cliente (llaves) sin resolver → escalación a admin.
+- `no-show` (`*/15min`): ventana de gracia de 30 min tras la hora de
+  servicio; detecta y notifica al cliente dentro de esa ventana.
+- `dispatch-scheduler` (`*/15min`): publica equipos/horarios de despacho del
+  día siguiente en ventanas de tiempo específicas.
+- `hold-authorize`, `capture-remainder`, `cash-exposure-monitor`,
+  `appeal-deadline-check`, `reconcile-payments` (todos hourly): ventanas de
+  cobro/autorización de Stripe y plazos de apelación atados a horas
+  concretas desde el momento del servicio/evento — correr menos seguido
+  introduciría demoras de cobro o riesgo financiero no cubierto.
+
+Si el dueño del proyecto decide en algún momento operar sin Vercel Pro, la
+única vía honesta es migrar estos crons a un scheduler externo (ej. GitHub
+Actions, un cron de un VPS pequeño, o un servicio como cron-job.org) que
+llame a estos mismos endpoints con el header `Authorization: Bearer
+${CRON_SECRET}` — el código de cada ruta ya es agnóstico de quién lo invoca.
+
 ## Licencia
 
 Privado — Lulu Island Flagship Cleaning Services

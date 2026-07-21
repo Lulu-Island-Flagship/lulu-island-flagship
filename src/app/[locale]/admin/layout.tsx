@@ -140,7 +140,10 @@ export default async function AdminLayout({
             <a href={adminPath} className="font-bold text-lg shrink-0">Admin</a>
             <AdminNav adminPath={adminPath} roles={adminRoles} />
           </div>
-          <form action="/auth/signout" method="post">
+          {/* v8.3 fix M-8: se pasa el locale actual como query param para que
+              /auth/signout pueda redirigir de vuelta al idioma correcto en
+              vez de caer siempre a "/" (ver src/app/auth/signout/route.ts). */}
+          <form action={`/auth/signout?locale=${safeLocale}`} method="post">
             <button type="submit" className="text-sm text-white/70 hover:text-white transition-colors shrink-0">
               Sign Out
             </button>

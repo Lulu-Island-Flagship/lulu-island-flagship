@@ -9,7 +9,11 @@ import { publishUnifiedAlert } from "@/lib/unified-alerts";
  * estado 'rework' del muro QC. Un servicio en 'rework' tiene 30 minutos
  * (qc_reviews.rework_deadline) para que el empleado resubmita
  * (/api/empleado/qc/[orderId]/resubmit). Si el timer vence sin
- * resubmisión, esta corrida cada 5 minutos lo pasa automáticamente a
+ * resubmisión, esta corrida (cada 15 minutos -- relajado de cada 5 min en la
+ * auditoría m-2 2026-07-20b: el peor caso solo retrasa el auto-rechazo hasta
+ * 15 min más allá del deadline de 30 min real, un margen aceptable que no
+ * cambia el resultado para el empleado y reduce la cuenta de invocaciones
+ * sub-diarias que exigen Vercel Pro) lo pasa automáticamente a
  * 'rejected' -- consecuencia documentada del vencimiento del plazo, NUNCA
  * una suspensión ni despido automático (esas siguen siendo decisión humana,
  * B.2.23). Se deja rastro en tickets_disputas y una alerta en la bandeja

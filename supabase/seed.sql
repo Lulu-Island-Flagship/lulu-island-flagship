@@ -199,7 +199,7 @@ INSERT INTO employees (
   home_zone, vehicle_id, min_wage_floor_enabled, qc_score_threshold,
   qc_bonus_per_point, max_rework_minutes, created_at, updated_at
 ) VALUES
-  ('33333333-3333-3333-3333-333333333333'::uuid, '9739d2ba-8b59-481f-9325-f6c029ff6763'::uuid, 'Supervisor Test',  'supervisor@example.com', '+1-604-000-0001', 'supervisor', 25000, ARRAY['en','es'], true, 'standard', 480, 120, 'Richmond', NULL, true, 70, 100, 30, now(), now()),
+  ('33333333-3333-3333-3333-333333333333'::uuid, '9739d2ba-8b59-481f-9325-f6c029ff6763'::uuid, 'Supervisor Test',  'supervisor@example.com', '+1-604-000-0001', 'supervisor', 25000, ARRAY['en','fr'], true, 'standard', 480, 120, 'Richmond', NULL, true, 70, 100, 30, now(), now()),
   ('44444444-4444-4444-4444-444444444444'::uuid, '64e35c23-b883-470b-8f20-23ffb6f40982'::uuid, 'Cleaner Test',     'cleaner@example.com',    '+1-604-000-0002', 'cleaner',    20000, ARRAY['en'],     true, 'standard', 480, 120, 'Richmond', '11111111-1111-1111-1111-111111111111'::uuid, true, 70, 0, 30, now(), now()),
   ('55555555-5555-5555-5555-555555555555'::uuid, 'ceef1739-57f5-45fc-ae34-e75e7bfb12c7'::uuid, 'Driver Test',      'driver@example.com',     '+1-604-000-0003', 'driver',     22000, ARRAY['en','zh'],  true, 'standard', 480, 120, 'Richmond', '11111111-1111-1111-1111-111111111111'::uuid, true, 70, 0, 30, now(), now())
 ON CONFLICT (user_id) DO UPDATE SET
@@ -420,15 +420,15 @@ ON CONFLICT (id) DO UPDATE SET
 -- ============================================================
 INSERT INTO communication_templates (event_key, language, version, body) VALUES
   ('order_confirmed', 'en', 1, 'Hi {client_name}! Your {service_type} is confirmed for {service_date}, {time_window}. Full price: {total} — charged only after service completion. — {company_name}'),
-  ('order_confirmed', 'es', 1, '¡Hola {client_name}! Tu {service_type} está confirmado para el {service_date}, {time_window}. Precio completo: {total} — se cobra solo al completar el servicio. — {company_name}'),
+  ('order_confirmed', 'fr', 1, 'Bonjour {client_name}! Votre {service_type} est confirmé pour le {service_date}, {time_window}. Prix total : {total} — facturé seulement après la fin du service. — {company_name}'),
   ('order_confirmed', 'zh', 1, '{client_name}您好！您的{service_type}已确认，时间为{service_date} {time_window}。全价：{total} — 服务完成后才收费。— {company_name}'),
   ('team_en_route', 'en', 1, '{client_name}, your team is on the way! ETA: {eta_minutes} min. Track: {tracking_link}'),
-  ('team_en_route', 'es', 1, '{client_name}, ¡tu equipo está en camino! Llega en {eta_minutes} min. Sigue la ruta: {tracking_link}'),
+  ('team_en_route', 'fr', 1, '{client_name}, votre équipe est en route ! Arrivée dans {eta_minutes} min. Suivez le trajet : {tracking_link}'),
   ('team_en_route', 'zh', 1, '{client_name}，您的团队正在路上！预计{eta_minutes}分钟到达。追踪：{tracking_link}'),
   ('service_completed', 'en', 1, 'All done, {client_name}! See your closing photos: {gallery_link}. Payment processes today at 7:00 PM. Anything not matching the photos? Report it — we review every case against the evidence.'),
-  ('service_completed', 'es', 1, '¡Listo, {client_name}! Mira tus fotos de cierre: {gallery_link}. El pago se procesa hoy a las 7:00 PM. ¿Algo no coincide con las fotos? Repórtalo — revisamos cada caso contra la evidencia.'),
+  ('service_completed', 'fr', 1, 'C''est terminé, {client_name} ! Consultez vos photos de fin de service : {gallery_link}. Le paiement sera traité aujourd''hui à 19h00. Quelque chose ne correspond pas aux photos ? Signalez-le — nous examinons chaque cas avec les preuves à l''appui.'),
   ('service_completed', 'zh', 1, '完成了，{client_name}！查看收尾照片：{gallery_link}。款项今天晚上7点处理。如有与照片不符之处请反馈 — 我们逐一核对证据。'),
   ('review_request', 'en', 1, 'Thank you {client_name}! If you have 30 seconds, a Google review helps our small team a lot: {review_link}'),
-  ('review_request', 'es', 1, '¡Gracias {client_name}! Si tienes 30 segundos, una reseña en Google ayuda muchísimo a nuestro equipo: {review_link}'),
+  ('review_request', 'fr', 1, 'Merci {client_name} ! Si vous avez 30 secondes, un avis Google aide énormément notre petite équipe : {review_link}'),
   ('review_request', 'zh', 1, '谢谢您，{client_name}！如果您有30秒时间，Google评价对我们的小团队帮助很大：{review_link}')
 ON CONFLICT (event_key, language, version) DO NOTHING;

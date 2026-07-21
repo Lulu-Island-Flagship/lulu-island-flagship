@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import {
   BADGE_CATALOG,
   isEligibleForServiceGold,
@@ -146,8 +146,10 @@ export async function GET(request: NextRequest) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseAdmin = SupabaseClient<any, "public", any>;
+
 async function awardBadgeIfNew(
-  supabase: any,
+  supabase: SupabaseAdmin,
   params: { employeeId: string; badgeKey: string; evidence: string; creditDate: string; periodKey?: string }
 ): Promise<boolean> {
   const insertPayload: Record<string, unknown> = {

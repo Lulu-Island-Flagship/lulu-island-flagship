@@ -20,7 +20,7 @@ function entry(overrides: Partial<DispatchMatrixEntry> = {}): DispatchMatrixEntr
     clientPhone: "+16045551234",
     serviceDatetimeIso: "2026-07-10T16:12:00.000Z", // 12 min después de NOW
     status: "pending",
-    language: "es",
+    language: "fr",
     ...overrides,
   };
 }
@@ -77,10 +77,10 @@ describe("matchCallerToSchedule", () => {
 });
 
 describe("buildInformResponse", () => {
-  it("da el mensaje de ETA en español cuando está dentro de la ventana razonable", () => {
+  it("da el mensaje de ETA en francés cuando está dentro de la ventana razonable", () => {
     const match = matchCallerToSchedule("+16045551234", [entry()]);
-    const res = buildInformResponse(match, "es", NOW);
-    assert.match(res.message, /12 minutos/);
+    const res = buildInformResponse(match, "fr", NOW);
+    assert.match(res.message, /12 minutes/);
     assert.equal(res.isAutomatedDisclosure, true);
   });
 
@@ -92,52 +92,52 @@ describe("buildInformResponse", () => {
 
   it("no hay match: mensaje explícito de 'no encontrado' + enruta a humano en el mensaje", () => {
     const match = matchCallerToSchedule("+16045559999", [entry()]);
-    const res = buildInformResponse(match, "es", NOW);
-    assert.match(res.message, /No encontramos un servicio/);
+    const res = buildInformResponse(match, "fr", NOW);
+    assert.match(res.message, /Nous n'avons trouvé aucun service/);
   });
 
   it("status completed da mensaje de completado, no un ETA inventado", () => {
     const match = matchCallerToSchedule("+16045551234", [entry({ status: "completed" })]);
-    const res = buildInformResponse(match, "es", NOW);
-    assert.match(res.message, /ya fue completado/);
+    const res = buildInformResponse(match, "fr", NOW);
+    assert.match(res.message, /déjà terminé/);
   });
 
   it("status arrived informa que el equipo ya llegó", () => {
     const match = matchCallerToSchedule("+16045551234", [entry({ status: "arrived" })]);
-    const res = buildInformResponse(match, "es", NOW);
-    assert.match(res.message, /ya llegó/);
+    const res = buildInformResponse(match, "fr", NOW);
+    assert.match(res.message, /déjà arrivée/);
   });
 
   it("cita muy en el futuro (>180 min) da hora programada, no 'llega en 400 minutos'", () => {
     const match = matchCallerToSchedule("+16045551234", [
       entry({ serviceDatetimeIso: "2026-07-10T23:00:00.000Z" }),
     ]);
-    const res = buildInformResponse(match, "es", NOW);
-    assert.match(res.message, /programado para/);
-    assert.doesNotMatch(res.message, /minutos\./);
+    const res = buildInformResponse(match, "fr", NOW);
+    assert.match(res.message, /prévu pour/);
+    assert.doesNotMatch(res.message, /minutes\./);
   });
 
   it("cita ya pasada y aún no arrancada: mensaje de retraso, no un ETA negativo", () => {
     const match = matchCallerToSchedule("+16045551234", [
       entry({ serviceDatetimeIso: "2026-07-10T15:00:00.000Z" }),
     ]);
-    const res = buildInformResponse(match, "es", NOW);
-    assert.match(res.message, /retrasado/);
+    const res = buildInformResponse(match, "fr", NOW);
+    assert.match(res.message, /du retard/);
   });
 
   it("todo mensaje incluye el prefijo de línea automatizada (nunca finge ser humano)", () => {
     const match = matchCallerToSchedule("+16045551234", [entry()]);
-    const res = buildInformResponse(match, "es", NOW);
-    assert.match(res.message, /^Línea automatizada\./);
+    const res = buildInformResponse(match, "fr", NOW);
+    assert.match(res.message, /^Ligne automatisée\./);
   });
 });
 
 describe("detectAngerSignal", () => {
-  it("detecta palabra clave de enojo en español", () => {
+  it("detecta palabra clave de enojo en francés", () => {
     const result = detectAngerSignal({
       kind: "transcript",
-      text: "esto es una estafa, quiero hablar con una persona",
-      locale: "es",
+      text: "c'est une arnaque, je veux parler à une personne",
+      locale: "fr",
     });
     assert.equal(result.angerDetected, true);
   });
@@ -145,8 +145,8 @@ describe("detectAngerSignal", () => {
   it("no detecta enojo en un transcript neutral", () => {
     const result = detectAngerSignal({
       kind: "transcript",
-      text: "hola, quiero saber a qué hora llega mi equipo",
-      locale: "es",
+      text: "bonjour, je veux savoir à quelle heure arrive mon équipe",
+      locale: "fr",
     });
     assert.equal(result.angerDetected, false);
   });
@@ -182,7 +182,7 @@ describe("decideCallRouting", () => {
     const decision = decideCallRouting({
       callerPhone: "+16045551234",
       todayDispatchMatrix: [entry()],
-      angerInput: { kind: "transcript", text: "esto es terrible, quiero un humano", locale: "es" },
+      angerInput: { kind: "transcript", text: "c'est terrible, je veux un humain", locale: "fr" },
       fallbackLocale: "en",
       nowIso: NOW,
     });
@@ -197,7 +197,7 @@ describe("decideCallRouting", () => {
     const decision = decideCallRouting({
       callerPhone: "+16045551234",
       todayDispatchMatrix: [entry()],
-      angerInput: { kind: "transcript", text: "hola gracias", locale: "es" },
+      angerInput: { kind: "transcript", text: "bonjour merci", locale: "fr" },
       fallbackLocale: "en",
       nowIso: NOW,
     });
@@ -210,7 +210,7 @@ describe("decideCallRouting", () => {
     const decision = decideCallRouting({
       callerPhone: "+16045559999",
       todayDispatchMatrix: [entry()],
-      angerInput: { kind: "transcript", text: "hola", locale: "es" },
+      angerInput: { kind: "transcript", text: "bonjour", locale: "fr" },
       fallbackLocale: "en",
       nowIso: NOW,
     });

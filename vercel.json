@@ -34,7 +34,7 @@
     },
     {
       "path": "/api/cron/appointment-confirmation-24h",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/cron/dispatch-scheduler",
@@ -46,7 +46,7 @@
     },
     {
       "path": "/api/cron/paypal-refunds",
-      "schedule": "0 * * * *"
+      "schedule": "0 */4 * * *"
     },
     {
       "path": "/api/cron/qbo-sync",
@@ -66,7 +66,7 @@
     },
     {
       "path": "/api/cron/purchase-order-reminders",
-      "schedule": "0 * * * *"
+      "schedule": "0 */4 * * *"
     },
     {
       "path": "/api/cron/churn-detection",
@@ -166,10 +166,14 @@
     },
     {
       "path": "/api/cron/qc-rework-expiry",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/appeal-deadline-check",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/reconcile-payments",
       "schedule": "0 * * * *"
     }
   ]

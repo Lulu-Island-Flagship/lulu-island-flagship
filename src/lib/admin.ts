@@ -1,5 +1,5 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
@@ -161,4 +161,44 @@ export async function requireAdminRole(
   }
 
   return { error: null, status: 200 as const, supabase, user, roles };
+}
+
+// v8.3 fix G-3 (auditoría implacable 2026-07-20b): admin/layout.tsx ya
+// calculaba is_supervisor() + admin_roles para filtrar AdminNav por rol,
+// pero admin/page.tsx (el dashboard de 45 tarjetas) no tenía forma de
+// pedir esos mismos roles sin duplicar la query a mano en cada Server
+// Component que los necesite. Este helper centraliza esa lectura (misma
+// lógica exacta que admin/layout.tsx: is_supervisor() OR fila activa en
+// admin_roles, con el mismo fallback a "ops_coordinator" cuando
+// is_supervisor() es true pero no hay fila explícita) para que
+// admin/page.tsx (y cualquier otra página admin que necesite filtrar por
+// rol del lado del servidor) la reutilice en vez de reimplementarla.
+export async function getCurrentAdminRoles(): Promise<{
+  user: User | null;
+  roles: AdminRole[];
+}> {
+  const supabase = getSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { user: null, roles: [] };
+  }
+
+  const { data: isSupervisor } = await supabase.rpc("is_supervisor", { user_uuid: user.id });
+
+  const { data: roleRows } = await supabase
+    .from("admin_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .is("deleted_at", null);
+
+  const roles = (roleRows ?? []).map((r) => r.role as AdminRole);
+
+  if (roles.length === 0 && isSupervisor) {
+    roles.push("ops_coordinator");
+  }
+
+  return { user, roles };
 }

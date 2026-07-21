@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { calculateMinimumWageImpact } from "@/lib/economic-params";
 import { dispatchCommunication } from "@/lib/send-communication";
@@ -57,8 +57,10 @@ interface ServiceContractRow {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseAdmin = SupabaseClient<any, "public", any>;
+
 async function notifyClient(
-  supabase: any,
+  supabase: SupabaseAdmin,
   userId: string,
   eventKey: "contract_ipc_notice" | "contract_ipc_adjusted",
   vars: Record<string, string>
@@ -71,8 +73,8 @@ async function notifyClient(
       .maybeSingle();
     const language = ((profile?.preferred_languages as string[] | undefined)?.[0] || "en") as
       | "en"
-      | "es"
-      | "zh";
+      | "zh"
+      | "fr";
     await dispatchCommunication(supabase, { eventKey, userId, language, vars });
   } catch (err) {
     // v8.3 fix (auditoría 2026-07-15): un fallo al notificar NUNCA debe

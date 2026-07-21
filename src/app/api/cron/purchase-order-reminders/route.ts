@@ -9,7 +9,10 @@ import { captureError } from "@/lib/observability";
  * v8.3 E7 (D.7.6, punto 6) — recordatorio 48h + alerta stock-out 72h de
  * órdenes de compra. Las columnas `reminder_sent_at`/`stockout_alert_sent_at`
  * existen en `purchase_orders` desde la migración 048 pero nunca se
- * poblaban: no había cron. Este job corre cada hora y es el único que
+ * poblaban: no había cron. Este job corre cada 4 horas (relajado de hourly
+ * en la auditoría m-2 2026-07-20b: los umbrales son de 48h/72h, así que una
+ * cadencia de 4h no cambia el comportamiento observable y reduce la cuenta
+ * de invocaciones sub-diarias que exigen Vercel Pro) y es el único que
  * ESCRIBE esas dos columnas.
  *
  * No hay proveedor de SMS/email configurado en este entorno (mismo caso que

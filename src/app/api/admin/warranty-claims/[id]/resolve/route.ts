@@ -170,8 +170,8 @@ export async function POST(
           .maybeSingle();
         const language = ((clientProfile?.preferred_languages as string[] | undefined)?.[0] || "en") as
           | "en"
-          | "es"
-          | "zh";
+          | "zh"
+          | "fr";
 
         await dispatchCommunication(auth.supabase, {
           eventKey: "dispute_resolved",

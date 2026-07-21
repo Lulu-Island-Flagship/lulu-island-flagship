@@ -65,7 +65,7 @@
 // ------------------------------------------------------------
 
 /** Idiomas de cuenta soportados (mismo universo que send-communication.ts). */
-export type AccountLocale = "en" | "es" | "zh";
+export type AccountLocale = "en" | "zh" | "fr";
 
 /** Estados reales de `assignments.status` (migración 003_modulo3_employee_tables.sql). */
 export type AssignmentStatus =
@@ -171,57 +171,57 @@ export interface InformResponse {
 
 const DISCLOSURE_PREFIX: Record<AccountLocale, string> = {
   en: "Automated line.",
-  es: "Línea automatizada.",
+  fr: "Ligne automatisée.",
   zh: "自动语音线路。",
 };
 
 const NO_MATCH_MESSAGE: Record<AccountLocale, string> = {
   en: "We could not find a service scheduled today for this phone number. Connecting you with a team member.",
-  es: "No encontramos un servicio programado hoy para este número. La estamos comunicando con una persona.",
+  fr: "Nous n'avons trouvé aucun service prévu aujourd'hui pour ce numéro de téléphone. Nous vous mettons en relation avec un membre de notre équipe.",
   zh: "我们未能找到今天与此号码对应的预约服务。正在为您转接人工服务。",
 };
 
 const COMPLETED_MESSAGE: Record<AccountLocale, string> = {
   en: "Your service today has already been completed.",
-  es: "Su servicio de hoy ya fue completado.",
+  fr: "Votre service d'aujourd'hui est déjà terminé.",
   zh: "您今天的服务已经完成。",
 };
 
 const CANCELLED_MESSAGE: Record<AccountLocale, string> = {
   en: "Your service today is marked as cancelled.",
-  es: "Su servicio de hoy está marcado como cancelado.",
+  fr: "Votre service d'aujourd'hui est marqué comme annulé.",
   zh: "您今天的服务已被标记为取消。",
 };
 
 const NO_SHOW_MESSAGE: Record<AccountLocale, string> = {
   en: "We were unable to complete your service today (no-show). Connecting you with a team member.",
-  es: "No pudimos completar su servicio de hoy (no-show). La estamos comunicando con una persona.",
+  fr: "Nous n'avons pas pu réaliser votre service aujourd'hui (absence au rendez-vous). Nous vous mettons en relation avec un membre de notre équipe.",
   zh: "我们今天未能完成您的服务（未到场）。正在为您转接人工服务。",
 };
 
 const ARRIVED_MESSAGE: Record<AccountLocale, string> = {
   en: "Your team has already arrived at your property.",
-  es: "Su equipo ya llegó a su propiedad.",
+  fr: "Votre équipe est déjà arrivée sur votre propriété.",
   zh: "您的团队已经抵达您的物业。",
 };
 
 const IN_PROGRESS_MESSAGE: Record<AccountLocale, string> = {
   en: "Your team is currently working at your property.",
-  es: "Su equipo está trabajando en su propiedad en este momento.",
+  fr: "Votre équipe est actuellement en train de travailler sur votre propriété.",
   zh: "您的团队正在您的物业进行服务。",
 };
 
-/** "Su equipo llega en {minutes} minutos" — ejemplo textual del plan. */
+/** "Votre équipe arrive dans {minutes} minutes" — ejemplo textual del plan. */
 function etaMessage(locale: AccountLocale, minutes: number): string {
   const rounded = Math.max(0, Math.round(minutes));
-  if (locale === "es") return `Su equipo llega en ${rounded} minutos.`;
+  if (locale === "fr") return `Votre équipe arrive dans ${rounded} minutes.`;
   if (locale === "zh") return `您的团队将在 ${rounded} 分钟后到达。`;
   return `Your team will arrive in ${rounded} minutes.`;
 }
 
 const RUNNING_LATE_MESSAGE: Record<AccountLocale, string> = {
   en: "Your team is running behind schedule for today's appointment. We are updating you as soon as possible.",
-  es: "Su equipo va retrasado respecto a la hora programada de hoy. Le avisaremos en cuanto tengamos una actualización.",
+  fr: "Votre équipe a du retard par rapport à l'heure prévue aujourd'hui. Nous vous tiendrons informé dès que possible.",
   zh: "您的团队今天的到达时间有所延迟，我们会尽快更新信息。",
 };
 
@@ -284,7 +284,7 @@ export function buildInformResponse(
     const scheduled = new Date(entry.serviceDatetimeIso).toISOString();
     const scheduledMsg: Record<AccountLocale, string> = {
       en: `Your service today is scheduled for ${scheduled}.`,
-      es: `Su servicio de hoy está programado para ${scheduled}.`,
+      fr: `Votre service d'aujourd'hui est prévu pour ${scheduled}.`,
       zh: `您今天的服务预约时间为 ${scheduled}。`,
     };
     return { message: `${prefix} ${scheduledMsg[locale]}`, isAutomatedDisclosure: true };
@@ -326,19 +326,20 @@ export interface AngerDetectionResult {
  * silenciosos son el riesgo peor).
  */
 const ANGER_KEYWORDS: Record<AccountLocale, string[]> = {
-  es: [
-    "estafa",
-    "pésimo",
+  fr: [
+    "arnaque",
+    "épouvantable",
     "terrible",
-    "inaceptable",
-    "harto",
-    "furioso",
-    "indignado",
-    "quiero hablar con una persona",
-    "quiero un humano",
-    "esto es una vergüenza",
-    "grosero",
-    "demanda",
+    "inacceptable",
+    "j'en ai marre",
+    "furieux",
+    "furieuse",
+    "indigné",
+    "je veux parler à une personne",
+    "je veux un humain",
+    "c'est une honte",
+    "impoli",
+    "poursuite judiciaire",
   ],
   en: [
     "scam",

@@ -20,7 +20,12 @@ describe("isValidLanguageLevels", () => {
   });
 
   it("rechaza un idioma no soportado", () => {
-    assert.equal(isValidLanguageLevels({ fr: "native" }, ["fr"]), false);
+    // v8.3 fix B-3 (auditoría implacable 2026-07-20b): SUPPORTED_LANGUAGE_CODES
+    // pasó de en/zh/es a en/zh/fr -- este test usaba "fr" como ejemplo de
+    // idioma NO soportado, justo el que ahora sí lo es. "es" (español) ya
+    // no es un idioma válido de la app (ver src/lib/languages.ts), así que
+    // es el ejemplo correcto de código rechazado.
+    assert.equal(isValidLanguageLevels({ es: "native" }, ["es"]), false);
   });
 
   it("rechaza un idioma que el empleado no habla (no está en spokenLanguages)", () => {

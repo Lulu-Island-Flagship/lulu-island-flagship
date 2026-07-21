@@ -57,6 +57,14 @@ function buildGroups(adminPath: string): NavGroup[] {
         // Disaster Recovery consume /api/admin/dr-drill, que usa el
         // resource "feature_flags" (interruptores del sistema, solo owner_admin).
         { label: "Disaster Recovery", href: `${adminPath}/recuperacion-desastres`, resource: "feature_flags" },
+        // v8.3 fix M-7 (auditoría implacable 2026-07-20b): página huérfana --
+        // /admin/contingencia existía y funcionaba (manual de contingencia de
+        // una página, E7 D.7.10) pero no tenía ningún link en ningún lado del
+        // frontend, solo alcanzable escribiendo la URL a mano. La página es
+        // estática (no llama a ninguna API propia), así que el resource se
+        // infiere por naturaleza: es guía operativa de emergencia, mismo tipo
+        // de acceso que Disaster Recovery/SOS (owner_admin + ops_coordinator).
+        { label: "Contingencia", href: `${adminPath}/contingencia`, resource: "tickets" },
       ],
     },
     {
@@ -80,6 +88,11 @@ function buildGroups(adminPath: string): NavGroup[] {
       label: "Finance & Settings",
       links: [
         { label: "Pricing Rules", href: `${adminPath}/pricing-rules`, resource: "pricing_rules" },
+        // v8.3 fix M-7: página huérfana -- /admin/pricing-rules/sandbox
+        // (simulador de reglas de precio) llama a las mismas APIs que
+        // Pricing Rules (/api/admin/pricing-rules y /simulate, ambas con
+        // requireAdminRole("pricing_rules")) pero no tenía link propio.
+        { label: "Pricing Rules Sandbox", href: `${adminPath}/pricing-rules/sandbox`, resource: "pricing_rules" },
         { label: "Pricing Settings", href: `${adminPath}/pricing-settings`, resource: "pricing_settings" },
         { label: "Contabilidad", href: `${adminPath}/contabilidad`, resource: "finance" },
         { label: "Team Ranking", href: `${adminPath}/team-ranking`, resource: "wellbeing" },

@@ -1,26 +1,38 @@
 /**
  * v8.3 E0.9 — Observabilidad: Sentry + logging estructurado.
  *
- * DISEÑO HONESTO: no hay cuenta de Sentry contratada todavía (sin DSN, sin
- * SDK instalado). En vez de instalar `@sentry/nextjs` en falso o simular una
- * integración que no existe, este módulo separa las dos mitades del
- * requisito:
+ * v8.3 M-3 (auditoría implacable 2026-07-20b): este módulo sigue separando
+ * las dos mitades del requisito:
  *
- *   1. Logging estructurado: SÍ funciona hoy, sin ninguna cuenta externa —
+ *   1. Logging estructurado: funciona siempre, sin ninguna cuenta externa —
  *      `logEvent`/`captureError` siempre emiten JSON estructurado a
  *      consola (nivel, timestamp, módulo, contexto), que es lo que
  *      cualquier plataforma de logs (Vercel, Datadog, etc.) puede indexar
  *      sin configuración adicional.
- *   2. Forwarding a Sentry: reservado para cuando exista DSN real. Mismo
- *      patrón `not_configured` que sms.ts / weather-provider.ts — nunca
- *      intenta una llamada de red a un servicio no contratado.
+ *   2. Forwarding a Sentry: SOLO ocurre si `isSentryConfigured()` es true
+ *      (SENTRY_DSN seteado) -- mismo patrón `not_configured` que sms.ts /
+ *      weather-provider.ts cuando no lo está.
  *
- * TODO(dueño/infra): al contratar Sentry, `npm install @sentry/nextjs`,
- * agregar `instrumentation.ts` con `Sentry.init({ dsn: process.env.SENTRY_DSN })`,
- * y reemplazar el bloque marcado abajo por `Sentry.captureException(error, { extra: context })`.
- * `captureError`/`logEvent` son la interfaz estable que el resto del sistema
- * debe seguir llamando — solo cambia la implementación interna.
+ * NOTA DE ENTORNO (dueño/infra, IMPORTANTE): `npm install @sentry/nextjs`
+ * no pudo completarse en el sandbox donde se escribió este fix (mismo
+ * problema de filesystem que se documenta en instrumentation.ts -- el mount
+ * de `node_modules` bloquea `rename`/`unlink` de rutas ya existentes). El
+ * import de abajo usa por eso un especificador dinámico en variable
+ * (`import(SENTRY_PACKAGE_NAME)`, con `SENTRY_PACKAGE_NAME` anotado como
+ * `string` no-literal) para que `tsc`/`next build` nunca intenten resolver
+ * el módulo en tiempo de compilación -- el build no se rompe aunque el
+ * paquete todavía no esté instalado. En cuanto se corra
+ * `npm install @sentry/nextjs` en un entorno normal, esto empieza a
+ * funcionar sin tocar código.
+ *
+ * `captureError`/`logEvent` son la interfaz estable que el resto del
+ * sistema debe seguir llamando — solo cambió la implementación interna.
  */
+
+// Anotado explícitamente como `string` (no literal) para que TypeScript NO
+// intente resolver el módulo en tiempo de compilación en el import
+// dinámico de abajo -- ver nota de entorno arriba.
+const SENTRY_PACKAGE_NAME: string = "@sentry/nextjs";
 
 export type ObservabilityForwardStatus = "logged_locally" | "forwarded_to_sentry" | "not_configured";
 
@@ -75,10 +87,39 @@ export function captureError(error: unknown, context?: Record<string, unknown>):
     return { status: "not_configured", loggedAt };
   }
 
-  // TODO(dueño/infra): reemplazar por Sentry.captureException(error, { extra: context })
-  // una vez exista @sentry/nextjs instalado y SENTRY_DSN configurado. Hasta
-  // entonces, no se inventa una llamada de red a un servicio no contratado
-  // -- se deja registrado como "logged_locally" (DSN presente pero SDK aún
-  // no instalado sería un estado transitorio de configuración incompleta).
+  // v8.3 M-3: DSN configurado -- reenviar también a Sentry. Import
+  // dinámico (no top-level) para no acoplar el arranque de este módulo al
+  // SDK cuando SENTRY_DSN no está seteado (mismo espíritu que sendSms()/
+  // sendEmail() solo llamando a fetch cuando su proveedor está
+  // configurado). captureException() es fire-and-forget aquí a propósito:
+  // un fallo de Sentry nunca debe hacer que captureError() lance, ya que su
+  // contrato ("nunca lanza") es lo que el resto del sistema depende para
+  // loguear errores dentro de sus propios catch.
+  //
+  // v8.3 fix (verificación QA post-remediación 2026-07-20b): captureError()
+  // es SINCRÓNICA por contrato (todo el código que la llama lee
+  // result.status sin await -- ver tests/lib/observability.test.ts). El
+  // import() de arriba es async y todavía no se sabe si va a resolver bien
+  // en el momento de este `return` -- devolver "forwarded_to_sentry" aquí
+  // sería afirmar un éxito que todavía no ocurrió (y que, sin el paquete
+  // instalado, nunca ocurre: el .catch() de abajo sí corre, pero after el
+  // return). Lo único que es verdad EN ESTE INSTANTE es que ya quedó
+  // logueado localmente (línea de arriba) y que se disparó un intento de
+  // reenvío en segundo plano -- por eso el valor sincrónico correcto es
+  // "logged_locally", igual que sin DSN configurado. "forwarded_to_sentry"
+  // queda declarado en ObservabilityForwardStatus como reservado para una
+  // eventual versión async de esta función que sí pueda esperar el
+  // resultado real antes de responder.
+  import(SENTRY_PACKAGE_NAME)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .then((Sentry: any) => {
+      Sentry.captureException(error, { extra: context });
+    })
+    .catch((sentryErr) => {
+      structuredLog("warn", "sentry_forward_failed", {
+        message: sentryErr instanceof Error ? sentryErr.message : String(sentryErr),
+      });
+    });
+
   return { status: "logged_locally", loggedAt };
 }

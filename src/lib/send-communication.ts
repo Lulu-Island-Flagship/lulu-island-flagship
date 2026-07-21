@@ -24,6 +24,10 @@ import {
 import { sendSms } from "./sms";
 import { sendEmail } from "./email";
 import { getVancouverTodayString, getVancouverOffset } from "./date-utils";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseAdmin = SupabaseClient<any, "public", any>;
 
 export interface CommunicationEventRow {
   event_key: string;
@@ -127,7 +131,7 @@ export interface DispatchCommunicationParams {
   eventKey: string;
   userId: string;
   orderId?: string | null;
-  language: "en" | "es" | "zh";
+  language: "en" | "zh" | "fr";
   vars: Record<string, string | number>;
   marketingWeight?: number;
 }
@@ -153,8 +157,7 @@ export interface DispatchCommunicationResult {
  * de servicio ya válidos.
  */
 export async function dispatchCommunication(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseAdmin,
   params: DispatchCommunicationParams
 ): Promise<DispatchCommunicationResult> {
   try {

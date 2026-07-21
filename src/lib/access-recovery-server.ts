@@ -110,12 +110,12 @@ export function maskSuccessorContact(successor: TrustedSuccessorRow): string {
   return "***";
 }
 
-/** Renderiza la plantilla vigente en español del catálogo (communication_templates) para un event_key. Fallback a inglés si no hay plantilla en es. Devuelve null si tampoco hay plantilla en inglés (nunca inventa texto). */
+/** Renderiza la plantilla vigente en francés del catálogo (communication_templates) para un event_key. Fallback a inglés si no hay plantilla en fr. Devuelve null si tampoco hay plantilla en inglés (nunca inventa texto). */
 export async function renderCatalogTemplate(
   supabase: ServiceClient,
   eventKey: string,
   vars: Record<string, string | number>,
-  language: "es" | "en" = "es"
+  language: "fr" | "en" = "fr"
 ): Promise<string | null> {
   const { data: template } = await supabase
     .from("communication_templates")

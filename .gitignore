@@ -35,5 +35,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# scoped tsconfig scratch files used for fast type-checking during audits
+# (couldn't be deleted from this sandbox — see EPERM note in audit report;
+# ignored here so it never gets committed by accident)
+tsconfig.scoped-*.json
+tsconfig.verify*.json
+
 # Supabase Studio SQL editor auto-saved snippets (local dev state, not source)
 /supabase/snippets/

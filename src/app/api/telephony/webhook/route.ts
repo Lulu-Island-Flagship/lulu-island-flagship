@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 import {
   decideCallRouting,
   type AccountLocale,
@@ -48,36 +49,60 @@ import { maskPhoneNumber } from "@/lib/sms";
 // ------------------------------------------------------------
 
 /**
- * TODO(dueño/infra): Twilio firma cada webhook con el header
- * `X-Twilio-Signature`, calculado con HMAC-SHA1 sobre la URL completa + los
- * parámetros del POST, usando el Auth Token de la cuenta como llave (ver
- * https://www.twilio.com/docs/usage/webhooks/webhooks-security). Este
- * proyecto NO tiene una cuenta de Twilio contratada todavía, así que:
- *   1. No existe TWILIO_AUTH_TOKEN en ninguna variable de entorno real.
- *   2. Esta función NUNCA debe "simular" una verificación exitosa — si no
- *      hay token configurado, se rechaza la petición explícitamente (fail
- *      closed), igual que sendSms() en sms.ts nunca finge un envío exitoso
- *      sin proveedor configurado.
- *   3. Cuando exista el contrato con Twilio, reemplazar el cuerpo de esta
- *      función por la validación real, por ejemplo usando el paquete
- *      oficial `twilio` (`twilio.validateRequest(authToken, signature,
- *      url, params)`). NO implementado aquí a propósito.
+ * v8.3 M-5 (auditoría implacable 2026-07-20b): implementación real de la
+ * validación de firma de Twilio. Twilio firma cada webhook con el header
+ * `X-Twilio-Signature`, calculado como
+ * `Base64(HMAC-SHA1(authToken, url + params_ordenados_concatenados))`
+ * (https://www.twilio.com/docs/usage/webhooks/webhooks-security):
+ *   - `url` es la URL completa (con querystring si la hay) que Twilio invocó.
+ *   - `params_ordenados_concatenados` es, para peticiones
+ *     application/x-www-form-urlencoded (el content-type real de los
+ *     webhooks de voz de Twilio), cada par clave+valor del body POST,
+ *     ordenado alfabéticamente por clave, concatenado sin separadores.
+ *
+ * No requiere el SDK oficial `twilio` -- el propio `crypto` de Node alcanza
+ * (HMAC-SHA1 + comparación en tiempo constante con `timingSafeEqual`, nunca
+ * `===`, para no filtrar por temporización cuánto de la firma coincide).
+ *
+ * Sigue fail-closed: sin `TWILIO_AUTH_TOKEN` configurado, no hay manera
+ * honesta de verificar que la petición vino de Twilio, así que se rechaza
+ * explícitamente (mismo principio que sendSms() en sms.ts nunca finge un
+ * envío exitoso sin proveedor configurado).
  */
-function verifyTwilioSignature(_request: NextRequest, _rawBody: URLSearchParams): boolean {
+function computeTwilioSignature(authToken: string, url: string, params: URLSearchParams): string {
+  const sortedKeys = Array.from(new Set(params.keys())).sort();
+  let data = url;
+  for (const key of sortedKeys) {
+    data += key + (params.get(key) ?? "");
+  }
+  return crypto.createHmac("sha1", authToken).update(Buffer.from(data, "utf-8")).digest("base64");
+}
+
+function verifyTwilioSignature(request: NextRequest, rawBody: URLSearchParams): boolean {
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   if (!authToken) {
     // Fail closed: sin Auth Token configurado, no hay manera honesta de
     // verificar que esta petición vino realmente de Twilio.
     return false;
   }
-  // TODO(dueño/infra): implementar validateRequest real aquí cuando exista
-  // cuenta de Twilio. Placeholder explícito, NO una firma falsa:
-  //   const twilio = require("twilio");
-  //   const signature = _request.headers.get("x-twilio-signature") ?? "";
-  //   const url = _request.url;
-  //   const params = Object.fromEntries(_rawBody.entries());
-  //   return twilio.validateRequest(authToken, signature, url, params);
-  return false;
+
+  const providedSignature = request.headers.get("x-twilio-signature");
+  if (!providedSignature) {
+    return false;
+  }
+
+  const expectedSignature = computeTwilioSignature(authToken, request.url, rawBody);
+
+  const expectedBuf = Buffer.from(expectedSignature, "utf-8");
+  const providedBuf = Buffer.from(providedSignature, "utf-8");
+
+  // Buffers de distinto largo no pueden compararse con timingSafeEqual
+  // (lanza) -- una firma de largo distinto simplemente no coincide.
+  if (expectedBuf.length !== providedBuf.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(expectedBuf, providedBuf);
 }
 
 // ------------------------------------------------------------
@@ -95,7 +120,13 @@ function xmlEscape(text: string): string {
 
 /** Idioma TTS de Twilio <Say> más cercano a cada AccountLocale. */
 function twimlSayLanguage(locale: AccountLocale): string {
-  if (locale === "es") return "es-MX";
+  // v8.3 M-5 (auditoría implacable 2026-07-20b): este proyecto estandariza
+  // en en/zh/fr (ver B-3, AccountLocale en telephony-router.ts) -- "es" no
+  // es un idioma soportado por la cuenta y nunca podía ocurrir realmente;
+  // era un resto de una convención anterior. Se reemplaza por "fr" -> "fr-CA"
+  // (francés canadiense, el TTS de Twilio más cercano al público real de
+  // esta app).
+  if (locale === "fr") return "fr-CA";
   if (locale === "zh") return "zh-CN";
   return "en-US";
 }
@@ -117,8 +148,8 @@ function twimlInformAndGather(message: string, locale: AccountLocale, actionUrl:
     `</Gather>` +
     // Si el Gather no captura nada, Twilio sigue aquí: terminamos limpio.
     `<Say language="${twimlSayLanguage(locale)}">${xmlEscape(
-      locale === "es"
-        ? "Gracias por llamar. Hasta luego."
+      locale === "fr"
+        ? "Merci de votre appel. Au revoir."
         : locale === "zh"
           ? "感谢您的来电，再见。"
           : "Thank you for calling. Goodbye."
@@ -138,8 +169,8 @@ function twimlEscalateToHuman(message: string, locale: AccountLocale): NextRespo
     // closed con instrucción honesta en vez de un <Dial> a un número
     // inventado.
     const fallback =
-      locale === "es"
-        ? "En este momento no podemos transferir su llamada automáticamente. Por favor intente más tarde o envíe un mensaje de texto."
+      locale === "fr"
+        ? "Nous ne pouvons pas transférer votre appel automatiquement pour le moment. Veuillez réessayer plus tard ou envoyer un message texte."
         : locale === "zh"
           ? "目前无法自动转接您的电话，请稍后再试或发送短信。"
           : "We are unable to transfer your call automatically right now. Please try again later or send a text message.";
@@ -152,7 +183,7 @@ function twimlEscalateToHuman(message: string, locale: AccountLocale): NextRespo
 /** Turno 2 sin enojo: cierra la llamada. */
 function twimlGoodbye(locale: AccountLocale): NextResponse {
   const bye =
-    locale === "es" ? "Gracias, hasta luego." : locale === "zh" ? "谢谢，再见。" : "Thank you, goodbye.";
+    locale === "fr" ? "Merci, au revoir." : locale === "zh" ? "谢谢，再见。" : "Thank you, goodbye.";
   return twiml(`<Say language="${twimlSayLanguage(locale)}">${xmlEscape(bye)}</Say><Hangup/>`);
 }
 
@@ -179,7 +210,9 @@ function mostAdvancedStatus(statuses: AssignmentStatus[]): AssignmentStatus {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function buildTodayDispatchMatrix(supabase: any): Promise<DispatchMatrixEntry[]> {
+type SupabaseAdmin = SupabaseClient<any, "public", any>;
+
+async function buildTodayDispatchMatrix(supabase: SupabaseAdmin): Promise<DispatchMatrixEntry[]> {
   const todayStr = getVancouverTodayString();
 
   const { data: orders } = await supabase
@@ -205,7 +238,12 @@ async function buildTodayDispatchMatrix(supabase: any): Promise<DispatchMatrixEn
   const languageByUser = new Map<string, AccountLocale>(
     (clientProfiles || []).map((p: { user_id: string; preferred_languages: string[] | null }) => {
       const first = (p.preferred_languages ?? [])[0];
-      const locale: AccountLocale = first === "es" || first === "zh" ? first : "en";
+      // v8.3 M-5 (auditoría implacable 2026-07-20b): "es" no es un idioma
+      // soportado por la cuenta (AccountLocale = en/zh/fr, ver B-3) -- se
+      // corrige a "fr" para que un cliente con preferred_languages=['fr']
+      // efectivamente reciba el locale correcto en vez de caer a "en" por
+      // descarte.
+      const locale: AccountLocale = first === "fr" || first === "zh" ? first : "en";
       return [p.user_id, locale];
     })
   );

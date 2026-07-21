@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
         .select("preferred_languages")
         .eq("user_id", userId)
         .maybeSingle();
-      const language = ((clientProfile?.preferred_languages as string[] | undefined)?.[0] || "en") as "en" | "es" | "zh";
+      const language = ((clientProfile?.preferred_languages as string[] | undefined)?.[0] || "en") as "en" | "zh" | "fr";
 
       const { data: survey, error: insertError } = await supabase
         .from("nps_surveys")

@@ -98,7 +98,7 @@ export async function POST(
             .eq("user_id", order.user_id)
             .maybeSingle();
           const language = ((clientProfile?.preferred_languages as string[] | undefined)?.[0] ||
-            "en") as "en" | "es" | "zh";
+            "en") as "en" | "zh" | "fr";
 
           await dispatchCommunication(auth.supabase, {
             eventKey: "dispute_resolved",

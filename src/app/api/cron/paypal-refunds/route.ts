@@ -4,7 +4,11 @@ import { createClient } from "@supabase/supabase-js";
 /**
  * POST /api/cron/paypal-refunds
  *
- * Job programado cada hora. Procesa órdenes canceladas con reembolso PayPal pendiente.
+ * Job programado cada 4 horas (relajado de hourly en la auditoría m-2
+ * 2026-07-20b: la obligación es procesar el reembolso dentro de la ventana
+ * de >72h, así que una cadencia de 4h no compromete el plazo real y reduce
+ * la cuenta de invocaciones sub-diarias que exigen Vercel Pro). Procesa
+ * órdenes canceladas con reembolso PayPal pendiente.
  * v8.2: el reembolso completo >72h es obligatorio para la opción PayPal primer servicio.
  *
  * Nota: la ejecución real requiere integración con la API de PayPal (clientId/secret).

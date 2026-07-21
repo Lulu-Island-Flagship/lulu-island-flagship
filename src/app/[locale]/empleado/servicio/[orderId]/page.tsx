@@ -30,7 +30,7 @@ import { getAllQueuedEvents, planSync, type QueuedServiceEvent } from "@/lib/off
 import { ChecklistCierre } from "@/components/empleado/ChecklistCierre";
 import { UpsellSelector } from "@/components/empleado/UpsellSelector";
 import { DiscrepanciaReporter } from "@/components/empleado/DiscrepanciaReporter";
-import { CodigoCromático } from "@/components/empleado/CodigoCromático";
+import { CodigoCromatico } from "@/components/empleado/CodigoCromatico";
 import { ClosureProtocolPanel } from "@/components/empleado/ClosureProtocolPanel";
 import { HoursDisputeButton } from "@/components/empleado/HoursDisputeButton";
 
@@ -904,7 +904,7 @@ export default function ServicioPage() {
                   you must identify the correct product without the answer shown. Never mix RED (acid)
                   with BLUE (ammonia) — chlorine gas risk.
                 </p>
-                <CodigoCromático confirmedColors={confirmedColors} />
+                <CodigoCromatico confirmedColors={confirmedColors} />
               </div>
             )}
           </div>

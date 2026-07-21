@@ -164,8 +164,8 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
       const language = ((clientProfile?.preferred_languages as string[] | undefined)?.[0] || "en") as
         | "en"
-        | "es"
-        | "zh";
+        | "zh"
+        | "fr";
 
       // v8.3 fix (auditoría 2026-07-15): el comentario decía que el
       // programa de referidos "aún no estaba construido", pero sí existe y

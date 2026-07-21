@@ -1,6 +1,6 @@
 /**
  * v8.3 M0-F0.4 / B.2.13 — idiomas del producto (Parte A.10 del plan):
- * inglés, chino (mandarín) y español. Única fuente de códigos válidos,
+ * inglés, chino (mandarín) y francés. Única fuente de códigos válidos,
  * usada tanto por `client_profiles.preferred_languages` (cuenta del
  * cliente, ordenada por prioridad) como por `employees.languages`
  * (idiomas del empleado, con nivel — ver employee-languages.ts).
@@ -20,7 +20,7 @@ export interface LanguageOption {
 export const SUPPORTED_LANGUAGES: LanguageOption[] = [
   { code: "en", label: "English" },
   { code: "zh", label: "中文 (Chinese)" },
-  { code: "es", label: "Español" },
+  { code: "fr", label: "Français" },
 ];
 
 export const SUPPORTED_LANGUAGE_CODES = SUPPORTED_LANGUAGES.map((l) => l.code);

@@ -105,8 +105,8 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-  if (!["en", "zh", "es"].includes(language)) {
-    return NextResponse.json({ error: "language debe ser en, zh o es" }, { status: 400 });
+  if (!["en", "zh", "fr"].includes(language)) {
+    return NextResponse.json({ error: "language debe ser en, zh o fr" }, { status: 400 });
   }
 
   const { data: existing, error: findError } = await auth.supabase

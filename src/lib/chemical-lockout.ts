@@ -3,7 +3,7 @@
  *
  * Invariante B.2.8: el código cromático de seguridad química SIEMPRE se
  * confirma con TRES señales redundantes (color + ícono + texto), nunca solo
- * color — 8% de los hombres tiene daltonismo. `CodigoCromático.tsx` mostraba
+ * color — 8% de los hombres tiene daltonismo. `CodigoCromatico.tsx` mostraba
  * la leyenda pero no exigía nada: un empleado podía marcar el checklist sin
  * haber confirmado el producto correcto. Este módulo hace la confirmación
  * OBLIGATORIA antes de que una zona del checklist se pueda tocar.
@@ -11,8 +11,9 @@
  * Diseño en dos capas, igual que offline-queue.ts:
  *  - Funciones puras (este archivo): deciden si una confirmación es válida
  *    y si una zona está desbloqueada. 100% testeable sin navegador.
- *  - El componente CodigoCromático.tsx y ChecklistCierre.tsx consumen esto
- *    para bloquear/desbloquear la UI.
+ *  - El componente CodigoCromatico.tsx (v8.3 fix m-1: renombrado sin acento,
+ *    ver src/components/empleado/CodigoCromatico.tsx) y ChecklistCierre.tsx
+ *    consumen esto para bloquear/desbloquear la UI.
  */
 
 export type ChemicalColor = "red" | "blue" | "green" | "yellow" | "white" | "black";

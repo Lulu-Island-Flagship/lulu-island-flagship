@@ -19,7 +19,12 @@ import { dispatchCommunication } from "@/lib/send-communication";
  * SMS automático) queda pendiente de un proveedor de telefonía real. No se
  * simula ninguna de esas partes.
  *
- * Ventana: corre cada 15 min (ver vercel.json) y confirma órdenes cuyo
+ * Ventana: corre cada hora (ver vercel.json — relajado de cada 15 min a
+ * hourly en la auditoría m-2 2026-07-20b: el canal 'call' no tiene
+ * adaptador real todavía, así que "confirmar" hoy es solo encolar/loguear
+ * -- no hay beneficio de UX en revisar cada 15 min algo que de todas formas
+ * no llama a nadie en la práctica; y la ventana de 1h de coincidencia ya
+ * tolera perfectamente una cadencia horaria) y confirma órdenes cuyo
  * service_datetime cae entre 23h45m y 24h45m desde ahora -- una ventana de
  * 1h para no depender de que el cron corra exactamente al minuto, con
  * orders.confirmation_24h_sent_at como guardia anti-duplicado.
@@ -72,8 +77,8 @@ export async function GET(request: NextRequest) {
         .maybeSingle();
       const language = ((clientProfile?.preferred_languages as string[] | undefined)?.[0] || "en") as
         | "en"
-        | "es"
-        | "zh";
+        | "zh"
+        | "fr";
 
       const { data: profile } = await supabase
         .from("profiles")

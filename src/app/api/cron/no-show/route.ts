@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { assertStripe } from "@/lib/stripe";
 import { dispatchCommunication } from "@/lib/send-communication";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { getVancouverTodayMidnight } from "@/lib/date-utils";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseAdmin = SupabaseClient<any, "public", any>;
 
 /**
  * GET /api/cron/no-show
@@ -51,8 +54,7 @@ function vancouverTodayString(): string {
 
 async function captureNoShowPenalty(
   stripe: ReturnType<typeof assertStripe>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseAdmin,
   order: {
     id: string;
     user_id: string;
@@ -295,8 +297,8 @@ export async function GET(request: NextRequest) {
             .maybeSingle();
           const language = ((clientProfile?.preferred_languages as string[] | undefined)?.[0] || "en") as
             | "en"
-            | "es"
-            | "zh";
+            | "zh"
+            | "fr";
           await dispatchCommunication(supabase, {
             eventKey: "no_show_notice",
             userId: order.user_id,

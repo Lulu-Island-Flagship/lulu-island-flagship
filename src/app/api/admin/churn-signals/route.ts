@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
           .eq("user_id", signalRow.client_user_id)
           .maybeSingle();
         const language = ((clientProfile?.preferred_languages as string[] | undefined)?.[0] ||
-          "en") as "en" | "es" | "zh";
+          "en") as "en" | "zh" | "fr";
 
         await dispatchCommunication(supabase, {
           eventKey,

@@ -46,21 +46,39 @@ import {
 } from "lucide-react";
 import DashboardMetricsPanel from "./DashboardMetricsPanel";
 import AutopilotModeBanner from "./AutopilotModeBanner";
+import { roleAllows, type AdminRole, type AdminResource } from "@/lib/admin-rbac";
 
-export default function AdminDashboardClient() {
+// v8.3 fix G-3 (auditoría implacable 2026-07-20b): antes este componente no
+// recibía roles ni resource alguno -- las 45 tarjetas se mostraban a
+// cualquier cuenta admin, sin importar su rol (un qc_only veía y podía
+// navegar a Pricing Rules, Nómina, etc. con solo conocer la URL). Cada
+// tarjeta ahora declara su AdminResource real, tomado 1:1 de AdminNav.tsx
+// donde el mismo destino ya existía ahí, o del requireAdminRole(...) de su
+// propia API cuando no existía un link equivalente en el nav (ver comentario
+// por tarjeta más abajo para las que no están en AdminNav.tsx).
+export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) {
   // Detect locale from pathname for navigation
-  const locale = (typeof window !== "undefined" 
-    ? window.location.pathname.split("/")[1] 
+  const locale = (typeof window !== "undefined"
+    ? window.location.pathname.split("/")[1]
     : "en") as string;
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
 
-  const cards = [
+  const cards: Array<{
+    title: string;
+    description: string;
+    icon: typeof Siren;
+    href: string;
+    color: string;
+    resource: AdminResource;
+  }> = [
     {
       title: "Alert Inbox",
       description: "Unified queue — respond in 10 min vs. can wait (E0.6)",
       icon: Siren,
       href: `/${safeLocale}/admin/alerts`,
       color: "bg-red-50 text-red-600",
+      // No está en AdminNav.tsx -- API usa "risk_assessments" (src/app/api/admin/alerts/route.ts).
+      resource: "risk_assessments",
     },
     {
       title: "Today's Services",
@@ -68,6 +86,7 @@ export default function AdminDashboardClient() {
       icon: ClipboardList,
       href: `/${safeLocale}/admin/servicios`,
       color: "bg-blue-50 text-blue-600",
+      resource: "services",
     },
     {
       title: "Dispatch review",
@@ -75,6 +94,8 @@ export default function AdminDashboardClient() {
       icon: CalendarClock,
       href: `/${safeLocale}/admin/dispatch`,
       color: "bg-teal-50 text-teal-600",
+      // No está en AdminNav.tsx -- API usa "dispatch" (src/app/api/admin/dispatch/route.ts).
+      resource: "dispatch",
     },
     {
       title: "Employees",
@@ -82,6 +103,7 @@ export default function AdminDashboardClient() {
       icon: Users,
       href: `/${safeLocale}/admin/empleados`,
       color: "bg-purple-50 text-purple-600",
+      resource: "employees_admin",
     },
     {
       title: "Upsells Review",
@@ -89,6 +111,7 @@ export default function AdminDashboardClient() {
       icon: Tag,
       href: `/${safeLocale}/admin/upsells`,
       color: "bg-amber-50 text-amber-600",
+      resource: "upsells_review",
     },
     {
       title: "Checklists",
@@ -96,6 +119,7 @@ export default function AdminDashboardClient() {
       icon: ListChecks,
       href: `/${safeLocale}/admin/checklists`,
       color: "bg-green-50 text-green-600",
+      resource: "checklists_sop",
     },
     {
       title: "QC Wall",
@@ -103,6 +127,7 @@ export default function AdminDashboardClient() {
       icon: ShieldCheck,
       href: `/${safeLocale}/admin/qc`,
       color: "bg-indigo-50 text-indigo-600",
+      resource: "qc_wall",
     },
     {
       title: "Field Audits",
@@ -110,6 +135,7 @@ export default function AdminDashboardClient() {
       icon: ClipboardCheck,
       href: `/${safeLocale}/admin/audits`,
       color: "bg-cyan-50 text-cyan-600",
+      resource: "field_audits",
     },
     {
       title: "Tickets",
@@ -117,6 +143,7 @@ export default function AdminDashboardClient() {
       icon: AlertTriangle,
       href: `/${safeLocale}/admin/tickets`,
       color: "bg-red-50 text-red-600",
+      resource: "tickets",
     },
     {
       title: "Quote Reviews",
@@ -124,6 +151,7 @@ export default function AdminDashboardClient() {
       icon: FileSearch,
       href: `/${safeLocale}/admin/quotes-review`,
       color: "bg-rose-50 text-rose-600",
+      resource: "quotes_review",
     },
     {
       title: "Pricing Rules",
@@ -131,6 +159,7 @@ export default function AdminDashboardClient() {
       icon: Settings2,
       href: `/${safeLocale}/admin/pricing-rules`,
       color: "bg-slate-50 text-slate-600",
+      resource: "pricing_rules",
     },
     {
       title: "Pricing Settings",
@@ -138,6 +167,7 @@ export default function AdminDashboardClient() {
       icon: DollarSign,
       href: `/${safeLocale}/admin/pricing-settings`,
       color: "bg-emerald-50 text-emerald-600",
+      resource: "pricing_settings",
     },
     {
       title: "Business Insurance",
@@ -145,6 +175,8 @@ export default function AdminDashboardClient() {
       icon: ShieldCheck,
       href: `/${safeLocale}/admin/business-insurance`,
       color: "bg-teal-50 text-teal-600",
+      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/business-insurance/route.ts).
+      resource: "finance",
     },
     {
       title: "Seasonal Campaigns",
@@ -152,6 +184,8 @@ export default function AdminDashboardClient() {
       icon: Sparkles,
       href: `/${safeLocale}/admin/seasonal-campaigns`,
       color: "bg-fuchsia-50 text-fuchsia-600",
+      // No está en AdminNav.tsx -- API usa "upsells_review" (src/app/api/admin/seasonal-campaigns/route.ts).
+      resource: "upsells_review",
     },
     {
       title: "Succession Mode",
@@ -159,6 +193,8 @@ export default function AdminDashboardClient() {
       icon: Users,
       href: `/${safeLocale}/admin/succession`,
       color: "bg-indigo-50 text-indigo-600",
+      // No está en AdminNav.tsx -- API usa "employees_admin" (src/app/api/admin/succession/route.ts).
+      resource: "employees_admin",
     },
     {
       title: "DR Drills",
@@ -166,6 +202,10 @@ export default function AdminDashboardClient() {
       icon: LifeBuoy,
       href: `/${safeLocale}/admin/dr-drill`,
       color: "bg-orange-50 text-orange-600",
+      // No está en AdminNav.tsx (distinto de "Disaster Recovery" del nav,
+      // que apunta a /recuperacion-desastres) -- API usa "feature_flags"
+      // (src/app/api/admin/dr-drill/route.ts).
+      resource: "feature_flags",
     },
     {
       title: "Weather Exceptions",
@@ -173,6 +213,8 @@ export default function AdminDashboardClient() {
       icon: CloudRain,
       href: `/${safeLocale}/admin/weather-exceptions`,
       color: "bg-sky-50 text-sky-600",
+      // No está en AdminNav.tsx -- API usa "risk_assessments" (src/app/api/admin/weather-exceptions/route.ts).
+      resource: "risk_assessments",
     },
     {
       title: "Workplace Incidents",
@@ -180,6 +222,8 @@ export default function AdminDashboardClient() {
       icon: HeartPulse,
       href: `/${safeLocale}/admin/workplace-incidents`,
       color: "bg-rose-50 text-rose-600",
+      // No está en AdminNav.tsx -- API usa "risk_assessments" (src/app/api/admin/workplace-incidents/route.ts).
+      resource: "risk_assessments",
     },
     {
       title: "Churn Signals",
@@ -187,6 +231,8 @@ export default function AdminDashboardClient() {
       icon: UserMinus,
       href: `/${safeLocale}/admin/churn-signals`,
       color: "bg-amber-50 text-amber-600",
+      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/churn-signals/route.ts).
+      resource: "finance",
     },
     {
       title: "Attribution",
@@ -194,6 +240,8 @@ export default function AdminDashboardClient() {
       icon: TrendingUp,
       href: `/${safeLocale}/admin/attribution`,
       color: "bg-lime-50 text-lime-600",
+      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/attribution/route.ts).
+      resource: "finance",
     },
     {
       title: "Partners & Commissions",
@@ -201,6 +249,8 @@ export default function AdminDashboardClient() {
       icon: Handshake,
       href: `/${safeLocale}/admin/partners`,
       color: "bg-cyan-50 text-cyan-700",
+      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/partners/route.ts).
+      resource: "finance",
     },
     {
       title: "Neighborhood",
@@ -208,6 +258,8 @@ export default function AdminDashboardClient() {
       icon: Home,
       href: `/${safeLocale}/admin/neighborhood`,
       color: "bg-violet-50 text-violet-600",
+      // No está en AdminNav.tsx -- API usa "risk_assessments" (src/app/api/admin/neighborhood/route.ts).
+      resource: "risk_assessments",
     },
     {
       title: "A/B Experiments",
@@ -215,6 +267,8 @@ export default function AdminDashboardClient() {
       icon: FlaskConical,
       href: `/${safeLocale}/admin/experiments`,
       color: "bg-fuchsia-50 text-fuchsia-700",
+      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/experiments/route.ts).
+      resource: "finance",
     },
     {
       title: "Client Segments",
@@ -222,6 +276,8 @@ export default function AdminDashboardClient() {
       icon: Crown,
       href: `/${safeLocale}/admin/client-segments`,
       color: "bg-amber-50 text-amber-700",
+      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/client-segments/route.ts).
+      resource: "finance",
     },
     {
       title: "Team Wellbeing",
@@ -229,6 +285,7 @@ export default function AdminDashboardClient() {
       icon: Moon,
       href: `/${safeLocale}/admin/wellbeing`,
       color: "bg-blue-50 text-blue-700",
+      resource: "wellbeing",
     },
     {
       title: "Teams",
@@ -236,6 +293,7 @@ export default function AdminDashboardClient() {
       icon: Users,
       href: `/${safeLocale}/admin/teams`,
       color: "bg-indigo-50 text-indigo-700",
+      resource: "teams",
     },
     {
       title: "Route Shortcuts",
@@ -243,6 +301,8 @@ export default function AdminDashboardClient() {
       icon: MapPin,
       href: `/${safeLocale}/admin/route-shortcuts`,
       color: "bg-cyan-50 text-cyan-700",
+      // No está en AdminNav.tsx -- API usa "wellbeing" (src/app/api/admin/route-shortcuts/route.ts).
+      resource: "wellbeing",
     },
     {
       title: "Coworker Rotation",
@@ -250,6 +310,8 @@ export default function AdminDashboardClient() {
       icon: Repeat,
       href: `/${safeLocale}/admin/coworker-rotation`,
       color: "bg-teal-50 text-teal-700",
+      // No está en AdminNav.tsx -- API usa "dispatch" (src/app/api/admin/coworker-rotation/route.ts).
+      resource: "dispatch",
     },
     {
       title: "Live Portfolio",
@@ -257,6 +319,8 @@ export default function AdminDashboardClient() {
       icon: Images,
       href: `/${safeLocale}/admin/live-portfolio`,
       color: "bg-rose-50 text-rose-700",
+      // No está en AdminNav.tsx -- API usa "qc_wall" (src/app/api/admin/live-portfolio/route.ts).
+      resource: "qc_wall",
     },
     {
       title: "SEO Local & GBP",
@@ -264,6 +328,8 @@ export default function AdminDashboardClient() {
       icon: MapPin,
       href: `/${safeLocale}/admin/seo-local`,
       color: "bg-lime-50 text-lime-700",
+      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/seo-local/route.ts).
+      resource: "finance",
     },
     {
       title: "Employee Marketing",
@@ -271,6 +337,8 @@ export default function AdminDashboardClient() {
       icon: Video,
       href: `/${safeLocale}/admin/employee-marketing`,
       color: "bg-violet-50 text-violet-700",
+      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/employee-marketing/route.ts).
+      resource: "finance",
     },
     {
       title: "Payroll Export",
@@ -278,6 +346,8 @@ export default function AdminDashboardClient() {
       icon: Wallet,
       href: `/${safeLocale}/admin/nomina`,
       color: "bg-emerald-50 text-emerald-700",
+      // No está en AdminNav.tsx -- API usa "payroll" (src/app/api/admin/payroll-export/route.ts).
+      resource: "payroll",
     },
     {
       title: "Economic Parameters",
@@ -285,6 +355,8 @@ export default function AdminDashboardClient() {
       icon: DollarSign,
       href: `/${safeLocale}/admin/parametros-economicos`,
       color: "bg-amber-50 text-amber-700",
+      // No está en AdminNav.tsx -- API usa "payroll" (src/app/api/admin/economic-params/route.ts).
+      resource: "payroll",
     },
     {
       title: "Legal Monitoring",
@@ -292,6 +364,8 @@ export default function AdminDashboardClient() {
       icon: Scale,
       href: `/${safeLocale}/admin/monitoreo-legal`,
       color: "bg-slate-50 text-slate-700",
+      // No está en AdminNav.tsx -- API usa "compliance" (src/app/api/admin/legal-monitoring/route.ts).
+      resource: "compliance",
     },
     {
       title: "PIPEDA Compliance",
@@ -299,6 +373,8 @@ export default function AdminDashboardClient() {
       icon: ShieldAlert,
       href: `/${safeLocale}/admin/pipeda`,
       color: "bg-red-50 text-red-700",
+      // No está en AdminNav.tsx -- API usa "compliance" (src/app/api/admin/pipeda/requests/route.ts).
+      resource: "compliance",
     },
     {
       title: "Gift Program",
@@ -306,6 +382,8 @@ export default function AdminDashboardClient() {
       icon: Gift,
       href: `/${safeLocale}/admin/regalos`,
       color: "bg-pink-50 text-pink-700",
+      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/retention-gifts/route.ts).
+      resource: "finance",
     },
     {
       title: "Growth Metrics",
@@ -313,6 +391,8 @@ export default function AdminDashboardClient() {
       icon: Target,
       href: `/${safeLocale}/admin/growth-metrics`,
       color: "bg-teal-50 text-teal-800",
+      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/growth-metrics/route.ts).
+      resource: "finance",
     },
     {
       title: "Operational Notes",
@@ -320,6 +400,8 @@ export default function AdminDashboardClient() {
       icon: StickyNote,
       href: `/${safeLocale}/admin/entity-notes`,
       color: "bg-yellow-50 text-yellow-700",
+      // No está en AdminNav.tsx -- API usa "dispatch" (src/app/api/admin/entity-notes/route.ts).
+      resource: "dispatch",
     },
     {
       title: "Financial Stress Scenario",
@@ -327,6 +409,8 @@ export default function AdminDashboardClient() {
       icon: TrendingDown,
       href: `/${safeLocale}/admin/stress-scenario`,
       color: "bg-red-50 text-red-800",
+      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/stress-scenario/route.ts).
+      resource: "finance",
     },
     {
       title: "Legacy Migration Closure",
@@ -334,6 +418,8 @@ export default function AdminDashboardClient() {
       icon: Archive,
       href: `/${safeLocale}/admin/legacy-migration`,
       color: "bg-gray-100 text-gray-700",
+      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/legacy-migration/route.ts).
+      resource: "finance",
     },
     {
       title: "Certifications",
@@ -341,6 +427,8 @@ export default function AdminDashboardClient() {
       icon: BadgeCheck,
       href: `/${safeLocale}/admin/certificaciones`,
       color: "bg-indigo-50 text-indigo-800",
+      // No está en AdminNav.tsx -- API usa "compliance" (src/app/api/admin/certifications/route.ts).
+      resource: "compliance",
     },
     {
       title: "CRA Remittances",
@@ -348,6 +436,7 @@ export default function AdminDashboardClient() {
       icon: Landmark,
       href: `/${safeLocale}/admin/cra-remittances`,
       color: "bg-emerald-50 text-emerald-800",
+      resource: "compliance",
     },
     {
       title: "Backup Status",
@@ -355,6 +444,8 @@ export default function AdminDashboardClient() {
       icon: DatabaseBackup,
       href: `/${safeLocale}/admin/backups`,
       color: "bg-slate-50 text-slate-800",
+      // No está en AdminNav.tsx -- API usa "compliance" (src/app/api/admin/backup-status/route.ts).
+      resource: "compliance",
     },
     {
       title: "Contract Renewal Reviews",
@@ -362,6 +453,7 @@ export default function AdminDashboardClient() {
       icon: FileSignature,
       href: `/${safeLocale}/admin/contract-reviews`,
       color: "bg-cyan-50 text-cyan-800",
+      resource: "compliance",
     },
     {
       title: "BC Labor Compliance",
@@ -369,8 +461,13 @@ export default function AdminDashboardClient() {
       icon: CalendarDays,
       href: `/${safeLocale}/admin/cumplimiento-laboral`,
       color: "bg-orange-50 text-orange-800",
+      // No está en AdminNav.tsx -- agrega rest-periods/sick-leave/statutory-holiday-pay/
+      // weekly-rest-violations, todas con "compliance" en sus APIs.
+      resource: "compliance",
     },
   ];
+
+  const visibleCards = cards.filter((card) => roleAllows(roles, card.resource));
 
   return (
     <div className="space-y-6">
@@ -381,7 +478,7 @@ export default function AdminDashboardClient() {
       <DashboardMetricsPanel />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {cards.map((card) => {
+        {visibleCards.map((card) => {
           const Icon = card.icon;
           return (
             <a

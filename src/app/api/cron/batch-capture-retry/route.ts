@@ -413,7 +413,7 @@ export async function GET(request: NextRequest) {
             .eq("user_id", order.user_id)
             .maybeSingle();
           const language = ((clientProfile?.preferred_languages as string[] | undefined)?.[0] ||
-            "en") as "en" | "es" | "zh";
+            "en") as "en" | "zh" | "fr";
 
           const paymentLink = buildPaymentUpdateLink(order.id, appBaseUrl);
 

@@ -38,7 +38,7 @@ interface EventRow {
 const LANGUAGES: { code: string; label: string }[] = [
   { code: "en", label: "EN" },
   { code: "zh", label: "中文" },
-  { code: "es", label: "ES" },
+  { code: "fr", label: "FR" },
 ];
 
 export default function ComunicacionesPage() {

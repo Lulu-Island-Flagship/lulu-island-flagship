@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { assertStripe } from "@/lib/stripe";
 import Stripe from "stripe";
+import { reconcileCapturedPaymentIntent } from "@/lib/payment-capture-reconciliation";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseAdmin = SupabaseClient<any, "public", any>;
@@ -76,6 +77,28 @@ export async function POST(request: NextRequest) {
       case "payment_intent.canceled": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         await handlePaymentIntentCancellation(supabase, paymentIntent);
+        break;
+      }
+      case "payment_intent.succeeded": {
+        // v8.3 M-2 (auditoría implacable 2026-07-20b): red de seguridad para
+        // cuando una de las 6 rutas que capturan pagos directamente pierde
+        // la respuesta HTTP de Stripe después de que la captura tuvo éxito
+        // (timeout de red, proceso matado a mitad, etc.) -- este evento SÍ
+        // llega siempre que Stripe confirme el cobro, independientemente de
+        // si nuestro proceso vivió para procesar la respuesta síncrona.
+        // Idempotente: reconcileCapturedPaymentIntent solo escribe si el
+        // campo correspondiente (hold_captured_at / capture_captured_at)
+        // sigue en null; además esta ruta ya deduplicó por stripe_event_id
+        // arriba.
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        const result = await reconcileCapturedPaymentIntent(supabase, {
+          id: paymentIntent.id,
+          amountReceivedCents: paymentIntent.amount_received ?? paymentIntent.amount ?? 0,
+          orderId: paymentIntent.metadata?.order_id,
+        });
+        if (result.updated) {
+          console.log(`[stripe/webhook] Reconciled capture for order ${result.orderId}: ${result.reason}`);
+        }
         break;
       }
       case "charge.dispute.created": {

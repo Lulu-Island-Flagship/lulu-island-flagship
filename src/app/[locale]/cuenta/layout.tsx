@@ -11,11 +11,15 @@
 // cotización/reserva) en vez de dejar que cada página golpee el API sin
 // sesión.
 import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { AuthModal } from "@/components/cotizador/AuthModal";
 
 export default function CuentaLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const params = useParams();
+  const locale = (params?.locale as string) || "en";
   const [checking, setChecking] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
 
@@ -72,7 +76,15 @@ export default function CuentaLayout({ children }: { children: React.ReactNode }
             // autenticarse -- no hay contenido detrás que mostrar. Se
             // manda al cliente de vuelta al home en vez de dejar un modal
             // cerrado sobre una pantalla en blanco.
-            window.location.href = "/";
+            //
+            // v8.3 fix M-9 (auditoría implacable 2026-07-20b): antes esto
+            // era window.location.href = "/" -- perdía el locale (un
+            // usuario en /fr/cuenta/... terminaba en /en por el default del
+            // middleware) y forzaba un full page reload innecesario. Ahora
+            // usa router.push() con el locale real (useParams(), mismo
+            // patrón que otras páginas del área de cliente/empleado) para
+            // una navegación client-side normal.
+            router.push(`/${locale}`);
           }}
           onSuccess={handleAuthSuccess}
         />

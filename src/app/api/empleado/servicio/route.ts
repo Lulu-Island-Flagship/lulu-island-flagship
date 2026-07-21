@@ -176,7 +176,7 @@ async function sendClosureCommunications(
     .maybeSingle();
 
   const language = ((clientProfile?.preferred_languages as string[] | undefined)?.[0] ||
-    "en") as "en" | "es" | "zh";
+    "en") as "en" | "zh" | "fr";
   const clientName = profile?.full_name || "cliente";
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://app.luluisland.ca").replace(/\/$/, "");
 
