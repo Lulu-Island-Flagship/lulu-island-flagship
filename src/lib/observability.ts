@@ -13,26 +13,38 @@
  *      (SENTRY_DSN seteado) -- mismo patrón `not_configured` que sms.ts /
  *      weather-provider.ts cuando no lo está.
  *
- * NOTA DE ENTORNO (dueño/infra, IMPORTANTE): `npm install @sentry/nextjs`
- * no pudo completarse en el sandbox donde se escribió este fix (mismo
- * problema de filesystem que se documenta en instrumentation.ts -- el mount
- * de `node_modules` bloquea `rename`/`unlink` de rutas ya existentes). El
- * import de abajo usa por eso un especificador dinámico en variable
- * (`import(SENTRY_PACKAGE_NAME)`, con `SENTRY_PACKAGE_NAME` anotado como
- * `string` no-literal) para que `tsc`/`next build` nunca intenten resolver
- * el módulo en tiempo de compilación -- el build no se rompe aunque el
- * paquete todavía no esté instalado. En cuanto se corra
- * `npm install @sentry/nextjs` en un entorno normal, esto empieza a
- * funcionar sin tocar código.
+ * NOTA DE ENTORNO (dueño/infra): `npm install @sentry/nextjs` no pudo
+ * completarse en el sandbox donde se escribió el fix original (mismo
+ * problema de filesystem que se documenta en instrumentation.ts). Ya se
+ * instaló en un entorno normal (2026-07-21) y quedó verificado -- ver nota
+ * de import más abajo sobre por qué el paquete correcto para ESTA función
+ * es `@sentry/node`, no `@sentry/nextjs`.
  *
  * `captureError`/`logEvent` son la interfaz estable que el resto del
  * sistema debe seguir llamando — solo cambió la implementación interna.
  */
 
+// v8.3 fix (verificación QA post-instalación 2026-07-21): la entrada de
+// servidor de `@sentry/nextjs` (build/cjs/index.server.js) es una
+// reexportación CURADA -- solo expone init/wrapXWithSentry/withSentryConfig
+// y utilidades de instrumentación de Next (confirmado leyendo el archivo
+// compilado: sus `exports.*` no incluyen captureException ni captureMessage
+// en ninguna parte, aunque el paquete SÍ hace `require('@sentry/node')`
+// internamente). `@sentry/node` -- dependencia de @sentry/nextjs, ya
+// presente en node_modules -- sí reexporta captureException desde
+// @sentry/core (confirmado igual, leyendo el archivo compilado). Por eso
+// `instrumentation.ts` (que solo necesita `init`) importa "@sentry/nextjs",
+// pero esta función (que necesita `captureException`) importa "@sentry/node"
+// -- son dos paquetes del mismo SDK, comparten el mismo cliente/scope
+// global una vez que `Sentry.init()` corrió en instrumentation.ts.
+//
 // Anotado explícitamente como `string` (no literal) para que TypeScript NO
 // intente resolver el módulo en tiempo de compilación en el import
-// dinámico de abajo -- ver nota de entorno arriba.
-const SENTRY_PACKAGE_NAME: string = "@sentry/nextjs";
+// dinámico de abajo (mismo motivo que instrumentation.ts, aunque a esta
+// altura el paquete ya está instalado -- se mantiene por consistencia y
+// para no romper el build en un checkout que todavía no corrió `npm
+// install`).
+const SENTRY_PACKAGE_NAME: string = "@sentry/node";
 
 export type ObservabilityForwardStatus = "logged_locally" | "forwarded_to_sentry" | "not_configured";
 
