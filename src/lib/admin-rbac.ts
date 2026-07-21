@@ -40,6 +40,11 @@ export type AdminResource =
   | "wellbeing"
   | "teams" // v8.3 E8 FIX-6: CRUD de equipos (identidad mínima, migración 099)
   | "phone_booking" // v8.3 E6.6: reserva por teléfono (coordinador reusa el cotizador real)
+  // Publicación pública de marketing (fotos del cliente en el sitio) —
+  // v8.3 fix C-H2 (auditoría RBAC 2026-07-21): separado de "qc_wall" porque
+  // qc_wall es revisión de calidad interna y este es publicar contenido de
+  // la casa de un cliente en el sitio público. qc_only NO debe tener esto.
+  | "live_portfolio_publish"
   // QC — owner_admin + ops_coordinator + qc_only
   | "qc_wall";
 
@@ -69,6 +74,10 @@ const MATRIX: Record<AdminResource, AdminRole[]> = {
   wellbeing: ["owner_admin", "ops_coordinator"],
   teams: ["owner_admin", "ops_coordinator"],
   phone_booking: ["owner_admin", "ops_coordinator"],
+  // v8.3 fix C-H2: publicar en el muro público es marketing, no QC. qc_only
+  // (el rol de menor privilegio) NO debe poder publicar fotos de la casa de
+  // un cliente en el sitio público.
+  live_portfolio_publish: ["owner_admin", "ops_coordinator"],
   qc_wall: ["owner_admin", "ops_coordinator", "qc_only"],
 };
 

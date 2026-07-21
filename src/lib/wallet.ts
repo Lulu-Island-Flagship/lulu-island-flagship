@@ -50,14 +50,28 @@ interface CreditLot {
  * y se descuentan directo del balance, no de estos lotes).
  */
 function buildRemainingCreditLots(transactions: WalletTransactionRecord[]): CreditLot[] {
+  // B-P1-4 fix (auditoría 2026-07-21): este módulo documenta `amount` como
+  // "siempre positivo" (interfaz WalletTransactionRecord), pero
+  // apply_wallet_delta (migración 180) guarda `wallet_transactions.amount`
+  // como el delta CON SIGNO (p_delta): positivo para créditos, negativo
+  // para débitos/payouts. Los cuatro callers (admin/wallet, client/wallet,
+  // client/wallet/apply, client/checkout-benefits) pasan ese valor crudo
+  // de la fila. Sumar montos de débito ya negativos daba un
+  // `debitAmountTotal` negativo, así que el bucle FIFO de abajo salía en
+  // la primera iteración (`toConsume <= 0`) sin consumir ningún lote de
+  // crédito -- los lotes vencidos quedaban con su monto ORIGINAL completo
+  // como "remaining" en vez de descontar lo ya gastado, inflando
+  // `expiredUnusedAmount` y pudiendo dejar disponible $0 con saldo visible
+  // positivo. Se normaliza a magnitud absoluta aquí, en la única capa
+  // pura, en vez de parchar cada caller por separado.
   const deposits = transactions
     .filter((t) => isExpiringWalletCreditType(t.type))
     .sort((a, b) => new Date(a.createdAtIso).getTime() - new Date(b.createdAtIso).getTime())
-    .map((t): CreditLot => ({ id: t.id, remaining: t.amount, expiresAtIso: t.expiresAtIso }));
+    .map((t): CreditLot => ({ id: t.id, remaining: Math.abs(t.amount), expiresAtIso: t.expiresAtIso }));
 
   const debitAmountTotal = transactions
     .filter((t) => t.type === "debit" || t.type === "payout")
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
   let toConsume = debitAmountTotal;
   for (const lot of deposits) {

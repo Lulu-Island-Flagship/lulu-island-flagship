@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { validateWarrantyClaimInput } from "@/lib/warranty-claim-validation";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+
+// v8.3 auditoría 2026-07-21 (E-B4): las garantías no tenían ningún plazo
+// -- no existía ninguna constante de ventana de reclamación en el repo,
+// así que se podía reclamar sobre un servicio de hace 3 años. 7 días
+// desde el service_date es un valor RAZONABLE elegido para cerrar el
+// hueco (defecto visible se nota en la primera semana), pero debe
+// confirmarse con negocio -- no hay ninguna especificación previa en el
+// repo que fije este número.
+export const WARRANTY_CLAIM_WINDOW_DAYS = 7;
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -100,7 +110,7 @@ export async function POST(request: NextRequest) {
     // 1 + 2: la orden es mía y está completada.
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("id, status, user_id")
+      .select("id, status, user_id, service_date")
       .eq("id", orderId)
       .eq("user_id", user.id)
       .maybeSingle();
@@ -116,6 +126,59 @@ export async function POST(request: NextRequest) {
         { error: "You can only report an issue for a completed service." },
         { status: 400 }
       );
+    }
+
+    // v8.3 auditoría 2026-07-21 (E-B4): ventana de reclamación. Sin esto
+    // se podía reclamar sobre un servicio de hace años.
+    if (order.service_date) {
+      const deadline = new Date(
+        new Date(`${order.service_date}T00:00:00Z`).getTime() +
+          WARRANTY_CLAIM_WINDOW_DAYS * 24 * 60 * 60 * 1000
+      );
+      if (Date.now() > deadline.getTime()) {
+        return NextResponse.json(
+          {
+            error: `The warranty claim window (${WARRANTY_CLAIM_WINDOW_DAYS} days after service) has expired for this order.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // v8.3 auditoría 2026-07-21 (E-B4): no se validaba el estado de pago
+    // de la orden -- se podía reclamar sobre una orden ya reembolsada.
+    // shadow_ledger_entries es el registro de eventos de dinero real del
+    // repo (src/lib/shadow-ledger.ts); un 'paypal_refund' o
+    // 'warranty_refund' ya emitido para esta orden significa que el
+    // dinero ya volvió al cliente. Su RLS (migración 081) solo permite
+    // SELECT a is_supervisor() -- la sesión anon del cliente no vería
+    // ninguna fila aunque existieran (falso negativo silencioso), así
+    // que esta comprobación puntual usa service-role, igual que el resto
+    // de lecturas "de confianza" del repo que necesitan ver más de lo
+    // que su propia RLS les permitiría.
+    // Nota de alcance: shadow_ledger_enabled está apagado por defecto
+    // (feature_flags, migración 081) -- mientras esté apagado, esta
+    // tabla puede estar vacía incluso para órdenes sí reembolsadas por
+    // otras vías (Stripe/PayPal directo). Esta comprobación es la mejor
+    // señal disponible en el esquema actual, no una garantía completa.
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (serviceKey) {
+      const serviceClient = createClient(supabaseUrl, serviceKey);
+      const { data: refundEntries, error: refundError } = await serviceClient
+        .from("shadow_ledger_entries")
+        .select("id")
+        .eq("order_id", orderId)
+        .in("event_type", ["paypal_refund", "warranty_refund"])
+        .limit(1);
+
+      if (refundError) {
+        console.error("client/warranty-claims refund check error:", refundError);
+      } else if (refundEntries && refundEntries.length > 0) {
+        return NextResponse.json(
+          { error: "This order has already been refunded and is not eligible for a new warranty claim." },
+          { status: 400 }
+        );
+      }
     }
 
     // 3: la zona existe de verdad en el checklist de esta orden.

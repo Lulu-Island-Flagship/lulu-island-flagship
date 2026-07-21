@@ -45,7 +45,7 @@ export async function PATCH(
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .select(
-        "id, quote_id, user_id, payment_option, stripe_hold_payment_intent_id, stripe_customer_id, stripe_payment_method_id, hold_amount, hold_authorized_amount, hold_captured_at, capture_partial_at, capture_partial_amount, capture_remaining_amount, capture_remaining_captured_at, capture_force_full_by, card_amount_charged, total_paid, quotes(total)"
+        "id, quote_id, user_id, status, payment_option, stripe_hold_payment_intent_id, stripe_customer_id, stripe_payment_method_id, hold_amount, hold_authorized_amount, hold_captured_at, capture_partial_at, capture_partial_amount, capture_remaining_amount, capture_remaining_captured_at, capture_force_full_by, card_amount_charged, total_paid, quotes(total)"
       )
       .eq("id", params.id)
       .is("deleted_at", null)
@@ -53,6 +53,16 @@ export async function PATCH(
 
     if (orderError || !order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    // Fix A-3 (auditoría 2026-07-21): esta ruta nunca leía ni validaba
+    // orders.status, permitiendo cobrar el total de una orden cancelada o
+    // marcada no_show. Se bloquea explícitamente.
+    if (order.status === "cancelled" || order.status === "no_show") {
+      return NextResponse.json(
+        { error: `Cannot force-capture an order in status '${order.status}'` },
+        { status: 409 }
+      );
     }
 
     if (order.capture_force_full_by) {
@@ -94,9 +104,11 @@ export async function PATCH(
         }
         const holdPi = await stripe.paymentIntents.retrieve(order.stripe_hold_payment_intent_id);
         if (holdPi.status === "requires_capture") {
-          await stripe.paymentIntents.capture(order.stripe_hold_payment_intent_id, {
-            amount_to_capture: holdAmountCents,
-          });
+          await stripe.paymentIntents.capture(
+            order.stripe_hold_payment_intent_id,
+            { amount_to_capture: holdAmountCents },
+            { idempotencyKey: `${order.id}:force-full-hold-capture` }
+          );
         } else if (holdPi.status !== "succeeded") {
           return NextResponse.json({ error: `Hold PaymentIntent status: ${holdPi.status}` }, { status: 409 });
         }
@@ -108,24 +120,27 @@ export async function PATCH(
         if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
           return NextResponse.json({ error: "Missing customer or payment method" }, { status: 400 });
         }
-        const balancePi = await stripe.paymentIntents.create({
-          amount: balanceCents,
-          currency: "cad",
-          customer: order.stripe_customer_id,
-          payment_method: order.stripe_payment_method_id,
-          payment_method_types: ["card"],
-          capture_method: "automatic",
-          confirm: true,
-          off_session: true,
-          description: `Admin-forced full capture for order ${order.id}`,
-          metadata: {
-            order_id: order.id,
-            quote_id: order.quote_id,
-            user_id: order.user_id,
-            charge_type: "force_full_capture",
-            forced_by: auth.user.id,
+        const balancePi = await stripe.paymentIntents.create(
+          {
+            amount: balanceCents,
+            currency: "cad",
+            customer: order.stripe_customer_id,
+            payment_method: order.stripe_payment_method_id,
+            payment_method_types: ["card"],
+            capture_method: "automatic",
+            confirm: true,
+            off_session: true,
+            description: `Admin-forced full capture for order ${order.id}`,
+            metadata: {
+              order_id: order.id,
+              quote_id: order.quote_id,
+              user_id: order.user_id,
+              charge_type: "force_full_capture",
+              forced_by: auth.user.id,
+            },
           },
-        });
+          { idempotencyKey: `${order.id}:force-full-balance` }
+        );
         if (balancePi.status !== "succeeded") {
           return NextResponse.json({ error: `Balance PaymentIntent status: ${balancePi.status}` }, { status: 409 });
         }
@@ -143,24 +158,27 @@ export async function PATCH(
       if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
         return NextResponse.json({ error: "Missing customer or payment method" }, { status: 400 });
       }
-      const pi = await stripe.paymentIntents.create({
-        amount: remainingCents,
-        currency: "cad",
-        customer: order.stripe_customer_id,
-        payment_method: order.stripe_payment_method_id,
-        payment_method_types: ["card"],
-        capture_method: "automatic",
-        confirm: true,
-        off_session: true,
-        description: `Admin-forced remainder capture for order ${order.id}`,
-        metadata: {
-          order_id: order.id,
-          quote_id: order.quote_id,
-          user_id: order.user_id,
-          charge_type: "force_full_capture_remainder",
-          forced_by: auth.user.id,
+      const pi = await stripe.paymentIntents.create(
+        {
+          amount: remainingCents,
+          currency: "cad",
+          customer: order.stripe_customer_id,
+          payment_method: order.stripe_payment_method_id,
+          payment_method_types: ["card"],
+          capture_method: "automatic",
+          confirm: true,
+          off_session: true,
+          description: `Admin-forced remainder capture for order ${order.id}`,
+          metadata: {
+            order_id: order.id,
+            quote_id: order.quote_id,
+            user_id: order.user_id,
+            charge_type: "force_full_capture_remainder",
+            forced_by: auth.user.id,
+          },
         },
-      });
+        { idempotencyKey: `${order.id}:force-full-remainder` }
+      );
       if (pi.status !== "succeeded") {
         return NextResponse.json({ error: `Remainder PaymentIntent status: ${pi.status}` }, { status: 409 });
       }
@@ -198,6 +216,13 @@ export async function PATCH(
         hold_captured_at: order.hold_captured_at || (neverCapturedAnything ? new Date().toISOString() : order.hold_captured_at),
         total_paid: previousTotalPaid + capturedNowDollars,
         card_amount_charged: previousCardCharged + capturedNowDollars,
+        // Fix B-P0-1 (auditoría 2026-07-21): si esta orden había fallado en
+        // el batch de las 7PM (capture_attempts >= 1), el retry de las 10PM
+        // no filtraba capture_force_full_by y volvía a cobrarla completa
+        // (doble cobro real). Se resetea aquí como defensa adicional a la
+        // exclusión explícita agregada en batch-capture-retry.
+        capture_attempts: 0,
+        capture_last_error: null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", order.id)

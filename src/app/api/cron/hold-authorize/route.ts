@@ -101,25 +101,28 @@ export async function GET(request: NextRequest) {
       }
 
       try {
-        const paymentIntent = await stripe.paymentIntents.create({
-          amount: holdAmount * 100, // Stripe usa centavos
-          currency: "cad",
-          customer: customerId,
-          payment_method: paymentMethodId,
-          payment_method_types: ["card"],
-          capture_method: "manual",
-          confirmation_method: "manual",
-          confirm: true,
-          off_session: true,
-          description: `Hold T-72h for order ${order.id}`,
-          metadata: {
-            order_id: order.id,
-            quote_id: order.quote_id,
-            user_id: order.user_id,
-            hold_type: "t72h",
-            hold_amount: holdAmount,
+        const paymentIntent = await stripe.paymentIntents.create(
+          {
+            amount: holdAmount * 100, // Stripe usa centavos
+            currency: "cad",
+            customer: customerId,
+            payment_method: paymentMethodId,
+            payment_method_types: ["card"],
+            capture_method: "manual",
+            confirmation_method: "manual",
+            confirm: true,
+            off_session: true,
+            description: `Hold T-72h for order ${order.id}`,
+            metadata: {
+              order_id: order.id,
+              quote_id: order.quote_id,
+              user_id: order.user_id,
+              hold_type: "t72h",
+              hold_amount: holdAmount,
+            },
           },
-        });
+          { idempotencyKey: `${order.id}:hold-authorize` }
+        );
 
         if (paymentIntent.status !== "requires_capture") {
           throw new Error(`Unexpected PaymentIntent status: ${paymentIntent.status}`);

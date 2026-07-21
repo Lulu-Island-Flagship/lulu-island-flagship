@@ -31,9 +31,17 @@ function getClientIp(request: NextRequest): string {
   return request.ip || "unknown";
 }
 
-// Helper: obtener fecha actual en zona horaria America/Vancouver como string YYYY-MM-DD
-function getVancouverDateString(): string {
-  return new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", year: "numeric", month: "2-digit", day: "2-digit" }).split(",")[0];
+// v8.3 auditoría 2026-07-21 (E-B7): offset PDT/PST real para una fecha
+// dada, en vez del "-07:00" hardcodeado que el código original etiquetaba
+// como "PST" (PST es -08:00; -07:00 es PDT) -- ese hardcode por sí solo
+// no era la causa completa de la ventana 24-48h, pero sí un error real de
+// zona horaria que se corrige junto con el bug principal de abajo.
+function vancouverOffsetForDate(dateStr: string): string {
+  const probe = new Date(`${dateStr}T12:00:00Z`);
+  const isPDT = probe
+    .toLocaleString("en-CA", { timeZone: "America/Vancouver", timeZoneName: "short" })
+    .includes("PDT");
+  return isPDT ? "-07:00" : "-08:00";
 }
 
 // POST /api/client/review — guardar evaluación post-servicio (Fase 8.1)
@@ -75,7 +83,7 @@ export async function POST(request: NextRequest) {
     // Verificar orden por review_token (no por orderId directo)
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("id, status, user_id, service_date, review_token_used_at")
+      .select("id, status, user_id, service_date, service_time, review_token_used_at")
       .eq("review_token", token)
       .single();
 
@@ -91,14 +99,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Order not completed yet" }, { status: 400 });
     }
 
-    // Ventana de 24h para evaluar: service_date + 1 día >= hoy en Vancouver
-    const vancouverToday = getVancouverDateString();
+    // v8.3 auditoría 2026-07-21 (E-B7): la ventana real de "24h" se
+    // calculaba como "hasta el FINAL DEL DÍA de service_date"
+    // (serviceDate + "T23:59:59"), comparando además solo la parte de
+    // FECHA (vancouverToday > deadlineStr) sin hora. Un servicio a las
+    // 9am de un día daba una ventana real de hasta ~39h, y en el peor
+    // caso (servicio recién pasada medianoche) casi 48h -- nunca
+    // estrictamente 24h. Ahora la ventana es service_date+service_time
+    // (o medianoche si no hay hora registrada) + 24h exactas, comparado
+    // contra el instante actual real (Date.now()), no contra strings de
+    // fecha truncados.
     const serviceDate = order.service_date as string;
-    // Crear fecha en timezone Vancouver explícito para evitar desfases del servidor
-    const deadlineDate = new Date(serviceDate + "T23:59:59-07:00"); // PST (Vancouver)
-    const deadlineStr = deadlineDate.toISOString().split("T")[0];
+    const serviceTime = (order.service_time as string | null) || "00:00:00";
+    const offset = vancouverOffsetForDate(serviceDate);
+    const serviceDateTime = new Date(`${serviceDate}T${serviceTime}${offset}`);
+    const deadlineDate = new Date(serviceDateTime.getTime() + 24 * 60 * 60 * 1000);
 
-    if (vancouverToday > deadlineStr) {
+    if (Date.now() > deadlineDate.getTime()) {
       return NextResponse.json({ error: "Review window expired" }, { status: 410 });
     }
 

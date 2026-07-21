@@ -1,10 +1,23 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateReadinessRequest, detectAbusePattern, type ReadinessRequestType } from "@/lib/wellbeing";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+
+// v8.3 auditoría 2026-07-21 (D-P0-3, migración 213): con la RLS
+// restringida, readiness_requests solo se puede insertar como
+// resolution='pending' con la anon key, y payroll_readiness_credits ya no
+// admite INSERT de empleado en absoluto. La resolución real y el crédito
+// de nómina se escriben con service-role, después de aplicar aquí mismo
+// la unicidad diaria y el límite de abuso.
+function getServiceClient() {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) return null;
+  return createClient(supabaseUrl, serviceKey);
+}
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -52,6 +65,33 @@ export async function POST(request: NextRequest) {
     const today = new Date().toISOString().split("T")[0];
     const { start, end } = getQuarterRange(today);
 
+    const serviceClient = getServiceClient();
+    if (!serviceClient) {
+      return NextResponse.json({ error: "Supabase service credentials not configured" }, { status: 500 });
+    }
+
+    // v8.3 auditoría 2026-07-21 (D-P0-3): unicidad diaria -- antes nada
+    // impedía que el mismo empleado creara varias solicitudes de
+    // readiness el mismo día (cada una potencialmente pagable). Un solo
+    // "no estoy listo" por día calendario.
+    const { data: todaysRequest, error: todaysError } = await supabase
+      .from("readiness_requests")
+      .select("id")
+      .eq("employee_id", employee.id)
+      .eq("request_date", today)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (todaysError) {
+      return NextResponse.json({ error: todaysError.message }, { status: 500 });
+    }
+    if (todaysRequest) {
+      return NextResponse.json(
+        { error: "Ya existe una solicitud de 'no estoy listo' registrada hoy." },
+        { status: 409 }
+      );
+    }
+
     const { data: quarterRequests, error: qError } = await supabase
       .from("readiness_requests")
       .select("id, request_type, request_date")
@@ -68,12 +108,47 @@ export async function POST(request: NextRequest) {
       (r) => r.request_type === "family_emergency"
     ).length;
 
-    const decision = evaluateReadinessRequest(requestType, noticeHours ?? 0, familyEmergenciesThisQuarter);
+    let decision = evaluateReadinessRequest(requestType, noticeHours ?? 0, familyEmergenciesThisQuarter);
 
     const allDates = [...(quarterRequests || []).map((r) => r.request_date), today];
     const abuse = detectAbusePattern(allDates);
 
-    const { data: created, error: insertError } = await supabase
+    // v8.3 auditoría 2026-07-21 (D-P0-3): detectAbusePattern antes se
+    // calculaba y se devolvía en el JSON de respuesta sin ningún efecto
+    // real. Ahora sí bloquea el Day Rate completo cuando se excede el
+    // límite trimestral (defensa adicional a la que ya hace
+    // evaluateReadinessRequest para family_emergency, cubre el caso
+    // combinado illness+family_emergency+no_transport), y persiste una
+    // alerta para que un admin lo revise -- en ambos casos (exceso de
+    // cupo o patrón viernes/lunes), no solo en la respuesta HTTP.
+    if (abuse.exceedsQuarterLimit && decision.fullDayRate) {
+      decision = {
+        fullDayRate: false,
+        reason: `Bloqueado: ya se superó el límite de ${allDates.length - 1} solicitudes este trimestre. Requiere revisión de un administrador.`,
+      };
+    }
+
+    if (abuse.exceedsQuarterLimit || abuse.fridayMondayPattern) {
+      const { error: alertError } = await serviceClient.from("unified_alerts").insert({
+        source_module: "readiness_abuse_pattern",
+        source_table: "readiness_requests",
+        source_id: employee.id,
+        tier: "can_wait",
+        severity: "p2_automatic",
+        title: abuse.exceedsQuarterLimit
+          ? "Empleado excede el límite trimestral de solicitudes 'no estoy listo'"
+          : "Patrón viernes/lunes en solicitudes 'no estoy listo'",
+        summary: `Empleado ${employee.id}: ${allDates.length} solicitudes este trimestre. exceedsQuarterLimit=${abuse.exceedsQuarterLimit}, fridayMondayPattern=${abuse.fridayMondayPattern}.`,
+      });
+      if (alertError) {
+        console.error("Readiness abuse alert insert error:", alertError);
+      }
+    }
+
+    // Escritura confiable (service-role): la anon key solo puede insertar
+    // resolution='pending' (RLS, migración 213). Aquí se persiste la
+    // resolución real ya decidida arriba.
+    const { data: created, error: insertError } = await serviceClient
       .from("readiness_requests")
       .insert({
         employee_id: employee.id,
@@ -92,10 +167,12 @@ export async function POST(request: NextRequest) {
 
     // v8.3 E9: conectar la resolución full_day_rate a la nómina real. El
     // monto (day_rate_cents) lo calcula el trigger set_readiness_credit_day_rate
-    // desde employees.day_rate vigente — nunca se envía desde aquí.
+    // desde employees.day_rate vigente — nunca se envía desde aquí. El
+    // INSERT ya no es alcanzable por el empleado vía anon key (migración
+    // 213) -- solo service-role o un supervisor pueden crear esta fila.
     let payrollCreditError: string | null = null;
     if (decision.fullDayRate) {
-      const { error: creditError } = await supabase.from("payroll_readiness_credits").insert({
+      const { error: creditError } = await serviceClient.from("payroll_readiness_credits").insert({
         readiness_request_id: created.id,
         employee_id: employee.id,
         credit_date: today,

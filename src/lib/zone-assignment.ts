@@ -85,10 +85,20 @@ export async function ensureZoneAssignment(
   const quoteForSubtype = order?.quotes as { service_subtype?: string } | null;
   const serviceSubtype = quoteForSubtype?.service_subtype;
 
+  // A-10 fix (auditoría 2026-07-21): ensureZoneAssignment repartía zonas
+  // entre TODOS los operadores de la orden filtrando solo por deleted_at,
+  // sin excluir asignaciones con status 'cancelled'/'no_show' (un empleado
+  // reemplazado por no-show o removido por el admin puede quedar con la
+  // fila viva, solo con status cambiado, sin deleted_at). Ese operador
+  // fantasma seguía recibiendo una porción del reparto -- zonas que nunca
+  // se completarían porque nadie las trabaja -- bloqueando t_out para
+  // siempre en el consumidor (empleado/servicio/route.ts), que exige todas
+  // las zonas cerradas. Se excluyen aquí las asignaciones no activas.
   const { data: assignmentRows } = await supabase
     .from("assignments")
-    .select("id, employee_id, assigned_at, zones")
+    .select("id, employee_id, assigned_at, zones, status")
     .is("deleted_at", null)
+    .not("status", "in", "(cancelled,no_show)")
     .eq("order_id", orderId)
     .order("assigned_at", { ascending: true });
 
@@ -110,16 +120,32 @@ export async function ensureZoneAssignment(
     return plan;
   }
 
+  // A-10 fix (auditoría 2026-07-21): el reparto de zonas incluía zonas
+  // add-on aunque la orden no las hubiera comprado (orders.addon_zones).
+  // empleado/servicio/route.ts SÍ filtra por is_addon_zone + addon_zones
+  // al construir el checklist final que el empleado debe cerrar (líneas
+  // ~94-99 de ese archivo), pero el reparto de ESTE módulo no aplicaba el
+  // mismo filtro -- el peso de zonas nunca vendidas entraba al cálculo de
+  // assignZonesToOperators, sesgando la división de zonas reales entre
+  // operadores y pudiendo dejarle a un operador solo zonas que después el
+  // consumidor descarta por completo, vaciando su lista de cierre.
+  const { data: orderForAddons } = await supabase
+    .from("orders")
+    .select("addon_zones")
+    .eq("id", orderId)
+    .maybeSingle();
+  const selectedAddonZones = new Set<string>(orderForAddons?.addon_zones || []);
+
   const { data: checklists } = await supabase
     .from("sop_checklists")
-    .select("zone, zone_weight")
+    .select("zone, zone_weight, is_addon_zone")
     .is("deleted_at", null)
     .eq("service_subtype", serviceSubtype || "")
     .eq("is_active", true);
 
-  const zoneWeights: ZoneWeight[] = (checklists || []).map(
-    (c: { zone: string; zone_weight: number }) => ({ zone: c.zone, weight: Number(c.zone_weight) || 1.0 })
-  );
+  const zoneWeights: ZoneWeight[] = (checklists || [])
+    .filter((c: { zone: string; is_addon_zone?: boolean }) => !c.is_addon_zone || selectedAddonZones.has(c.zone))
+    .map((c: { zone: string; zone_weight: number }) => ({ zone: c.zone, weight: Number(c.zone_weight) || 1.0 }));
 
   const { plan } = computeZonePlan(operators, zoneWeights);
 

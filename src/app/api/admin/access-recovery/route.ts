@@ -35,7 +35,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const { data, error } = await auth.supabase
+  // v8.3 fix C-H8 (auditoría RBAC 2026-07-21): access_recovery_requests
+  // tiene RLS "false/false" (203_e11_access_recovery_requests.sql:87) --
+  // solo service role puede leerla o escribirla. El cliente anon+cookies de
+  // requireAdminRole() ya autorizó (rol + audit log) pero NO puede tocar
+  // esta tabla: antes este GET devolvía siempre una lista vacía sin error,
+  // así que el dueño nunca veía las solicitudes pendientes. Mismo patrón
+  // que el POST de esta misma ruta.
+  const serviceClient = getServiceRoleClient();
+  if (!serviceClient) {
+    return NextResponse.json({ error: "Recovery flow is not configured on this environment" }, { status: 500 });
+  }
+
+  const { data, error } = await serviceClient
     .from("access_recovery_requests")
     .select(
       "id, successor_id, status, verification_method, verified_at, reason, created_at, resolved_at, resolved_by, denial_reason, emergency_code_issued_at, co_verifier_successor_id, co_verified_at"

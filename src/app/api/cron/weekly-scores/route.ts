@@ -14,11 +14,19 @@ const STREAK_LOOKBACK_WEEKS = 2;
 /**
  * v8.3 E5: peer_score neutral cuando la muestra de votantes es insuficiente
  * (hasSufficientVoterSample) -- 1 solo voto (amigo u hostil) no debe decidir
- * el 20% del score. 70 = piso del nivel "Estándar" (spec E5.1), ni castigo ni
- * premio.
+ * el componente de pares del score.
+ *
+ * v8.3 auditoría 2026-07-21 (D-P0-7): employee_scores.peer_score vive en
+ * escala 0-20 (`010_modulo7_qc_score_tables.sql:14`, comentario "-- 0-20"),
+ * y `recalculate_weekly_score` (migración 192) ya lo devuelve como la
+ * CONTRIBUCIÓN final al total (v_peer, sumado directo a v_total, no un
+ * porcentaje a aplicar). El valor neutral interno que la propia función SQL
+ * usa para muestra insuficiente es 10 (`v_peer := 10`), no 70. El código de
+ * abajo trataba peer_score como si fuera 0-100 y lo multiplicaba de nuevo
+ * por un peso de 20% -- doble escalado que dejaba total_score y el
+ * peer_score guardado en la fila contradictorios entre sí.
  */
-const NEUTRAL_PEER_SCORE = 70;
-const PEER_SCORE_WEIGHT = 0.2;
+const NEUTRAL_PEER_SCORE = 10; // 0-20, mismo valor neutral que usa recalculate_weekly_score internamente
 
 /**
  * v8.3 ROUND 2 — hallazgo crítico de auditoría: este cron usaba
@@ -58,14 +66,31 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = getSupabaseClient();
 
-    // Lunes de esta semana en zona horaria del negocio (America/Vancouver)
-    const vancouverDate = new Date().toLocaleString("en-CA", {
+    // v8.3 auditoría 2026-07-21 (D-P0-6): "el lunes de esta semana" se
+    // calculaba tomando la fecha de HOY directamente -- si el cron corre
+    // el lunes a la 01:00 (como está programado), eso da el lunes que
+    // ACABA DE EMPEZAR, una ventana en la que todavía nadie trabajó ni
+    // votó. recalculate_weekly_score() sobre esa ventana vacía devuelve
+    // telemetría 0 y peer neutro -> total 40 -> trust_level='suspended'
+    // para TODA la plantilla, cada lunes.
+    //
+    // Fix: se toma el día de AYER en Vancouver y se busca su lunes real
+    // (mismo patrón que empleado/ritual/inicio/route.ts:27-33), lo que da
+    // el lunes de la semana que ACABA DE TERMINAR sin importar en qué
+    // día de la semana efectivamente corra el cron.
+    const vancouverDateStr = new Date().toLocaleString("en-CA", {
       timeZone: "America/Vancouver",
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
-    });
-    const weekStart = vancouverDate.split(",")[0]; // formato YYYY-MM-DD
+    }).split(",")[0];
+    const vancouverToday = new Date(vancouverDateStr + "T12:00:00Z");
+    const vancouverYesterday = new Date(vancouverToday.getTime() - 24 * 60 * 60 * 1000);
+    const day = vancouverYesterday.getUTCDay();
+    const diff = day === 0 ? 6 : day - 1;
+    const monday = new Date(vancouverYesterday);
+    monday.setUTCDate(vancouverYesterday.getUTCDate() - diff);
+    const weekStart = monday.toISOString().split("T")[0]; // formato YYYY-MM-DD, lunes de la semana recién terminada
 
     // Empleados activos
     const { data: employees, error: empError } = await supabase
@@ -133,7 +158,10 @@ export async function GET(request: NextRequest) {
       // recalcula total_score con el mismo peso de 20% que usó el RPC, en
       // vez de dejar que 1 solo voto decida el 20% del score compuesto.
       if (!hasSufficientVoterSample(weekVotes, emp.id)) {
-        totalScore = totalScore - peerScore * PEER_SCORE_WEIGHT + NEUTRAL_PEER_SCORE * PEER_SCORE_WEIGHT;
+        // peer_score ya es la contribución directa 0-20 (no un porcentaje
+        // a aplicar) -- se resta el valor crudo y se suma el neutral, sin
+        // multiplicar por ningún peso adicional.
+        totalScore = totalScore - peerScore + NEUTRAL_PEER_SCORE;
         peerScore = NEUTRAL_PEER_SCORE;
       }
 

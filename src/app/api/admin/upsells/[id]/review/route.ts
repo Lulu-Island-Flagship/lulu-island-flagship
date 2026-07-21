@@ -64,6 +64,13 @@ export async function POST(
       update.approved_by = userId;
       update.approved_at = new Date().toISOString();
       update.rejection_reason = action === "reject" ? reason || "Rejected by admin" : null;
+      // v8.3 auditoría 2026-07-21 (E-A4): client_approved se leía en dos
+      // sitios (pantalla de cierre de jornada / cálculo de comisión) pero
+      // nunca se escribía en ningún endpoint -- la comisión del líder
+      // sobre un upsell aprobado por el admin siempre mostraba $0. La
+      // aprobación del admin ES la confirmación de que el upsell es
+      // válido y cobrable; el rechazo debe dejarlo en false.
+      update.client_approved = action === "approve";
     }
 
     const { data, error } = await supabase

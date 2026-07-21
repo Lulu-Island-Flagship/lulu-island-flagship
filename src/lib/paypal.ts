@@ -122,6 +122,74 @@ async function fetchOrder(
   };
 }
 
+export interface PayPalRefundResult {
+  success: boolean;
+  refundId?: string;
+  status?: string;
+  error?: string;
+}
+
+/**
+ * Reembolsa (total o parcialmente) una captura de PayPal ya completada.
+ * Fix B-P2-3 (auditoría 2026-07-21): cron/paypal-refunds nunca llamaba a
+ * ningún endpoint real de PayPal, solo dejaba un TODO + console.log.
+ *
+ * @param captureId ID de la captura de PayPal (orders.paypal_transaction_id).
+ * @param amount Monto a reembolsar en dólares CAD (opcional; si se omite,
+ *   PayPal reembolsa el monto completo de la captura).
+ * @param noteToPayer Nota visible para el pagador (opcional).
+ */
+export async function refundPayPalCapture(
+  captureId: string,
+  amount?: number,
+  noteToPayer?: string
+): Promise<PayPalRefundResult> {
+  try {
+    const accessToken = await getAccessToken();
+
+    const body: Record<string, unknown> = {};
+    if (amount !== undefined) {
+      body.amount = { value: amount.toFixed(2), currency_code: "CAD" };
+    }
+    if (noteToPayer) {
+      body.note_to_payer = noteToPayer.slice(0, 255);
+    }
+
+    const res = await fetch(`${getPayPalBaseUrl()}/v2/payments/captures/${captureId}/refund`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        // Idempotencia: PayPal soporta PayPal-Request-Id para deduplicar
+        // reintentos del mismo reembolso.
+        "PayPal-Request-Id": `refund:${captureId}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = (await res.json().catch(() => ({}))) as {
+      id?: string;
+      status?: string;
+      name?: string;
+      message?: string;
+      details?: Array<{ issue?: string; description?: string }>;
+    };
+
+    if (!res.ok) {
+      const detail =
+        data.details?.map((d) => d.issue || d.description).filter(Boolean).join("; ") ||
+        data.message ||
+        `HTTP ${res.status}`;
+      return { success: false, error: `PayPal refund failed: ${detail}` };
+    }
+
+    return { success: true, refundId: data.id, status: data.status };
+  } catch (err: Error | unknown) {
+    const message = err instanceof Error ? err.message : "Unknown PayPal refund error";
+    return { success: false, error: message };
+  }
+}
+
 /**
  * Verifica una transacción de PayPal.
  *

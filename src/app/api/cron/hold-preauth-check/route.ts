@@ -165,25 +165,31 @@ export async function GET(request: NextRequest) {
       }
 
       try {
-        const newPi = await stripe.paymentIntents.create({
-          amount: holdAmount * 100,
-          currency: "cad",
-          customer: customerId,
-          payment_method: paymentMethodId,
-          payment_method_types: ["card"],
-          capture_method: "manual",
-          confirmation_method: "manual",
-          confirm: true,
-          off_session: true,
-          description: `Hold re-auth T-2h for order ${order.id}`,
-          metadata: {
-            order_id: order.id,
-            quote_id: order.quote_id,
-            user_id: order.user_id,
-            hold_type: "t2h_reauth",
-            hold_amount: holdAmount,
+        const newPi = await stripe.paymentIntents.create(
+          {
+            amount: holdAmount * 100,
+            currency: "cad",
+            customer: customerId,
+            payment_method: paymentMethodId,
+            payment_method_types: ["card"],
+            capture_method: "manual",
+            confirmation_method: "manual",
+            confirm: true,
+            off_session: true,
+            description: `Hold re-auth T-2h for order ${order.id}`,
+            metadata: {
+              order_id: order.id,
+              quote_id: order.quote_id,
+              user_id: order.user_id,
+              hold_type: "t2h_reauth",
+              hold_amount: holdAmount,
+            },
           },
-        });
+          // Cada intento de reauth es legítimamente distinto (el hold previo
+          // ya se invalidó); se incluye el número de intento para no
+          // colisionar con una idempotencyKey de un intento anterior.
+          { idempotencyKey: `${order.id}:hold-reauth:${reauthAttempts}` }
+        );
 
         if (newPi.status !== "requires_capture") {
           throw new Error(`Unexpected PaymentIntent status on re-auth: ${newPi.status}`);

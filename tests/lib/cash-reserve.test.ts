@@ -3,24 +3,29 @@ import assert from "node:assert";
 import {
   calculateReserveSplit,
   evaluateDailyCashExposure,
-  TAX_RESERVE_RATE,
+  TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL,
 } from "../../src/lib/cash-reserve";
 
+// B-P1-3 fix (auditoría 2026-07-21): grossAmountCents es un total que YA
+// incluye el 12% de impuesto (quotes.total = subtotal + gst + pst), así
+// que el impuesto real dentro de un total T es T × (0.12/1.12) ≈
+// 10.714%, no 12% de T (eso sobre-reservaría). Estos tests reflejan la
+// extracción "tax-inclusive" correcta en vez de la tasa aditiva anterior.
 describe("calculateReserveSplit", () => {
-  it("reserva exactamente el 12% de un cobro sin propina ni no-gravable", () => {
+  it("reserva ~10.714% (12% tax-inclusive) de un cobro sin propina ni no-gravable", () => {
     const r = calculateReserveSplit({ grossAmountCents: 10000 }); // $100.00
     assert.equal(r.taxableBaseCents, 10000);
-    assert.equal(r.taxReserveCents, 1200); // 12%
-    assert.equal(r.operationalAmountCents, 8800);
-    assert.equal(r.reserveRate, TAX_RESERVE_RATE);
+    assert.equal(r.taxReserveCents, Math.round(10000 * TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL)); // 1071
+    assert.equal(r.operationalAmountCents, 10000 - r.taxReserveCents);
+    assert.equal(r.reserveRate, TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL);
   });
 
   it("excluye propina de la base gravable antes de reservar", () => {
     const r = calculateReserveSplit({ grossAmountCents: 11000, tipAmountCents: 1000 }); // $110 con $10 propina
     assert.equal(r.taxableBaseCents, 10000);
-    assert.equal(r.taxReserveCents, 1200);
+    assert.equal(r.taxReserveCents, Math.round(10000 * TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL));
     // operativo = bruto - reserva (la propina queda en operativo, no se reserva)
-    assert.equal(r.operationalAmountCents, 9800);
+    assert.equal(r.operationalAmountCents, 11000 - r.taxReserveCents);
   });
 
   it("excluye partidas no gravables ademas de la propina", () => {
@@ -30,7 +35,7 @@ describe("calculateReserveSplit", () => {
       nonTaxableAmountCents: 1000,
     });
     assert.equal(r.taxableBaseCents, 10000);
-    assert.equal(r.taxReserveCents, 1200);
+    assert.equal(r.taxReserveCents, Math.round(10000 * TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL));
   });
 
   it("nunca excede el bruto aunque propina+no-gravable superen el total (guard defensivo)", () => {
@@ -46,7 +51,7 @@ describe("calculateReserveSplit", () => {
 
   it("redondea al centavo", () => {
     const r = calculateReserveSplit({ grossAmountCents: 9999 });
-    assert.equal(r.taxReserveCents, Math.round(9999 * 0.12));
+    assert.equal(r.taxReserveCents, Math.round(9999 * TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL));
   });
 });
 

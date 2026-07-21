@@ -46,11 +46,17 @@ export async function GET() {
       return NextResponse.json({ error: "Employee not found" }, { status: 403 });
     }
 
-    // Lunes de esta semana en Vancouver
-    const vancouverDate = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", year: "numeric", month: "2-digit", day: "2-digit" });
-    const vancouverToday = new Date(vancouverDate + "T12:00:00-07:00");
+    // v8.3 auditoría 2026-07-21 (D-P1-6): `getDate() - getDay() + 1` manda
+    // el domingo a la semana SIGUIENTE en vez de a la que acaba de
+    // terminar (getDay()===0 no se maneja como caso especial), permitiendo
+    // hasta 3 votos al mismo compañero en 8 días. Mismo patrón correcto
+    // que ya usa empleado/ritual/inicio/route.ts:27-33.
+    const vancouverDateStr = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", year: "numeric", month: "2-digit", day: "2-digit" }).split(",")[0];
+    const vancouverToday = new Date(vancouverDateStr + "T12:00:00Z");
+    const day = vancouverToday.getUTCDay();
+    const diff = day === 0 ? 6 : day - 1;
     const monday = new Date(vancouverToday);
-    monday.setDate(vancouverToday.getDate() - vancouverToday.getDay() + 1);
+    monday.setUTCDate(vancouverToday.getUTCDate() - diff);
     const weekStart = monday.toISOString().split("T")[0];
 
     // Compañeros activos (excluyendo uno mismo)

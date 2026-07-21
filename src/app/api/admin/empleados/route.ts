@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireAdminRole } from "@/lib/admin";
 import { SUPPORTED_LANGUAGE_CODES } from "@/lib/languages";
+import { BC_MIN_WAGE_HOURLY, DEFAULT_SERVICE_MINUTES } from "@/lib/payroll";
+
+// v8.3 auditoría 2026-07-21 (D-P1-8): la única validación de dayRate era
+// "> 0" -- un dayRate=50 ($50/día para una jornada de 8h) equivale a
+// $6.25/h, muy por debajo del salario mínimo legal de BC ($18.25/h). El
+// piso documentado es un día estándar completo (DEFAULT_SERVICE_MINUTES,
+// 8h) al salario mínimo horario de BC -- mismo piso que ya aplica
+// calculatePayroll() en cada cálculo de nómina individual, así que un
+// Day Rate por debajo de esto nunca podría pagarse tal cual de todos
+// modos (el ajuste de piso salarial ya lo subiría).
+const MIN_DAY_RATE_DOLLARS = BC_MIN_WAGE_HOURLY * (DEFAULT_SERVICE_MINUTES / 60);
 
 // GET /api/admin/empleados — lista de todos los empleados
 export async function GET() {
@@ -95,8 +106,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (dayRate !== undefined && (typeof dayRate !== "number" || dayRate <= 0)) {
-      return NextResponse.json({ error: "dayRate must be a positive number" }, { status: 400 });
+    if (dayRate !== undefined && (typeof dayRate !== "number" || dayRate < MIN_DAY_RATE_DOLLARS)) {
+      return NextResponse.json(
+        { error: `dayRate must be at least $${MIN_DAY_RATE_DOLLARS.toFixed(2)} (BC minimum wage × 8h standard day)` },
+        { status: 400 }
+      );
     }
 
     const normalizedEmail = email.trim().toLowerCase();

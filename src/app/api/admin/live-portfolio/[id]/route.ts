@@ -11,7 +11,7 @@ import { computeWithdrawalDeadline } from "@/lib/live-portfolio";
  * arranca el reloj del derecho de retiro (<24h) del cliente.
  */
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireAdminRole("qc_wall", { method: request.method, url: request.url });
+  const auth = await requireAdminRole("live_portfolio_publish", { method: request.method, url: request.url });
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

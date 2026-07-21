@@ -274,7 +274,9 @@ export async function GET(request: NextRequest) {
   const employeeIds = summaries.map((s) => s.employeeId);
   const { data: ytdRows } = await supabase
     .from("payroll_ytd")
-    .select("employee_id, ytd_pensionable_cents, ytd_insurable_cents, ytd_assessable_cents")
+    .select(
+      "employee_id, ytd_pensionable_cents, ytd_insurable_cents, ytd_assessable_cents, ytd_cpp_contribution_cents, ytd_cpp2_contribution_cents, ytd_ei_employee_cents, ytd_vacation_pay_accrued_cents"
+    )
     .eq("calendar_year", calendarYear)
     .in("employee_id", employeeIds.length ? employeeIds : ["00000000-0000-0000-0000-000000000000"]);
 
@@ -286,6 +288,34 @@ export async function GET(request: NextRequest) {
         ytdPensionableCents: r.ytd_pensionable_cents,
         ytdInsurableCents: r.ytd_insurable_cents,
         ytdAssessableCents: r.ytd_assessable_cents,
+      },
+    ])
+  );
+
+  // v8.3 auditoría 2026-07-21 (D-P0-4/D-P0-5): antes de escribir nada,
+  // averiguar qué empleados de este ciclo YA tenían una fila en
+  // payroll_cycle_deductions para este mismo cycle_label. Ese ciclo ya
+  // quedó sumado a payroll_ytd en la corrida anterior -- volver a sumarlo
+  // aquí infla el YTD en cada recarga del navegador (bug real: 3 recargas
+  // de un ciclo de $1,800 -> YTD de $5,400). El upsert de
+  // payroll_cycle_deductions de abajo sigue siendo idempotente por sí
+  // mismo (sobreescribe la misma fila con los mismos valores); lo que
+  // faltaba era este guard antes de tocar payroll_ytd.
+  const { data: existingCycleRows } = await supabase
+    .from("payroll_cycle_deductions")
+    .select("employee_id")
+    .eq("cycle_label", cycle.label)
+    .in("employee_id", employeeIds.length ? employeeIds : ["00000000-0000-0000-0000-000000000000"]);
+  const alreadyProcessedThisCycle = new Set((existingCycleRows || []).map((r) => r.employee_id));
+
+  const ytdContributionsMap = new Map(
+    (ytdRows || []).map((r) => [
+      r.employee_id,
+      {
+        cppContributionCents: r.ytd_cpp_contribution_cents ?? 0,
+        cpp2ContributionCents: r.ytd_cpp2_contribution_cents ?? 0,
+        eiEmployeeCents: r.ytd_ei_employee_cents ?? 0,
+        vacationPayAccruedCents: r.ytd_vacation_pay_accrued_cents ?? 0,
       },
     ])
   );
@@ -311,6 +341,7 @@ export async function GET(request: NextRequest) {
   // Persistir el snapshot del ciclo + actualizar YTD para el siguiente ciclo del año.
   for (const line of lines) {
     const d = line.deductions;
+
     await supabase.from("payroll_cycle_deductions").upsert(
       {
         employee_id: line.employeeId,
@@ -328,6 +359,28 @@ export async function GET(request: NextRequest) {
       { onConflict: "employee_id,cycle_label" }
     );
 
+    // v8.3 (D-P0-5): si este ciclo YA se había procesado antes para este
+    // empleado, el YTD ya lo incluye -- no volver a sumarlo. Esta es la
+    // idempotencia real (antes format=json por defecto + recargar la
+    // página bastaba para inflar el YTD).
+    if (alreadyProcessedThisCycle.has(line.employeeId)) {
+      continue;
+    }
+
+    // v8.3 (D-P0-4): estos 4 campos son ACUMULADOS del año, igual que los
+    // otros tres (ytd_pensionable/insurable/assessable, que ya llegan
+    // correctamente sumados desde buildCycleDeductions vía ytdMap). Antes
+    // se sobrescribían con el valor de ESTE ciclo únicamente -- el
+    // finiquito de vacaciones (que lee ytd_vacation_pay_accrued_cents)
+    // pagaba solo el último ciclo en vez del año completo (4% de lo
+    // debido en el caso reportado).
+    const priorContributions = ytdContributionsMap.get(line.employeeId) ?? {
+      cppContributionCents: 0,
+      cpp2ContributionCents: 0,
+      eiEmployeeCents: 0,
+      vacationPayAccruedCents: 0,
+    };
+
     await supabase.from("payroll_ytd").upsert(
       {
         employee_id: line.employeeId,
@@ -335,10 +388,11 @@ export async function GET(request: NextRequest) {
         ytd_pensionable_cents: d.cpp.ytdPensionableAfterCents,
         ytd_insurable_cents: d.ei.ytdInsurableAfterCents,
         ytd_assessable_cents: d.workSafeBc.ytdAssessableAfterCents,
-        ytd_cpp_contribution_cents: d.cpp.baseContributionCents,
-        ytd_cpp2_contribution_cents: d.cpp.cpp2ContributionCents,
-        ytd_ei_employee_cents: d.ei.employeeCents,
-        ytd_vacation_pay_accrued_cents: d.vacationPayAccrualCents,
+        ytd_cpp_contribution_cents: priorContributions.cppContributionCents + d.cpp.baseContributionCents,
+        ytd_cpp2_contribution_cents: priorContributions.cpp2ContributionCents + d.cpp.cpp2ContributionCents,
+        ytd_ei_employee_cents: priorContributions.eiEmployeeCents + d.ei.employeeCents,
+        ytd_vacation_pay_accrued_cents:
+          priorContributions.vacationPayAccruedCents + d.vacationPayAccrualCents,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "employee_id,calendar_year" }

@@ -3,6 +3,7 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { assertStripe } from "@/lib/stripe";
 import Stripe from "stripe";
 import { reconcileCapturedPaymentIntent } from "@/lib/payment-capture-reconciliation";
+import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseAdmin = SupabaseClient<any, "public", any>;
@@ -63,10 +64,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true, duplicated: true }, { status: 200 });
     }
 
-    await supabase.from("stripe_webhook_events").insert({
+    // B-P2-4 fix (auditoría 2026-07-21): antes el error del INSERT de
+    // deduplicación se descartaba silenciosamente y el switch se ejecutaba
+    // igual. stripe_webhook_events.stripe_event_id es UNIQUE (036), así que
+    // dos entregas concurrentes del mismo evento (Stripe reintenta si no
+    // recibe 200 a tiempo) podían pasar ambas el SELECT de arriba antes de
+    // que cualquiera insertara, y las dos procesaban el evento -- doble
+    // efecto (doble captura reconciliada, doble ajuste de chargeback
+    // reserve, doble resta de reembolso). Ahora el 23505 se trata como
+    // "ya se está procesando en paralelo" y se corta aquí; cualquier otro
+    // error de inserción se propaga como fallo real en vez de continuar
+    // a ciegas.
+    const { error: dedupInsertError } = await supabase.from("stripe_webhook_events").insert({
       stripe_event_id: event.id,
       event_type: event.type,
     });
+
+    if (dedupInsertError) {
+      if (dedupInsertError.code === "23505") {
+        return NextResponse.json({ received: true, duplicated: true }, { status: 200 });
+      }
+      throw dedupInsertError;
+    }
 
     switch (event.type) {
       case "payment_intent.payment_failed": {
@@ -290,16 +309,37 @@ async function handleRefund(
   const paymentIntentId = charge.payment_intent as string | undefined;
   if (!paymentIntentId) return;
 
+  // B-P2-1 fix (auditoría 2026-07-21): charge.amount_refunded que manda
+  // Stripe en `charge.refunded` es el ACUMULADO de todo lo reembolsado en
+  // ese charge hasta el momento del evento, no el delta de este reembolso.
+  // El código anterior lo restaba como si fuera un delta en cada evento:
+  // dos reembolsos parciales de $100 y luego $50 (cumulative 100, luego
+  // cumulative 150) dejaban total_paid descontado dos veces (-100 y -150
+  // sobre el saldo ya reducido), sobre-restando muy por debajo de lo
+  // realmente reembolsado. Se guarda el acumulado ya conocido en
+  // `stripe_amount_refunded_cents` (migración 208) y se resta solo el
+  // delta real entre el acumulado nuevo y el anterior.
   const { data: orders } = await supabase
     .from("orders")
-    .select("id, total_paid")
+    .select("id, user_id, total_paid, stripe_amount_refunded_cents")
     .or(`stripe_hold_payment_intent_id.eq.${paymentIntentId},stripe_capture_payment_intent_id.eq.${paymentIntentId}`)
     .limit(1);
 
   const order = orders?.[0];
   if (!order) return;
 
-  const refundedAmount = charge.amount_refunded / 100; // cents -> dollars
+  const previousRefundedCents = order.stripe_amount_refunded_cents ?? 0;
+  const newCumulativeRefundedCents = charge.amount_refunded ?? 0;
+  const deltaCents = newCumulativeRefundedCents - previousRefundedCents;
+
+  if (deltaCents <= 0) {
+    // Evento repetido/fuera de orden respecto al acumulado ya registrado;
+    // nada nuevo que restar (evita restar dos veces el mismo reembolso si
+    // Stripe reenvía el evento con el mismo acumulado).
+    return;
+  }
+
+  const refundedAmount = deltaCents / 100; // cents -> dollars, delta real
   const newTotalPaid = Math.max(0, (order.total_paid ?? 0) - refundedAmount);
 
   await supabase
@@ -307,8 +347,34 @@ async function handleRefund(
     .update({
       total_paid: newTotalPaid,
       card_amount_charged: newTotalPaid,
+      stripe_amount_refunded_cents: newCumulativeRefundedCents,
       warranty_status: newTotalPaid === 0 ? "resolved_client" : undefined,
       updated_at: new Date().toISOString(),
     })
     .eq("id", order.id);
+
+  // B-P2-2 fix (auditoría 2026-07-21): shadow_ledger_entries tiene el tipo
+  // 'warranty_refund' declarado (shadow-ledger.ts) pero ninguna ruta del
+  // repo lo insertaba jamás -- ningún reembolso (chargeback ganado por el
+  // cliente, resolución de garantía, reembolso manual del admin vía
+  // Stripe) quedaba registrado en el ledger operativo, así que las
+  // comisiones de partner y créditos de referido ya pagados sobre esa
+  // orden nunca se marcaban para revisión/reclamo. Se registra aquí el
+  // delta real reembolsado, con idempotencyKey determinística por charge
+  // para no duplicar si Stripe reenvía el evento.
+  const { error: ledgerError } = await supabase.from("shadow_ledger_entries").insert(
+    buildShadowLedgerEntry({
+      eventType: "warranty_refund",
+      orderId: order.id,
+      userId: order.user_id ?? null,
+      amountCents: deltaCents,
+      processor: "stripe",
+      externalReference: `${charge.id}:${newCumulativeRefundedCents}`,
+      occurredAt: new Date(),
+      metadata: { payment_intent_id: paymentIntentId, charge_id: charge.id },
+    })
+  );
+  if (ledgerError && ledgerError.code !== "23505") {
+    console.error(`Failed to write shadow ledger warranty_refund entry for order ${order.id}:`, ledgerError);
+  }
 }

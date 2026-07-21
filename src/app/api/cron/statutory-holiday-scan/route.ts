@@ -62,9 +62,15 @@ export async function GET(request: NextRequest) {
         ? Math.floor((today.getTime() - new Date(employee.hire_date).getTime()) / 86400000)
         : 0;
 
+      // v8.3 auditoría 2026-07-21 (D-P1-2): sin "!inner", PostgREST no usa
+      // el embed `orders(service_date)` como filtro de la fila padre --
+      // los .gte()/.lt() sobre "orders.service_date" se ignoraban en
+      // silencio y daysWorkedInPrior30 salía 0 para todos, dejando a
+      // todo el mundo eligible:false. El patrón correcto ya existe en el
+      // repo (evaluate-badges:66).
       const { data: completedAssignments } = await supabase
         .from("assignments")
-        .select("order_id, orders(service_date)")
+        .select("order_id, orders!inner(service_date)")
         .eq("employee_id", employee.id)
         .eq("status", "completed")
         .gte("orders.service_date", windowStart.toISOString().slice(0, 10))

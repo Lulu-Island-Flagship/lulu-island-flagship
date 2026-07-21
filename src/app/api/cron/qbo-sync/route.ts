@@ -267,9 +267,21 @@ export async function GET(request: NextRequest) {
       0
     );
 
+    // B-P3-2 fix (auditoría 2026-07-21): esta suma no filtraba por
+    // transaction_type. qbo_export_lines guarda una línea 'capture' por
+    // orden (escrita directo por batch-capture/batch-capture-retry al
+    // momento del cobro) Y, más tarde en esta misma corrida del cron, una
+    // línea 'sales_receipt' para la MISMA orden (arriba, línea ~145) --
+    // sumando ambas se duplicaba el importe de cada orden capturada, así
+    // que qboTotalCents casi siempre salía ~2x shadowTotalCents y la
+    // alerta de divergencia se disparaba todos los días sin excepción,
+    // quedando muerta por ruido. Se filtra a 'capture', que es el
+    // contraparte directo de shadow_ledger_entries.event_type =
+    // 'balance_captured' consultado arriba.
     const { data: qboLines } = await supabase
       .from("qbo_export_lines")
       .select("gross_amount")
+      .eq("transaction_type", "capture")
       .gte("transaction_date", since);
     const qboTotalCents = (qboLines || []).reduce(
       (sum: number, l: { gross_amount: number }) => sum + (l.gross_amount || 0),

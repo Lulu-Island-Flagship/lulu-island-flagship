@@ -45,7 +45,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (order.status === "cancelled" || order.status === "completed") {
+    // A-9 fix (auditoría 2026-07-21): el guard original no cubría 'no_show'
+    // -- se podía redespachar una orden ya marcada no-show, contradiciendo
+    // el flujo de recuperación dedicado de cron/no-show.
+    if (order.status === "cancelled" || order.status === "completed" || order.status === "no_show") {
       return NextResponse.json(
         { error: `Cannot dispatch a ${order.status} order` },
         { status: 400 }
@@ -144,11 +147,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Transacción: eliminar asignaciones previas e insertar nuevas
+    // A-9 fix (auditoría 2026-07-21): este era un .delete() físico sin
+    // filtro de estado, pese a que `deleted_at` es el patrón universal del
+    // repo (usado en el propio GET de esta ruta, línea ~270). Si un
+    // empleado ya estaba 'in_progress' en el servicio, su fila
+    // desaparecía sin aviso y no podía cerrar el servicio (t_out no tiene
+    // fila de assignment que actualizar) -- la orden quedaba colgada,
+    // nunca facturable. Ahora: (a) se bloquea el redespacho si hay alguna
+    // asignación 'in_progress' para la orden (hay que resolver/cerrar esa
+    // jornada antes de reasignar el equipo completo), y (b) el reemplazo
+    // de asignaciones 'pending'/'confirmed' es soft-delete (deleted_at),
+    // no DELETE físico, preservando el historial de auditoría.
+    const { data: activeAssignments } = await auth.supabase
+      .from("assignments")
+      .select("id, employee_id, status")
+      .eq("order_id", orderId)
+      .is("deleted_at", null)
+      .eq("status", "in_progress");
+
+    if (activeAssignments && activeAssignments.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Cannot redispatch: this order has an assignment already in_progress. Resolve or close it before reassigning the team.",
+          inProgressAssignments: activeAssignments,
+        },
+        { status: 409 }
+      );
+    }
+
+    const nowIso = new Date().toISOString();
     const { error: deleteError } = await auth.supabase
       .from("assignments")
-      .delete()
-      .eq("order_id", orderId);
+      .update({ status: "cancelled", deleted_at: nowIso, updated_at: nowIso })
+      .eq("order_id", orderId)
+      .is("deleted_at", null);
 
     if (deleteError) {
       console.error("Dispatch delete error:", deleteError);

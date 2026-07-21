@@ -52,18 +52,29 @@ export async function POST(
     const stripe = assertStripe();
 
     // Autenticar usando el header Authorization para soportar tanto sesión como llamadas service-to-service
+    // Fix RAÍZ-2 (auditoría 2026-07-21): el bloque original era un `if` sin
+    // `else` — sin header, o con un Bearer inválido, `userId` quedaba `null`
+    // y el chequeo de propiedad de más abajo se saltaba por completo,
+    // permitiendo cancelar (y capturar el hold de) la orden de un cliente
+    // ajeno sin ninguna credencial. Ahora se exige explícitamente CRON_SECRET
+    // o un JWT de Supabase válido; cualquier otro caso es 401.
     const authHeader = request.headers.get("authorization");
     let userId: string | null = null;
 
-    if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.replace("Bearer ", "");
-      if (token === process.env.CRON_SECRET) {
-        // Llamada service-to-service; no requiere user autenticado
-        userId = null;
-      } else {
-        const { data } = await supabase.auth.getUser(token);
-        userId = data.user?.id ?? null;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    if (process.env.CRON_SECRET && token === process.env.CRON_SECRET) {
+      // Llamada service-to-service; no requiere user autenticado
+      userId = null;
+    } else {
+      const { data, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !data.user?.id) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
+      userId = data.user.id;
     }
 
     const { data: order, error: orderError } = await supabase
@@ -129,9 +140,11 @@ export async function POST(
       try {
         const pi = await stripe.paymentIntents.retrieve(order.stripe_hold_payment_intent_id);
         if (pi.status === "requires_capture") {
-          await stripe.paymentIntents.capture(order.stripe_hold_payment_intent_id, {
-            amount_to_capture: decision.captureFromExistingHold * 100,
-          });
+          await stripe.paymentIntents.capture(
+            order.stripe_hold_payment_intent_id,
+            { amount_to_capture: decision.captureFromExistingHold * 100 },
+            { idempotencyKey: `${orderId}:cancel-hold-capture` }
+          );
           payments.hold = order.stripe_hold_payment_intent_id;
           penaltyCharged += decision.captureFromExistingHold;
         } else if (pi.status === "succeeded") {
@@ -155,18 +168,21 @@ export async function POST(
         if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
           throw new Error("Missing card registration for PayPal late cancellation");
         }
-        const penaltyPi = await stripe.paymentIntents.create({
-          amount: decision.stripeAdditionalChargeAmount * 100,
-          currency: "cad",
-          customer: order.stripe_customer_id,
-          payment_method: order.stripe_payment_method_id,
-          payment_method_types: ["card"],
-          capture_method: "automatic",
-          confirm: true,
-          off_session: true,
-          description: `Late cancellation penalty for PayPal order ${orderId}`,
-          metadata: { order_id: orderId, charge_type: "paypal_late_cancel_penalty" },
-        });
+        const penaltyPi = await stripe.paymentIntents.create(
+          {
+            amount: decision.stripeAdditionalChargeAmount * 100,
+            currency: "cad",
+            customer: order.stripe_customer_id,
+            payment_method: order.stripe_payment_method_id,
+            payment_method_types: ["card"],
+            capture_method: "automatic",
+            confirm: true,
+            off_session: true,
+            description: `Late cancellation penalty for PayPal order ${orderId}`,
+            metadata: { order_id: orderId, charge_type: "paypal_late_cancel_penalty" },
+          },
+          { idempotencyKey: `${orderId}:cancel-paypal-penalty` }
+        );
         if (penaltyPi.status !== "succeeded") {
           throw new Error(`Penalty PaymentIntent status: ${penaltyPi.status}`);
         }

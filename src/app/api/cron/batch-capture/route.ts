@@ -129,7 +129,14 @@ export async function GET(request: NextRequest) {
   }
 
   // Marcar inicio del run
-  const { data: runRow } = await supabase
+  // B-P0-2 fix (auditoría 2026-07-21, migración 207): dispatch_runs ahora
+  // tiene UNIQUE(run_date, phase) real. El SELECT de arriba y este INSERT
+  // no son atómicos entre sí, así que dos invocaciones concurrentes pueden
+  // pasar ambas el guard antes de que cualquiera inserte. Con la restricción
+  // UNIQUE, la segunda falla con 23505 en vez de duplicar la fila y
+  // procesar el mismo lote dos veces -- se trata como "ya corrida" y se
+  // sale sin capturar nada.
+  const { data: runRow, error: runInsertError } = await supabase
     .from("dispatch_runs")
     .insert({
       run_date: todayStr,
@@ -139,6 +146,20 @@ export async function GET(request: NextRequest) {
     })
     .select("id")
     .single();
+
+  if (runInsertError) {
+    if (runInsertError.code === "23505") {
+      return NextResponse.json(
+        {
+          skipped: true,
+          reason: "Batch capture already running (concurrent invocation)",
+          date: todayStr,
+        },
+        { status: 200 }
+      );
+    }
+    throw runInsertError;
+  }
   const runId = runRow?.id;
 
   // Feature flags
@@ -493,9 +514,11 @@ export async function GET(request: NextRequest) {
             }
             const holdPi = await stripe.paymentIntents.retrieve(order.stripe_hold_payment_intent_id);
             if (holdPi.status === "requires_capture") {
-              await stripe.paymentIntents.capture(order.stripe_hold_payment_intent_id, {
-                amount_to_capture: holdAmount * 100,
-              });
+              await stripe.paymentIntents.capture(
+                order.stripe_hold_payment_intent_id,
+                { amount_to_capture: Math.round(holdAmount * 100) },
+                { idempotencyKey: `${order.id}:batch-capture-hold` }
+              );
             } else if (holdPi.status !== "succeeded") {
               throw new Error(`Hold PaymentIntent status: ${holdPi.status}`);
             }
@@ -507,23 +530,32 @@ export async function GET(request: NextRequest) {
             if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
               throw new Error("Missing customer or payment method for balance charge");
             }
-            const balancePi = await stripe.paymentIntents.create({
-              amount: balanceAmount * 100,
-              currency: "cad",
-              customer: order.stripe_customer_id,
-              payment_method: order.stripe_payment_method_id,
-              payment_method_types: ["card"],
-              capture_method: "automatic",
-              confirm: true,
-              off_session: true,
-              description: `Balance for order ${order.id}`,
-              metadata: {
-                order_id: order.id,
-                quote_id: order.quote_id,
-                user_id: order.user_id,
-                charge_type: "balance",
+            // Fix RAÍZ-3 (auditoría 2026-07-21): `balanceAmount * 100` sobre
+            // un número que puede traer resto de punto flotante (proviene de
+            // quoteTotal - walletAppliedDollars, ambos derivados de columnas
+            // dólares) producía valores como 32498.999999999996 -- Stripe
+            // exige un entero de centavos y rechazaba la captura completa.
+            // Math.round() al convertir a centavos, siempre.
+            const balancePi = await stripe.paymentIntents.create(
+              {
+                amount: Math.round(balanceAmount * 100),
+                currency: "cad",
+                customer: order.stripe_customer_id,
+                payment_method: order.stripe_payment_method_id,
+                payment_method_types: ["card"],
+                capture_method: "automatic",
+                confirm: true,
+                off_session: true,
+                description: `Balance for order ${order.id}`,
+                metadata: {
+                  order_id: order.id,
+                  quote_id: order.quote_id,
+                  user_id: order.user_id,
+                  charge_type: "balance",
+                },
               },
-            });
+              { idempotencyKey: `${order.id}:batch-capture-balance` }
+            );
             if (balancePi.status !== "succeeded") {
               throw new Error(`Balance PaymentIntent status: ${balancePi.status}`);
             }
@@ -542,24 +574,27 @@ export async function GET(request: NextRequest) {
             if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
               throw new Error("Missing card registration for PayPal order balance charge");
             }
-            const balancePi = await stripe.paymentIntents.create({
-              amount: balanceAmount * 100,
-              currency: "cad",
-              customer: order.stripe_customer_id,
-              payment_method: order.stripe_payment_method_id,
-              payment_method_types: ["card"],
-              capture_method: "automatic",
-              confirm: true,
-              off_session: true,
-              description: `Balance for PayPal order ${order.id}`,
-              metadata: {
-                order_id: order.id,
-                quote_id: order.quote_id,
-                user_id: order.user_id,
-                charge_type: "paypal_balance",
-                paypal_advance: paypalAdvance,
+            const balancePi = await stripe.paymentIntents.create(
+              {
+                amount: Math.round(balanceAmount * 100),
+                currency: "cad",
+                customer: order.stripe_customer_id,
+                payment_method: order.stripe_payment_method_id,
+                payment_method_types: ["card"],
+                capture_method: "automatic",
+                confirm: true,
+                off_session: true,
+                description: `Balance for PayPal order ${order.id}`,
+                metadata: {
+                  order_id: order.id,
+                  quote_id: order.quote_id,
+                  user_id: order.user_id,
+                  charge_type: "paypal_balance",
+                  paypal_advance: paypalAdvance,
+                },
               },
-            });
+              { idempotencyKey: `${order.id}:batch-capture-paypal-balance` }
+            );
             if (balancePi.status !== "succeeded") {
               throw new Error(`PayPal balance PaymentIntent status: ${balancePi.status}`);
             }
@@ -786,9 +821,11 @@ async function executePartialCapture(
     }
     const holdPi = await stripe.paymentIntents.retrieve(order.stripe_hold_payment_intent_id);
     if (holdPi.status === "requires_capture") {
-      await stripe.paymentIntents.capture(order.stripe_hold_payment_intent_id, {
-        amount_to_capture: captureFromHoldCents,
-      });
+      await stripe.paymentIntents.capture(
+        order.stripe_hold_payment_intent_id,
+        { amount_to_capture: captureFromHoldCents },
+        { idempotencyKey: `${order.id}:batch-capture-partial-hold` }
+      );
     } else if (holdPi.status !== "succeeded") {
       throw new Error(`Hold PaymentIntent status: ${holdPi.status}`);
     }
@@ -801,23 +838,26 @@ async function executePartialCapture(
     if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
       throw new Error("Missing customer or payment method for partial capture excess");
     }
-    const excessPi = await stripe.paymentIntents.create({
-      amount: excessCents,
-      currency: "cad",
-      customer: order.stripe_customer_id,
-      payment_method: order.stripe_payment_method_id,
-      payment_method_types: ["card"],
-      capture_method: "automatic",
-      confirm: true,
-      off_session: true,
-      description: `Partial labor-safe capture for order ${order.id}`,
-      metadata: {
-        order_id: order.id,
-        quote_id: order.quote_id,
-        user_id: order.user_id,
-        charge_type: "partial_capture_excess",
+    const excessPi = await stripe.paymentIntents.create(
+      {
+        amount: excessCents,
+        currency: "cad",
+        customer: order.stripe_customer_id,
+        payment_method: order.stripe_payment_method_id,
+        payment_method_types: ["card"],
+        capture_method: "automatic",
+        confirm: true,
+        off_session: true,
+        description: `Partial labor-safe capture for order ${order.id}`,
+        metadata: {
+          order_id: order.id,
+          quote_id: order.quote_id,
+          user_id: order.user_id,
+          charge_type: "partial_capture_excess",
+        },
       },
-    });
+      { idempotencyKey: `${order.id}:batch-capture-partial-excess` }
+    );
     if (excessPi.status !== "succeeded") {
       throw new Error(`Partial capture excess PaymentIntent status: ${excessPi.status}`);
     }

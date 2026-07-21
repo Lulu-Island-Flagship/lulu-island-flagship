@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
   let ordersQuery = supabase
     .from("orders")
-    .select("id, quote_id, service_date, quotes(zone, service_type)")
+    .select("id, quote_id, service_date, total_paid, quotes(zone, service_type)")
     .eq("status", "completed");
   if (from) ordersQuery = ordersQuery.gte("service_date", from);
   if (to) ordersQuery = ordersQuery.lte("service_date", to);
@@ -74,9 +74,26 @@ export async function GET(request: NextRequest) {
     (orders || []).map((o) => String(o.service_date))
   );
 
-  const collectedByOrder = new Map<string, number>();
+  // B-P3-1 fix (auditoría 2026-07-21): "cobrado" se derivaba solo de
+  // chargeback_reserves.captured_amount, que únicamente se puebla si el
+  // flag chargeback_reserve_enabled está encendido (apagado por defecto,
+  // migración 024). Con la configuración default, el panel reportaba $0
+  // de ingresos con órdenes completadas y cobradas de verdad. orders.total_paid
+  // se escribe siempre por las rutas de captura (hold, batch-capture,
+  // capture-remainder, cancel, no-show) independientemente del flag, así
+  // que es la fuente primaria confiable; chargeback_reserves se usa solo
+  // como refinamiento cuando el flag SÍ está activo y da un dato más
+  // preciso a nivel de captured_amount real de Stripe.
+  const reserveCapturedByOrder = new Map<string, number>();
   for (const r of reserves || []) {
-    collectedByOrder.set(r.order_id, (collectedByOrder.get(r.order_id) || 0) + r.captured_amount);
+    reserveCapturedByOrder.set(r.order_id, (reserveCapturedByOrder.get(r.order_id) || 0) + r.captured_amount);
+  }
+
+  const collectedByOrder = new Map<string, number>();
+  for (const o of orders || []) {
+    const reserveCaptured = reserveCapturedByOrder.get(o.id);
+    const totalPaidCents = Math.round(Number(o.total_paid ?? 0) * 100);
+    collectedByOrder.set(o.id, reserveCaptured !== undefined ? reserveCaptured : totalPaidCents);
   }
 
   const laborByOrder = new Map<string, number>();
@@ -105,7 +122,14 @@ export async function GET(request: NextRequest) {
       teamLabel: teamByOrder.get(o.id) || "(sin asignar)",
       collectedCents: collectedByOrder.get(o.id) || 0,
       laborCostCents: laborByOrder.get(o.id) || 0,
-      employerBurdenCents: 0, // ver nota arriba — no se prorratea sin snapshot de ciclo por orden
+      // NO ARREGLADO (auditoría 2026-07-21, B-P3-1, mitad no cerrada): sigue
+      // en 0 a propósito -- payroll_cycle_deductions (052) es un snapshot
+      // por (employee_id, cycle_label), no por orden, y payroll_entries no
+      // tiene ninguna ruta que la puebla (hallazgo de dominio D, fuera del
+      // alcance de este archivo). Prorratear la carga patronal por orden
+      // requeriría esa tabla poblada más una regla de reparto por orden que
+      // no existe hoy. Se deja en 0 explícito en vez de inventar un número.
+      employerBurdenCents: 0,
       otherCostsCents: otherCostsPerOrderCents,
     };
   });

@@ -142,6 +142,18 @@ export async function POST(request: NextRequest) {
 
     const baseValue = quote ? Number(quote.total) : 0;
 
+    // v8.3 auditoría 2026-07-21 (E-A4): baseValue=0 (quote no encontrado o
+    // total inválido) hacía que `requiresAdminApproval = baseValue > 0 &&
+    // ...` fuera SIEMPRE false -- un upsell de cualquier monto pasaba
+    // como auto-aprobado precisamente cuando no había forma de verificar
+    // el tope del 50%. Se rechaza en vez de auto-aprobar a ciegas.
+    if (!baseValue || baseValue <= 0) {
+      return NextResponse.json(
+        { error: "Cannot register an upsell: the order's source quote total could not be found." },
+        { status: 400 }
+      );
+    }
+
     const { data: existingUpsells } = await supabase
       .from("service_upsells")
       .select("amount, approval_status")

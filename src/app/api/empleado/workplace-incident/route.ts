@@ -53,6 +53,26 @@ export async function POST(request: NextRequest) {
     if (!incidentDatetime || Number.isNaN(new Date(incidentDatetime).getTime())) {
       return NextResponse.json({ error: "incidentDatetime (ISO) es obligatorio" }, { status: 400 });
     }
+
+    // v8.3 auditoría 2026-07-21 (D-P1-7): incidentDatetime llegaba crudo
+    // del body sin validar rango -- 1990 o 2050 generaban un deadline
+    // WorkSafeBC ya vencido o absurdamente lejano. Se acepta hasta 1h de
+    // adelanto (margen de reloj) y hasta 365 días atrás (después de eso,
+    // el reporte tardío es un caso administrativo distinto, no un typo).
+    const incidentDate = new Date(incidentDatetime);
+    const now = Date.now();
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+    const MAX_PAST_MS = 365 * 24 * 60 * 60 * 1000;
+    if (incidentDate.getTime() > now + ONE_HOUR_MS) {
+      return NextResponse.json({ error: "incidentDatetime no puede estar en el futuro" }, { status: 400 });
+    }
+    if (incidentDate.getTime() < now - MAX_PAST_MS) {
+      return NextResponse.json(
+        { error: "incidentDatetime no puede ser de hace más de 365 días" },
+        { status: 400 }
+      );
+    }
+
     const medicalType = medicalAttentionType && VALID_MEDICAL_ATTENTION.includes(medicalAttentionType)
       ? medicalAttentionType
       : "none";
@@ -75,7 +95,31 @@ export async function POST(request: NextRequest) {
 
     // Si no se especifica employeeId (el lesionado), se asume que el
     // reportero es el propio afectado.
-    const affectedEmployeeId = employeeId || reporter.id;
+    //
+    // v8.3 auditoría 2026-07-21 (D-P1-7): employeeId llegaba crudo del
+    // body sin validar -- un empleado podía reportar una lesión a nombre
+    // de CUALQUIER UUID, real o inventado. Se exige que exista un
+    // empleado activo con ese id antes de aceptar el reporte.
+    let affectedEmployeeId = reporter.id;
+    if (employeeId !== undefined && employeeId !== null && employeeId !== "") {
+      if (typeof employeeId !== "string") {
+        return NextResponse.json({ error: "employeeId debe ser un string" }, { status: 400 });
+      }
+      const { data: affectedEmployee, error: affectedError } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("id", employeeId)
+        .is("deleted_at", null)
+        .maybeSingle();
+
+      if (affectedError) {
+        return NextResponse.json({ error: affectedError.message }, { status: 500 });
+      }
+      if (!affectedEmployee) {
+        return NextResponse.json({ error: "employeeId no corresponde a un empleado existente" }, { status: 400 });
+      }
+      affectedEmployeeId = affectedEmployee.id;
+    }
 
     const { data, error } = await supabase
       .from("workplace_incidents")

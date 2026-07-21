@@ -1,4 +1,5 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { calculatePayroll, BC_MIN_WAGE_HOURLY } from "@/lib/payroll";
@@ -6,6 +7,18 @@ import { decideSickLeaveEligibility } from "@/lib/sick-leave";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+
+// v8.3 auditoría 2026-07-21 (D-P0-2, migración 213): la escritura real de
+// pay_type='paid'/paid_amount_cents ahora requiere service-role -- la RLS
+// de la anon key solo permite insertar en estado no pagable. La decisión
+// de negocio (decideSickLeaveEligibility) sigue siendo del servidor; lo
+// que cambia es que el resultado se persiste con una credencial que RLS
+// no puede recortar.
+function getServiceClient() {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) return null;
+  return createClient(supabaseUrl, serviceKey);
+}
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -102,10 +115,30 @@ export async function POST(request: NextRequest) {
       unpaidProtectedDaysUsedThisYear,
     });
 
+    // v8.3 auditoría 2026-07-21 (D-P0-1): day_rate está en DÓLARES
+    // (employees.day_rate) pero calculatePayroll espera CENTAVOS
+    // ("// cents CAD", payroll.ts:18) -- pasar el valor crudo pagaba
+    // $2.00 en vez de $200.00. Se convierte con dollarsToCents antes de
+    // llamar, y se usa .grossAmount (no .baseAmount) para respetar el
+    // ajuste al piso salarial mínimo de BC que calculatePayroll ya
+    // calcula pero que .baseAmount ignora.
     const paidAmountCents =
-      eligibility.payType === "paid" ? calculatePayroll({ dayRate: employee.day_rate }).baseAmount : null;
+      eligibility.payType === "paid"
+        ? calculatePayroll({ dayRate: Math.round(employee.day_rate * 100) }).grossAmount
+        : null;
 
-    const { data: created, error } = await supabase
+    // v8.3 (D-P0-2, migración 213): con la RLS restringida, un INSERT con
+    // pay_type='paid'/paid_amount_cents no-null ya no pasa por la anon
+    // key. Se escribe con service-role -- la decisión de negocio ya se
+    // tomó server-side arriba (decideSickLeaveEligibility), esto solo
+    // persiste el resultado sin que RLS lo pueda recortar ni un tercero
+    // lo pueda forjar directamente contra la tabla.
+    const serviceClient = getServiceClient();
+    if (!serviceClient) {
+      return NextResponse.json({ error: "Supabase service credentials not configured" }, { status: 500 });
+    }
+
+    const { data: created, error } = await serviceClient
       .from("sick_leave_requests")
       .insert({
         employee_id: employee.id,

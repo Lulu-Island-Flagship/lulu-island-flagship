@@ -75,7 +75,13 @@ export async function GET(request: NextRequest) {
     .lte("capture_remaining_due_at", nowIso)
     .is("capture_remaining_captured_at", null)
     .gt("capture_remaining_amount", 0)
-    .lt("capture_remaining_attempts", MAX_REMAINDER_ATTEMPTS);
+    .lt("capture_remaining_attempts", MAX_REMAINDER_ATTEMPTS)
+    // Fix A-4 (auditoría 2026-07-21): este era el único cron de dinero sin
+    // filtro de estado ni de borrado lógico -- cobraba el remanente de
+    // órdenes ya canceladas/no_show dentro de la ventana de 24h. Mismo
+    // filtro que usan los demás crons de captura.
+    .not("status", "in", "(cancelled,no_show)")
+    .is("deleted_at", null);
 
   if (error) {
     console.error("capture-remainder fetch error:", error);
@@ -117,23 +123,26 @@ export async function GET(request: NextRequest) {
         throw new Error("Missing customer or payment method for remainder capture");
       }
 
-      const pi = await stripe.paymentIntents.create({
-        amount: remainingCents,
-        currency: "cad",
-        customer: order.stripe_customer_id,
-        payment_method: order.stripe_payment_method_id,
-        payment_method_types: ["card"],
-        capture_method: "automatic",
-        confirm: true,
-        off_session: true,
-        description: `Deferred remainder (24h) for order ${order.id}`,
-        metadata: {
-          order_id: order.id,
-          quote_id: order.quote_id,
-          user_id: order.user_id,
-          charge_type: "partial_capture_remainder",
+      const pi = await stripe.paymentIntents.create(
+        {
+          amount: remainingCents,
+          currency: "cad",
+          customer: order.stripe_customer_id,
+          payment_method: order.stripe_payment_method_id,
+          payment_method_types: ["card"],
+          capture_method: "automatic",
+          confirm: true,
+          off_session: true,
+          description: `Deferred remainder (24h) for order ${order.id}`,
+          metadata: {
+            order_id: order.id,
+            quote_id: order.quote_id,
+            user_id: order.user_id,
+            charge_type: "partial_capture_remainder",
+          },
         },
-      });
+        { idempotencyKey: `${order.id}:capture-remainder` }
+      );
 
       if (pi.status !== "succeeded") {
         throw new Error(`Remainder PaymentIntent status: ${pi.status}`);

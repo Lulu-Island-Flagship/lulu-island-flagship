@@ -79,9 +79,23 @@ export async function GET(_request: NextRequest) {
     );
   }
 
+  // v8.3 auditoría 2026-07-21 (E-B3): el generador de instancias de
+  // contrato recurrente no existe en el repo -- ninguna ruta hace
+  // .insert() sobre service_contracts ni escribe next_scheduled_date
+  // (solo se lee). Este endpoint no puede arreglar eso (está fuera de
+  // los archivos permitidos de este cambio); lo que sí puede hacer es no
+  // esconder el problema: si next_scheduled_date es NULL o ya quedó en
+  // el pasado (contrato "vivo" pero nunca avanzado por el cron/job que
+  // debería re-agendarlo), se lo dice al cliente explícitamente en vez
+  // de ofrecer una fecha calculada que parece confiable pero no lo es.
+  const today = getVancouverTodayString();
+  const rawNextScheduledDate = contract.next_scheduled_date as string | null;
+  const nextScheduledDateIsMissing = !rawNextScheduledDate;
+  const nextScheduledDateIsPast = !!rawNextScheduledDate && rawNextScheduledDate < today;
+
   const nextDate = computeNextRecurringDate(
-    contract.next_scheduled_date as string | null,
-    getVancouverTodayString(),
+    rawNextScheduledDate,
+    today,
     contract.frequency as ContractFrequency
   );
 
@@ -106,7 +120,18 @@ export async function GET(_request: NextRequest) {
   };
 
   return NextResponse.json(
-    { hasActiveContract: true, contractId: contract.id, prefill, nextDate },
+    {
+      hasActiveContract: true,
+      contractId: contract.id,
+      prefill,
+      nextDate,
+      nextScheduledDateIsMissing,
+      nextScheduledDateIsPast,
+      staleScheduleWarning:
+        nextScheduledDateIsMissing || nextScheduledDateIsPast
+          ? "Este contrato no tiene una próxima fecha agendada vigente (next_scheduled_date ausente o en el pasado). 'nextDate' es una estimación calculada al vuelo, no una cita confirmada -- verifica con el cliente antes de asumir que la próxima visita ya está agendada."
+          : null,
+    },
     { status: 200 }
   );
 }

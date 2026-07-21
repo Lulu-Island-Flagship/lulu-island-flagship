@@ -11,6 +11,17 @@ export const GST_RATE = 0.05;
 export const PST_RATE = 0.07;
 export const TAX_RESERVE_RATE = GST_RATE + PST_RATE; // 0.12
 
+// B-P1-3 fix (auditoría 2026-07-21): TAX_RESERVE_RATE (12%) es la tasa
+// ADITIVA sobre un precio ANTES de impuestos (precio + 12% = total). Pero
+// grossAmountCents que entra a calculateReserveSplit es el TOTAL ya
+// cobrado al cliente, que YA INCLUYE ese 12% (quotes.total = subtotal +
+// gst + pst, y así se cobra en Stripe). Aplicar 12% directo sobre un monto
+// que ya trae el 12% adentro sobre-reserva: para un total T = base ×
+// 1.12, el impuesto real es T × (0.12 / 1.12) ≈ 10.714% de T, no 12% de T.
+// Ejemplo: T=$100 (base $89.29 + $10.71 de impuesto) reservaba $12.00 en
+// vez de los $10.71 reales -- $1.29 de más por cada $100 cobrados.
+export const TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL = TAX_RESERVE_RATE / (1 + TAX_RESERVE_RATE); // ≈ 0.10714
+
 export interface ChargeReserveInput {
   /** Monto total cobrado, en cents. */
   grossAmountCents: number;
@@ -51,7 +62,10 @@ export function calculateReserveSplit(input: ChargeReserveInput): ChargeReserveS
   const excluded = Math.min(grossAmountCents, tipAmountCents + nonTaxableAmountCents);
   const taxableBaseCents = grossAmountCents - excluded;
 
-  const taxReserveCents = Math.round(taxableBaseCents * TAX_RESERVE_RATE);
+  // taxableBaseCents es tax-inclusive (viene de un total ya cobrado con
+  // impuestos adentro), así que se extrae el impuesto con la tasa
+  // "de adentro hacia afuera", no la tasa aditiva.
+  const taxReserveCents = Math.round(taxableBaseCents * TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL);
   const operationalAmountCents = grossAmountCents - taxReserveCents;
 
   return {
@@ -61,7 +75,7 @@ export function calculateReserveSplit(input: ChargeReserveInput): ChargeReserveS
     taxableBaseCents,
     taxReserveCents,
     operationalAmountCents,
-    reserveRate: TAX_RESERVE_RATE,
+    reserveRate: TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL,
   };
 }
 

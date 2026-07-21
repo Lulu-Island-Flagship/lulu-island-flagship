@@ -9,6 +9,7 @@ import {
   evaluateCaptureEligibility,
   type OrderClaimForCaptureDecision,
 } from "@/lib/batch-capture-eligibility";
+import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
 
 /**
  * POST /api/cron/batch-capture-retry
@@ -45,6 +46,8 @@ interface OrderRow {
   hold_captured_at: string | null;
   paypal_advance_amount: number;
   capture_attempts: number;
+  capture_force_full_by: string | null;
+  wallet_amount_used: number | null;
   quotes: { total: number }[] | null;
 }
 
@@ -124,6 +127,16 @@ export async function GET(request: NextRequest) {
     .single();
   const cashReserveEnabled = !!cashReserveFlag?.activo;
 
+  // Fix B-P0-5 (auditoría 2026-07-21): batch-capture (7PM) exporta a QBO;
+  // este retry (10PM) nunca lo hacía, dejando cobros reales sin línea
+  // contable si fallaban a las 7PM y se cobraban recién en el reintento.
+  const { data: qboFlag } = await supabase
+    .from("feature_flags")
+    .select("activo")
+    .eq("nombre", "qbo_export_enabled")
+    .single();
+  const qboEnabled = !!qboFlag?.activo;
+
   // v8.3 AUDITORÍA RESERVA→DINERO→RESEÑA: hallazgo real. batch-capture (7PM)
   // re-evalúa evaluateCaptureEligibility antes de cobrar y excluye una orden
   // con disputa crítica documentada (B.2.2/B.2.18); este retry de las 10PM
@@ -145,11 +158,15 @@ export async function GET(request: NextRequest) {
     const { data: orders, error } = await supabase
       .from("orders")
       .select(
-        "id, quote_id, user_id, payment_option, stripe_hold_payment_intent_id, stripe_customer_id, stripe_payment_method_id, hold_amount, hold_authorized_amount, paypal_advance_amount, capture_attempts, quotes(total)"
+        "id, quote_id, user_id, payment_option, stripe_hold_payment_intent_id, stripe_customer_id, stripe_payment_method_id, hold_amount, hold_authorized_amount, paypal_advance_amount, capture_attempts, capture_force_full_by, wallet_amount_used, quotes(total)"
       )
       .eq("service_date", todayStr)
       .eq("status", "completed")
       .not("status", "in", "(cancelled,no_show)")
+      // Fix B-P0-1 (auditoría 2026-07-21): batch-capture (7PM) excluye las
+      // órdenes ya force-capturadas por un admin; este retry no lo hacía y
+      // volvía a cobrar el total completo — doble cobro real. Mismo filtro.
+      .is("capture_force_full_by", null)
       .gte("capture_attempts", 1)
       .lt("capture_attempts", MAX_ATTEMPTS)
       .order("service_datetime", { ascending: true });
@@ -186,8 +203,15 @@ export async function GET(request: NextRequest) {
     for (const order of (orders as unknown as OrderRow[]) || []) {
       results.processed++;
 
-      const quoteTotal = Math.round(Number(order.quotes?.[0]?.total ?? 0));
-      if (quoteTotal <= 0) {
+      // Fix B-P0-5 (auditoría 2026-07-21): batch-capture (7PM) descuenta el
+      // crédito de billetera aplicado (orders.wallet_amount_used, dólares)
+      // ANTES de calcular Hold/saldo; este retry no lo hacía, cobrando por
+      // Stripe el total completo de nuevo aunque el cliente ya hubiera
+      // cubierto parte con su wallet (sobrecobro real). Mismo cálculo.
+      const quoteTotalBeforeWallet = Math.round(Number(order.quotes?.[0]?.total ?? 0));
+      const walletAppliedDollars = Math.max(0, order.wallet_amount_used || 0);
+      const quoteTotal = Math.max(0, quoteTotalBeforeWallet - walletAppliedDollars);
+      if (quoteTotalBeforeWallet <= 0) {
         results.errors.push({ orderId: order.id, error: "Missing quote total" });
         continue;
       }
@@ -252,9 +276,11 @@ export async function GET(request: NextRequest) {
             }
             const holdPi = await stripe.paymentIntents.retrieve(order.stripe_hold_payment_intent_id);
             if (holdPi.status === "requires_capture") {
-              await stripe.paymentIntents.capture(order.stripe_hold_payment_intent_id, {
-                amount_to_capture: holdAmount * 100,
-              });
+              await stripe.paymentIntents.capture(
+                order.stripe_hold_payment_intent_id,
+                { amount_to_capture: holdAmount * 100 },
+                { idempotencyKey: `${order.id}:batch-capture-retry-hold` }
+              );
             } else if (holdPi.status !== "succeeded") {
               throw new Error(`Hold PaymentIntent status: ${holdPi.status}`);
             }
@@ -266,23 +292,26 @@ export async function GET(request: NextRequest) {
             if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
               throw new Error("Missing customer or payment method for balance charge");
             }
-            const balancePi = await stripe.paymentIntents.create({
-              amount: balanceAmount * 100,
-              currency: "cad",
-              customer: order.stripe_customer_id,
-              payment_method: order.stripe_payment_method_id,
-              payment_method_types: ["card"],
-              capture_method: "automatic",
-              confirm: true,
-              off_session: true,
-              description: `Balance retry (10PM) for order ${order.id}`,
-              metadata: {
-                order_id: order.id,
-                quote_id: order.quote_id,
-                user_id: order.user_id,
-                charge_type: "balance_retry_10pm",
+            const balancePi = await stripe.paymentIntents.create(
+              {
+                amount: balanceAmount * 100,
+                currency: "cad",
+                customer: order.stripe_customer_id,
+                payment_method: order.stripe_payment_method_id,
+                payment_method_types: ["card"],
+                capture_method: "automatic",
+                confirm: true,
+                off_session: true,
+                description: `Balance retry (10PM) for order ${order.id}`,
+                metadata: {
+                  order_id: order.id,
+                  quote_id: order.quote_id,
+                  user_id: order.user_id,
+                  charge_type: "balance_retry_10pm",
+                },
               },
-            });
+              { idempotencyKey: `${order.id}:batch-capture-retry-balance` }
+            );
             if (balancePi.status !== "succeeded") {
               throw new Error(`Balance PaymentIntent status: ${balancePi.status}`);
             }
@@ -300,30 +329,55 @@ export async function GET(request: NextRequest) {
             if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
               throw new Error("Missing card registration for PayPal order balance charge");
             }
-            const balancePi = await stripe.paymentIntents.create({
-              amount: balanceAmount * 100,
-              currency: "cad",
-              customer: order.stripe_customer_id,
-              payment_method: order.stripe_payment_method_id,
-              payment_method_types: ["card"],
-              capture_method: "automatic",
-              confirm: true,
-              off_session: true,
-              description: `PayPal balance retry (10PM) for order ${order.id}`,
-              metadata: {
-                order_id: order.id,
-                quote_id: order.quote_id,
-                user_id: order.user_id,
-                charge_type: "paypal_balance_retry_10pm",
-                paypal_advance: paypalAdvance,
+            const balancePi = await stripe.paymentIntents.create(
+              {
+                amount: balanceAmount * 100,
+                currency: "cad",
+                customer: order.stripe_customer_id,
+                payment_method: order.stripe_payment_method_id,
+                payment_method_types: ["card"],
+                capture_method: "automatic",
+                confirm: true,
+                off_session: true,
+                description: `PayPal balance retry (10PM) for order ${order.id}`,
+                metadata: {
+                  order_id: order.id,
+                  quote_id: order.quote_id,
+                  user_id: order.user_id,
+                  charge_type: "paypal_balance_retry_10pm",
+                  paypal_advance: paypalAdvance,
+                },
               },
-            });
+              { idempotencyKey: `${order.id}:batch-capture-retry-paypal-balance` }
+            );
             if (balancePi.status !== "succeeded") {
               throw new Error(`PayPal balance PaymentIntent status: ${balancePi.status}`);
             }
             payments.balance = balancePi.id;
             amountCharged += balanceAmount;
           }
+        }
+
+        // Stripe fee aproximada para QBO (2.9% + 0.30 CAD) — mismo cálculo
+        // que batch-capture.
+        const stripeFeeCents = Math.round(amountCharged * 100 * 0.029 + 30);
+
+        // Fix B-P0-5 (auditoría 2026-07-21): batch-capture escribe el cobro
+        // real en shadow_ledger_entries antes/en paralelo a QBO; este retry
+        // no lo hacía, dejando cobros reales sin registro contable interno.
+        if (amountCharged > 0) {
+          await supabase.from("shadow_ledger_entries").insert(
+            buildShadowLedgerEntry({
+              eventType: "balance_captured",
+              orderId: order.id,
+              userId: order.user_id,
+              amountCents: amountCharged * 100,
+              processor: "stripe",
+              externalReference: payments.balance || payments.hold || null,
+              occurredAt: new Date(),
+              metadata: { payment_option: order.payment_option, source: "batch_capture_retry" },
+            })
+          );
         }
 
         await supabase
@@ -333,13 +387,37 @@ export async function GET(request: NextRequest) {
             stripe_capture_payment_intent_id: payments.balance || null,
             capture_captured_at: payments.balance ? new Date().toISOString() : null,
             capture_authorized_amount: amountCharged,
-            total_paid: amountCharged + (order.payment_option === "paypal_first_time" ? order.paypal_advance_amount : 0),
+            total_paid:
+              amountCharged +
+              walletAppliedDollars +
+              (order.payment_option === "paypal_first_time" ? order.paypal_advance_amount : 0),
             card_amount_charged: amountCharged,
             capture_attempts: 0,
             capture_last_error: null,
             updated_at: new Date().toISOString(),
           })
           .eq("id", order.id);
+
+        // Fix B-P0-5 (auditoría 2026-07-21): batch-capture exporta a QBO con
+        // upsert idempotente por (order_id, transaction_type); este retry no
+        // lo hacía, dejando el cobro invisible para contabilidad si fallaba
+        // a las 7PM y se cobraba recién en el reintento de las 10PM.
+        if (qboEnabled && amountCharged > 0) {
+          await supabase.from("qbo_export_lines").upsert(
+            {
+              export_id: null,
+              order_id: order.id,
+              payment_intent_id: payments.balance || payments.hold || null,
+              transaction_type: "capture",
+              transaction_date: new Date().toISOString(),
+              gross_amount: amountCharged * 100,
+              fee_amount: stripeFeeCents,
+              net_amount: amountCharged * 100 - stripeFeeCents,
+              description: `Capture retry order ${order.id}`,
+            },
+            { onConflict: "order_id,transaction_type" }
+          );
+        }
 
         if (chargebackEnabled && amountCharged > 0) {
           const { data: settings } = await supabase

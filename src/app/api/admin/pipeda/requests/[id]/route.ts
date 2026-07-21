@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole } from "@/lib/admin";
+import { requireAdminRole, getServiceRoleClient } from "@/lib/admin";
 import { computePurgeEligibleAt } from "@/lib/pipeda";
 
 /**
@@ -14,10 +14,24 @@ import { computePurgeEligibleAt } from "@/lib/pipeda";
  *   cierra el ticket de la solicitud, para no duplicar lógica de edición
  *   de perfil que ya existe en otra parte).
  * - deletion: status -> completed dispara el soft-delete real de
- *   client_profiles (deleted_at) + fija `purge_eligible_at` a hoy + 2 años
- *   de retención fiscal (E9.9/E9.12). El purge físico NO ocurre aquí --
- *   necesitaría un job aparte que respete `purge_eligible_at` en todas las
- *   tablas relacionadas, fuera de alcance de este endpoint.
+ *   client_profiles + profiles + orders + quotes + client_properties +
+ *   communication_log (deleted_at) + fija `purge_eligible_at` a hoy + 2 años
+ *   de retención fiscal (E9.9/E9.12).
+ *
+ *   v8.3 fix E-B5 (auditoría RBAC/compliance 2026-07-21): antes esto SOLO
+ *   tocaba client_profiles, dejando el resto de tablas con PII intactas --
+ *   "cumplimiento aparente" según el hallazgo. Se amplía a las tablas que
+ *   SÍ tienen `deleted_at` (migración 039 + 212) y una relación directa con
+ *   el titular. Límites de alcance que siguen sin resolver aquí, a
+ *   propósito, documentados y no simulados:
+ *     - `wallet_transactions` es inmutable (Grupo B, sin `deleted_at`) --
+ *       registro contable, no se toca.
+ *     - Fotos en Supabase Storage: este endpoint solo toca Postgres, no
+ *       hace llamadas a Storage.
+ *     - El purge FÍSICO (más allá de deleted_at) NO ocurre aquí ni en
+ *       ningún cron existente hoy -- `purge_eligible_at` se escribe pero
+ *       ningún job lo consume todavía (fuera de alcance de este endpoint;
+ *       requeriría un cron nuevo).
  * - denied: cualquier tipo, con `denialReason` obligatorio.
  */
 export async function PATCH(
@@ -100,12 +114,62 @@ export async function PATCH(
         const purgeEligibleAt = computePurgeEligibleAt(new Date());
         updatePayload.purge_eligible_at = purgeEligibleAt.toISOString();
 
-        // Soft delete real del perfil, invariante universal del sistema
-        // (deleted_at + trigger prevent_hard_delete en todas las tablas).
-        await supabase
+        // v8.3 fix E-B5: cascada de soft-delete real sobre todas las tablas
+        // con `deleted_at` y una relación directa al titular -- antes solo
+        // se tocaba client_profiles. Se usa el cliente de service role: NI
+        // orders, NI quotes, NI profiles, NI client_properties tienen una
+        // política UPDATE que permita a un admin (ni siquiera owner_admin)
+        // tocar la fila de OTRO usuario -- solo "auth.uid() = user_id" (ver
+        // 001/019). Bajo el cliente RLS de la sesión del admin este UPDATE
+        // afectaría 0 filas SIN error, dejando el "borrado" en apariencia
+        // otra vez. requireAdminRole() ya autorizó el recurso "compliance"
+        // (solo owner_admin) y dejó rastro en admin_action_logs -- mismo
+        // patrón que /api/admin/access-recovery/route.ts. Cada UPDATE es
+        // independiente y no bloqueante entre sí (si una falla, las demás
+        // igual se intentan) para no dejar el borrado a medias por un solo
+        // error de una tabla secundaria; el resultado se agrega y se
+        // reporta.
+        const serviceClient = getServiceRoleClient();
+        if (!serviceClient) {
+          return NextResponse.json(
+            { error: "PIPEDA deletion cascade is not configured on this environment (service role missing)" },
+            { status: 500 }
+          );
+        }
+
+        const { data: clientProfile } = await serviceClient
           .from("client_profiles")
-          .update({ deleted_at: nowIso })
-          .eq("user_id", reqRow.client_user_id);
+          .select("id")
+          .eq("user_id", reqRow.client_user_id)
+          .maybeSingle();
+
+        const cascadeResults = await Promise.allSettled([
+          serviceClient.from("client_profiles").update({ deleted_at: nowIso }).eq("user_id", reqRow.client_user_id),
+          serviceClient.from("profiles").update({ deleted_at: nowIso }).eq("id", reqRow.client_user_id),
+          serviceClient.from("orders").update({ deleted_at: nowIso }).eq("user_id", reqRow.client_user_id).is("deleted_at", null),
+          serviceClient.from("quotes").update({ deleted_at: nowIso }).eq("user_id", reqRow.client_user_id).is("deleted_at", null),
+          serviceClient.from("communication_log").update({ deleted_at: nowIso }).eq("user_id", reqRow.client_user_id).is("deleted_at", null),
+          ...(clientProfile
+            ? [
+                serviceClient
+                  .from("client_properties")
+                  .update({ deleted_at: nowIso })
+                  .eq("client_profile_id", clientProfile.id)
+                  .is("deleted_at", null),
+              ]
+            : []),
+        ]);
+
+        const cascadeErrors = cascadeResults
+          .map((r, i) => (r.status === "fulfilled" && r.value.error ? { i, message: r.value.error.message } : null))
+          .filter((x): x is { i: number; message: string } => x !== null);
+        if (cascadeErrors.length > 0) {
+          // No se aborta la solicitud por esto -- client_profiles (el soft
+          // delete "central") ya se intentó igual que el resto, y el admin
+          // necesita poder cerrar el ticket dentro del SLA de 48h aunque una
+          // tabla secundaria falle. Se deja rastro en la respuesta.
+          updatePayload.correction_details = `[E-B5] Cascada de borrado con errores parciales: ${JSON.stringify(cascadeErrors)}`;
+        }
       }
 
       const { data: updated, error } = await supabase

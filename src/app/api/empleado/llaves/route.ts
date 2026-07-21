@@ -33,6 +33,27 @@ export async function GET(request: NextRequest) {
   const orderId = searchParams.get("orderId");
   if (!orderId) return NextResponse.json({ error: "orderId requerido" }, { status: 400 });
 
+  // v8.3 fix C-H4 (auditoría RBAC 2026-07-21): este GET expone
+  // lockbox_code -- el código de acceso físico a la vivienda del cliente.
+  // Antes no comprobaba que el empleado estuviera asignado a la orden (solo
+  // "salvado por accidente" por una policy RLS de supervisores que no cubre
+  // a un empleado raso). Mismo patrón de verificación de assignments que
+  // /api/empleado/upsells/route.ts.
+  const { data: employee } = await supabase.from("employees").select("id").eq("user_id", user.id).single();
+  if (!employee) return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
+
+  const { data: assignment, error: assignError } = await supabase
+    .from("assignments")
+    .select("id")
+    .is("deleted_at", null)
+    .eq("order_id", orderId)
+    .eq("employee_id", employee.id)
+    .single();
+
+  if (assignError || !assignment) {
+    return NextResponse.json({ error: "No assignment found for this service" }, { status: 403 });
+  }
+
   const { data, error } = await supabase
     .from("key_handling_log")
     .select("id, method, lockbox_code, confirmed_returned, signature_url, closing_photo_url, escalated_at, escalation_resolved_as, created_at")
@@ -62,6 +83,22 @@ export async function POST(request: NextRequest) {
 
     if (!orderId || !method) {
       return NextResponse.json({ error: "orderId y method son requeridos" }, { status: 400 });
+    }
+
+    // v8.3 fix C-H4: sin esto, cualquier empleado autenticado podía
+    // insertar un registro de manejo de llaves (incluido lockbox_code) para
+    // una orden ajena -- explotable hoy, sin protección RLS de por medio en
+    // el INSERT. Mismo patrón que /api/empleado/upsells/route.ts.
+    const { data: assignment, error: assignError } = await supabase
+      .from("assignments")
+      .select("id")
+      .is("deleted_at", null)
+      .eq("order_id", orderId)
+      .eq("employee_id", employee.id)
+      .single();
+
+    if (assignError || !assignment) {
+      return NextResponse.json({ error: "No assignment found for this service" }, { status: 403 });
     }
 
     // "problem" no exige campos (se resuelve por escalacion), el resto si.

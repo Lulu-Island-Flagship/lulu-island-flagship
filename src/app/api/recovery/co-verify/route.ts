@@ -52,6 +52,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  // v8.3 fix C-H9 (auditoría RBAC 2026-07-21): X-Forwarded-For lo controla el
+  // cliente (cualquiera puede mandar un valor distinto en cada request), así
+  // que este límite por IP es una mitigación débil, no una garantía -- no
+  // existe en este repo ninguna cabecera de IP más confiable inyectada por
+  // la plataforma (se buscó `x-vercel-ip-*`/`cf-connecting-ip`: ninguna
+  // ruta la usa hoy). Como mitigación adicional, se añade abajo un segundo
+  // límite por `requestId`, que el cliente NO puede falsificar (es un UUID
+  // que solo conoce quien ya pasó por /api/recovery/verify) y que no se
+  // resetea por cambiar de IP.
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip") ||
@@ -66,6 +75,17 @@ export async function POST(request: NextRequest) {
 
   if (!body.requestId || typeof body.requestId !== "string") {
     return NextResponse.json({ error: "requestId is required" }, { status: 400 });
+  }
+
+  // Segundo límite, por requestId, difícil de falsificar (ver comentario
+  // arriba). Comparte presupuesto entre "request" y "confirm" para esta
+  // solicitud concreta.
+  const { data: requestIdRateLimitData } = await serviceClient.rpc("check_rate_limit", {
+    p_ip_address: `access-recovery-co-verify-request:${body.requestId}`,
+    p_max_requests: 10,
+  });
+  if (requestIdRateLimitData && requestIdRateLimitData[0]?.allowed === false) {
+    return NextResponse.json({ error: "Too many attempts. Try again later." }, { status: 429 });
   }
 
   const { data: reqRow } = await serviceClient
@@ -102,6 +122,27 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // v8.3 fix C-H9: antes esto ponía co_verification_attempts en 0 en CADA
+    // llamada a "request", así que un atacante podía pedir un código nuevo
+    // cada vez que se le acababan los MAX_VERIFICATION_ATTEMPTS del anterior
+    // -- fuerza bruta sin techo real sobre el código corto. Ahora el
+    // contador solo se reinicia si no había código vigente (primera vez) o
+    // si el código anterior ya expiró; si el código anterior sigue vigente
+    // y ya se agotaron los intentos, se rechaza la petición de uno nuevo en
+    // vez de regalar un presupuesto de intentos fresco.
+    const hadPriorCode = Boolean(reqRow.co_verification_code_hash);
+    const priorCodeStillValid = hadPriorCode && !isExpired(reqRow.co_verification_code_expires_at);
+
+    if (priorCodeStillValid && reqRow.co_verification_attempts >= MAX_VERIFICATION_ATTEMPTS) {
+      await logRecoveryAuditEvent(serviceClient, {
+        requestId: reqRow.id,
+        eventType: "co_verification_failed",
+        actorType: "successor",
+        detail: "Nuevo código de co-verificación denegado: código vigente ya agotó sus intentos",
+      });
+      return NextResponse.json({ error: "Too many attempts. Try again later." }, { status: 429 });
+    }
+
     const code = generateVerificationCode();
     const { error: updateError } = await serviceClient
       .from("access_recovery_requests")
@@ -109,7 +150,7 @@ export async function POST(request: NextRequest) {
         co_verifier_successor_id: successor.id,
         co_verification_code_hash: hashVerificationCode(code),
         co_verification_code_expires_at: verificationCodeExpiryIso(),
-        co_verification_attempts: 0,
+        co_verification_attempts: priorCodeStillValid ? reqRow.co_verification_attempts : 0,
       })
       .eq("id", reqRow.id)
       .eq("status", "verified_pending_approval");

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { refundPayPalCapture } from "@/lib/paypal";
+import { publishUnifiedAlert } from "@/lib/unified-alerts";
+import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
 
 /**
  * POST /api/cron/paypal-refunds
@@ -58,22 +61,66 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      // TODO: integrar POST /v2/payments/captures/{captureId}/refund con PayPal SDK.
-      // Mientras tanto, marcamos como pending y registramos el intento para revisión manual.
-      console.log(
-        `[paypal-refund] Order ${order.id}: refund $${order.paypal_advance_amount} for tx ${order.paypal_transaction_id}`
+      // Fix B-P2-3 (auditoría 2026-07-21): antes esto era un TODO permanente
+      // — nunca reembolsaba nada, solo console.log, y reescribía "failed" a
+      // "pending" en cada corrida borrando la evidencia del fallo anterior.
+      // Ahora llama de verdad a la API de reembolsos de PayPal
+      // (src/lib/paypal.ts::refundPayPalCapture) y, si falla, deja el estado
+      // en "failed" (no "pending") + una alerta unificada para que un humano
+      // se entere, en vez de fallar en silencio para siempre.
+      const refundResult = await refundPayPalCapture(
+        order.paypal_transaction_id,
+        Number(order.paypal_advance_amount),
+        "Reembolso por cancelación de servicio Lulu Island"
       );
 
-      await supabase
-        .from("orders")
-        .update({
-          paypal_refund_status: "pending",
-          paypal_refund_notes: `Refund of $${order.paypal_advance_amount} pending PayPal API integration`,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", order.id);
+      if (refundResult.success) {
+        await supabase
+          .from("orders")
+          .update({
+            paypal_refund_status: "refunded",
+            paypal_refund_id: refundResult.refundId ?? null,
+            paypal_refund_notes: `Refunded $${order.paypal_advance_amount} — PayPal refund ${refundResult.refundId ?? "n/a"} (${refundResult.status ?? "unknown"})`,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", order.id);
 
-      results.push({ orderId: order.id, status: "pending" });
+        await supabase.from("shadow_ledger_entries").insert(
+          buildShadowLedgerEntry({
+            eventType: "warranty_refund",
+            orderId: order.id,
+            userId: order.user_id,
+            amountCents: -Math.round(Number(order.paypal_advance_amount) * 100),
+            processor: "paypal",
+            externalReference: refundResult.refundId ?? order.paypal_transaction_id,
+            occurredAt: new Date(),
+            metadata: { source: "cron_paypal_refunds" },
+          })
+        );
+
+        results.push({ orderId: order.id, status: "refunded" });
+      } else {
+        await supabase
+          .from("orders")
+          .update({
+            paypal_refund_status: "failed",
+            paypal_refund_notes: `Refund attempt failed: ${refundResult.error}`,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", order.id);
+
+        await publishUnifiedAlert(supabase, {
+          sourceModule: "paypal_refunds_cron",
+          sourceTable: "orders",
+          sourceId: order.id,
+          tier: "respond_10min",
+          severity: "p1_urgent",
+          title: "PayPal refund failed — requires manual intervention",
+          summary: `Order ${order.id}: refund of $${order.paypal_advance_amount} for PayPal tx ${order.paypal_transaction_id} failed: ${refundResult.error}`,
+        });
+
+        results.push({ orderId: order.id, status: "failed", error: refundResult.error });
+      }
     }
 
     return NextResponse.json(

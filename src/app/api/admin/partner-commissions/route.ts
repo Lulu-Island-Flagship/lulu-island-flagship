@@ -66,11 +66,56 @@ export async function POST(request: NextRequest) {
 
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("user_id")
+      .select("user_id, quote_id, quotes(total)")
       .eq("id", body.orderId)
       .single();
     if (orderError || !order) {
       return NextResponse.json({ error: "Orden no encontrada" }, { status: 404 });
+    }
+
+    // B-P5-1 fix (auditoría 2026-07-21): antes se confiaba orderValueCents
+    // tal cual venía en el body, sin compararlo contra el valor real de la
+    // orden -- un admin (o un cliente que interceptara la llamada si el
+    // rol se relajara) podía calcular una comisión de $149,999.98 sobre
+    // una orden de $373 con el mismo endpoint. Se valida contra
+    // quotes.total (fuente de verdad, en dólares con centavos) con
+    // tolerancia de 1 centavo por redondeo.
+    const quoteTotalCents = Math.round(
+      Number((order.quotes as unknown as { total: number }[] | null)?.[0]?.total ?? 0) * 100
+    );
+    if (quoteTotalCents <= 0) {
+      return NextResponse.json(
+        { error: "No se pudo verificar el valor real de la orden (cotización no encontrada)" },
+        { status: 400 }
+      );
+    }
+    if (Math.abs(body.orderValueCents - quoteTotalCents) > 1) {
+      return NextResponse.json(
+        {
+          error: `orderValueCents (${body.orderValueCents}) no coincide con el total real de la orden (${quoteTotalCents} cents)`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Evita comisión duplicada para el mismo (partner, orden): no hay
+    // restricción UNIQUE en base de datos sobre partner_commissions, así
+    // que se comprueba aquí antes de insertar. Sigue existiendo una
+    // ventana de carrera entre este SELECT y el INSERT de abajo (no hay
+    // compare-and-swap real sin la restricción UNIQUE a nivel de DB), pero
+    // cierra el caso de uso normal de doble clic / doble submit del panel.
+    const { data: existingCommission } = await supabase
+      .from("partner_commissions")
+      .select("id")
+      .eq("partner_id", body.partnerId)
+      .eq("order_id", body.orderId)
+      .is("deleted_at", null)
+      .limit(1);
+    if (existingCommission && existingCommission.length > 0) {
+      return NextResponse.json(
+        { error: "Ya existe una comisión calculada para este partner y esta orden" },
+        { status: 409 }
+      );
     }
 
     let isFirstBooking = false;
@@ -103,7 +148,15 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      if (error.code === "23505") {
+        return NextResponse.json(
+          { error: "Ya existe una comisión calculada para este partner y esta orden" },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
     return NextResponse.json({ partnerCommission: data, commission }, { status: 201 });
   }
 

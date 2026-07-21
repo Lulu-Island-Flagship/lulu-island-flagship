@@ -57,6 +57,41 @@ export async function POST(request: NextRequest) {
 
     const eventType = action === "start" ? "jornada_start" : "jornada_end";
 
+    // v8.3 auditoría 2026-07-21 (D-P1-1): la jornada no tenía máquina de
+    // estados -- nada comprobaba el último evento antes de insertar uno
+    // nuevo, permitiendo doble 'start' sin 'end' previo, 'end' sin
+    // 'start' abierto, o jornadas abiertas indefinidamente. Se consulta
+    // el último evento de jornada (order_id IS NULL) de este empleado y
+    // se rechaza la transición inválida.
+    const { data: lastJornadaEvent, error: lastEventError } = await supabase
+      .from("service_logs")
+      .select("event_type, timestamp")
+      .eq("employee_id", employee.id)
+      .is("order_id", null)
+      .in("event_type", ["jornada_start", "jornada_end"])
+      .order("timestamp", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lastEventError) {
+      return NextResponse.json({ error: lastEventError.message }, { status: 500 });
+    }
+
+    const lastEventType = lastJornadaEvent?.event_type ?? null;
+
+    if (action === "start" && lastEventType === "jornada_start") {
+      return NextResponse.json(
+        { error: "Ya hay una jornada abierta. Debes cerrarla (end) antes de iniciar otra." },
+        { status: 409 }
+      );
+    }
+    if (action === "end" && lastEventType !== "jornada_start") {
+      return NextResponse.json(
+        { error: "No hay una jornada abierta para cerrar. Debes iniciar (start) primero." },
+        { status: 409 }
+      );
+    }
+
     // v8.3 E4 fix (auditoría 2026-07-18) — inicio de jornada guardaba
     // lat/lng sin comparar contra ninguna referencia: un empleado podía
     // "iniciar jornada" desde cualquier lugar del mundo sin que quedara

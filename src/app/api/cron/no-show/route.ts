@@ -83,23 +83,26 @@ async function captureNoShowPenalty(
       if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
         throw new Error("Missing card registration for PayPal no-show penalty");
       }
-      const penaltyPi = await stripe.paymentIntents.create({
-        amount: penaltyDue * 100,
-        currency: "cad",
-        customer: order.stripe_customer_id,
-        payment_method: order.stripe_payment_method_id,
-        payment_method_types: ["card"],
-        capture_method: "automatic",
-        confirm: true,
-        off_session: true,
-        description: `No-show penalty for PayPal order ${order.id}`,
-        metadata: {
-          order_id: order.id,
-          quote_id: order.quote_id,
-          user_id: order.user_id,
-          charge_type: "paypal_no_show_penalty",
+      const penaltyPi = await stripe.paymentIntents.create(
+        {
+          amount: penaltyDue * 100,
+          currency: "cad",
+          customer: order.stripe_customer_id,
+          payment_method: order.stripe_payment_method_id,
+          payment_method_types: ["card"],
+          capture_method: "automatic",
+          confirm: true,
+          off_session: true,
+          description: `No-show penalty for PayPal order ${order.id}`,
+          metadata: {
+            order_id: order.id,
+            quote_id: order.quote_id,
+            user_id: order.user_id,
+            charge_type: "paypal_no_show_penalty",
+          },
         },
-      });
+        { idempotencyKey: `${order.id}:no-show-paypal-penalty` }
+      );
       if (penaltyPi.status !== "succeeded") {
         throw new Error(`PayPal no-show penalty PaymentIntent status: ${penaltyPi.status}`);
       }
@@ -130,9 +133,11 @@ async function captureNoShowPenalty(
       }
       const holdPi = await stripe.paymentIntents.retrieve(order.stripe_hold_payment_intent_id);
       if (holdPi.status === "requires_capture") {
-        await stripe.paymentIntents.capture(order.stripe_hold_payment_intent_id, {
-          amount_to_capture: holdAmount * 100,
-        });
+        await stripe.paymentIntents.capture(
+          order.stripe_hold_payment_intent_id,
+          { amount_to_capture: holdAmount * 100 },
+          { idempotencyKey: `${order.id}:no-show-hold-capture` }
+        );
       } else if (holdPi.status !== "succeeded") {
         throw new Error(`Hold PaymentIntent status: ${holdPi.status}`);
       }
