@@ -12,6 +12,15 @@ import { Check, Loader2, Plus } from "lucide-react";
  * zonas base (cocina, baño, sala...) ya están en el precio y nunca
  * aparecen aquí. Si no hay ninguna zona add-on configurada, el paso no
  * renderiza nada (el wizard lo salta).
+ *
+ * Fix (2026-07-24): ese "el wizard lo salta" nunca estaba implementado --
+ * page.tsx solo hacía stepIndex+1/-1 sin ningún chequeo, así que un cliente
+ * cuyo service_subtype no tiene zonas add-on configuradas se topaba con un
+ * paso completo cuyo único contenido era "Nothing extra needed", sin poder
+ * agregar nada de verdad y sin saber si eso era normal o un error. Ahora
+ * este componente avisa al padre vía onEmpty cuando la carga termina sin
+ * zonas, y page.tsx salta el paso en la misma dirección en la que se venía
+ * navegando.
  */
 
 interface AddonZoneOption {
@@ -25,9 +34,11 @@ interface StepAddonZonesProps {
   targetHourlyRate: number;
   selected: string[];
   onChange: (zones: string[]) => void;
+  /** Se llama una sola vez, tras confirmar que no hay zonas add-on para este service_subtype. */
+  onEmpty?: () => void;
 }
 
-export function StepAddonZones({ serviceSubtype, targetHourlyRate, selected, onChange }: StepAddonZonesProps) {
+export function StepAddonZones({ serviceSubtype, targetHourlyRate, selected, onChange, onEmpty }: StepAddonZonesProps) {
   const t = useTranslations("cotizador.addonZones");
   const [options, setOptions] = useState<AddonZoneOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +54,10 @@ export function StepAddonZones({ serviceSubtype, targetHourlyRate, selected, onC
     fetch(`/api/quote/addon-zones?serviceSubtype=${encodeURIComponent(serviceSubtype)}`)
       .then((res) => (res.ok ? res.json() : { zones: [] }))
       .then((data) => {
-        if (!cancelled) setOptions(data.zones || []);
+        if (cancelled) return;
+        const zones = data.zones || [];
+        setOptions(zones);
+        if (zones.length === 0) onEmpty?.();
       })
       .catch(() => {
         if (!cancelled) setOptions([]);
@@ -54,6 +68,7 @@ export function StepAddonZones({ serviceSubtype, targetHourlyRate, selected, onC
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onEmpty es estable por render (definido inline en page.tsx con setStepIndex), incluirlo re-dispararía el efecto en cada render del padre
   }, [serviceSubtype]);
 
   const toggle = (zone: string) => {

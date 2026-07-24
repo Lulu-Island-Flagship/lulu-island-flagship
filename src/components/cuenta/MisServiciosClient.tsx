@@ -19,6 +19,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { StatusBanner } from "./StatusBanner";
 import { Skeleton, SkeletonServiceList } from "@/components/ui/Skeleton";
+import { AuthModal } from "@/components/cotizador/AuthModal";
 
 interface ClaimableZone {
   zone: string;
@@ -74,6 +75,14 @@ export default function MisServiciosClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [claimingOrderId, setClaimingOrderId] = useState<string | null>(null);
+  // Fix (2026-07-24): este era el destino real del link "Iniciar sesión" de
+  // la página principal, pero el componente nunca comprobaba si había
+  // sesión -- sin login, /api/client/orders devuelve 401 y eso se mostraba
+  // como un StatusBanner de error genérico ("Unauthorized"/"loadFailed"),
+  // nunca como un formulario de login. El enlace de autenticación de
+  // clientes, en la práctica, no llevaba a ningún lado. Mismo patrón de
+  // fix ya aplicado esta sesión en encuesta/[token] y nps/[token].
+  const [needsAuth, setNeedsAuth] = useState(false);
 
   useEffect(() => {
     loadAll();
@@ -83,11 +92,25 @@ export default function MisServiciosClient() {
     setLoading(true);
     setError("");
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setNeedsAuth(true);
+        setLoading(false);
+        return;
+      }
+      setNeedsAuth(false);
+
       const [ordersRes, claimsRes] = await Promise.all([
         fetch("/api/client/orders", { credentials: "include" }),
         fetch("/api/client/warranty-claims", { credentials: "include" }),
       ]);
       if (!ordersRes.ok) {
+        if (ordersRes.status === 401) {
+          setNeedsAuth(true);
+          return;
+        }
         const err = await ordersRes.json();
         setError(err.error || t("loadFailed"));
         return;
@@ -104,6 +127,19 @@ export default function MisServiciosClient() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (needsAuth) {
+    return (
+      <AuthModal
+        onClose={() => {
+          const locale = typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en";
+          const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+          window.location.href = `/${safeLocale}`;
+        }}
+        onSuccess={() => loadAll()}
+      />
+    );
   }
 
   if (loading) {

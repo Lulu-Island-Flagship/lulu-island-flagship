@@ -115,19 +115,7 @@
       "bathroomsTitle": "浴室数量",
       "bathroomsSubtitle": "全浴室和半浴室",
       "squareFeetTitle": "大约建筑面积",
-      "squareFeetSubtitle": "大致估算即可",
-      "bcAssessment": {
-        "button": "从BC Assessment获取建议",
-        "errorNoAddress": "请先输入地址以查询BC Assessment。",
-        "errorLookupFailed": "查询失败。",
-        "errorNetwork": "网络错误。",
-        "noSuggestion": "暂无建议数据",
-        "noSuggestionFallback": "请手动输入建筑面积。",
-        "suggested": "建议面积：{value} 平方英尺",
-        "confidence": "可信度：{level}。请在预订前务必核实。",
-        "use": "使用",
-        "ignore": "忽略"
-      }
+      "squareFeetSubtitle": "大致估算即可"
     },
     "addonZones": {
       "title": "还需要其他附加服务吗？",

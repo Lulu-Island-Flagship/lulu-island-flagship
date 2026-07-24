@@ -115,19 +115,7 @@
       "bathroomsTitle": "Salles de bain",
       "bathroomsSubtitle": "Salles de bain complètes et demi-salles de bain",
       "squareFeetTitle": "Superficie approximative",
-      "squareFeetSubtitle": "Une estimation approximative suffit",
-      "bcAssessment": {
-        "button": "Suggestion via BC Assessment",
-        "errorNoAddress": "Entrez d'abord une adresse pour effectuer une recherche BC Assessment.",
-        "errorLookupFailed": "La recherche a échoué.",
-        "errorNetwork": "Erreur réseau.",
-        "noSuggestion": "Aucune suggestion disponible",
-        "noSuggestionFallback": "Veuillez entrer la superficie manuellement.",
-        "suggested": "Suggéré : {value} pi²",
-        "confidence": "Fiabilité : {level}. Toujours vérifier avant de réserver.",
-        "use": "Utiliser",
-        "ignore": "Ignorer"
-      }
+      "squareFeetSubtitle": "Une estimation approximative suffit"
     },
     "addonZones": {
       "title": "Autre chose à ajouter?",

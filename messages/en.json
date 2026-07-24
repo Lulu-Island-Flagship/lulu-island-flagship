@@ -115,19 +115,7 @@
       "bathroomsTitle": "Bathrooms",
       "bathroomsSubtitle": "Full and half bathrooms",
       "squareFeetTitle": "Approximate Square Footage",
-      "squareFeetSubtitle": "Best estimate is fine",
-      "bcAssessment": {
-        "button": "Suggest from BC Assessment",
-        "errorNoAddress": "Enter an address first to search BC Assessment.",
-        "errorLookupFailed": "Lookup failed.",
-        "errorNetwork": "Network error.",
-        "noSuggestion": "No suggestion available",
-        "noSuggestionFallback": "Please enter square footage manually.",
-        "suggested": "Suggested: {value} ft²",
-        "confidence": "Confidence: {level}. Always verify before booking.",
-        "use": "Use",
-        "ignore": "Ignore"
-      }
+      "squareFeetSubtitle": "Best estimate is fine"
     },
     "addonZones": {
       "title": "Anything extra?",

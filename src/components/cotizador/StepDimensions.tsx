@@ -1,29 +1,18 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { useTranslations } from "next-intl";
-import { Minus, Plus, Ruler, Search, Check, X, AlertCircle, Loader2 } from "lucide-react";
+import { Minus, Plus, Ruler } from "lucide-react";
 
 interface StepDimensionsProps {
   bedrooms: number;
   bathrooms: number;
   squareFeet: number;
-  address?: string;
   onChange: (vals: { bedrooms: number; bathrooms: number; squareFeet: number }) => void;
 }
 
-interface BcAssessmentSuggestion {
-  squareFeet?: number;
-  source: string;
-  confidence: "high" | "medium" | "low" | "unavailable";
-  message?: string;
-}
-
-export function StepDimensions({ bedrooms, bathrooms, squareFeet, address, onChange }: StepDimensionsProps) {
+export function StepDimensions({ bedrooms, bathrooms, squareFeet, onChange }: StepDimensionsProps) {
   const t = useTranslations("cotizador.dimensions");
-  const [suggestion, setSuggestion] = useState<BcAssessmentSuggestion | null>(null);
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState("");
 
   const adjust = (key: "bedrooms" | "bathrooms", delta: number) => {
     const current = key === "bedrooms" ? bedrooms : bathrooms;
@@ -112,90 +101,16 @@ export function StepDimensions({ bedrooms, bathrooms, squareFeet, address, onCha
           <span className="font-semibold text-brand-ink text-lg">{squareFeet.toLocaleString()} ft²</span>
           <span>10,000 ft²</span>
         </div>
-
-        {/* BC Assessment suggestion */}
-        <div className="mt-5 pt-5 border-t border-gray-200">
-          <button
-            type="button"
-            onClick={async () => {
-              if (!address || address.trim().length === 0) {
-                setSearchError(t("bcAssessment.errorNoAddress"));
-                return;
-              }
-              setSearching(true);
-              setSearchError("");
-              setSuggestion(null);
-              try {
-                const res = await fetch(`/api/bc-assessment?address=${encodeURIComponent(address)}`);
-                const data = (await res.json()) as BcAssessmentSuggestion;
-                if (!res.ok) {
-                  setSearchError(t("bcAssessment.errorLookupFailed"));
-                  return;
-                }
-                setSuggestion(data);
-              } catch {
-                setSearchError(t("bcAssessment.errorNetwork"));
-              } finally {
-                setSearching(false);
-              }
-            }}
-            disabled={searching}
-            className="inline-flex items-center gap-2 rounded-lg border border-brand-wave-blue px-4 py-2 text-sm font-medium text-brand-wave-blue hover:bg-brand-wave-blue/5 disabled:opacity-60"
-          >
-            {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-            {t("bcAssessment.button")}
-          </button>
-
-          {searchError && (
-            <div className="mt-3 flex items-start gap-2 text-sm text-red-600">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              {searchError}
-            </div>
-          )}
-
-          {suggestion && (
-            <div className="mt-3 rounded-lg border border-brand-gold/30 bg-brand-gold/5 p-4">
-              {suggestion.confidence === "unavailable" || !suggestion.squareFeet ? (
-                <div className="flex items-start gap-2 text-sm text-gray-700">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
-                  <div>
-                    <p className="font-medium">{t("bcAssessment.noSuggestion")}</p>
-                    <p className="text-gray-500">{suggestion.message || t("bcAssessment.noSuggestionFallback")}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="text-sm">
-                    <p className="font-medium text-brand-ink">
-                      {t("bcAssessment.suggested", { value: suggestion.squareFeet.toLocaleString() })}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {t("bcAssessment.confidence", { level: suggestion.confidence })}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onChange({ bedrooms, bathrooms, squareFeet: suggestion.squareFeet || squareFeet })}
-                      className="inline-flex items-center gap-1 rounded-lg bg-brand-navy px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-navy/90"
-                    >
-                      <Check className="w-3 h-3" />
-                      {t("bcAssessment.use")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSuggestion(null)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      <X className="w-3 h-3" />
-                      {t("bcAssessment.ignore")}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        {/* Fix (2026-07-24): se quitó el botón manual "Suggest from BC
+            Assessment" que vivía aquí -- llamaba a /api/bc-assessment
+            dependiendo de una `address` que en este punto del wizard
+            (paso "dimensions") todavía no existe (el paso "address" viene
+            después), así que siempre fallaba con "Enter an address first".
+            Era además un duplicado exacto de la sugerencia de BC Assessment
+            que YA funciona correctamente en StepAddress.tsx: se dispara
+            sola mientras el cliente escribe su dirección (debounced,
+            /api/quote/bc-assessment) y ofrece Correcto/Diferente ahí mismo.
+            No hace falta una segunda versión rota de la misma función. */}
       </div>
     </div>
   );

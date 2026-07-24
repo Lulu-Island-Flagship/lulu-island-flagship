@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { QuoteInput, QuoteData, CotizadorStep } from "@/types";
@@ -303,8 +303,15 @@ export default function CotizadorPage() {
     }
   };
 
+  // Fix (2026-07-24): dirección de la última navegación real (no la que
+  // dispara el auto-skip de "addonZones" más abajo), para que el salto del
+  // paso vacío avance o retroceda según el sentido en que el cliente venía
+  // moviéndose, en vez de forzar siempre "adelante".
+  const navDirectionRef = useRef<"forward" | "backward">("forward");
+
   const handleNext = () => {
     if (stepIndex < STEPS.length - 1) {
+      navDirectionRef.current = "forward";
       setStepIndex((prev) => prev + 1);
     }
   };
@@ -317,8 +324,23 @@ export default function CotizadorPage() {
       router.push(`/${locale}`);
       return;
     }
+    navDirectionRef.current = "backward";
     setStepIndex((prev) => prev - 1);
   };
+
+  // Fix (2026-07-24): StepAddonZones documentaba "si no hay zonas add-on,
+  // el paso no renderiza nada (el wizard lo salta)" pero ese salto nunca
+  // estaba implementado -- ver comentario en StepAddonZones.tsx. Esto lo
+  // implementa: cuando el componente confirma que no hay zonas para el
+  // service_subtype elegido, se avanza/retrocede un paso más en la misma
+  // dirección en la que el cliente venía navegando.
+  const handleEmptyAddonZones = useCallback(() => {
+    setStepIndex((prev) =>
+      navDirectionRef.current === "forward"
+        ? Math.min(prev + 1, STEPS.length - 1)
+        : Math.max(prev - 1, 0)
+    );
+  }, []);
 
   const handleSubmit = async (forcedUserId?: string) => {
     if (!quote) return;
@@ -564,7 +586,6 @@ export default function CotizadorPage() {
               bedrooms={input.bedrooms ?? 2}
               bathrooms={input.bathrooms ?? 1}
               squareFeet={input.squareFeet ?? 1000}
-              address={input.address}
               onChange={(vals) => updateInput(vals)}
             />
           )}
@@ -574,6 +595,7 @@ export default function CotizadorPage() {
               targetHourlyRate={TARIFA_OBJETIVO_HORA}
               selected={input.addonZones ?? []}
               onChange={(zones) => updateInput({ addonZones: zones })}
+              onEmpty={handleEmptyAddonZones}
             />
           )}
           {step === "organic" && (
