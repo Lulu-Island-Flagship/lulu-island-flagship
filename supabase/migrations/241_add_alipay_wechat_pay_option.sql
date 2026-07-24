@@ -26,11 +26,18 @@ ALTER TABLE orders
   ADD CONSTRAINT orders_payment_option_check
     CHECK (payment_option IN ('card', 'paypal_first_time', 'alipay', 'wechat_pay'));
 
-ALTER TABLE recurring_contracts
-  DROP CONSTRAINT IF EXISTS recurring_contracts_payment_option_check;
+-- Fix (2026-07-24): esta migración decía "recurring_contracts", tabla que
+-- nunca existió -- ese es solo el nombre del feature flag
+-- ('recurring_contracts_enabled', migración 022). La tabla real, creada en
+-- 022_modulo2_recurring_contracts.sql y tocada después en 039/075/225, se
+-- llama service_contracts. Con el nombre viejo, `supabase db reset`/`start`
+-- fallaba en seco: "relation \"recurring_contracts\" does not exist"
+-- (42P01), imposible de correr limpio desde cero.
+ALTER TABLE service_contracts
+  DROP CONSTRAINT IF EXISTS service_contracts_payment_option_check;
 
-ALTER TABLE recurring_contracts
-  ADD CONSTRAINT recurring_contracts_payment_option_check
+ALTER TABLE service_contracts
+  ADD CONSTRAINT service_contracts_payment_option_check
     CHECK (payment_option IN ('card', 'paypal_first_time', 'alipay', 'wechat_pay'));
 
 -- Trazabilidad del PaymentIntent que cobró el 100% por adelantado (Alipay o
