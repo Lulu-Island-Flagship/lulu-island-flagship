@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Plus, Check, DollarSign, Loader2 } from "lucide-react";
+import { ErrorBanner } from "@/components/empleado/ErrorBanner";
 
 interface UpsellOption {
   type: string;
@@ -25,6 +26,7 @@ export function UpsellSelector({ orderId, onUpsellAdded }: UpsellSelectorProps) 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notes, setNotes] = useState("");
+  const [error, setError] = useState("");
 
   const toggleUpsell = (type: string) => {
     setSelected((prev) => {
@@ -41,32 +43,57 @@ export function UpsellSelector({ orderId, onUpsellAdded }: UpsellSelectorProps) 
   const handleSubmit = async () => {
     if (selected.size === 0) return;
     setIsSubmitting(true);
+    setError("");
+
+    // Bug previo: este fetch nunca verificaba res.ok -- si el servidor
+    // rechazaba el upsell (400/403/500), la UI igual limpiaba la selección
+    // y mostraba éxito silencioso. Ahora cada upsell se verifica; los que
+    // fallan se dejan seleccionados (para reintentar) y se avisa cuáles.
+    const selectedArray = Array.from(selected);
+    const failedTypes: string[] = [];
+    const failedLabels: string[] = [];
 
     try {
-      const selectedArray = Array.from(selected);
       for (const type of selectedArray) {
         const option = UPSELL_OPTIONS.find((o) => o.type === type);
         if (!option) continue;
 
-        await fetch("/api/empleado/upsells", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            orderId,
-            upsellType: option.type,
-            upsellLabel: option.label,
-            amount: option.amount,
-            notes: notes || null,
-          }),
-        });
+        try {
+          const res = await fetch("/api/empleado/upsells", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              orderId,
+              upsellType: option.type,
+              upsellLabel: option.label,
+              amount: option.amount,
+              notes: notes || null,
+            }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            console.error("Upsell submit error:", err.error || res.status);
+            failedTypes.push(type);
+            failedLabels.push(option.label);
+          }
+        } catch (e) {
+          console.error("Upsell submit error:", e);
+          failedTypes.push(type);
+          failedLabels.push(option.label);
+        }
       }
 
-      setSelected(new Set());
-      setNotes("");
-      onUpsellAdded?.();
-    } catch (e) {
-      console.error("Upsell submit error:", e);
+      if (failedTypes.length > 0) {
+        setSelected(new Set(failedTypes));
+        setError(
+          `Couldn't record: ${failedLabels.join(", ")}. Please try again.`
+        );
+      } else {
+        setSelected(new Set());
+        setNotes("");
+        onUpsellAdded?.();
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -142,6 +169,8 @@ export function UpsellSelector({ orderId, onUpsellAdded }: UpsellSelectorProps) 
           className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
         />
       </div>
+
+      <ErrorBanner message={error} onRetry={handleSubmit} retrying={isSubmitting} />
 
       <button
         aria-label="Confirmar upsell seleccionado"

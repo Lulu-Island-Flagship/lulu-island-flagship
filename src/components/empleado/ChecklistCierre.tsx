@@ -15,6 +15,7 @@ import type { ChecklistZoneProgress } from "@/types";
 import { isZoneUnlocked } from "@/lib/chemical-lockout";
 import { isHotSurfaceItemUnlocked, minutesRemaining } from "@/lib/kitchen-timer";
 import { ChemicalMatchModal } from "@/components/empleado/ChemicalMatchModal";
+import { ErrorBanner } from "@/components/empleado/ErrorBanner";
 
 interface ChecklistCierreProps {
   orderId: string;
@@ -40,6 +41,11 @@ export function ChecklistCierre({
   const [expandedZones, setExpandedZones] = useState<Set<string>>(new Set());
   const [uploadingItem, setUploadingItem] = useState<string | null>(null);
   const [matchModalZone, setMatchModalZone] = useState<{ zoneColor: string; zoneLabel: string } | null>(null);
+  // Antes, si el guardado de un ítem (toggle o foto) fallaba, la UI hacía
+  // rollback silencioso (buen instinto -- no dejaba avanzar un cambio no
+  // confirmado) pero nunca mostraba ningún mensaje, así que el empleado
+  // veía un checkbox "que se destildó solo" sin explicación.
+  const [saveError, setSaveError] = useState("");
   const [overallProgress, setOverallProgress] = useState({
     totalItems: 0,
     completedItems: 0,
@@ -117,6 +123,7 @@ export function ChecklistCierre({
     }
 
     const newCompleted = !item.isCompleted;
+    setSaveError("");
 
     // Optimistic update
     setZones((prev) =>
@@ -172,6 +179,7 @@ export function ChecklistCierre({
       }
     } catch (e) {
       console.error("Checklist save error:", e);
+      setSaveError(`Couldn't save "${itemLabel}" -- reverted. Please try again.`);
       // Rollback: revert to original state
       setZones((prev) =>
         prev.map((z) => {
@@ -249,6 +257,7 @@ export function ChecklistCierre({
 
   const handleItemPhoto = async (zone: ChecklistZoneProgress, itemId: string, file: File) => {
     setUploadingItem(itemId);
+    setSaveError("");
     try {
       const fileExt = file.name.split(".").pop() || "jpg";
       const fileName = `${orderId}/checklist/${zone.zone}/${itemId}/${Date.now()}.${fileExt}`;
@@ -259,6 +268,7 @@ export function ChecklistCierre({
 
       if (uploadError) {
         console.error("Upload error:", uploadError);
+        setSaveError("Couldn't upload the photo. Please try again.");
         return;
       }
 
@@ -303,6 +313,7 @@ export function ChecklistCierre({
       }
     } catch (e) {
       console.error("Item photo error:", e);
+      setSaveError("Couldn't save the photo -- reverted. Please try again.");
       // Rollback: remove photo from local state
       setZones((prev) =>
         prev.map((z) => {
@@ -362,6 +373,8 @@ export function ChecklistCierre({
           No checklist zones assigned to you on this service — help your teammate and confirm with them directly.
         </div>
       )}
+      <ErrorBanner message={saveError} />
+
       {/* Overall progress */}
       <div className="bg-white rounded-lg border p-4">
         <div className="flex items-center justify-between mb-2">

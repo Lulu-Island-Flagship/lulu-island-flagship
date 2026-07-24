@@ -33,6 +33,7 @@ import { DiscrepanciaReporter } from "@/components/empleado/DiscrepanciaReporter
 import { CodigoCromatico } from "@/components/empleado/CodigoCromatico";
 import { ClosureProtocolPanel } from "@/components/empleado/ClosureProtocolPanel";
 import { HoursDisputeButton } from "@/components/empleado/HoursDisputeButton";
+import { ErrorBanner } from "@/components/empleado/ErrorBanner";
 
 type EventType = "t_in" | "t_start" | "t_out" | "photo" | "note";
 
@@ -67,6 +68,13 @@ export default function ServicioPage() {
   const [noteText, setNoteText] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  // Feedback visible tras el intento de cada acción -- antes estos fallos
+  // (t_in/t_start/t_out, foto, nota) solo se registraban en console.error y
+  // el empleado no veía ningún mensaje, quedando sin saber si su toque
+  // había funcionado o no.
+  const [eventError, setEventError] = useState("");
+  const [photoError, setPhotoError] = useState("");
+  const [noteError, setNoteError] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("timeline");
   const [geofenceStatus, setGeofenceStatus] = useState<"checking" | "inside" | "outside" | "bypass">("checking");
   const [bypassReason, setBypassReason] = useState("");
@@ -322,6 +330,7 @@ export default function ServicioPage() {
     }
 
     setIsSubmitting(true);
+    setEventError("");
 
     try {
       const loc = await getCurrentLocation();
@@ -341,6 +350,17 @@ export default function ServicioPage() {
 
       if (!result.ok) {
         console.error("Service event error:", result.error);
+        // "Finish Service" dispara cobro/comunicaciones -- si el POST falla,
+        // el empleado debe quedar en un estado explícito de "no se pudo
+        // cerrar, reintentar", nunca en limbo silencioso creyendo que ya
+        // terminó (el status de la asignación no se toca más abajo, así que
+        // el botón "Finish Service" sigue visible para reintentar).
+        setEventError(
+          result.error ||
+            (eventType === "t_out"
+              ? "Couldn't close this service. Your progress is saved -- tap Finish Service to try again."
+              : "Something went wrong. Please try again.")
+        );
         return;
       }
 
@@ -367,6 +387,11 @@ export default function ServicioPage() {
       }
     } catch (e) {
       console.error("Event error:", e);
+      setEventError(
+        eventType === "t_out"
+          ? "Couldn't close this service due to a connection error. Please try again."
+          : "Connection error. Please try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -377,6 +402,7 @@ export default function ServicioPage() {
     if (!file || !orderId) return;
 
     setUploadingPhoto(true);
+    setPhotoError("");
     try {
       const loc = await getCurrentLocation();
       // Comprime a WebP (E4.12) y sube; si no hay señal, queda encolada
@@ -388,6 +414,7 @@ export default function ServicioPage() {
 
       if (!result.ok) {
         console.error("Photo upload error:", result.error);
+        setPhotoError(result.error || "Couldn't upload the photo. Please try again.");
         return;
       }
 
@@ -399,6 +426,7 @@ export default function ServicioPage() {
       }
     } catch (e) {
       console.error("Photo upload error:", e);
+      setPhotoError("Connection error uploading the photo. Please try again.");
     } finally {
       setUploadingPhoto(false);
     }
@@ -408,6 +436,7 @@ export default function ServicioPage() {
     if (!noteText.trim() || !orderId) return;
 
     setIsSubmitting(true);
+    setNoteError("");
     try {
       // Mismo patrón offline-first que T_in/T_start/T_out: si no hay señal,
       // la nota se encola en vez de perderse.
@@ -422,9 +451,11 @@ export default function ServicioPage() {
         }
       } else {
         console.error("Note error:", result.error);
+        setNoteError(result.error || "Couldn't send the note. Please try again.");
       }
     } catch (e) {
       console.error("Note error:", e);
+      setNoteError("Connection error sending the note. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -730,6 +761,11 @@ export default function ServicioPage() {
                 </>
               )}
             </button>
+            <ErrorBanner
+              message={eventError}
+              onRetry={() => handleEvent(nextAction.type)}
+              retrying={isSubmitting}
+            />
           </div>
         )}
 
@@ -806,6 +842,7 @@ export default function ServicioPage() {
                     />
                   </label>
                 )}
+                <ErrorBanner message={photoError} />
 
                 {/* Timeline */}
                 {logs.length === 0 ? (
@@ -854,24 +891,27 @@ export default function ServicioPage() {
 
                 {/* Quick Note */}
                 {!isCompleted && (
-                  <div className="flex items-center gap-2 pt-2 border-t">
-                    <input
-                      type="text"
-                      aria-label="Agregar una nota al servicio"
-                      value={noteText}
-                      onChange={(e) => setNoteText(e.target.value)}
-                      placeholder="Add a note..."
-                      className="flex-1 text-sm border rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
-                      onKeyDown={(e) => e.key === "Enter" && handleSendNote()}
-                    />
-                    <button
-                      aria-label="Enviar nota"
-                      onClick={handleSendNote}
-                      disabled={!noteText.trim() || isSubmitting}
-                      className="p-2 bg-brand-navy text-white rounded-lg disabled:opacity-50"
-                    >
-                      <Send className="w-4 h-4" />
-                    </button>
+                  <div className="pt-2 border-t space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        aria-label="Agregar una nota al servicio"
+                        value={noteText}
+                        onChange={(e) => setNoteText(e.target.value)}
+                        placeholder="Add a note..."
+                        className="flex-1 text-sm border rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
+                        onKeyDown={(e) => e.key === "Enter" && handleSendNote()}
+                      />
+                      <button
+                        aria-label="Enviar nota"
+                        onClick={handleSendNote}
+                        disabled={!noteText.trim() || isSubmitting}
+                        className="p-2 bg-brand-navy text-white rounded-lg disabled:opacity-50"
+                      >
+                        <Send className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <ErrorBanner message={noteError} onRetry={handleSendNote} retrying={isSubmitting} />
                   </div>
                 )}
               </div>

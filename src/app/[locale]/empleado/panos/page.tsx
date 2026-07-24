@@ -95,7 +95,7 @@ export default function PanosPage() {
       </header>
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
-        <p className="text-xs text-gray-500">Conteo por color, no por unidad (ej: "8 rojos, 6 azules").</p>
+        <p className="text-xs text-gray-500">Conteo por color, no por unidad (ej: &quot;8 rojos, 6 azules&quot;).</p>
 
         <form onSubmit={submit} className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3">
           <div className="grid grid-cols-3 gap-2">

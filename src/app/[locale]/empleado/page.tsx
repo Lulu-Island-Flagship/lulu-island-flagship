@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import type { EmployeeService } from "@/types";
 import { downloadAndCacheDayBundle } from "@/lib/offline-day-cache";
+import { ErrorBanner } from "@/components/empleado/ErrorBanner";
+import { SkeletonServiceList } from "@/components/ui/Skeleton";
 
 type JornadaStatus = "not_started" | "started";
 type OfflineDownloadStatus = "idle" | "downloading" | "ready" | "failed";
@@ -57,6 +59,7 @@ export default function EmpleadoPage() {
   const [loadingServices, setLoadingServices] = useState(true);
   const [jornadaStatus, setJornadaStatus] = useState<JornadaStatus>("not_started");
   const [isStartingJornada, setIsStartingJornada] = useState(false);
+  const [jornadaError, setJornadaError] = useState("");
   // v8.3 E4 (D.10.1-2): estado de la precarga offline (ruta+SOP+accesos del día).
   const [offlineDownloadStatus, setOfflineDownloadStatus] = useState<OfflineDownloadStatus>("idle");
 
@@ -243,6 +246,7 @@ export default function EmpleadoPage() {
 
   const handleStartJornada = async () => {
     setIsStartingJornada(true);
+    setJornadaError("");
     try {
       let locationLat: number | undefined;
       let locationLng: number | undefined;
@@ -267,8 +271,9 @@ export default function EmpleadoPage() {
       });
 
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         console.error("Jornada start error:", err.error);
+        setJornadaError(err.error || "Couldn't start your shift. Please check your connection and try again.");
         return;
       }
 
@@ -288,6 +293,7 @@ export default function EmpleadoPage() {
       setOfflineDownloadStatus(dlResult.ok ? "ready" : "failed");
     } catch (e) {
       console.error("Start jornada error:", e);
+      setJornadaError("Connection error starting your shift. Please try again.");
     } finally {
       setIsStartingJornada(false);
     }
@@ -386,21 +392,24 @@ export default function EmpleadoPage() {
 
         {/* Jornada Button */}
         {jornadaStatus === "not_started" ? (
-          <button
-            aria-label="Iniciar turno"
-            onClick={handleStartJornada}
-            disabled={isStartingJornada}
-            className="w-full bg-brand-navy text-white py-4 rounded-xl font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {isStartingJornada ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <>
-                <Play className="w-5 h-5" />
-                Start Shift
-              </>
-            )}
-          </button>
+          <div className="space-y-2">
+            <button
+              aria-label="Iniciar turno"
+              onClick={handleStartJornada}
+              disabled={isStartingJornada}
+              className="w-full bg-brand-navy text-white py-4 rounded-xl font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isStartingJornada ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <Play className="w-5 h-5" />
+                  Start Shift
+                </>
+              )}
+            </button>
+            <ErrorBanner message={jornadaError} onRetry={handleStartJornada} retrying={isStartingJornada} />
+          </div>
         ) : (
           <div className="bg-state-success/10 text-state-success py-3 px-4 rounded-xl flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5" />
@@ -431,117 +440,20 @@ export default function EmpleadoPage() {
           </div>
         )}
 
-        {/* Quick Links */}
-        <div className="grid grid-cols-2 gap-3">
-          <a
-            href={`/${safeLocale}/empleado/score`}
-            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Star className="w-4 h-4 text-brand-gold" />
-              <span className="font-medium text-sm text-brand-ink">My Score</span>
-            </div>
-            <p className="text-xs text-gray-400">View trust level & history</p>
-          </a>
-          <a
-            href={`/${safeLocale}/empleado/votacion`}
-            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Users className="w-4 h-4 text-brand-navy" />
-              <span className="font-medium text-sm text-brand-ink">Peer Voting</span>
-            </div>
-            <p className="text-xs text-gray-400">Rate your teammates</p>
-          </a>
-          {/* v8.3 E8.1: checklist de disposición matutina (sueño/ánimo/atajo) — antes construido pero inalcanzable */}
-          <a
-            href={`/${safeLocale}/empleado/checkin`}
-            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Sunrise className="w-4 h-4 text-brand-gold-dark" />
-              <span className="font-medium text-sm text-brand-ink">Morning Check-in</span>
-            </div>
-            <p className="text-xs text-gray-400">Sleep, mood &amp; route shortcut</p>
-          </a>
-          {/* v8.3 E7.3: ciclo de paños/inventario — antes construido pero inalcanzable */}
-          <a
-            href={`/${safeLocale}/empleado/panos`}
-            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Shirt className="w-4 h-4 text-brand-navy" />
-              <span className="font-medium text-sm text-brand-ink">Cloths &amp; Inventory</span>
-            </div>
-            <p className="text-xs text-gray-400">Cycle count &amp; requests</p>
-          </a>
-          {/* v8.3 E8.13: ritual de inicio/fin de jornada (equipo, clima, ranking, ganancias, insignias) */}
-          <a
-            href={`/${safeLocale}/empleado/ritual`}
-            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Star className="w-4 h-4 text-brand-gold-dark" />
-              <span className="font-medium text-sm text-brand-ink">Shift Ritual</span>
-            </div>
-            <p className="text-xs text-gray-400">Team, weather, ranking &amp; earnings</p>
-          </a>
-          {/* v8.3 E10.8: consentimiento opcional para reels/insignias públicas */}
-          <a
-            href={`/${safeLocale}/empleado/marketing`}
-            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Video className="w-4 h-4 text-brand-navy" />
-              <span className="font-medium text-sm text-brand-ink">Marketing Consent</span>
-            </div>
-            <p className="text-xs text-gray-400">Optional — reels &amp; public badges</p>
-          </a>
-          {/* BC ESA Parte 5.1: reportar ausencia por enfermedad */}
-          <a
-            href={`/${safeLocale}/empleado/enfermedad`}
-            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <AlertCircle className="w-4 h-4 text-state-warning" />
-              <span className="font-medium text-sm text-brand-ink">Report Sick Day</span>
-            </div>
-            <p className="text-xs text-gray-400">Simple reason or medical note</p>
-          </a>
-          {/* BC ESA s.32: descansos documentados vía tránsito */}
-          <a
-            href={`/${safeLocale}/empleado/descansos`}
-            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="w-4 h-4 text-brand-navy" />
-              <span className="font-medium text-sm text-brand-ink">My Breaks</span>
-            </div>
-            <p className="text-xs text-gray-400">Documented rest periods</p>
-          </a>
-          {/* E7 D.10.7: SOS, near-miss y reporte de incidente laboral */}
-          <a
-            href={`/${safeLocale}/empleado/seguridad`}
-            className="bg-white rounded-xl shadow-elevation-1 p-4 text-left hover:shadow-elevation-2 transition-shadow border border-state-danger/20"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <AlertOctagon className="w-4 h-4 text-state-danger" />
-              <span className="font-medium text-sm text-brand-ink">Safety</span>
-            </div>
-            <p className="text-xs text-gray-400">SOS, near-miss &amp; injury report</p>
-          </a>
-        </div>
-
-        {/* Services List */}
+        {/* Services List -- v8.3 fix (auditoría 2026-07-24): antes esta
+            sección iba DEBAJO de la cuadrícula de 8 quick links, obligando a
+            scrollear para ver el trabajo del día (lo único que realmente
+            importa al abrir el dashboard en jornada). Se sube al primer
+            lugar, inmediatamente debajo del botón de jornada, sin cambiar
+            ninguna lógica -- solo el orden en el JSX. Los quick links bajan
+            a una sección secundaria más compacta más abajo. */}
         <div>
           <h2 className="text-lg font-semibold text-brand-ink mb-4">
             Today&apos;s Services
           </h2>
 
           {loadingServices ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
-            </div>
+            <SkeletonServiceList count={3} />
           ) : services.length === 0 ? (
             <div className="bg-white rounded-xl shadow-elevation-1 p-8 text-center">
               <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-3" />
@@ -592,6 +504,91 @@ export default function EmpleadoPage() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Quick Links -- movidos a segunda prioridad visual (antes ocupaban
+            toda la mitad superior de la pantalla con el mismo peso que
+            "Today's Services"). Misma cantidad de enlaces, mismo destino y
+            mismo texto -- solo una cuadrícula más compacta (4 columnas,
+            ícono + etiqueta corta, sin descripción) para que quepan en
+            mucho menos alto y no compitan por atención con el trabajo del
+            día. */}
+        <div>
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+            More
+          </h2>
+          <div className="grid grid-cols-4 gap-2">
+            <a
+              href={`/${safeLocale}/empleado/score`}
+              className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
+            >
+              <Star className="w-4 h-4 text-brand-gold" />
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">My Score</span>
+            </a>
+            <a
+              href={`/${safeLocale}/empleado/votacion`}
+              className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
+            >
+              <Users className="w-4 h-4 text-brand-navy" />
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">Peer Voting</span>
+            </a>
+            {/* v8.3 E8.1: checklist de disposición matutina (sueño/ánimo/atajo) — antes construido pero inalcanzable */}
+            <a
+              href={`/${safeLocale}/empleado/checkin`}
+              className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
+            >
+              <Sunrise className="w-4 h-4 text-brand-gold-dark" />
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">Check-in</span>
+            </a>
+            {/* v8.3 E7.3: ciclo de paños/inventario — antes construido pero inalcanzable */}
+            <a
+              href={`/${safeLocale}/empleado/panos`}
+              className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
+            >
+              <Shirt className="w-4 h-4 text-brand-navy" />
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">Cloths</span>
+            </a>
+            {/* v8.3 E8.13: ritual de inicio/fin de jornada (equipo, clima, ranking, ganancias, insignias) */}
+            <a
+              href={`/${safeLocale}/empleado/ritual`}
+              className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
+            >
+              <Star className="w-4 h-4 text-brand-gold-dark" />
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">Shift Ritual</span>
+            </a>
+            {/* v8.3 E10.8: consentimiento opcional para reels/insignias públicas */}
+            <a
+              href={`/${safeLocale}/empleado/marketing`}
+              className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
+            >
+              <Video className="w-4 h-4 text-brand-navy" />
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">Marketing</span>
+            </a>
+            {/* BC ESA Parte 5.1: reportar ausencia por enfermedad */}
+            <a
+              href={`/${safeLocale}/empleado/enfermedad`}
+              className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
+            >
+              <AlertCircle className="w-4 h-4 text-state-warning" />
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">Sick Day</span>
+            </a>
+            {/* BC ESA s.32: descansos documentados vía tránsito */}
+            <a
+              href={`/${safeLocale}/empleado/descansos`}
+              className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
+            >
+              <Clock className="w-4 h-4 text-brand-navy" />
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">My Breaks</span>
+            </a>
+            {/* E7 D.10.7: SOS, near-miss y reporte de incidente laboral */}
+            <a
+              href={`/${safeLocale}/empleado/seguridad`}
+              className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow border border-state-danger/20"
+            >
+              <AlertOctagon className="w-4 h-4 text-state-danger" />
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">Safety</span>
+            </a>
+          </div>
         </div>
       </div>
     </main>

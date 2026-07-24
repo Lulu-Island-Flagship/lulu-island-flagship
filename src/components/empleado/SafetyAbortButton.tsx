@@ -31,7 +31,10 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
   const [stage, setStage] = useState<Stage>("idle");
   const [reason, setReason] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [safetyAbortId, setSafetyAbortId] = useState<string | null>(null);
+  // El valor en sí no se lee todavía en ningún lado (solo el setter, para
+  // reset() y para pasar el id recién creado a startGpsUpdates) -- se
+  // conserva el estado por si una futura UI necesita mostrarlo/enlazarlo.
+  const [_safetyAbortId, setSafetyAbortId] = useState<string | null>(null);
   const gpsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function stopGpsUpdates() {

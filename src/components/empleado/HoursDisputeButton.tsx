@@ -78,10 +78,10 @@ export function HoursDisputeButton({
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-brand-ink flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-state-warning" />
-            Dispute "{eventLabel}"
+            Dispute &quot;{eventLabel}&quot;
           </h3>
-          <button onClick={() => setOpen(false)}>
-            <X className="w-4 h-4 text-gray-400" />
+          <button onClick={() => setOpen(false)} aria-label="Close dialog">
+            <X className="w-4 h-4 text-gray-400" aria-hidden="true" />
           </button>
         </div>
 

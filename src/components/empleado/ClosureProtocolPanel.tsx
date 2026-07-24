@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Check, Loader2, ShieldCheck, Banknote, Camera } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { ErrorBanner } from "@/components/empleado/ErrorBanner";
 
 type ExternalConfirmationType = "client_verbal" | "leader_audit" | "auditor_present";
 type AltPaymentMethod = "e_transfer" | "cheque" | "cash";
@@ -41,6 +42,10 @@ export function ClosureProtocolPanel({ orderId, noSmartphoneFlow }: ClosureProto
   const [externalType, setExternalType] = useState<ExternalConfirmationType | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  // Antes save() ya hacía rollback de un toggle fallido pero nunca mostraba
+  // nada -- el empleado veía un botón "que se destildó solo" sin saber por
+  // qué, justo en la pantalla que bloquea Finish Service.
+  const [saveError, setSaveError] = useState("");
 
   const [altPaymentMethod, setAltPaymentMethod] = useState<AltPaymentMethod | null>(null);
   const [altPaymentAmount, setAltPaymentAmount] = useState<string>("");
@@ -70,6 +75,7 @@ export function ClosureProtocolPanel({ orderId, noSmartphoneFlow }: ClosureProto
 
   const save = async (patch: Record<string, unknown>) => {
     setSaving(JSON.stringify(patch));
+    setSaveError("");
     try {
       const res = await fetch("/api/empleado/cierre", {
         method: "POST",
@@ -78,9 +84,13 @@ export function ClosureProtocolPanel({ orderId, noSmartphoneFlow }: ClosureProto
         body: JSON.stringify({ orderId, ...patch }),
       });
       if (res.ok) return true;
+      const err = await res.json().catch(() => ({}));
+      console.error("Save closure error:", err.error || res.status);
+      setSaveError(err.error || "Couldn't save this step of the closure protocol. Please try again.");
       return false;
     } catch (e) {
       console.error("Save closure error:", e);
+      setSaveError("Connection error saving the closure protocol. Please try again.");
       return false;
     } finally {
       setSaving(null);
@@ -163,6 +173,8 @@ export function ClosureProtocolPanel({ orderId, noSmartphoneFlow }: ClosureProto
         <ShieldCheck className="w-4 h-4 text-brand-navy" />
         <span className="font-semibold text-sm text-brand-ink">External Closure Protocol</span>
       </div>
+
+      <ErrorBanner message={saveError} />
 
       <button
         type="button"
