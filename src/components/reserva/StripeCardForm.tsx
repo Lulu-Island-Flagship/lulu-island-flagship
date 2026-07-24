@@ -6,6 +6,7 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
+import { useTranslations } from "next-intl";
 import { CreditCard, ShieldCheck, MapPin } from "lucide-react";
 
 interface StripeCardFormProps {
@@ -40,6 +41,7 @@ function isValidCanadianPostalCode(code: string): boolean {
 }
 
 export function StripeCardForm({ onPaymentMethodReady, disabled, clientSecret }: StripeCardFormProps) {
+  const t = useTranslations("reserva.stripeCardForm");
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState("");
@@ -56,7 +58,7 @@ export function StripeCardForm({ onPaymentMethodReady, disabled, clientSecret }:
     if (!stripe || !elements) return;
 
     if (!isValidCanadianPostalCode(postalCode)) {
-      setError("Please enter a valid Canadian postal code (e.g., V6X 1A1).");
+      setError(t("invalidPostalCode"));
       return;
     }
 
@@ -65,7 +67,7 @@ export function StripeCardForm({ onPaymentMethodReady, disabled, clientSecret }:
 
     const cardElement = elements.getElement(CardElement);
     if (!cardElement) {
-      setError("Card element not found.");
+      setError(t("cardElementNotFound"));
       setIsProcessing(false);
       return;
     }
@@ -86,7 +88,7 @@ export function StripeCardForm({ onPaymentMethodReady, disabled, clientSecret }:
     );
 
     if (stripeError) {
-      setError(stripeError.message || "Card validation failed.");
+      setError(stripeError.message || t("cardValidationFailed"));
       setIsProcessing(false);
       return;
     }
@@ -102,7 +104,7 @@ export function StripeCardForm({ onPaymentMethodReady, disabled, clientSecret }:
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <label className="block text-sm font-medium text-brand-ink">
-          Card Details
+          {t("cardDetailsLabel")}
         </label>
         <div className="p-4 rounded-lg border border-gray-200 bg-white">
           <CardElement options={CARD_ELEMENT_OPTIONS} />
@@ -111,7 +113,7 @@ export function StripeCardForm({ onPaymentMethodReady, disabled, clientSecret }:
 
       <div className="space-y-2">
         <label htmlFor="stripe-postal-code-input" className="block text-sm font-medium text-brand-ink">
-          Postal Code
+          {t("postalCodeLabel")}
         </label>
         <div className="relative">
           <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -120,13 +122,13 @@ export function StripeCardForm({ onPaymentMethodReady, disabled, clientSecret }:
             type="text"
             value={postalCode}
             onChange={handlePostalCodeChange}
-            placeholder="V6X 1A1"
+            placeholder={t("postalCodePlaceholder")}
             maxLength={7}
             className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:border-brand-gold focus:ring-1 focus:ring-brand-gold outline-none text-brand-ink uppercase"
           />
         </div>
         <p className="text-xs text-gray-500">
-          Canadian format: letter-number-letter space number-letter-number
+          {t("postalCodeHint")}
         </p>
       </div>
 
@@ -137,19 +139,19 @@ export function StripeCardForm({ onPaymentMethodReady, disabled, clientSecret }:
       )}
 
       <button
-        aria-label="Guardar tarjeta de pago"
+        aria-label={t("saveCardAriaLabel")}
         type="submit"
         disabled={!stripe || disabled || isProcessing}
         className="w-full inline-flex items-center justify-center gap-2 bg-brand-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <CreditCard className="w-5 h-5" />
-        {isProcessing ? "Validating..." : "Save Card"}
+        {isProcessing ? t("validating") : t("saveButton")}
       </button>
 
       <div className="flex items-center gap-2 text-xs text-gray-500">
         <ShieldCheck className="w-4 h-4" />
         <span>
-          Your card is tokenized securely by Stripe. We never store card numbers.
+          {t("secureNote")}
         </span>
       </div>
     </form>

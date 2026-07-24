@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Elements } from "@stripe/react-stripe-js";
 import { QuoteData } from "@/types";
 import { supabase } from "@/lib/supabase";
@@ -9,6 +10,8 @@ import { mapQuoteFromSupabase } from "@/lib/supabase-mappers";
 import { DatePicker } from "@/components/reserva/DatePicker";
 import { TimeSlotPicker } from "@/components/reserva/TimeSlotPicker";
 import { StripeCardForm } from "@/components/reserva/StripeCardForm";
+import { ApplePayButton } from "@/components/reserva/ApplePayButton";
+import { WalletPayButton } from "@/components/reserva/WalletPayButton";
 import { ReservationSummary } from "@/components/reserva/ReservationSummary";
 import { CheckoutBenefitsPanel } from "@/components/reserva/CheckoutBenefitsPanel";
 import { PriceFreezeCountdown } from "@/components/reserva/PriceFreezeCountdown";
@@ -27,6 +30,7 @@ import { getStripe } from "@/lib/stripe";
 const stripePromise = getStripe();
 
 export default function ReservaPage() {
+  const t = useTranslations("reserva");
   const router = useRouter();
   const params = useParams();
   const quoteId = params?.quoteId as string;
@@ -44,9 +48,14 @@ export default function ReservaPage() {
   const [serviceDate, setServiceDate] = useState("");
   const [serviceTime, setServiceTime] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState("");
-  const [paymentOption, setPaymentOption] = useState<"card" | "paypal_first_time">("card");
+  const [paymentOption, setPaymentOption] = useState<"card" | "paypal_first_time" | "alipay" | "wechat_pay">("card");
   const [paypalTransactionId, setPaypalTransactionId] = useState("");
   const [paypalPayerEmail, setPaypalPayerEmail] = useState("");
+  // Feature 2026-07-21: Alipay/WeChat Pay cobran el 100% por adelantado vía
+  // un PaymentIntent real de Stripe (ver WalletPayButton.tsx). El cliente
+  // igual debe registrar una tarjeta de respaldo (paymentMethodId, arriba)
+  // antes de poder confirmar -- ambas condiciones se exigen en handleConfirm.
+  const [walletPaymentIntentId, setWalletPaymentIntentId] = useState("");
   const [stripeClientSecret, setStripeClientSecret] = useState("");
   const [stripeCustomerId, setStripeCustomerId] = useState("");
   const [stripeSetupIntentId, setStripeSetupIntentId] = useState("");
@@ -57,6 +66,17 @@ export default function ReservaPage() {
   // más crítico del embudo (pago).
   const [setupIntentError, setSetupIntentError] = useState("");
   const [setupIntentRetryKey, setSetupIntentRetryKey] = useState(0);
+  // Fix 2026-07-24 (auditoría reserva/checkout): el useEffect de más abajo
+  // que crea el SetupIntent hacía `if (!user) return;` en silencio cuando el
+  // cliente elegía fecha/hora sin sesión activa (p.ej. llegó directo a un
+  // link de cotización, o su sesión expiró). stripeClientSecret nunca se
+  // fijaba, y el bloque "Preparing secure checkout..." (más abajo) quedaba
+  // girando para siempre sin explicar nada ni ofrecer login -- el cliente
+  // quedaba varado en el paso más crítico del embudo. Ahora se muestra el
+  // mismo AuthModal ya usado para forcePhoneVerification, sin perder
+  // serviceDate/serviceTime seleccionados, y tras loguearse se reintenta la
+  // creación del SetupIntent automáticamente (setupIntentRetryKey).
+  const [needsAuthForCheckout, setNeedsAuthForCheckout] = useState(false);
   const [recalculateError, setRecalculateError] = useState("");
   const [priceFreezeExpired, setPriceFreezeExpired] = useState(false);
 
@@ -65,6 +85,26 @@ export default function ReservaPage() {
   useEffect(() => {
     setPriceFreezeExpired(false);
   }, [quote?.priceFrozenUntil]);
+  // Feature 2026-07-21: Alipay hace un redirect completo fuera de la página
+  // y Stripe vuelve con ?payment_intent=...&redirect_status=succeeded en el
+  // querystring (return_url = la misma URL de esta página, ver
+  // WalletPayButton.tsx). Al montar, si esos params están presentes y el
+  // pago se completó, se restaura walletPaymentIntentId y se selecciona
+  // Alipay para que el cliente vea el estado ya confirmado y siga con el
+  // registro de la tarjeta de respaldo.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const returnedPi = params.get("payment_intent");
+    const redirectStatus = params.get("redirect_status");
+    if (returnedPi && redirectStatus === "succeeded") {
+      setPaymentOption("alipay");
+      setWalletPaymentIntentId(returnedPi);
+      // Limpiar el querystring para no reprocesar en un refresh posterior.
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [paypalEnabled, setPaypalEnabled] = useState(false);
   // v8.3 fix (auditoría E2 2026-07-18): PayPal "solo primera reserva" debe
@@ -84,7 +124,7 @@ export default function ReservaPage() {
   useEffect(() => {
     async function loadQuote() {
       if (!quoteId) {
-        setError("Invalid quote ID.");
+        setError(t("loadError.invalidQuoteId"));
         setLoading(false);
         return;
       }
@@ -100,7 +140,7 @@ export default function ReservaPage() {
         .single();
 
       if (supaError || !data) {
-        setError("Quote not found or expired.");
+        setError(t("loadError.quoteNotFound"));
         setLoading(false);
         return;
       }
@@ -108,14 +148,20 @@ export default function ReservaPage() {
       // Check price freeze
       const frozenUntil = new Date(data.price_frozen_until);
       if (frozenUntil < new Date()) {
-        setError("This quote has expired. Please generate a new quote.");
+        setError(t("loadError.quoteExpired"));
         setLoading(false);
         return;
       }
 
       // Check quote is still pending (not already reserved)
       if (data.status !== "pending") {
-        setError(`This quote has already been ${data.status}. Please generate a new quote.`);
+        const statusLabel =
+          data.status === "reserved"
+            ? t("loadError.statusLabels.reserved")
+            : data.status === "expired"
+            ? t("loadError.statusLabels.expired")
+            : data.status;
+        setError(t("loadError.alreadyStatus", { status: statusLabel }));
         setLoading(false);
         return;
       }
@@ -125,9 +171,7 @@ export default function ReservaPage() {
 
       // Bloquear reservas que requieren revisión administrativa o B2B/Gob
       if (mapped.adminReviewRequired) {
-        setError(
-          "This quote requires administrative review before booking. Our sales team will contact you shortly."
-        );
+        setError(t("loadError.adminReviewRequired"));
         setLoading(false);
         return;
       }
@@ -139,9 +183,7 @@ export default function ReservaPage() {
         .single();
 
       if (profile?.account_type === "b2b" || profile?.account_type === "government") {
-        setError(
-          "Commercial / Government accounts require manual onboarding and PO setup. Please contact our sales team to complete your booking."
-        );
+        setError(t("loadError.commercialAccount"));
         setLoading(false);
         return;
       }
@@ -187,7 +229,7 @@ export default function ReservaPage() {
     }
 
     loadQuote();
-  }, [quoteId]);
+  }, [quoteId, t]);
 
   // Recalcular precio server-side cuando cambia la fecha (weekend surcharge)
   useEffect(() => {
@@ -224,7 +266,7 @@ export default function ReservaPage() {
           // quedaba desactualizado sin ningún aviso, aunque el backend de
           // /api/stripe/confirm sí recalcula correctamente al cobrar
           // (discrepancia silenciosa entre lo mostrado y lo cobrado).
-          setRecalculateError("Price may not reflect your selected date. Please refresh before confirming.");
+          setRecalculateError(t("recalculateWarning"));
           return;
         }
 
@@ -237,7 +279,7 @@ export default function ReservaPage() {
     }
 
     recalculateQuote();
-  }, [serviceDate, quote]);
+  }, [serviceDate, quote, t]);
 
   // v8.3 fix (auditoría E1 2026-07-18): el freeze de precio (10 min, fijo)
   // no se renovaba con la actividad del cliente -- alguien llenando datos de
@@ -283,7 +325,17 @@ export default function ReservaPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        // Fix 2026-07-24: antes esto era un `return` silencioso -- el
+        // cliente se quedaba viendo "Preparing secure checkout..." para
+        // siempre sin saber que necesitaba loguearse. Ahora se explica el
+        // motivo y se abre el AuthModal sin recargar la página ni perder la
+        // fecha/hora ya elegidas.
+        setSetupIntentError(t("payment.signInRequired"));
+        setNeedsAuthForCheckout(true);
+        return;
+      }
+      setNeedsAuthForCheckout(false);
 
       try {
         const res = await fetch("/api/stripe/setup-intent", {
@@ -299,7 +351,7 @@ export default function ReservaPage() {
           const err = await res.json();
           console.error("SetupIntent error:", err.error);
           setSetupIntentError(
-            err.error || "We couldn't prepare secure checkout. Please try again."
+            err.error || t("payment.setupIntentFailed")
           );
           return;
         }
@@ -310,12 +362,12 @@ export default function ReservaPage() {
         setStripeSetupIntentId(setupIntentId);
       } catch (e) {
         console.error("Failed to create SetupIntent:", e);
-        setSetupIntentError("Network error preparing secure checkout. Please try again.");
+        setSetupIntentError(t("payment.setupIntentNetworkError"));
       }
     }
 
     createSetupIntent();
-  }, [serviceDate, serviceTime, quote, setupIntentRetryKey]);
+  }, [serviceDate, serviceTime, quote, setupIntentRetryKey, t]);
 
   const handlePaymentMethodReady = (pmId: string) => {
     setPaymentMethodId(pmId);
@@ -323,12 +375,12 @@ export default function ReservaPage() {
 
   const handleConfirm = async () => {
     if (!quote || !serviceDate || !serviceTime || !paymentMethodId) {
-      setConfirmError("Please complete all steps before confirming.");
+      setConfirmError(t("confirm.completeAllSteps"));
       return;
     }
 
     if (priceFreezeExpired) {
-      setConfirmError("Your price hold has expired. Please refresh to get a new quote before confirming.");
+      setConfirmError(t("confirm.priceHoldExpired"));
       return;
     }
 
@@ -338,12 +390,21 @@ export default function ReservaPage() {
       // correctamente de todos modos, pero es mejor bloquear con un mensaje
       // claro que dejar que el cliente confirme sin saber que el número en
       // pantalla podría no ser el final.
-      setConfirmError("We couldn't confirm your price for this date. Please refresh the page and try again.");
+      setConfirmError(t("confirm.priceNotConfirmed"));
       return;
     }
 
     if (paymentOption === "paypal_first_time" && !paypalTransactionId.trim()) {
-      setConfirmError("Please enter your PayPal transaction ID.");
+      setConfirmError(t("confirm.enterPaypalTransactionId"));
+      return;
+    }
+
+    if ((paymentOption === "alipay" || paymentOption === "wechat_pay") && !walletPaymentIntentId) {
+      setConfirmError(
+        t("confirm.completePaymentFirst", {
+          method: paymentOption === "alipay" ? t("payment.alipay") : t("payment.wechatPay"),
+        })
+      );
       return;
     }
 
@@ -362,6 +423,8 @@ export default function ReservaPage() {
           paymentOption,
           paypalTransactionId: paymentOption === "paypal_first_time" ? paypalTransactionId : undefined,
           paypalPayerEmail: paymentOption === "paypal_first_time" ? paypalPayerEmail : undefined,
+          walletPaymentIntentId:
+            paymentOption === "alipay" || paymentOption === "wechat_pay" ? walletPaymentIntentId : undefined,
           stripeCustomerId,
           stripeSetupIntentId,
           holdAmount: quote.holdAmount,
@@ -370,7 +433,7 @@ export default function ReservaPage() {
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to confirm reservation.");
+        throw new Error(err.error || t("confirm.genericError"));
       }
 
       const { orderId } = await res.json();
@@ -379,7 +442,7 @@ export default function ReservaPage() {
       router.push(`/${locale}/confirmacion?orderId=${orderId}`);
     } catch (err: Error | unknown) {
       setConfirmError(
-        err instanceof Error ? err.message : "Failed to confirm reservation."
+        err instanceof Error ? err.message : t("confirm.genericError")
       );
     } finally {
       setIsConfirming(false);
@@ -404,7 +467,7 @@ export default function ReservaPage() {
             className="inline-flex items-center gap-2 bg-brand-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors"
           >
             <ChevronLeft className="w-5 h-5" />
-            New Quote
+            {t("loadError.newQuoteButton")}
           </button>
         </div>
       </main>
@@ -414,9 +477,9 @@ export default function ReservaPage() {
   if (!quote) return null;
 
   const stepLabels = [
-    { icon: Calendar, label: "Date & Time", done: !!serviceDate && !!serviceTime },
-    { icon: CreditCard, label: "Card", done: !!paymentMethodId },
-    { icon: CheckCircle2, label: "Confirm", done: false },
+    { icon: Calendar, label: t("steps.dateTime"), done: !!serviceDate && !!serviceTime },
+    { icon: CreditCard, label: t("steps.card"), done: !!paymentMethodId },
+    { icon: CheckCircle2, label: t("steps.confirm"), done: false },
   ];
 
   return (
@@ -426,9 +489,9 @@ export default function ReservaPage() {
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Shield className="w-6 h-6 text-brand-gold" />
-            <span className="font-semibold">Lulu Island Flagship</span>
+            <span className="font-semibold">{t("header.brand")}</span>
           </div>
-          <span className="text-sm text-gray-300">Complete Your Reservation</span>
+          <span className="text-sm text-gray-300">{t("header.completeReservation")}</span>
         </div>
       </header>
 
@@ -461,7 +524,7 @@ export default function ReservaPage() {
             <div className="bg-white rounded-lg shadow-elevation-1 p-6">
               <h2 className="text-lg font-semibold text-brand-ink mb-4 flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-brand-gold" />
-                When do you need us?
+                {t("dateTime.title")}
               </h2>
               <div className="space-y-4">
                 <DatePicker value={serviceDate} onChange={setServiceDate} />
@@ -483,30 +546,40 @@ export default function ReservaPage() {
               <div className="bg-white rounded-lg shadow-elevation-1 p-6 space-y-4">
                 <h2 className="text-lg font-semibold text-brand-ink mb-4 flex items-center gap-2">
                   <CreditCard className="w-5 h-5 text-brand-gold" />
-                  Payment Method
+                  {t("payment.title")}
                 </h2>
 
-                {paypalEnabled && isFirstTimeClient && (
-                  <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPaymentOption("card");
-                        setPaymentMethodId("");
-                      }}
-                      className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-                        paymentOption === "card"
-                          ? "bg-white text-brand-navy shadow-sm"
-                          : "text-gray-600 hover:text-gray-900"
-                      }`}
-                    >
-                      Card
-                    </button>
+                {/* Feature 2026-07-21: Alipay/WeChat Pay se agregaron al
+                    mismo selector -- disponibles para cualquier cliente
+                    (decisión de negocio), cobran el 100% por adelantado (ver
+                    WalletPayButton.tsx), a diferencia de Card/PayPal. El
+                    toggle ahora siempre se muestra (antes solo aparecía si
+                    paypalEnabled && isFirstTimeClient) para que el cliente
+                    siempre pueda volver a "Card" sin quedar atascado en
+                    Alipay/WeChat Pay. */}
+                <div className="flex flex-wrap gap-2 p-1 bg-gray-100 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentOption("card");
+                      setPaymentMethodId("");
+                      setWalletPaymentIntentId("");
+                    }}
+                    className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                      paymentOption === "card"
+                        ? "bg-white text-brand-navy shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    {t("payment.card")}
+                  </button>
+                  {paypalEnabled && isFirstTimeClient && (
                     <button
                       type="button"
                       onClick={() => {
                         setPaymentOption("paypal_first_time");
                         setPaymentMethodId("paypal");
+                        setWalletPaymentIntentId("");
                       }}
                       className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
                         paymentOption === "paypal_first_time"
@@ -514,10 +587,40 @@ export default function ReservaPage() {
                           : "text-gray-600 hover:text-gray-900"
                       }`}
                     >
-                      PayPal (first service only)
+                      {t("payment.paypalFirstTime")}
                     </button>
-                  </div>
-                )}
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentOption("alipay");
+                      setPaymentMethodId("");
+                      setWalletPaymentIntentId("");
+                    }}
+                    className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                      paymentOption === "alipay"
+                        ? "bg-white text-brand-navy shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    {t("payment.alipay")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentOption("wechat_pay");
+                      setPaymentMethodId("");
+                      setWalletPaymentIntentId("");
+                    }}
+                    className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                      paymentOption === "wechat_pay"
+                        ? "bg-white text-brand-navy shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    {t("payment.wechatPay")}
+                  </button>
+                </div>
 
                 {paymentOption === "card" && (
                   <Elements
@@ -527,6 +630,12 @@ export default function ReservaPage() {
                       appearance: { theme: "stripe" as const },
                     }}
                   >
+                    <ApplePayButton
+                      onPaymentMethodReady={handlePaymentMethodReady}
+                      disabled={isConfirming}
+                      clientSecret={stripeClientSecret}
+                      amountCents={Math.round((quote.total || 0) * 100)}
+                    />
                     <StripeCardForm
                       onPaymentMethodReady={handlePaymentMethodReady}
                       disabled={isConfirming}
@@ -538,26 +647,69 @@ export default function ReservaPage() {
                 {paymentOption === "paypal_first_time" && (
                   <div className="space-y-3">
                     <p className="text-sm text-gray-600">
-                      Complete your payment via PayPal and enter the transaction ID below.
-                      This option is only available for first-time services.
+                      {t("payment.paypalDesc")}
                     </p>
                     <input
-                      aria-label="Número de transacción de PayPal"
+                      aria-label={t("payment.paypalTransactionIdAriaLabel")}
                       type="text"
                       value={paypalTransactionId}
                       onChange={(e) => setPaypalTransactionId(e.target.value)}
-                      placeholder="PayPal Transaction ID"
+                      placeholder={t("payment.paypalTransactionIdPlaceholder")}
                       className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold"
                     />
                     <input
-                      aria-label="Correo del pagador de PayPal (opcional)"
+                      aria-label={t("payment.paypalPayerEmailAriaLabel")}
                       type="email"
                       value={paypalPayerEmail}
                       onChange={(e) => setPaypalPayerEmail(e.target.value)}
-                      placeholder="PayPal payer email (optional)"
+                      placeholder={t("payment.paypalPayerEmailPlaceholder")}
                       className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold"
                     />
                   </div>
+                )}
+
+                {(paymentOption === "alipay" || paymentOption === "wechat_pay") && (
+                  <Elements
+                    stripe={stripePromise}
+                    options={{
+                      clientSecret: stripeClientSecret,
+                      appearance: { theme: "stripe" as const },
+                    }}
+                  >
+                    <div className="space-y-4">
+                      <p className="text-sm text-gray-600">
+                        {paymentOption === "alipay"
+                          ? t("payment.walletPayNowAlipay")
+                          : t("payment.walletPayNowWechat")}
+                        {" "}
+                        {t("payment.walletBackupCardNote", {
+                          method: paymentOption === "alipay" ? t("payment.alipay") : t("payment.wechatPay"),
+                        })}
+                      </p>
+                      <WalletPayButton
+                        walletType={paymentOption}
+                        // Fix (2026-07-24): quote.id es opcional en el tipo QuoteData
+                        // (se usa también para cotizaciones nuevas sin guardar), pero en
+                        // esta página siempre se cargó una cotización existente por su id
+                        // de la URL -- se usa ese `quoteId` (string, no opcional) en vez
+                        // de quote.id para que tsc no lo marque como posiblemente undefined.
+                        quoteId={quoteId}
+                        disabled={isConfirming}
+                        confirmedPaymentIntentId={walletPaymentIntentId}
+                        onPaymentConfirmed={setWalletPaymentIntentId}
+                      />
+                      {walletPaymentIntentId && (
+                        <div className="pt-4 border-t border-gray-200 space-y-2">
+                          <p className="text-sm font-medium text-brand-ink">{t("payment.backupCardLabel")}</p>
+                          <StripeCardForm
+                            onPaymentMethodReady={handlePaymentMethodReady}
+                            disabled={isConfirming}
+                            clientSecret={stripeClientSecret}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </Elements>
                 )}
               </div>
             )}
@@ -578,7 +730,7 @@ export default function ReservaPage() {
             {serviceDate && serviceTime && !stripeClientSecret && paymentOption === "card" && !setupIntentError && (
               <div className="bg-white rounded-lg shadow-elevation-1 p-6 text-center">
                 <Loader2 className="w-6 h-6 animate-spin text-brand-gold mx-auto mb-2" />
-                <p className="text-sm text-gray-500">Preparing secure checkout...</p>
+                <p className="text-sm text-gray-500">{t("payment.preparingCheckout")}</p>
               </div>
             )}
 
@@ -590,7 +742,7 @@ export default function ReservaPage() {
                   onClick={() => setSetupIntentRetryKey((k) => k + 1)}
                   className="inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-semibold"
                 >
-                  Try again
+                  {t("payment.tryAgain")}
                 </button>
               </div>
             )}
@@ -615,7 +767,7 @@ export default function ReservaPage() {
                   </div>
                 )}
                 <button
-                  aria-label="Confirmar y pagar la reserva"
+                  aria-label={t("confirm.confirmAriaLabel")}
                   onClick={handleConfirm}
                   disabled={isConfirming || needsPhoneVerification}
                   className="w-full inline-flex items-center justify-center gap-2 bg-brand-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -623,23 +775,30 @@ export default function ReservaPage() {
                   {isConfirming ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Confirming...
+                      {t("confirm.confirming")}
                     </>
                   ) : (
                     <>
                       <CheckCircle2 className="w-5 h-5" />
-                      Confirm Reservation
+                      {t("confirm.button")}
                     </>
                   )}
                 </button>
                 {needsPhoneVerification && (
                   <p className="text-xs text-state-danger mt-2 text-center">
-                    Phone verification required before confirming — see the popup.
+                    {t("confirm.phoneVerificationRequired")}
                   </p>
                 )}
                 <p className="text-xs text-gray-500 mt-3 text-center">
-                  By confirming, you agree to our cancellation policy. Hold
-                  authorization applies 72h before service.
+                  {t("confirm.termsNote")}{" "}
+                  <a
+                    href={`/${safeLocale}/cancelacion`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-brand-navy"
+                  >
+                    {t("confirm.viewCancellationPolicy")}
+                  </a>
                 </p>
               </div>
             )}
@@ -657,6 +816,24 @@ export default function ReservaPage() {
           }}
           onSuccess={() => setNeedsPhoneVerification(false)}
           forcePhoneVerification
+        />
+      )}
+
+      {/* Fix 2026-07-24: mismo AuthModal reutilizado -- se abre cuando el
+          useEffect de creación del SetupIntent detecta que no hay sesión.
+          Se puede cerrar (a diferencia de forcePhoneVerification) porque el
+          cliente puede seguir viendo el resto de la página / elegir otra
+          fecha; simplemente no verá el formulario de tarjeta hasta loguearse.
+          onSuccess incrementa setupIntentRetryKey para reintentar la
+          creación del SetupIntent sin recargar la página. */}
+      {needsAuthForCheckout && !needsPhoneVerification && (
+        <AuthModal
+          onClose={() => setNeedsAuthForCheckout(false)}
+          onSuccess={() => {
+            setNeedsAuthForCheckout(false);
+            setSetupIntentError("");
+            setSetupIntentRetryKey((k) => k + 1);
+          }}
         />
       )}
     </main>

@@ -40,6 +40,731 @@
     "zh": "中文",
     "fr": "FR"
   },
+  "cotizador": {
+    "brand": "Lulu Island Flagship",
+    "priceLockedUntil": "价格锁定至 {time}",
+    "stepOf": "第 {current} 步，共 {total} 步",
+    "stepLabels": {
+      "category": "类别",
+      "purpose": "服务类型",
+      "dimensions": "房屋信息",
+      "addonZones": "附加项目",
+      "organic": "家庭情况",
+      "recency": "上次清洁时间",
+      "address": "地址",
+      "summary": "摘要"
+    },
+    "nav": {
+      "home": "首页",
+      "back": "上一步",
+      "next": "下一步",
+      "saving": "保存中...",
+      "submitB2b": "提交企业审核申请",
+      "reserveNow": "立即预订",
+      "homeAriaLabel": "返回首页",
+      "backAriaLabel": "返回上一步"
+    },
+    "authErrors": {
+      "providerError": "登录已取消或第三方登录失败，请重试。",
+      "sessionExchangeFailed": "登录未能完成，请重试。",
+      "missingCode": "登录链接无效或已过期，请重试。",
+      "default": "登录失败，请重试。"
+    },
+    "errors": {
+      "acceptTerms": "请先接受服务条款以继续。",
+      "acquisitionRequired": "请告诉我们您是如何了解到我们的。",
+      "commercialReview": "企业/团体预订需要人工开户及采购单（PO）设置，我们的团队将尽快与您联系。",
+      "genericSubmit": "报价保存失败，请重试。",
+      "genericAuth": "身份验证失败，请重试。",
+      "genericPreview": "预览计算失败"
+    },
+    "summary": {
+      "calculating": "正在计算您的服务器核实报价...",
+      "ready": "您的报价已生成",
+      "readySubtitle": "价格全包，无隐藏费用。",
+      "b2bTitle": "企业 / 团体报价",
+      "b2bDesc": "此报价需要人工开户、采购单（PO）流程及月结30天设置后方可预订。提交后我们的销售团队将收到通知。",
+      "poLabel": "采购单（PO）编号 *",
+      "poHint": "企业 / 政府预订在开户前需提供采购单编号。"
+    },
+    "category": {
+      "title": "您需要清洁哪种类型的空间？",
+      "subtitle": "请选择最符合您空间的类别。",
+      "items": {
+        "home": { "label": "住宅", "description": "住宅清洁服务" },
+        "commercial": { "label": "商业", "description": "办公室、Airbnb及施工后清洁" }
+      }
+    },
+    "purpose": {
+      "title": "您需要哪种类型的清洁服务？",
+      "subtitle": "请选择最符合您情况的服务。",
+      "items": {
+        "first_time": "首次清洁",
+        "regular": "常规清洁",
+        "move_in_out": "搬入/搬出清洁",
+        "office": "办公室清洁",
+        "airbnb": "Airbnb / 短租清洁",
+        "post_construction": "施工后清洁"
+      }
+    },
+    "dimensions": {
+      "title": "请告诉我们您房屋的情况",
+      "subtitle": "这有助于我们估算所需时间和团队人数。",
+      "bedroomsTitle": "卧室数量",
+      "bedroomsSubtitle": "包括主卧和客房",
+      "bathroomsTitle": "浴室数量",
+      "bathroomsSubtitle": "全浴室和半浴室",
+      "squareFeetTitle": "大约建筑面积",
+      "squareFeetSubtitle": "大致估算即可",
+      "bcAssessment": {
+        "button": "从BC Assessment获取建议",
+        "errorNoAddress": "请先输入地址以查询BC Assessment。",
+        "errorLookupFailed": "查询失败。",
+        "errorNetwork": "网络错误。",
+        "noSuggestion": "暂无建议数据",
+        "noSuggestionFallback": "请手动输入建筑面积。",
+        "suggested": "建议面积：{value} 平方英尺",
+        "confidence": "可信度：{level}。请在预订前务必核实。",
+        "use": "使用",
+        "ignore": "忽略"
+      }
+    },
+    "addonZones": {
+      "title": "还需要其他附加服务吗？",
+      "subtitle": "基础报价未包含的可选区域。",
+      "empty": "此服务无需额外附加项目 — 一切就绪。"
+    },
+    "organic": {
+      "title": "家中居住情况？",
+      "subtitle": "这有助于我们估算所需的清洁工作量。",
+      "petsTitle": "宠物",
+      "petTypes": {
+        "none": "无宠物",
+        "short_hair": "短毛（猫/狗）",
+        "long_hair": "长毛（猫/狗）",
+        "multiple": "多只 / 其他"
+      },
+      "howMany": "共有几只？",
+      "residentsTitle": "居住人数"
+    },
+    "recency": {
+      "title": "您上次请专业人员清洁是什么时候？",
+      "subtitle": "距离上次深度清洁的时间越久，需要处理的积垢就越多。",
+      "presets": {
+        "lessThan30": { "label": "少于30天", "hint": "近期维护" },
+        "oneToTwoMonths": { "label": "1-2个月", "hint": "预计有一定积垢" },
+        "twoToThreeMonths": { "label": "2-3个月", "hint": "中等程度积垢" },
+        "moreThanThree": { "label": "超过3个月", "hint": "建议深度清洁" }
+      }
+    },
+    "address": {
+      "title": "您的住址在哪里？",
+      "subtitle": "我们的服务范围覆盖里士满、温哥华、北温哥华、西温哥华及UBC地区。",
+      "savedPropertyLabel": "使用已保存的物业地址",
+      "savedPropertyPlaceholder": "选择已保存的地址...",
+      "streetLabel": "街道地址",
+      "streetPlaceholder": "例如：123 Main Street, Richmond",
+      "bcSuggestionText": "公开记录显示约 {value} 平方英尺，是否确认？",
+      "bcSuggestionCorrect": "正确",
+      "bcSuggestionDifferent": "不，有出入",
+      "zoneLabel": "区域",
+      "zoneBase": "基础区域",
+      "postalLabel": "邮政编码",
+      "postalPlaceholder": "例如：V7E 2A1",
+      "postalInvalid": "格式无效，请使用：V6X 1A1"
+    },
+    "priceBreakdown": {
+      "title": "价格明细",
+      "serviceTypes": {
+        "regular": "常规清洁",
+        "deep": "深度清洁",
+        "move_in_out": "搬入/搬出清洁",
+        "post_construction": "施工后清洁"
+      },
+      "organicHeavy": "较重家庭清洁负荷",
+      "organicLight": "较轻家庭清洁负荷",
+      "recencyLong": "距上次清洁时间较长",
+      "recencyRecent": "近期已清洁",
+      "zoneSurcharge": "区域附加费",
+      "logisticsSurcharge": "物流附加费（非优先日期）",
+      "extraAreas": "已选附加区域",
+      "ruleAdjustment": "定价规则调整",
+      "ruleNote": "最终价格由服务器计算。生效中的定价规则可能会调整此估算金额。",
+      "adminReviewTitle": "需人工审核",
+      "adminReviewDesc": "此报价需要在安排服务前经过人工批准。我们的团队将尽快与您联系。",
+      "subtotal": "小计",
+      "gst": "联邦消费税 GST (5%)",
+      "pst": "省销售税 PST (7%)",
+      "total": "预计总额",
+      "holdTitle": "预订保留金：{amount}",
+      "holdDesc": "服务开始前72小时，我们会在您的信用卡上进行一笔临时授权（非实际扣款）。如提前超过72小时取消，将全额释放；如在服务前24-72小时内取消，将保留50%；如爽约或在24小时内取消，将保留全部保留金。"
+    },
+    "consentCheck": {
+      "title": "同意条款与协议",
+      "tcLabel": "服务条款",
+      "tcDesc": "我同意服务条款，包括取消政策、付款条款及服务范围。此项为必选，方可继续。",
+      "pipaLabel": "照片留证同意（PIPA）— 可选",
+      "pipaDesc": "我同意收集清洁服务过程中的照片留证，用于质量保证与争议处理，符合卑诗省《个人信息保护法》（PIPA）。",
+      "pipaWarning": "若不同意照片留证，您的服务将强制进行100%实地质检（不另收费），且清洁核对表将在无照片记录的情况下完成。",
+      "marketingLabel": "营销通讯（可选）",
+      "marketingDesc": "我同意接收有关优惠活动、季节性清洁小贴士及服务提醒的推广邮件和短信。您可随时取消订阅。（符合CASL加拿大反垃圾邮件法）",
+      "photoMarketingLabel": "营销用照片（可选）",
+      "photoMarketingDesc": "我同意Lulu Island Flagship将我的服务前后对比照片用于营销用途（网站、社交媒体、作品集展示）。若不同意，将仅使用匿名的示范物业照片。"
+    },
+    "languagePreference": {
+      "title": "偏好语言",
+      "description": "我们将为您匹配一位会说您所选语言的团队负责人。请按优先顺序选择 — 第一个为您的主要语言。"
+    },
+    "acquisitionChannel": {
+      "title": "您是如何了解到我们的？*",
+      "selectOne": "请选择一项",
+      "ariaLabel": "您是如何了解到我们的？",
+      "channels": {
+        "google_search": "谷歌搜索",
+        "google_maps": "谷歌地图 / 商家资料",
+        "social_media": "社交媒体",
+        "referral_friend": "朋友 / 家人推荐",
+        "drive_by": "看到我们的车辆 / 路过",
+        "repeat_customer": "我是回头客",
+        "other": "其他"
+      }
+    },
+    "authModal": {
+      "closeAriaLabel": "关闭登录窗口",
+      "verifyPhoneTitle": "验证您的手机号码",
+      "signInTitle": "登录以完成预订",
+      "verifyPhoneDesc": "为了您的账户安全，完成预订前需要验证手机号码，仅需一分钟。",
+      "sameMethodWarning": "请每次使用同一种登录方式 — 切换方式（例如先用谷歌登录，后改用邮箱）会创建一个不同的账户，您将无法访问之前的历史记录和钱包。",
+      "phoneNumberLabel": "手机号码",
+      "phoneHint": "仅限BC/加拿大号码",
+      "sendSmsCode": "发送短信验证码",
+      "sending": "发送中...",
+      "enterCodeSentTo": "请输入发送至 {destination} 的6位验证码",
+      "verifyPhone": "验证手机号",
+      "verifying": "验证中...",
+      "resendPhone": "重新发送验证码或更换手机号",
+      "resendEmail": "重新发送验证码或更换邮箱",
+      "continueWithGoogle": "使用谷歌账号继续",
+      "continueWithApple": "使用Apple账号继续",
+      "or": "或",
+      "emailOption": "邮箱 + 验证码",
+      "phoneOption": "手机 + 短信验证码",
+      "emailAddressLabel": "电子邮箱",
+      "sendVerificationCode": "发送验证码",
+      "verifyAndSignIn": "验证并登录",
+      "backToAllOptions": "← 返回所有登录方式",
+      "sendSmsCodeAriaLabel": "发送手机验证短信验证码",
+      "sendLinkedSmsCodeAriaLabel": "发送手机号码验证短信验证码",
+      "verifyPhoneCodeAriaLabel": "验证手机验证码",
+      "verifyAndSignInAriaLabel": "验证验证码并登录",
+      "sendEmailCodeAriaLabel": "发送邮箱验证码",
+      "errors": {
+        "invalidEmail": "请输入有效的电子邮箱地址",
+        "sendCodeFailed": "验证码发送失败",
+        "invalidPhone": "请输入有效的手机号码",
+        "sendSmsFailed": "短信验证码发送失败",
+        "invalidCode": "请输入6位验证码",
+        "emailRequired": "需要提供邮箱，请返回并输入您的邮箱。",
+        "phoneRequired": "需要提供手机号码，请返回并输入您的手机号。",
+        "invalidVerificationCode": "验证码无效",
+        "googleFailed": "谷歌登录失败",
+        "appleFailed": "Apple登录失败"
+      }
+    }
+  },
+  "reserva": {
+    "header": {
+      "brand": "Lulu Island Flagship",
+      "completeReservation": "完成预订"
+    },
+    "steps": {
+      "dateTime": "日期与时间",
+      "card": "银行卡",
+      "confirm": "确认"
+    },
+    "loadError": {
+      "invalidQuoteId": "报价单编号无效。",
+      "quoteNotFound": "未找到该报价单，或报价单已过期。",
+      "quoteExpired": "此报价单已过期，请重新获取报价。",
+      "alreadyStatus": "此报价单已处于「{status}」状态，请重新获取报价。",
+      "statusLabels": {
+        "reserved": "已预订",
+        "expired": "已过期"
+      },
+      "adminReviewRequired": "此报价单需要人工审核后方可预订，我们的团队将尽快与您联系。",
+      "commercialAccount": "企业 / 政府账户需要人工开户及采购单（PO）设置，请联系我们的销售团队以完成预订。",
+      "newQuoteButton": "重新获取报价"
+    },
+    "dateTime": {
+      "title": "您希望我们何时上门服务？"
+    },
+    "datePicker": {
+      "label": "选择服务日期",
+      "cutoffWarning": "次日预订将于当天下午5点截止，请选择更晚的日期。",
+      "helpText": "预订将于前一天下午5点截止。最早可选日期：{date}"
+    },
+    "timeSlotPicker": {
+      "label": "选择时间",
+      "checkingCapacity": "正在实时查询可用名额...",
+      "loadFailed": "加载可用名额失败",
+      "networkError": "网络错误",
+      "newClientLimitWarning": "新客户每次仅可持有1个有效预订。请先完成首次服务后再预订下一次。",
+      "noSlotsAvailable": "该日期/区域暂无可用时段，请选择其他日期。",
+      "capacityNotAvailable": "暂无可用名额数据，请先选择日期。",
+      "slotUnavailable": "该时段不可用",
+      "serviceWindow": "服务时间段：上午8点 – 下午6点",
+      "weekendSurcharge": "周末（周六/周日）适用附加费。"
+    },
+    "payment": {
+      "title": "付款方式",
+      "card": "银行卡",
+      "paypalFirstTime": "PayPal（仅限首次服务）",
+      "alipay": "支付宝",
+      "wechatPay": "微信支付",
+      "paypalDesc": "请通过PayPal完成付款，并在下方填写交易编号。此选项仅适用于首次服务。",
+      "paypalTransactionIdPlaceholder": "PayPal交易编号",
+      "paypalTransactionIdAriaLabel": "PayPal交易编号",
+      "paypalPayerEmailPlaceholder": "PayPal付款人邮箱（可选）",
+      "paypalPayerEmailAriaLabel": "PayPal付款人邮箱（可选）",
+      "walletPayNowAlipay": "立即使用支付宝支付全款。",
+      "walletPayNowWechat": "立即使用微信支付全款。",
+      "walletBackupCardNote": "之后仍需登记一张备用卡，用于覆盖任何额外费用（损坏、超时、临时取消）——我们绝不会再次通过{method}向您扣款。",
+      "backupCardLabel": "备用卡",
+      "preparingCheckout": "正在准备安全结账...",
+      "tryAgain": "重试",
+      "signInRequired": "请登录以继续结账。",
+      "setupIntentFailed": "无法准备安全结账，请重试。",
+      "setupIntentNetworkError": "准备安全结账时发生网络错误，请重试。"
+    },
+    "priceFreezeCountdown": {
+      "expired": "您的价格保留已过期，请刷新页面以获取新报价后再确认。",
+      "aboutToExpire": "您的价格保留即将过期 — 请留在此页面以保持有效。",
+      "held": "在您完成预订期间，价格将保持锁定。"
+    },
+    "recalculateWarning": "价格可能未反映您所选的日期，请在确认前刷新页面。",
+    "confirm": {
+      "button": "确认预订",
+      "confirmAriaLabel": "确认并支付预订款项",
+      "confirming": "确认中...",
+      "phoneVerificationRequired": "确认前需完成手机验证 — 请查看弹窗。",
+      "termsNote": "确认即表示您同意我们的取消政策。服务开始前72小时将进行保留金授权。",
+      "viewCancellationPolicy": "查看取消政策",
+      "completeAllSteps": "请先完成所有步骤后再确认。",
+      "priceHoldExpired": "您的价格保留已过期，请刷新页面以获取新报价后再确认。",
+      "priceNotConfirmed": "我们无法确认该日期的价格，请刷新页面后重试。",
+      "enterPaypalTransactionId": "请填写您的PayPal交易编号。",
+      "completePaymentFirst": "请先完成{method}付款。",
+      "genericError": "预订确认失败。"
+    },
+    "summary": {
+      "title": "预订摘要",
+      "defaultServiceLabel": "清洁服务",
+      "spaceDetails": "{bedrooms}间卧室，{bathrooms}间浴室，{squareFeet}平方英尺",
+      "dateAtTime": "{date} {time}",
+      "basePrice": "基础价格",
+      "subtotal": "小计",
+      "gst": "联邦消费税 GST (5%)",
+      "pst": "省销售税 PST (7%)",
+      "total": "总计",
+      "savingsMessage": "太棒了！本次预订为您节省了{amount}。",
+      "surchargesIncludedMessage": "以上金额已包含{amount}的区域/物流/产品附加费。",
+      "securityHoldLabel": "预订保留金 (服务前72小时)：",
+      "securityHoldNote": "仅为授权，预订时不扣款。仅在72小时内取消或爽约时才会扣款。",
+      "lineLabels": {
+        "organicProducts": "环保产品",
+        "recencyAdjustment": "清洁间隔调整",
+        "zoneSurcharge": "区域附加费",
+        "logisticsSurcharge": "物流附加费",
+        "additionalZones": "附加区域"
+      }
+    },
+    "benefits": {
+      "checking": "正在查询您的专属权益…",
+      "title": "您的专属权益",
+      "walletBalanceLabel": "Lulu钱包余额",
+      "walletNotApplied": "此权益不会自动应用于本次预订 — 请前往<link>我的钱包</link>进行管理。",
+      "referralCreditLabel": "推荐奖励金",
+      "referralCreditValue": "本次服务完成后 +{amount}"
+    },
+    "stripeCardForm": {
+      "cardDetailsLabel": "银行卡信息",
+      "postalCodeLabel": "邮政编码",
+      "postalCodePlaceholder": "V6X 1A1",
+      "postalCodeHint": "加拿大格式：字母-数字-字母 空格 数字-字母-数字",
+      "invalidPostalCode": "请输入有效的加拿大邮政编码（例如：V6X 1A1）。",
+      "cardElementNotFound": "未找到银行卡输入框。",
+      "cardValidationFailed": "银行卡验证失败。",
+      "saveButton": "保存银行卡",
+      "saveCardAriaLabel": "保存付款卡",
+      "validating": "验证中...",
+      "secureNote": "您的银行卡信息由Stripe安全加密处理，我们不会存储卡号信息。"
+    },
+    "applePayButton": {
+      "checkoutNotReady": "结账会话尚未准备就绪，请稍后重试。",
+      "validationFailed": "Apple Pay银行卡验证失败。",
+      "orPayWithCard": "或使用下方银行卡付款"
+    },
+    "walletPayButton": {
+      "paymentTimedOut": "付款超时，请重试。",
+      "paymentCancelled": "付款已取消。",
+      "couldNotStart": "无法发起付款。",
+      "paymentReceivedFull": "已收到{method}全额付款。",
+      "scanQrInstruction": "请使用微信扫码完成付款",
+      "payFullAmountWith": "使用{method}支付全款",
+      "couldNotDisplayQr": "无法显示微信支付二维码，请重试。",
+      "genericPaymentFailed": "付款失败。"
+    }
+  },
+  "confirmacion": {
+    "brand": "Lulu Island Flagship",
+    "notFoundTitle": "未找到预订信息",
+    "notFoundDesc": "我们未能找到您的预订详情。",
+    "getQuote": "获取报价",
+    "title": "预订已确认",
+    "subtitle": "您的清洁服务已安排就绪，我们到时候见！",
+    "serviceLabel": "服务",
+    "defaultServiceLabel": "清洁服务",
+    "dateTimeLabel": "日期与时间",
+    "at": "",
+    "locationLabel": "地址",
+    "totalLabel": "总额",
+    "whatNextTitle": "接下来会发生什么？",
+    "next1": "服务总金额：{amount}。将在服务完成后于温哥华时间晚上7点自动扣款。",
+    "next2": "服务前72小时：我们会在您的信用卡上进行一笔临时授权（非实际扣款），金额为{amount}。仅在您逾期取消或未到场时才会实际扣款。",
+    "next3": "服务当天：我们的团队将按预约时间上门。",
+    "next4": "服务结束后，您将收到服务前后对比照片相册。",
+    "viewReservation": "查看我的预订",
+    "backToHome": "返回首页"
+  },
+  "legal": {
+    "backHome": "返回首页",
+    "lastUpdated": "最近更新：2026年7月24日",
+    "nav": {
+      "terms": "服务条款",
+      "privacy": "隐私政策",
+      "cancellation": "取消政策"
+    },
+    "terms": {
+      "title": "服务条款",
+      "intro": "本服务条款适用于您使用 Lulu Island Flagship Cleaning Services 以及您在我们平台上进行的任何预订。我们在加拿大不列颠哥伦比亚省（BC）的 Richmond、Vancouver、North Vancouver、West Vancouver 及 UBC 地区提供住宅及轻型商业清洁服务。",
+      "sections": [
+        {
+          "heading": "1. 报价与价格锁定",
+          "body": "通过我们的报价工具生成的报价为不含隐藏费用的全额价格，在屏幕显示的有限时间内有效。只要您在积极完成结账流程，锁定时间会自动延长，但有绝对上限。如果价格锁定在您确认之前到期，您需要重新获取报价。"
+        },
+        {
+          "heading": "2. 预订与付款授权（Hold）",
+          "body": "当您确认预订时，我们会进行一笔付款授权（“Hold”）以确保您的预订。信用卡付款为授权保留，并非实际扣款。使用支付宝或微信支付时，服务全额将在预订时立即扣款。使用 PayPal（仅限首次预订）时，Hold 金额的 50% 将作为预付款在预订时扣款，其余部分在服务完成时或按照我们的取消政策处理。无论使用哪种付款方式，结账时均需要登记一张备用信用卡，用于承担损坏赔偿或经批准的额外工时等费用。"
+        },
+        {
+          "heading": "3. 取消",
+          "body": "取消的具体时间窗口和罚款金额详见我们的《取消政策》，该政策构成本条款的一部分。确认预订即表示您同意该政策。"
+        },
+        {
+          "heading": "4. 身份与手机验证",
+          "body": "在您首次预订确认前，我们要求进行手机号码验证，这是我们的防欺诈及沟通措施之一，无论您通过何种方式登录（包括社交账号登录）均适用。"
+        },
+        {
+          "heading": "5. 适用账户类型",
+          "body": "自助在线预订适用于住宅客户。商业（B2B）及政府账户，以及被标记需人工审核的预订，将通过单独流程处理，不会通过本结账流程自动确认。新客户在完成首次服务前，同一时间只能保留一笔有效预订。"
+        },
+        {
+          "heading": "6. 服务记录与质量",
+          "body": "我们的团队会通过检查清单照片记录服务完成情况，这些照片也用于支持我们的满意度保证，以及您就遗漏项目提出的任何保修申诉。服务完成后，您将收到服务前后对比照片相册。"
+        },
+        {
+          "heading": "7. 条款变更",
+          "body": "我们可能会不定期更新本条款。重大变更将在本页面体现，并更新日期。"
+        },
+        {
+          "heading": "8. 联系方式",
+          "body": "如对本条款有任何疑问，请发送邮件至 hello@luluislandflagship.ca。"
+        }
+      ]
+    },
+    "privacy": {
+      "title": "隐私政策",
+      "intro": "本隐私政策说明 Lulu Island Flagship Cleaning Services 如何收集、使用、保留和保护个人信息，我们遵守加拿大《个人信息保护和电子文件法》（PIPEDA）以及不列颠哥伦比亚省适用的隐私法律。",
+      "sections": [
+        {
+          "heading": "1. 我们收集的信息",
+          "body": "联系方式（姓名、电话号码、电子邮箱）；服务地址；服务检查清单期间拍摄的照片（用于质量控制），如您提出保修申诉，还包括与该申诉相关的额外证据照片；付款方式信息——我们自身不存储完整的信用卡号，信用卡付款及 Hold 授权由 Stripe 处理并进行代币化，PayPal 预付款由 PayPal 处理，支付宝/微信支付通过 Stripe 处理；您的预订及服务历史；以及您与我们团队的沟通记录。"
+        },
+        {
+          "heading": "2. 我们如何使用您的信息",
+          "body": "用于安排服务及调配人员、通过短信一次性验证码验证您的身份、按照我们的取消政策授权及处理付款保留、扣款和退款、进行质量控制并解决保修申诉、履行法律及税务义务，以及在您选择加入的情况下运营推荐计划及 Lulu Wallet 计划。"
+        },
+        {
+          "heading": "3. 保留期限",
+          "body": "质量控制检查清单照片自服务日期起保留1年。与已开立或已解决的保修申诉/纠纷相关的照片保留2年，且只要相关纠纷仍未解决，绝不删除。如果您申请删除个人信息，您的记录将立即被去标识化，并以受限、可待清除状态保留2年，以满足我们的税务及法律留存义务，此后将被永久清除。"
+        },
+        {
+          "heading": "4. 您在 PIPEDA 下的权利",
+          "body": "您有权访问我们持有的关于您的个人信息，要求更正不准确的信息，并要求删除您的个人信息（须遵守上述保留义务）。如需行使上述任何权利，请通过 hello@luluislandflagship.ca 与我们联系。访问及删除请求将被记录，并根据我们的内部服务承诺，须在收到请求后48小时内答复。"
+        },
+        {
+          "heading": "5. 数据泄露通知",
+          "body": "如果数据泄露造成重大损害的实际风险，我们将在发现泄露后72小时内通知不列颠哥伦比亚省信息与隐私专员办公室（OIPC BC）及受影响个人。"
+        },
+        {
+          "heading": "6. 服务提供商与第三方",
+          "body": "我们仅与协助我们运营的服务提供商共享必要的最少个人信息：Stripe（信用卡付款、授权保留及退款）、PayPal（首次预订预付款）、Supabase（数据库及账户托管）以及 Sentry（技术错误监控）。每家服务提供商均受合同及技术限制，仅可将您的信息用于为我们提供相应服务。"
+        },
+        {
+          "heading": "7. Cookie 与会话数据",
+          "body": "我们仅使用维持您登录状态及运行结账流程所必需的功能性 Cookie 及本地会话存储，不使用第三方广告追踪工具。"
+        },
+        {
+          "heading": "8. 政策变更",
+          "body": "我们可能会不定期更新本隐私政策。重大变更将在本页面体现，并更新日期。"
+        },
+        {
+          "heading": "9. 联系方式",
+          "body": "如有隐私相关问题或请求，请发送邮件至 hello@luluislandflagship.ca。"
+        }
+      ]
+    },
+    "cancellation": {
+      "title": "取消政策",
+      "intro": "以下是当您取消已确认的预订，或未到场时所适用的确切政策。它规定了您的付款 Hold 将如何被释放、扣款或退款，且无论您在结账时使用何种付款方式，均适用相同规则。",
+      "sections": [
+        {
+          "heading": "服务前超过72小时",
+          "body": "全额退款。您的 Hold 将被释放，不产生任何费用。如果您已全额预付（支付宝/微信支付），将全额退还。如果您已支付 PayPal 预付款，也将全额退还。"
+        },
+        {
+          "heading": "服务前24至72小时之间",
+          "body": "将从您的 Hold 金额中扣除50%作为取消罚款，其余50%将被释放或退还。"
+        },
+        {
+          "heading": "服务前不足24小时，或未到场",
+          "body": "将从您的 Hold 金额中扣除100%作为取消罚款。"
+        },
+        {
+          "heading": "不同付款方式的具体适用方式",
+          "body": "信用卡：您的 Hold 为付款授权；我们将从该授权中扣除上述相应比例，并释放其余部分——扣款金额永远不会超过您的 Hold 金额。PayPal（仅限首次预订）：预订时已收取的50%预付款将按上述相同时间窗口保留；如果所适用的时间窗口要求保留的金额超过已预收的预付款（即不足24小时的情形），差额将从您在结账时登记的备用信用卡中扣除。支付宝/微信支付：服务全额已在预订时预先扣款；取消时，我们将通过 Stripe 按照上述相同时间窗口退还相应金额。因钱包类付款方式取消而产生的费用，绝不会再次向您的备用信用卡扣款。"
+        },
+        {
+          "heading": "未到场",
+          "body": "未到场将与“不足24小时”时间窗口内的取消完全同等对待：扣除您 Hold 金额的100%。"
+        },
+        {
+          "heading": "疑问或争议",
+          "body": "如需取消预订，或认为取消扣款有误，请通过 hello@luluislandflagship.ca 与我们联系。"
+        }
+      ]
+    }
+  },
+  "cuenta": {
+    "nav": {
+      "ariaLabel": "账户导航",
+      "servicios": "我的服务",
+      "propiedades": "我的物业",
+      "billetera": "Lulu钱包",
+      "referidos": "Lulu大使计划",
+      "preferencias": "偏好设置",
+      "logout": "退出登录"
+    },
+    "common": {
+      "retry": "重试",
+      "dismiss": "关闭",
+      "loadFailedRetry": "加载失败，请检查网络连接后重试。",
+      "networkErrorRetry": "连接出现问题，请检查网络后重试。"
+    },
+    "orderStatus": {
+      "pending": "待处理",
+      "confirmed": "已确认",
+      "completed": "已完成",
+      "cancelled": "已取消",
+      "no_show": "客户爽约"
+    },
+    "servicios": {
+      "title": "我的服务",
+      "subtitle": "您的服务历史记录。如果已完成的服务出现问题，可在此举报。",
+      "manageProperties": "管理我的物业",
+      "luluWallet": "Lulu钱包",
+      "referFriend": "推荐朋友",
+      "loadFailed": "加载服务记录失败",
+      "networkError": "网络错误",
+      "noServices": "暂无服务记录。",
+      "defaultServiceLabel": "清洁服务",
+      "viewPhotosChecklist": "查看照片与核对表",
+      "trackYourTeam": "追踪您的团队",
+      "reportIssue": "举报问题",
+      "underReview": "审核中。",
+      "finalAction": {
+        "free_recleaning": "已安排免费重新清洁",
+        "explain_no_action": "已审核 — 已展示结项照片，无需进一步处理",
+        "dismiss": "已驳回"
+      },
+      "claimForm": {
+        "selectZone": "请选择一个区域",
+        "describeIssue": "请描述问题（至少几个字）",
+        "photoUploadFailed": "照片上传失败，请重试。",
+        "submitFailed": "提交失败",
+        "networkError": "网络错误",
+        "allZonesClaimed": "此服务的所有区域均已有待处理的举报。",
+        "whichArea": "哪个区域？",
+        "whatHappened": "发生了什么？",
+        "whatHappenedPlaceholder": "例如：浴室镜子仍有污渍",
+        "moreDetail": "更多细节（可选）",
+        "photoLabel": "照片（可选，有助于我们更快审核）",
+        "photoInputAriaLabel": "附上问题照片（可选）",
+        "cancel": "取消",
+        "submit": "提交"
+      },
+      "recurring": {
+        "confirmCancel": "确定要取消您的定期计划吗？您随时可以重新预订新的计划。",
+        "updateFailed": "无法更新您的计划",
+        "networkError": "网络错误",
+        "loadFailed": "无法加载您的定期计划",
+        "quoteFailed": "无法创建报价",
+        "cancelledNotice": "您的定期计划已取消。您可以随时从报价表单重新开始一个新计划。",
+        "plan": "您的定期计划",
+        "planWithNextVisit": "您的定期计划 — 下次上门服务：{date}",
+        "bookNextVisitAriaLabel": "预订下次服务",
+        "bookNextVisit": "预订下次服务",
+        "pausing": "暂停中…",
+        "pausePlan": "暂停计划",
+        "cancelling": "取消中…",
+        "cancelPlan": "取消计划"
+      },
+      "livePortfolio": {
+        "withdrawFailed": "撤回失败",
+        "removed": "已从Live Portfolio中移除。",
+        "networkError": "网络错误",
+        "selectedNotice": "您的一项服务（{label}）已被选入我们的Live Portfolio展示项目。",
+        "removing": "移除中...",
+        "removeIt": "移除"
+      },
+      "tracking": {
+        "loadFailed": "追踪信息加载失败",
+        "networkError": "网络错误",
+        "notAvailable": "实时追踪目前不可用。",
+        "title": "您的团队正在赶来",
+        "subtitle": "服务车辆的实时位置 — 自动更新。",
+        "lastUpdated": "最后更新于 {time}",
+        "openInMaps": "在地图中打开"
+      },
+      "galeria": {
+        "loadFailed": "加载失败",
+        "networkError": "网络错误",
+        "yourService": "您的服务",
+        "completedIn": "用时 {minutes} 分钟完成",
+        "photos": "照片",
+        "servicePhotoAlt": "服务照片 {index}",
+        "checklist": "核对清单",
+        "rebook": {
+          "loadOptionsFailed": "无法加载重新预订选项",
+          "networkError": "网络错误",
+          "createQuoteFailed": "无法创建报价",
+          "rebookThisService": "重新预订此服务",
+          "whenNextVisit": "您希望下次何时上门服务？",
+          "confirmDateAriaLabel": "确认新的服务日期",
+          "confirm": "确认"
+        }
+      }
+    },
+    "propiedades": {
+      "loadFailed": "加载物业信息失败",
+      "networkError": "网络错误",
+      "postalInvalid": "格式无效，请使用：V6X 1A1",
+      "addressRequired": "地址为必填项",
+      "zoneRequired": "区域为必填项",
+      "postalCodeInvalid": "邮政编码无效",
+      "squareFeetInvalid": "建筑面积必须为正数",
+      "saveFailed": "保存物业信息失败",
+      "savedSuccess": "物业信息已保存。",
+      "deletedSuccess": "物业已删除。",
+      "confirmDelete": "确定要删除此物业吗？",
+      "deleteFailed": "删除物业信息失败",
+      "title": "我的物业",
+      "subtitle": "保存多个地址，加快未来预订速度。",
+      "viewServiceHistory": "查看我的服务历史",
+      "editProperty": "编辑物业",
+      "addProperty": "添加物业",
+      "cancelEditAriaLabel": "取消编辑物业",
+      "nicknameLabel": "昵称（可选）",
+      "nicknamePlaceholder": "例如：家、办公室",
+      "squareFeetLabel": "建筑面积（可选）",
+      "squareFeetPlaceholder": "例如：1200",
+      "streetAddressLabel": "街道地址",
+      "streetAddressPlaceholder": "例如：123 Main Street, Richmond",
+      "zoneLabel": "区域",
+      "postalCodeLabel": "邮政编码",
+      "postalCodePlaceholder": "例如：V7E 2A1",
+      "cancel": "取消",
+      "saveChangesAriaLabel": "保存物业更改",
+      "addPropertyAriaLabel": "添加物业",
+      "saveChanges": "保存更改",
+      "noProperties": "暂无已保存的物业。",
+      "edit": "编辑",
+      "delete": "删除"
+    },
+    "billetera": {
+      "networkError": "网络错误",
+      "applyFailed": "应用失败",
+      "appliedSuccess": "积分已应用于您的服务。",
+      "title": "Lulu钱包",
+      "subtitle": "推荐、争议解决及促销积分。积分自发放之日起12个月后过期。",
+      "availableToSpend": "可用余额",
+      "applyToUpcoming": "应用于即将到来的服务",
+      "applying": "应用中...",
+      "applyCredit": "应用积分",
+      "history": "历史记录",
+      "noActivity": "暂无钱包活动记录。",
+      "expires": "{date} 到期",
+      "transactionType": {
+        "credit": "积分",
+        "debit": "扣款",
+        "refund": "退款",
+        "promo": "促销积分",
+        "payout": "提现"
+      }
+    },
+    "referidos": {
+      "networkError": "网络错误",
+      "redeemFailed": "无法兑换此码",
+      "title": "Lulu大使计划",
+      "subtitle": "推荐一位朋友，待对方完成首次服务后，双方都可获得Lulu钱包积分。",
+      "yourCode": "您的推荐码",
+      "copyCodeAriaLabel": "复制推荐码",
+      "copied": "已复制",
+      "copy": "复制",
+      "shareCode": "分享此码。当您的朋友完成首次服务后，双方都将获得 {amount}。",
+      "notEligible": "推荐码仅对VIP客户开放（完成超过5次服务且账户信誉良好）。继续与我们预订服务，很快即可解锁此功能。",
+      "haveCode": "有朋友给您的推荐码吗？",
+      "redeemInputAriaLabel": "朋友的推荐码",
+      "redeemPlaceholder": "例如：MARIA-AB12",
+      "leaderSelectAriaLabel": "推荐我们的团队负责人（可选）",
+      "leaderSelectPlaceholder": "是否有团队负责人向您推荐了我们？（可选）",
+      "applyCodeAriaLabel": "应用推荐码",
+      "applying": "应用中...",
+      "applyCode": "应用推荐码"
+    },
+    "preferencias": {
+      "loadFailed": "加载失败",
+      "saveFailed": "保存失败",
+      "networkError": "网络错误",
+      "savedSuccess": "偏好设置已保存。",
+      "birthdaySavedSuccess": "生日已保存。",
+      "title": "沟通偏好设置",
+      "subtitle": "服务类消息（预订确认、到达提醒、付款收据）无论此设置如何都会照常发送给您 — 这些属于交易性通知，不属于营销内容。",
+      "marketingEmails": "营销邮件",
+      "marketingEmailsDesc": "季节性优惠、保养提醒及推荐计划。您可随时选择订阅或取消订阅。",
+      "optedIn": "当前已订阅",
+      "optedOut": "当前未订阅",
+      "autoUnsubscribedNotice": "由于多封邮件未打开，系统已自动为您取消订阅。您可以随时在下方重新订阅。",
+      "saving": "保存中...",
+      "optOut": "取消订阅营销邮件",
+      "optIn": "订阅营销邮件",
+      "birthday": "生日（可选）",
+      "birthdayDesc": "告诉我们您的生日，我们每年都会为您送上Lulu钱包礼品。完全可选 — 绝不用于其他用途。",
+      "birthdayInputAriaLabel": "出生日期",
+      "saveBirthdayAriaLabel": "保存出生日期",
+      "save": "保存"
+    }
+  },
   "employee": {
     "loginTitle": "员工登录",
     "loginSubtitle": "使用您的工作邮箱登录",

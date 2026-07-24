@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Check, Loader2, Plus } from "lucide-react";
 
 /**
@@ -27,6 +28,7 @@ interface StepAddonZonesProps {
 }
 
 export function StepAddonZones({ serviceSubtype, targetHourlyRate, selected, onChange }: StepAddonZonesProps) {
+  const t = useTranslations("cotizador.addonZones");
   const [options, setOptions] = useState<AddonZoneOption[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -73,12 +75,12 @@ export function StepAddonZones({ serviceSubtype, targetHourlyRate, selected, onC
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-brand-ink mb-2">Anything extra?</h2>
-        <p className="text-gray-600">Optional areas not included in your base quote.</p>
+        <h2 className="text-2xl font-bold text-brand-ink mb-2">{t("title")}</h2>
+        <p className="text-gray-600">{t("subtitle")}</p>
       </div>
 
       {options.length === 0 ? (
-        <p className="text-center text-gray-500 text-sm">Nothing extra needed for this service — you&apos;re all set.</p>
+        <p className="text-center text-gray-500 text-sm">{t("empty")}</p>
       ) : (
         <div className="space-y-3">
           {options.map((opt) => {

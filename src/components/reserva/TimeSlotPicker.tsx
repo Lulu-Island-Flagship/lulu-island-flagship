@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Clock, Loader2, AlertCircle } from "lucide-react";
 
 interface CapacitySlot {
@@ -38,6 +39,7 @@ export function TimeSlotPicker({
   serviceType,
   squareFeet,
 }: TimeSlotPickerProps) {
+  const t = useTranslations("reserva.timeSlotPicker");
   const [slots, setSlots] = useState<CapacitySlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -65,7 +67,7 @@ export function TimeSlotPicker({
         const res = await fetch(`/api/capacity?${params.toString()}`);
         if (!res.ok) {
           const err = await res.json();
-          setError(err.error || "Failed to load availability");
+          setError(err.error || t("loadFailed"));
           setSlots([]);
           return;
         }
@@ -73,7 +75,7 @@ export function TimeSlotPicker({
         setSlots(data.slots || []);
         setNewClientLimitReached(!!data.newClientLimitReached);
       } catch {
-        setError("Network error");
+        setError(t("networkError"));
         setSlots([]);
       } finally {
         setLoading(false);
@@ -81,7 +83,7 @@ export function TimeSlotPicker({
     }
 
     loadCapacity();
-  }, [serviceDate, zone, serviceType, squareFeet]);
+  }, [serviceDate, zone, serviceType, squareFeet, t]);
 
   const weekend = serviceDate ? isWeekend(serviceDate) : false;
   const hasAvailable = slots.some((s) => s.available);
@@ -89,10 +91,10 @@ export function TimeSlotPicker({
   if (loading) {
     return (
       <div className="space-y-3">
-        <label className="block text-sm font-medium text-brand-ink">Select Time</label>
+        <label className="block text-sm font-medium text-brand-ink">{t("label")}</label>
         <div className="flex items-center gap-2 text-sm text-gray-500 py-4">
           <Loader2 className="w-4 h-4 animate-spin" />
-          Checking real-time capacity...
+          {t("checkingCapacity")}
         </div>
       </div>
     );
@@ -100,7 +102,7 @@ export function TimeSlotPicker({
 
   return (
     <div className="space-y-3">
-      <label className="block text-sm font-medium text-brand-ink">Select Time</label>
+      <label className="block text-sm font-medium text-brand-ink">{t("label")}</label>
 
       {error && (
         <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3">
@@ -111,23 +113,20 @@ export function TimeSlotPicker({
       {!error && newClientLimitReached && (
         <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
           <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <span>
-            New clients can have 1 active reservation at a time. Complete your first service before
-            booking another.
-          </span>
+          <span>{t("newClientLimitWarning")}</span>
         </div>
       )}
 
       {!error && !newClientLimitReached && slots.length > 0 && !hasAvailable && (
         <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
           <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <span>No available slots for this date/zone. Please choose another date.</span>
+          <span>{t("noSlotsAvailable")}</span>
         </div>
       )}
 
       {slots.length === 0 && !error && !loading && (
         <div className="text-sm text-gray-500 bg-gray-50 rounded-lg p-3">
-          Capacity data not available. Please select a date first.
+          {t("capacityNotAvailable")}
         </div>
       )}
 
@@ -142,7 +141,7 @@ export function TimeSlotPicker({
               disabled={disabled}
               title={
                 disabled
-                  ? slot.blockedReason || "Slot unavailable"
+                  ? slot.blockedReason || t("slotUnavailable")
                   : `${slot.startTime} – ${slot.endTime}`
               }
               className={`flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -160,10 +159,10 @@ export function TimeSlotPicker({
         })}
       </div>
       <p className="text-xs text-gray-500">
-        Service window: 8:00 AM – 6:00 PM
+        {t("serviceWindow")}
         {weekend && (
           <span className="block text-brand-gold mt-1">
-            Weekend surcharge applies (Sat/Sun).
+            {t("weekendSurcharge")}
           </span>
         )}
       </p>

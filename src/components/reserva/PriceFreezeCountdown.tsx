@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Clock } from "lucide-react";
 
 interface PriceFreezeCountdownProps {
@@ -32,6 +33,7 @@ interface PriceFreezeCountdownProps {
  * background con timers pausados por el navegador).
  */
 export function PriceFreezeCountdown({ frozenUntilIso, onExpired }: PriceFreezeCountdownProps) {
+  const t = useTranslations("reserva.priceFreezeCountdown");
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [firedExpired, setFiredExpired] = useState(false);
 
@@ -81,7 +83,7 @@ export function PriceFreezeCountdown({ frozenUntilIso, onExpired }: PriceFreezeC
     return (
       <div className="bg-state-danger/10 border border-state-danger text-state-danger text-sm rounded-lg p-3 flex items-center gap-2">
         <Clock className="w-4 h-4 shrink-0" />
-        Your price hold has expired. Please refresh to get a new quote before confirming.
+        {t("expired")}
       </div>
     );
   }
@@ -91,7 +93,7 @@ export function PriceFreezeCountdown({ frozenUntilIso, onExpired }: PriceFreezeC
     return (
       <div className="text-sm rounded-lg p-3 flex items-center gap-2 border bg-state-warning/10 border-state-warning text-state-warning">
         <Clock className="w-4 h-4 shrink-0" />
-        Your price hold is about to expire — stay on this page to keep it active.
+        {t("aboutToExpire")}
       </div>
     );
   }
@@ -102,7 +104,7 @@ export function PriceFreezeCountdown({ frozenUntilIso, onExpired }: PriceFreezeC
   return (
     <div className="text-sm rounded-lg p-3 flex items-center gap-2 border bg-brand-ice border-brand-gold/30 text-brand-ink">
       <Clock className="w-4 h-4 shrink-0" />
-      Your price is held while you complete your reservation.
+      {t("held")}
     </div>
   );
 }

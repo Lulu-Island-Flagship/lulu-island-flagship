@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { FileText, Camera, Mail, Check } from "lucide-react";
 import { CONSENT_VERSIONS } from "@/lib/pricing";
 
@@ -20,9 +21,10 @@ interface ConsentCheckProps {
 }
 
 export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
+  const t = useTranslations("cotizador.consentCheck");
   return (
     <div className="space-y-4">
-      <h3 className="font-semibold text-brand-ink">Consent & Agreements</h3>
+      <h3 className="font-semibold text-brand-ink">{t("title")}</h3>
 
       {/* Terms & Conditions */}
       <label htmlFor="consent-tc" className="flex items-start gap-3 p-4 rounded-lg border-2 border-gray-200 hover:border-brand-wave-blue cursor-pointer transition-all">
@@ -36,13 +38,12 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <FileText className="w-4 h-4 text-brand-wave-blue" />
-            <span className="font-medium text-sm">Terms & Conditions</span>
+            <span className="font-medium text-sm">{t("tcLabel")}</span>
             <span className="text-xs text-gray-400">v{CONSENT_VERSIONS.tc}</span>
             {consents.tc && <Check className="w-4 h-4 text-state-success" />}
           </div>
           <p className="text-xs text-gray-500">
-            I agree to the Terms of Service, including the cancellation policy,
-            payment terms, and service scope. Required to proceed.
+            {t("tcDesc")}
           </p>
         </div>
       </label>
@@ -59,19 +60,16 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <Camera className="w-4 h-4 text-brand-wave-blue" />
-            <span className="font-medium text-sm">Photo Evidence Consent (PIPA) — Optional</span>
+            <span className="font-medium text-sm">{t("pipaLabel")}</span>
             <span className="text-xs text-gray-400">v{CONSENT_VERSIONS.pipa}</span>
             {consents.pipa && <Check className="w-4 h-4 text-state-success" />}
           </div>
           <p className="text-xs text-gray-500">
-            I consent to the collection of photographic evidence of the cleaning
-            service for quality assurance and dispute resolution, in accordance
-            with BC&apos;s Personal Information Protection Act (PIPA).
+            {t("pipaDesc")}
           </p>
           {!consents.pipa && (
             <p className="text-xs text-state-warning mt-2">
-              Without photo consent, your service will require a mandatory 100% field audit
-              (no extra charge) and the checklist will be completed without photographs.
+              {t("pipaWarning")}
             </p>
           )}
         </div>
@@ -89,14 +87,12 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <Mail className="w-4 h-4 text-brand-wave-blue" />
-            <span className="font-medium text-sm">Marketing Communications (Optional)</span>
+            <span className="font-medium text-sm">{t("marketingLabel")}</span>
             <span className="text-xs text-gray-400">v{CONSENT_VERSIONS.marketing}</span>
             {consents.marketing && <Check className="w-4 h-4 text-state-success" />}
           </div>
           <p className="text-xs text-gray-500">
-            I consent to receive promotional emails and SMS about special offers,
-            seasonal cleaning tips, and service reminders. You can unsubscribe at
-            any time. (CASL compliant)
+            {t("marketingDesc")}
           </p>
         </div>
       </label>
@@ -113,14 +109,12 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <Camera className="w-4 h-4 text-brand-wave-blue" />
-            <span className="font-medium text-sm">Marketing Photos (Optional)</span>
+            <span className="font-medium text-sm">{t("photoMarketingLabel")}</span>
             <span className="text-xs text-gray-400">v{CONSENT_VERSIONS.photoMarketing}</span>
             {consents.photoMarketing && <Check className="w-4 h-4 text-state-success" />}
           </div>
           <p className="text-xs text-gray-500">
-            I consent to allowing Lulu Island Flagship to use before/after photos
-            of my service for marketing purposes (website, social media, portfolio).
-            Without this consent, only anonymous demo property photos will be used.
+            {t("photoMarketingDesc")}
           </p>
         </div>
       </label>

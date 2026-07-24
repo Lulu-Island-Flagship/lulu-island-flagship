@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, Users, Copy, CheckCircle2, Gift } from "lucide-react";
 
 interface Leader {
@@ -14,6 +15,7 @@ interface Leader {
  * código recibido de otro cliente (una sola vez por cuenta).
  */
 export default function ReferralsPage() {
+  const t = useTranslations("cuenta.referidos");
   const [loading, setLoading] = useState(true);
   const [eligible, setEligible] = useState(false);
   const [myCode, setMyCode] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export default function ReferralsPage() {
         setLeaders(data.leaders || []);
       }
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setLoading(false);
     }
@@ -86,13 +88,13 @@ export default function ReferralsPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setRedeemError(data.error || "Could not redeem this code");
+        setRedeemError(data.error || t("redeemFailed"));
         return;
       }
       setRedeemMessage(data.message);
       setRedeemCode("");
     } catch {
-      setRedeemError("Network error");
+      setRedeemError(t("networkError"));
     } finally {
       setRedeeming(false);
     }
@@ -109,9 +111,9 @@ export default function ReferralsPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold text-brand-ink">Lulu Ambassador</h1>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Refer a friend, both of you get Lulu Wallet credit once they complete their first service.
+          {t("subtitle")}
         </p>
       </div>
 
@@ -121,7 +123,7 @@ export default function ReferralsPage() {
         <div className="bg-white rounded-xl border p-5 space-y-3">
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-brand-gold-dark" />
-            <p className="font-medium text-brand-ink text-sm">Your referral code</p>
+            <p className="font-medium text-brand-ink text-sm">{t("yourCode")}</p>
           </div>
           {myCode ? (
             <div className="flex items-center gap-2">
@@ -129,48 +131,47 @@ export default function ReferralsPage() {
                 {myCode}
               </code>
               <button
-                aria-label="Copiar código de referido"
+                aria-label={t("copyCodeAriaLabel")}
                 onClick={copyCode}
                 className="inline-flex items-center gap-1.5 text-xs font-medium bg-brand-navy text-white px-3 py-2 rounded-lg"
               >
                 {copied ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? "Copied" : "Copy"}
+                {copied ? t("copied") : t("copy")}
               </button>
             </div>
           ) : (
             <Loader2 className="w-5 h-5 animate-spin text-brand-gold" />
           )}
           <p className="text-xs text-gray-500">
-            Share this code. When your friend completes their first service, you both get ${((creditCents || 3000) / 100).toFixed(2)}.
+            {t("shareCode", { amount: `$${((creditCents || 3000) / 100).toFixed(2)}` })}
           </p>
         </div>
       ) : (
         <div className="bg-white rounded-xl border p-5 text-sm text-gray-500">
           <Gift className="w-6 h-6 text-gray-300 mb-2" />
-          Referral codes are available to VIP clients (more than 5 completed services and a great account
-          standing). Keep booking with us -- you&apos;ll unlock it soon.
+          {t("notEligible")}
         </div>
       )}
 
       <div className="bg-white rounded-xl border p-5 space-y-3">
-        <p className="font-medium text-brand-ink text-sm">Have a code from a friend?</p>
+        <p className="font-medium text-brand-ink text-sm">{t("haveCode")}</p>
         <form onSubmit={submitRedeem} className="space-y-2">
           <input
-            aria-label="Código de referido de un amigo"
+            aria-label={t("redeemInputAriaLabel")}
             type="text"
             value={redeemCode}
             onChange={(e) => setRedeemCode(e.target.value)}
-            placeholder="e.g. MARIA-AB12"
+            placeholder={t("redeemPlaceholder")}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm uppercase"
           />
           {leaders.length > 0 && (
             <select
-              aria-label="Líder de equipo que nos recomendó (opcional)"
+              aria-label={t("leaderSelectAriaLabel")}
               value={mentionedLeaderId}
               onChange={(e) => setMentionedLeaderId(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
             >
-              <option value="">Did a team leader recommend us? (optional)</option>
+              <option value="">{t("leaderSelectPlaceholder")}</option>
               {leaders.map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.name}
@@ -181,12 +182,12 @@ export default function ReferralsPage() {
           {redeemError && <p className="text-xs text-state-danger">{redeemError}</p>}
           {redeemMessage && <p className="text-xs text-state-success">{redeemMessage}</p>}
           <button
-            aria-label="Aplicar código de referido"
+            aria-label={t("applyCodeAriaLabel")}
             type="submit"
             disabled={redeeming || !redeemCode.trim()}
             className="w-full bg-brand-navy text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
           >
-            {redeeming ? "Applying..." : "Apply code"}
+            {redeeming ? t("applying") : t("applyCode")}
           </button>
         </form>
       </div>

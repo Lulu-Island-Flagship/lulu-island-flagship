@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Gift, Wallet, Loader2 } from "lucide-react";
 
 interface BenefitsResponse {
@@ -21,6 +22,7 @@ function formatCurrency(cents: number, currency: string) {
  * enlace a donde sí se puede aplicar/gestionar.
  */
 export function CheckoutBenefitsPanel() {
+  const t = useTranslations("reserva.benefits");
   const [data, setData] = useState<BenefitsResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,7 +49,7 @@ export function CheckoutBenefitsPanel() {
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-xs text-gray-400 px-1">
-        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Checking your benefits…
+        <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t("checking")}
       </div>
     );
   }
@@ -71,13 +73,13 @@ export function CheckoutBenefitsPanel() {
     <div className="bg-white rounded-lg shadow-elevation-1 p-4 space-y-2">
       <h3 className="text-sm font-semibold text-brand-ink flex items-center gap-2">
         <Gift className="w-4 h-4 text-brand-gold" />
-        Your benefits
+        {t("title")}
       </h3>
 
       {hasWalletBalance && (
         <div className="flex items-center justify-between text-sm">
           <span className="flex items-center gap-1.5 text-gray-600">
-            <Wallet className="w-3.5 h-3.5" /> Lulu Wallet balance
+            <Wallet className="w-3.5 h-3.5" /> {t("walletBalanceLabel")}
           </span>
           <span className="font-medium text-brand-navy">
             {formatCurrency(data.wallet.availableBalance, data.wallet.currency)}
@@ -86,19 +88,21 @@ export function CheckoutBenefitsPanel() {
       )}
       {hasWalletBalance && (
         <p className="text-xs text-gray-400">
-          Not applied to this booking automatically — manage it from{" "}
-          <Link href={`/${safeLocale}/cuenta/billetera`} className="underline">
-            My Wallet
-          </Link>
-          .
+          {t.rich("walletNotApplied", {
+            link: (chunks) => (
+              <Link href={`/${safeLocale}/cuenta/billetera`} className="underline">
+                {chunks}
+              </Link>
+            ),
+          })}
         </p>
       )}
 
       {hasPendingReferral && (
         <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-100">
-          <span className="text-gray-600">Referral credit</span>
+          <span className="text-gray-600">{t("referralCreditLabel")}</span>
           <span className="font-medium text-state-success">
-            +{formatCurrency(data.referral.creditCents, "CAD")} after this service completes
+            {t("referralCreditValue", { amount: formatCurrency(data.referral.creditCents, "CAD") })}
           </span>
         </div>
       )}

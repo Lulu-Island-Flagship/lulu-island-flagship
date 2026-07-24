@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import { Globe, Apple, Mail, Smartphone, X } from "lucide-react";
 
@@ -22,6 +23,7 @@ interface AuthModalProps {
 }
 
 export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerification }: AuthModalProps) {
+  const t = useTranslations("cotizador.authModal");
   const [mode, setMode] = useState<"options" | "email" | "phone" | "verify_phone">(
     forcePhoneVerification ? "verify_phone" : "options"
   );
@@ -46,7 +48,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       if (error) throw error;
       // OAuth redirects, so onSuccess is called from callback page
     } catch (err: Error | unknown) {
-      setError(err instanceof Error ? err.message : "Google sign-in failed");
+      setError(err instanceof Error ? err.message : t("errors.googleFailed"));
       setLoading(false);
     }
   };
@@ -64,14 +66,14 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       });
       if (error) throw error;
     } catch (err: Error | unknown) {
-      setError(err instanceof Error ? err.message : "Apple sign-in failed");
+      setError(err instanceof Error ? err.message : t("errors.appleFailed"));
       setLoading(false);
     }
   };
 
   const handleEmailOtpRequest = async () => {
     if (!email || !email.includes("@")) {
-      setError("Please enter a valid email address");
+      setError(t("errors.invalidEmail"));
       return;
     }
     setLoading(true);
@@ -86,7 +88,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       if (error) throw error;
       setOtpSent(true);
     } catch (err: Error | unknown) {
-      setError(err instanceof Error ? err.message : "Failed to send verification code");
+      setError(err instanceof Error ? err.message : t("errors.sendCodeFailed"));
     } finally {
       setLoading(false);
     }
@@ -94,7 +96,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
 
   const handlePhoneOtpRequest = async () => {
     if (!phone || phone.length < 10) {
-      setError("Please enter a valid phone number");
+      setError(t("errors.invalidPhone"));
       return;
     }
     // Normalizar a E.164 para Canadá/EE.UU.
@@ -108,7 +110,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       if (error) throw error;
       setOtpSent(true);
     } catch (err: Error | unknown) {
-      setError(err instanceof Error ? err.message : "Failed to send SMS code");
+      setError(err instanceof Error ? err.message : t("errors.sendSmsFailed"));
     } finally {
       setLoading(false);
     }
@@ -120,7 +122,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
   // código al número nuevo y lo asocia a la MISMA cuenta autenticada.
   const handleLinkPhoneRequest = async () => {
     if (!phone || phone.length < 10) {
-      setError("Please enter a valid phone number");
+      setError(t("errors.invalidPhone"));
       return;
     }
     const normalizedPhone = phone.startsWith("+") ? phone : `+1${phone}`;
@@ -131,7 +133,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       if (error) throw error;
       setOtpSent(true);
     } catch (err: Error | unknown) {
-      setError(err instanceof Error ? err.message : "Failed to send SMS code");
+      setError(err instanceof Error ? err.message : t("errors.sendSmsFailed"));
     } finally {
       setLoading(false);
     }
@@ -139,11 +141,11 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
 
   const handleVerifyLinkedPhone = async () => {
     if (!otpCode || otpCode.length < 6) {
-      setError("Please enter the 6-digit code");
+      setError(t("errors.invalidCode"));
       return;
     }
     if (!phone || phone.length < 10) {
-      setError("Phone number is required. Please go back and enter your phone.");
+      setError(t("errors.phoneRequired"));
       return;
     }
     setLoading(true);
@@ -170,23 +172,23 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
 
       onSuccess();
     } catch (err: Error | unknown) {
-      setError(err instanceof Error ? err.message : "Invalid verification code");
+      setError(err instanceof Error ? err.message : t("errors.invalidVerificationCode"));
       setLoading(false);
     }
   };
 
   const handleVerifyOtp = async () => {
     if (!otpCode || otpCode.length < 6) {
-      setError("Please enter the 6-digit code");
+      setError(t("errors.invalidCode"));
       return;
     }
     // Validate email/phone is still present
     if (mode === "email" && (!email || !email.includes("@"))) {
-      setError("Email is required. Please go back and enter your email.");
+      setError(t("errors.emailRequired"));
       return;
     }
     if (mode === "phone" && (!phone || phone.length < 10)) {
-      setError("Phone number is required. Please go back and enter your phone.");
+      setError(t("errors.phoneRequired"));
       return;
     }
     setLoading(true);
@@ -225,7 +227,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
 
       onSuccess();
     } catch (err: Error | unknown) {
-      setError(err instanceof Error ? err.message : "Invalid verification code");
+      setError(err instanceof Error ? err.message : t("errors.invalidVerificationCode"));
       setLoading(false);
     }
   };
@@ -235,7 +237,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       <div className="bg-white rounded-lg shadow-elevation-3 max-w-md w-full p-6 relative">
         {!forcePhoneVerification && (
           <button
-            aria-label="Cerrar modal de inicio de sesión"
+            aria-label={t("closeAriaLabel")}
             onClick={onClose}
             className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
           >
@@ -244,7 +246,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
         )}
 
         <h2 className="text-xl font-bold text-brand-ink mb-2">
-          {forcePhoneVerification ? "Verify Your Phone Number" : "Sign in to Reserve"}
+          {forcePhoneVerification ? t("verifyPhoneTitle") : t("signInTitle")}
         </h2>
         <p className="text-gray-600 text-sm mb-6">
           {forcePhoneVerification ? (
@@ -252,7 +254,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
             // (Google/Apple) -- sin esto, la cuenta nunca puede recibir
             // recordatorios SMS ni confirmar identidad por teléfono, y el
             // spec exige verificación telefónica para TODA reserva.
-            "For your security, we require a verified phone number before you can complete a reservation. This only takes a minute."
+            t("verifyPhoneDesc")
           ) : (
             <>
               {/* v8.3 fix (auditoría 2026-07-15): el texto anterior ("All methods
@@ -263,8 +265,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                   wallet y cotizaciones previas sin ningún aviso. Se corrige el
                   texto para reflejar la realidad y se pide explícitamente usar
                   siempre el mismo método. */}
-              Please use the same sign-in method every time — switching methods (e.g. Google, then
-              email) creates a separate account and you&apos;ll lose access to your history and wallet.
+              {t("sameMethodWarning")}
             </>
           )}
         </p>
@@ -281,7 +282,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
               <>
                 <div>
                   <label htmlFor="auth-link-phone-input" className="block text-sm font-medium text-brand-ink mb-1">
-                    Phone Number
+                    {t("phoneNumberLabel")}
                   </label>
                   <input
                     id="auth-link-phone-input"
@@ -291,22 +292,22 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                     placeholder="6041234567"
                     className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none"
                   />
-                  <p className="text-xs text-gray-500 mt-1">BC/Canada numbers only</p>
+                  <p className="text-xs text-gray-500 mt-1">{t("phoneHint")}</p>
                 </div>
                 <button
-                  aria-label="Enviar código SMS de verificación de teléfono"
+                  aria-label={t("sendLinkedSmsCodeAriaLabel")}
                   onClick={handleLinkPhoneRequest}
                   disabled={loading}
                   className="w-full bg-brand-navy text-white py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
                 >
-                  {loading ? "Sending..." : "Send SMS Code"}
+                  {loading ? t("sending") : t("sendSmsCode")}
                 </button>
               </>
             ) : (
               <>
                 <div>
                   <label htmlFor="auth-otp-link-phone-input" className="block text-sm font-medium text-brand-ink mb-1">
-                    Enter 6-digit code sent to {phone}
+                    {t("enterCodeSentTo", { destination: phone })}
                   </label>
                   <input
                     id="auth-otp-link-phone-input"
@@ -318,12 +319,12 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                   />
                 </div>
                 <button
-                  aria-label="Verificar código de teléfono"
+                  aria-label={t("verifyPhoneCodeAriaLabel")}
                   onClick={handleVerifyLinkedPhone}
                   disabled={loading}
                   className="w-full bg-brand-navy text-white py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
                 >
-                  {loading ? "Verifying..." : "Verify Phone"}
+                  {loading ? t("verifying") : t("verifyPhone")}
                 </button>
                 <button
                   onClick={() => {
@@ -332,7 +333,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                   }}
                   className="w-full text-sm text-brand-wave-blue hover:underline"
                 >
-                  Resend code or use different phone
+                  {t("resendPhone")}
                 </button>
               </>
             )}
@@ -347,7 +348,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
               className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               <Globe className="w-5 h-5 text-blue-500" />
-              <span className="font-medium">Continue with Google</span>
+              <span className="font-medium">{t("continueWithGoogle")}</span>
             </button>
 
             <button
@@ -356,7 +357,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
               className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               <Apple className="w-5 h-5 text-black" />
-              <span className="font-medium">Continue with Apple</span>
+              <span className="font-medium">{t("continueWithApple")}</span>
             </button>
 
             <div className="relative my-4">
@@ -364,7 +365,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                 <div className="w-full border-t border-gray-200" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">or</span>
+                <span className="px-2 bg-white text-gray-500">{t("or")}</span>
               </div>
             </div>
 
@@ -373,7 +374,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
               className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <Mail className="w-5 h-5 text-brand-wave-blue" />
-              <span className="font-medium">Email + Verification Code</span>
+              <span className="font-medium">{t("emailOption")}</span>
             </button>
 
             <button
@@ -381,7 +382,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
               className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <Smartphone className="w-5 h-5 text-brand-wave-blue" />
-              <span className="font-medium">Phone + SMS Code</span>
+              <span className="font-medium">{t("phoneOption")}</span>
             </button>
           </div>
         )}
@@ -392,7 +393,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
               <>
                 <div>
                   <label htmlFor="auth-email-input" className="block text-sm font-medium text-brand-ink mb-1">
-                    Email Address
+                    {t("emailAddressLabel")}
                   </label>
                   <input
                     id="auth-email-input"
@@ -404,19 +405,19 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                   />
                 </div>
                 <button
-                  aria-label="Enviar código de verificación por correo"
+                  aria-label={t("sendEmailCodeAriaLabel")}
                   onClick={handleEmailOtpRequest}
                   disabled={loading}
                   className="w-full bg-brand-navy text-white py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
                 >
-                  {loading ? "Sending..." : "Send Verification Code"}
+                  {loading ? t("sending") : t("sendVerificationCode")}
                 </button>
               </>
             ) : (
               <>
                 <div>
                   <label htmlFor="auth-otp-email-input" className="block text-sm font-medium text-brand-ink mb-1">
-                    Enter 6-digit code sent to {email}
+                    {t("enterCodeSentTo", { destination: email })}
                   </label>
                   <input
                     id="auth-otp-email-input"
@@ -428,12 +429,12 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                   />
                 </div>
                 <button
-                  aria-label="Verificar código e iniciar sesión"
+                  aria-label={t("verifyAndSignInAriaLabel")}
                   onClick={handleVerifyOtp}
                   disabled={loading}
                   className="w-full bg-brand-navy text-white py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
                 >
-                  {loading ? "Verifying..." : "Verify & Sign In"}
+                  {loading ? t("verifying") : t("verifyAndSignIn")}
                 </button>
                 <button
                   onClick={() => {
@@ -442,7 +443,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                   }}
                   className="w-full text-sm text-brand-wave-blue hover:underline"
                 >
-                  Resend code or use different email
+                  {t("resendEmail")}
                 </button>
               </>
             )}
@@ -450,7 +451,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
               onClick={() => setMode("options")}
               className="w-full text-sm text-gray-500 hover:text-gray-700"
             >
-              ← Back to all options
+              {t("backToAllOptions")}
             </button>
           </div>
         )}
@@ -461,7 +462,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
               <>
                 <div>
                   <label htmlFor="auth-phone-input" className="block text-sm font-medium text-brand-ink mb-1">
-                    Phone Number
+                    {t("phoneNumberLabel")}
                   </label>
                   <input
                     id="auth-phone-input"
@@ -471,22 +472,22 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                     placeholder="6041234567"
                     className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none"
                   />
-                  <p className="text-xs text-gray-500 mt-1">BC/Canada numbers only</p>
+                  <p className="text-xs text-gray-500 mt-1">{t("phoneHint")}</p>
                 </div>
                 <button
-                  aria-label="Enviar código SMS de verificación"
+                  aria-label={t("sendSmsCodeAriaLabel")}
                   onClick={handlePhoneOtpRequest}
                   disabled={loading}
                   className="w-full bg-brand-navy text-white py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
                 >
-                  {loading ? "Sending..." : "Send SMS Code"}
+                  {loading ? t("sending") : t("sendSmsCode")}
                 </button>
               </>
             ) : (
               <>
                 <div>
                   <label htmlFor="auth-otp-phone-input" className="block text-sm font-medium text-brand-ink mb-1">
-                    Enter 6-digit code sent to {phone}
+                    {t("enterCodeSentTo", { destination: phone })}
                   </label>
                   <input
                     id="auth-otp-phone-input"
@@ -498,12 +499,12 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                   />
                 </div>
                 <button
-                  aria-label="Verificar código e iniciar sesión"
+                  aria-label={t("verifyAndSignInAriaLabel")}
                   onClick={handleVerifyOtp}
                   disabled={loading}
                   className="w-full bg-brand-navy text-white py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
                 >
-                  {loading ? "Verifying..." : "Verify & Sign In"}
+                  {loading ? t("verifying") : t("verifyAndSignIn")}
                 </button>
                 <button
                   onClick={() => {
@@ -512,7 +513,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                   }}
                   className="w-full text-sm text-brand-wave-blue hover:underline"
                 >
-                  Resend code or use different phone
+                  {t("resendPhone")}
                 </button>
               </>
             )}
@@ -520,7 +521,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
               onClick={() => setMode("options")}
               className="w-full text-sm text-gray-500 hover:text-gray-700"
             >
-              ← Back to all options
+              {t("backToAllOptions")}
             </button>
           </div>
         )}

@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Loader2,
-  AlertCircle,
   Home,
   Trash2,
   Save,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { ACTIVE_ZONES } from "@/lib/pricing";
 import type { ClientProperty } from "@/types";
+import { StatusBanner } from "./StatusBanner";
 
 function isValidCanadianPostal(code: string): boolean {
   const normalized = code.replace(/\s/g, "").toUpperCase();
@@ -36,6 +37,8 @@ const emptyForm: PropertyFormData = {
 };
 
 export default function ClientPropertiesClient() {
+  const t = useTranslations("cuenta.propiedades");
+  const tCommon = useTranslations("cuenta.common");
   const [properties, setProperties] = useState<ClientProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -45,6 +48,7 @@ export default function ClientPropertiesClient() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [postalError, setPostalError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     loadProperties();
@@ -57,13 +61,13 @@ export default function ClientPropertiesClient() {
       const res = await fetch("/api/client/properties", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load properties");
+        setError(err.error || t("loadFailed"));
         return;
       }
       const data = await res.json();
       setProperties((data.properties || []) as ClientProperty[]);
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setLoading(false);
     }
@@ -93,18 +97,18 @@ export default function ClientPropertiesClient() {
     const upper = value.toUpperCase();
     setForm((prev) => ({ ...prev, postalCode: upper }));
     if (upper.length >= 6) {
-      setPostalError(isValidCanadianPostal(upper) ? "" : "Invalid format. Use: V6X 1A1");
+      setPostalError(isValidCanadianPostal(upper) ? "" : t("postalInvalid"));
     } else {
       setPostalError("");
     }
   }
 
   function validateForm(): string | null {
-    if (!form.address.trim()) return "Address is required";
-    if (!form.zone) return "Zone is required";
-    if (form.postalCode && !isValidCanadianPostal(form.postalCode)) return "Invalid postal code";
+    if (!form.address.trim()) return t("addressRequired");
+    if (!form.zone) return t("zoneRequired");
+    if (form.postalCode && !isValidCanadianPostal(form.postalCode)) return t("postalCodeInvalid");
     if (form.squareFeet && (Number.isNaN(Number(form.squareFeet)) || Number(form.squareFeet) <= 0)) {
-      return "Square feet must be a positive number";
+      return t("squareFeetInvalid");
     }
     return null;
   }
@@ -119,6 +123,7 @@ export default function ClientPropertiesClient() {
 
     setSaving(true);
     setError("");
+    setSuccessMessage("");
 
     const payload: Record<string, unknown> = {
       nickname: form.nickname.trim() || undefined,
@@ -138,23 +143,25 @@ export default function ClientPropertiesClient() {
 
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to save property");
+        setError(err.error || t("saveFailed"));
         return;
       }
 
       resetForm();
       await loadProperties();
+      setSuccessMessage(t("savedSuccess"));
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setSaving(false);
     }
   }
 
   async function deleteProperty(id: string) {
-    if (!window.confirm("Are you sure you want to remove this property?")) return;
+    if (!window.confirm(t("confirmDelete"))) return;
 
     setDeletingId(id);
+    setSuccessMessage("");
     try {
       const res = await fetch(`/api/client/properties?id=${encodeURIComponent(id)}`, {
         method: "DELETE",
@@ -162,12 +169,13 @@ export default function ClientPropertiesClient() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to delete property");
+        setError(err.error || t("deleteFailed"));
         return;
       }
       await loadProperties();
+      setSuccessMessage(t("deletedSuccess"));
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setDeletingId(null);
     }
@@ -184,28 +192,37 @@ export default function ClientPropertiesClient() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-brand-ink mb-2">My Properties</h1>
-        <p className="text-gray-600">Save multiple addresses to speed up future bookings.</p>
+        <h1 className="text-3xl font-bold text-brand-ink mb-2">{t("title")}</h1>
+        <p className="text-gray-600">{t("subtitle")}</p>
         <a href="../servicios" className="inline-block mt-2 text-xs text-brand-wave-blue hover:text-brand-navy underline">
-          View my service history
+          {t("viewServiceHistory")}
         </a>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-          <p className="text-red-700 text-sm">{error}</p>
-        </div>
-      )}
+      <StatusBanner
+        variant="error"
+        message={error}
+        onRetry={loadProperties}
+        onDismiss={() => setError("")}
+        retryLabel={tCommon("retry")}
+        dismissLabel={tCommon("dismiss")}
+      />
+      <StatusBanner
+        variant="success"
+        message={successMessage}
+        onDismiss={() => setSuccessMessage("")}
+        autoDismissMs={4000}
+        dismissLabel={tCommon("dismiss")}
+      />
 
       <div className="bg-white rounded-xl border shadow-sm p-6 space-y-5">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-brand-ink flex items-center gap-2">
             <Home className="w-5 h-5 text-brand-wave-blue" />
-            {isEditing ? "Edit property" : "Add a property"}
+            {isEditing ? t("editProperty") : t("addProperty")}
           </h2>
           {isEditing && (
-            <button aria-label="Cancelar edición de propiedad" onClick={resetForm} className="text-gray-400 hover:text-gray-600">
+            <button aria-label={t("cancelEditAriaLabel")} onClick={resetForm} className="text-gray-400 hover:text-gray-600">
               <X className="w-5 h-5" />
             </button>
           )}
@@ -214,24 +231,24 @@ export default function ClientPropertiesClient() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label htmlFor="property-nickname-input" className="text-sm font-medium text-gray-700">Nickname (optional)</label>
+              <label htmlFor="property-nickname-input" className="text-sm font-medium text-gray-700">{t("nicknameLabel")}</label>
               <input
                 id="property-nickname-input"
                 type="text"
                 value={form.nickname}
                 onChange={(e) => setForm((prev) => ({ ...prev, nickname: e.target.value }))}
-                placeholder="e.g. Home, Office"
+                placeholder={t("nicknamePlaceholder")}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
               />
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="property-square-feet-input" className="text-sm font-medium text-gray-700">Square feet (optional)</label>
+              <label htmlFor="property-square-feet-input" className="text-sm font-medium text-gray-700">{t("squareFeetLabel")}</label>
               <input
                 id="property-square-feet-input"
                 type="number"
                 value={form.squareFeet}
                 onChange={(e) => setForm((prev) => ({ ...prev, squareFeet: e.target.value }))}
-                placeholder="e.g. 1200"
+                placeholder={t("squareFeetPlaceholder")}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
               />
             </div>
@@ -240,20 +257,20 @@ export default function ClientPropertiesClient() {
           <div className="space-y-1.5">
             <label htmlFor="property-address-input" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
               <MapPin className="w-4 h-4" />
-              Street address
+              {t("streetAddressLabel")}
             </label>
             <input
               id="property-address-input"
               type="text"
               value={form.address}
               onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
-              placeholder="e.g. 123 Main Street, Richmond"
+              placeholder={t("streetAddressPlaceholder")}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-700">Zone</label>
+            <label className="text-sm font-medium text-gray-700">{t("zoneLabel")}</label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {ACTIVE_ZONES.map((z) => (
                 <button
@@ -273,13 +290,13 @@ export default function ClientPropertiesClient() {
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="property-postal-code-input" className="text-sm font-medium text-gray-700">Postal code</label>
+            <label htmlFor="property-postal-code-input" className="text-sm font-medium text-gray-700">{t("postalCodeLabel")}</label>
             <input
               id="property-postal-code-input"
               type="text"
               value={form.postalCode}
               onChange={(e) => handlePostalChange(e.target.value)}
-              placeholder="e.g. V7E 2A1"
+              placeholder={t("postalCodePlaceholder")}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold uppercase"
             />
             {postalError && <p className="text-xs text-state-danger">{postalError}</p>}
@@ -292,18 +309,18 @@ export default function ClientPropertiesClient() {
                 onClick={resetForm}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
-                Cancel
+                {t("cancel")}
               </button>
             )}
             <button
-              aria-label={isEditing ? "Guardar cambios de la propiedad" : "Agregar propiedad"}
+              aria-label={isEditing ? t("saveChangesAriaLabel") : t("addPropertyAriaLabel")}
               type="submit"
               disabled={saving}
               className="inline-flex items-center gap-2 rounded-lg bg-brand-navy px-4 py-2 text-sm font-medium text-white hover:bg-brand-navy/90 disabled:opacity-60"
             >
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
               <Save className="w-4 h-4" />
-              {isEditing ? "Save changes" : "Add property"}
+              {isEditing ? t("saveChanges") : t("addProperty")}
             </button>
           </div>
         </form>
@@ -312,7 +329,7 @@ export default function ClientPropertiesClient() {
       {properties.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
           <Home className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500">No saved properties yet.</p>
+          <p className="text-gray-500">{t("noProperties")}</p>
         </div>
       ) : (
         <div className="bg-white rounded-xl border overflow-hidden">
@@ -334,20 +351,22 @@ export default function ClientPropertiesClient() {
                   <button
                     onClick={() => startEdit(property)}
                     className="text-gray-400 hover:text-brand-navy"
-                    title="Edit"
+                    title={t("edit")}
+                    aria-label={t("edit")}
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-4 h-4" aria-hidden="true" />
                   </button>
                   <button
                     onClick={() => deleteProperty(property.id)}
                     disabled={deletingId === property.id}
                     className="text-gray-400 hover:text-red-500 disabled:opacity-50"
-                    title="Delete"
+                    title={t("delete")}
+                    aria-label={t("delete")}
                   >
                     {deletingId === property.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                     ) : (
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4" aria-hidden="true" />
                     )}
                   </button>
                 </div>

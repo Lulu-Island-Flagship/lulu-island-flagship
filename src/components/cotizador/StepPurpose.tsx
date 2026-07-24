@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { SERVICE_SUBTYPES, ServiceCategory } from "@/lib/pricing";
 import { Sparkles, Home, Truck, HardHat, Briefcase, Building } from "lucide-react";
 
@@ -20,16 +21,17 @@ interface StepPurposeProps {
 }
 
 export function StepPurpose({ category, value, onChange }: StepPurposeProps) {
+  const t = useTranslations("cotizador.purpose");
   const subtypes = category ? SERVICE_SUBTYPES[category] : [];
 
   return (
     <div className="space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-brand-ink mb-2">
-          What type of cleaning do you need?
+          {t("title")}
         </h2>
         <p className="text-gray-600">
-          Select the service that best matches your situation.
+          {t("subtitle")}
         </p>
       </div>
 
@@ -54,9 +56,8 @@ export function StepPurpose({ category, value, onChange }: StepPurposeProps) {
                 {ICONS[type.key]}
               </div>
               <h3 className="font-semibold text-brand-ink mb-1">
-                {type.label}
+                {t(`items.${type.key}`)}
               </h3>
-              <p className="text-sm text-gray-500">{type.labelEs}</p>
             </button>
           );
         })}

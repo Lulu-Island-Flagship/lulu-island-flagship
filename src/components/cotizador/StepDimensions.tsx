@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Minus, Plus, Ruler, Search, Check, X, AlertCircle, Loader2 } from "lucide-react";
 
 interface StepDimensionsProps {
@@ -19,6 +20,7 @@ interface BcAssessmentSuggestion {
 }
 
 export function StepDimensions({ bedrooms, bathrooms, squareFeet, address, onChange }: StepDimensionsProps) {
+  const t = useTranslations("cotizador.dimensions");
   const [suggestion, setSuggestion] = useState<BcAssessmentSuggestion | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
@@ -32,16 +34,16 @@ export function StepDimensions({ bedrooms, bathrooms, squareFeet, address, onCha
   return (
     <div className="space-y-8">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-brand-ink mb-2">Tell us about your space</h2>
-        <p className="text-gray-600">This helps us estimate the time and team needed.</p>
+        <h2 className="text-2xl font-bold text-brand-ink mb-2">{t("title")}</h2>
+        <p className="text-gray-600">{t("subtitle")}</p>
       </div>
 
       {/* Bedrooms */}
       <div className="bg-brand-ice rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="font-semibold text-brand-ink">Bedrooms</h3>
-            <p className="text-sm text-gray-500">Including master and guest rooms</p>
+            <h3 className="font-semibold text-brand-ink">{t("bedroomsTitle")}</h3>
+            <p className="text-sm text-gray-500">{t("bedroomsSubtitle")}</p>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -65,8 +67,8 @@ export function StepDimensions({ bedrooms, bathrooms, squareFeet, address, onCha
       <div className="bg-brand-ice rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="font-semibold text-brand-ink">Bathrooms</h3>
-            <p className="text-sm text-gray-500">Full and half bathrooms</p>
+            <h3 className="font-semibold text-brand-ink">{t("bathroomsTitle")}</h3>
+            <p className="text-sm text-gray-500">{t("bathroomsSubtitle")}</p>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -91,8 +93,8 @@ export function StepDimensions({ bedrooms, bathrooms, squareFeet, address, onCha
         <div className="flex items-center gap-3 mb-4">
           <Ruler className="w-5 h-5 text-brand-wave-blue" />
           <div>
-            <h3 className="font-semibold text-brand-ink">Approximate Square Footage</h3>
-            <p className="text-sm text-gray-500">Best estimate is fine</p>
+            <h3 className="font-semibold text-brand-ink">{t("squareFeetTitle")}</h3>
+            <p className="text-sm text-gray-500">{t("squareFeetSubtitle")}</p>
           </div>
         </div>
         <input
@@ -117,7 +119,7 @@ export function StepDimensions({ bedrooms, bathrooms, squareFeet, address, onCha
             type="button"
             onClick={async () => {
               if (!address || address.trim().length === 0) {
-                setSearchError("Enter an address first to search BC Assessment.");
+                setSearchError(t("bcAssessment.errorNoAddress"));
                 return;
               }
               setSearching(true);
@@ -127,12 +129,12 @@ export function StepDimensions({ bedrooms, bathrooms, squareFeet, address, onCha
                 const res = await fetch(`/api/bc-assessment?address=${encodeURIComponent(address)}`);
                 const data = (await res.json()) as BcAssessmentSuggestion;
                 if (!res.ok) {
-                  setSearchError("Lookup failed.");
+                  setSearchError(t("bcAssessment.errorLookupFailed"));
                   return;
                 }
                 setSuggestion(data);
               } catch {
-                setSearchError("Network error.");
+                setSearchError(t("bcAssessment.errorNetwork"));
               } finally {
                 setSearching(false);
               }
@@ -141,7 +143,7 @@ export function StepDimensions({ bedrooms, bathrooms, squareFeet, address, onCha
             className="inline-flex items-center gap-2 rounded-lg border border-brand-wave-blue px-4 py-2 text-sm font-medium text-brand-wave-blue hover:bg-brand-wave-blue/5 disabled:opacity-60"
           >
             {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-            Suggest from BC Assessment
+            {t("bcAssessment.button")}
           </button>
 
           {searchError && (
@@ -157,18 +159,18 @@ export function StepDimensions({ bedrooms, bathrooms, squareFeet, address, onCha
                 <div className="flex items-start gap-2 text-sm text-gray-700">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
                   <div>
-                    <p className="font-medium">No suggestion available</p>
-                    <p className="text-gray-500">{suggestion.message || "Please enter square footage manually."}</p>
+                    <p className="font-medium">{t("bcAssessment.noSuggestion")}</p>
+                    <p className="text-gray-500">{suggestion.message || t("bcAssessment.noSuggestionFallback")}</p>
                   </div>
                 </div>
               ) : (
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="text-sm">
                     <p className="font-medium text-brand-ink">
-                      Suggested: {suggestion.squareFeet.toLocaleString()} ft²
+                      {t("bcAssessment.suggested", { value: suggestion.squareFeet.toLocaleString() })}
                     </p>
                     <p className="text-xs text-gray-500">
-                      Confidence: {suggestion.confidence}. Always verify before booking.
+                      {t("bcAssessment.confidence", { level: suggestion.confidence })}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -178,7 +180,7 @@ export function StepDimensions({ bedrooms, bathrooms, squareFeet, address, onCha
                       className="inline-flex items-center gap-1 rounded-lg bg-brand-navy px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-navy/90"
                     >
                       <Check className="w-3 h-3" />
-                      Use
+                      {t("bcAssessment.use")}
                     </button>
                     <button
                       type="button"
@@ -186,7 +188,7 @@ export function StepDimensions({ bedrooms, bathrooms, squareFeet, address, onCha
                       className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
                     >
                       <X className="w-3 h-3" />
-                      Ignore
+                      {t("bcAssessment.ignore")}
                     </button>
                   </div>
                 </div>

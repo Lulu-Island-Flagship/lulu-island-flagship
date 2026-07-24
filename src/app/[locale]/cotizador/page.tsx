@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { QuoteInput, QuoteData, CotizadorStep } from "@/types";
 import { ServiceType, TARIFA_OBJETIVO_HORA } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
@@ -37,17 +38,6 @@ const STEPS: CotizadorStep[] = [
   "address",
   "summary",
 ];
-
-const STEP_LABELS: Record<CotizadorStep, string> = {
-  category: "Category",
-  purpose: "Service Type",
-  dimensions: "Dimensions",
-  addonZones: "Extras",
-  organic: "Household",
-  recency: "Recency",
-  address: "Location",
-  summary: "Summary",
-};
 
 const LOCAL_STORAGE_KEY = "lulu_cotizador_state";
 const PENDING_AUTH_KEY = "lulu_pending_auth_quote";
@@ -115,6 +105,7 @@ function clearPendingAuth() {
 
 export default function CotizadorPage() {
   const router = useRouter();
+  const t = useTranslations("cotizador");
 
   // Estado inicial vacío — localStorage se lee SOLO en useEffect (cliente)
   const [stepIndex, setStepIndex] = useState(0);
@@ -160,11 +151,11 @@ export default function CotizadorPage() {
     const authError = params.get("auth_error");
     if (authError) {
       const messages: Record<string, string> = {
-        provider_error: "Sign-in was cancelled or failed with your provider. Please try again.",
-        session_exchange_failed: "We couldn't complete sign-in. Please try again.",
-        missing_code: "Sign-in link is invalid or expired. Please try again.",
+        provider_error: t("authErrors.providerError"),
+        session_exchange_failed: t("authErrors.sessionExchangeFailed"),
+        missing_code: t("authErrors.missingCode"),
       };
-      setAuthErrorMessage(messages[authError] || "Sign-in failed. Please try again.");
+      setAuthErrorMessage(messages[authError] || t("authErrors.default"));
       setShowAuthModal(true);
       // Limpiar el query param para que un refresh no vuelva a mostrar el
       // error ni lo deje visible/compartible en la URL.
@@ -255,7 +246,7 @@ export default function CotizadorPage() {
 
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.error || "Failed to calculate preview");
+        throw new Error(err.error || t("errors.genericPreview"));
       }
 
       const data = await response.json();
@@ -263,7 +254,7 @@ export default function CotizadorPage() {
       setQuote(q);
       setPriceFrozenUntil(new Date(q.priceFrozenUntil));
     } catch (err: Error | unknown) {
-      const message = err instanceof Error ? err.message : "Failed to calculate preview";
+      const message = err instanceof Error ? err.message : t("errors.genericPreview");
       setPreviewError(message);
       setQuote(null);
     } finally {
@@ -332,11 +323,11 @@ export default function CotizadorPage() {
   const handleSubmit = async (forcedUserId?: string) => {
     if (!quote) return;
     if (!consents.tc) {
-      setSubmitError("Please accept the Terms & Conditions to proceed.");
+      setSubmitError(t("errors.acceptTerms"));
       return;
     }
     if (!acquisitionChannel) {
-      setSubmitError("Please let us know how you heard about us.");
+      setSubmitError(t("errors.acquisitionRequired"));
       return;
     }
 
@@ -393,7 +384,7 @@ export default function CotizadorPage() {
 
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.error || "Failed to save quote");
+        throw new Error(err.error || t("errors.genericSubmit"));
       }
 
       const {
@@ -403,9 +394,7 @@ export default function CotizadorPage() {
       } = await response.json();
 
       if (b2bReviewRequired) {
-        setSubmitError(
-          "Commercial / B2B bookings require manual onboarding and PO setup. Our team will contact you shortly."
-        );
+        setSubmitError(t("errors.commercialReview"));
         clearStateFromStorage();
         setIsSubmitting(false);
         return;
@@ -422,7 +411,7 @@ export default function CotizadorPage() {
       const locale = ["en", "zh", "fr"].includes(pathLocale) ? pathLocale : "en";
       router.push(`/${locale}/reserva/${quoteId}`);
     } catch (err: Error | unknown) {
-      setSubmitError(err instanceof Error ? err.message : "Failed to save quote. Please try again.");
+      setSubmitError(err instanceof Error ? err.message : t("errors.genericSubmit"));
     } finally {
       setIsSubmitting(false);
     }
@@ -474,7 +463,7 @@ export default function CotizadorPage() {
       // Pass the user ID directly to avoid stale closure
       handleSubmit(data.user.id);
     } catch (err: Error | unknown) {
-      setSubmitError(err instanceof Error ? err.message : "Authentication failed. Please try again.");
+      setSubmitError(err instanceof Error ? err.message : t("errors.genericAuth"));
       setShowAuthModal(true);
     }
   };
@@ -511,17 +500,18 @@ export default function CotizadorPage() {
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Shield className="w-6 h-6 text-brand-gold" />
-            <span className="font-semibold">Lulu Island Flagship</span>
+            <span className="font-semibold">{t("brand")}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-300">
             <Clock className="w-4 h-4" />
             {priceFrozenUntil && step !== "summary" && (
               <span>
-                Price locked until{" "}
-                {priceFrozenUntil.toLocaleTimeString("en-CA", {
-                  timeZone: "America/Vancouver",
-                  hour: "2-digit",
-                  minute: "2-digit",
+                {t("priceLockedUntil", {
+                  time: priceFrozenUntil.toLocaleTimeString("en-CA", {
+                    timeZone: "America/Vancouver",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
                 })}
               </span>
             )}
@@ -534,10 +524,10 @@ export default function CotizadorPage() {
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-brand-ink">
-              Step {stepIndex + 1} of {STEPS.length}
+              {t("stepOf", { current: stepIndex + 1, total: STEPS.length })}
             </span>
             <span className="text-sm text-gray-500">
-              {STEP_LABELS[step]}
+              {t(`stepLabels.${step}`)}
             </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -615,7 +605,7 @@ export default function CotizadorPage() {
               {previewLoading && (
                 <div className="flex flex-col items-center justify-center py-12 gap-3">
                   <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
-                  <p className="text-sm text-gray-600">Calculating your server-verified quote...</p>
+                  <p className="text-sm text-gray-600">{t("summary.calculating")}</p>
                 </div>
               )}
 
@@ -630,21 +620,20 @@ export default function CotizadorPage() {
                   <div className="text-center">
                     <CheckCircle2 className="w-12 h-12 text-state-success mx-auto mb-4" />
                     <h2 className="text-2xl font-bold text-brand-ink mb-2">
-                      Your Quote is Ready
+                      {t("summary.ready")}
                     </h2>
                     <p className="text-gray-600">
-                      Full price upfront — no surprises.
+                      {t("summary.readySubtitle")}
                     </p>
                   </div>
 
                   {b2bReviewRequired && (
                     <div className="p-4 bg-state-warning/10 border border-state-warning/20 rounded-lg">
                       <p className="text-sm font-medium text-state-warning">
-                        Commercial / B2B Quote
+                        {t("summary.b2bTitle")}
                       </p>
                       <p className="text-xs text-gray-600 mt-1">
-                        This quote requires manual onboarding, PO process, and Net-30 setup before booking.
-                        Submitting will notify our sales team.
+                        {t("summary.b2bDesc")}
                       </p>
                     </div>
                   )}
@@ -654,7 +643,7 @@ export default function CotizadorPage() {
                   {b2bReviewRequired && (
                     <div className="p-4 bg-brand-navy/5 border border-brand-navy/10 rounded-lg">
                       <label htmlFor="purchase-order-number" className="block text-sm font-medium text-brand-ink mb-1">
-                        Purchase Order (PO) Number *
+                        {t("summary.poLabel")}
                       </label>
                       <input
                         id="purchase-order-number"
@@ -665,7 +654,7 @@ export default function CotizadorPage() {
                         className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold"
                       />
                       <p className="text-xs text-gray-500 mt-1">
-                        B2B / Government bookings require a PO before onboarding.
+                        {t("summary.poHint")}
                       </p>
                     </div>
                   )}
@@ -699,12 +688,12 @@ export default function CotizadorPage() {
         {/* Navigation */}
         <div className="flex items-center justify-between mt-6">
           <button
-            aria-label={stepIndex === 0 ? "Ir a inicio" : "Volver al paso anterior"}
+            aria-label={stepIndex === 0 ? t("nav.homeAriaLabel") : t("nav.backAriaLabel")}
             onClick={handleBack}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-brand-ink hover:bg-white transition-colors"
           >
             <ChevronLeft className="w-5 h-5" />
-            {stepIndex === 0 ? "Home" : "Back"}
+            {stepIndex === 0 ? t("nav.home") : t("nav.back")}
           </button>
 
           {step !== "summary" ? (
@@ -713,7 +702,7 @@ export default function CotizadorPage() {
               disabled={!canProceed()}
               className="inline-flex items-center gap-2 bg-brand-navy text-white px-8 py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Next
+              {t("nav.next")}
               <ChevronRight className="w-5 h-5" />
             </button>
           ) : (
@@ -722,7 +711,7 @@ export default function CotizadorPage() {
               disabled={!canProceed() || isSubmitting}
               className="inline-flex items-center gap-2 bg-brand-navy text-white px-8 py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Saving..." : b2bReviewRequired ? "Submit for B2B Review" : "Reserve Now"}
+              {isSubmitting ? t("nav.saving") : b2bReviewRequired ? t("nav.submitB2b") : t("nav.reserveNow")}
               <ChevronRight className="w-5 h-5" />
             </button>
           )}

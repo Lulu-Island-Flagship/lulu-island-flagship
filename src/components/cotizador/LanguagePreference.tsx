@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { Languages, Check } from "lucide-react";
 import { SUPPORTED_LANGUAGES } from "@/lib/languages";
 
@@ -18,6 +19,7 @@ interface LanguagePreferenceProps {
  * idioma ya seleccionado lo quita; tocar uno nuevo lo agrega al final.
  */
 export function LanguagePreference({ value, onChange }: LanguagePreferenceProps) {
+  const t = useTranslations("cotizador.languagePreference");
   const toggle = (code: string) => {
     if (value.includes(code)) {
       const next = value.filter((c) => c !== code);
@@ -32,11 +34,10 @@ export function LanguagePreference({ value, onChange }: LanguagePreferenceProps)
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Languages className="w-4 h-4 text-brand-wave-blue" />
-        <h3 className="font-semibold text-brand-ink text-sm">Preferred Language(s)</h3>
+        <h3 className="font-semibold text-brand-ink text-sm">{t("title")}</h3>
       </div>
       <p className="text-xs text-gray-500">
-        We&apos;ll match your service with a team lead who speaks your language.
-        Select in order of preference — the first one is your main language.
+        {t("description")}
       </p>
       <div className="flex flex-wrap gap-2">
         {SUPPORTED_LANGUAGES.map((lang) => {

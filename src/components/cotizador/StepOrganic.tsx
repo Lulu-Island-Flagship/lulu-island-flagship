@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { Cat, Dog, PawPrint, Users } from "lucide-react";
 import { PET_TYPES, PetType } from "@/lib/pricing";
 
@@ -11,31 +12,32 @@ interface StepOrganicProps {
   onChange: (vals: { petsCount: number; petsType: string; residents: number }) => void;
 }
 
-const PET_TYPE_META: Record<PetType, { label: string; icon: React.ReactNode }> = {
-  none: { label: "No pets", icon: <PawPrint className="w-5 h-5" /> },
-  short_hair: { label: "Short hair (cat/dog)", icon: <Cat className="w-5 h-5" /> },
-  long_hair: { label: "Long hair (cat/dog)", icon: <Dog className="w-5 h-5" /> },
-  multiple: { label: "Multiple / Other", icon: <PawPrint className="w-5 h-5" /> },
+const PET_TYPE_ICONS: Record<PetType, React.ReactNode> = {
+  none: <PawPrint className="w-5 h-5" />,
+  short_hair: <Cat className="w-5 h-5" />,
+  long_hair: <Dog className="w-5 h-5" />,
+  multiple: <PawPrint className="w-5 h-5" />,
 };
 
 export function StepOrganic({ petsCount, petsType, residents, onChange }: StepOrganicProps) {
+  const t = useTranslations("cotizador.organic");
+
   return (
     <div className="space-y-8">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-brand-ink mb-2">Who lives here?</h2>
-        <p className="text-gray-600">This helps us estimate the cleaning effort needed.</p>
+        <h2 className="text-2xl font-bold text-brand-ink mb-2">{t("title")}</h2>
+        <p className="text-gray-600">{t("subtitle")}</p>
       </div>
 
       {/* Pets */}
       <div className="bg-brand-ice rounded-lg p-6 space-y-4">
         <h3 className="font-semibold text-brand-ink flex items-center gap-2">
           <PawPrint className="w-5 h-5 text-brand-wave-blue" />
-          Pets
+          {t("petsTitle")}
         </h3>
         <div className="grid grid-cols-2 gap-3">
           {PET_TYPES.map((type) => {
             const isSelected = petsType === type;
-            const meta = PET_TYPE_META[type];
             return (
               <button
                 key={type}
@@ -53,9 +55,9 @@ export function StepOrganic({ petsCount, petsType, residents, onChange }: StepOr
                 }`}
               >
                 <div className={`mb-2 ${isSelected ? "text-brand-gold" : "text-brand-navy"}`}>
-                  {meta.icon}
+                  {PET_TYPE_ICONS[type]}
                 </div>
-                <span className="text-sm font-medium">{meta.label}</span>
+                <span className="text-sm font-medium">{t(`petTypes.${type}`)}</span>
               </button>
             );
           })}
@@ -63,7 +65,7 @@ export function StepOrganic({ petsCount, petsType, residents, onChange }: StepOr
 
         {petsType && petsType !== "none" && (
           <div className="flex items-center gap-4 pt-2">
-            <span className="text-sm text-gray-600">How many?</span>
+            <span className="text-sm text-gray-600">{t("howMany")}</span>
             <div className="flex items-center gap-2">
               {[1, 2, 3, "4+"].map((n) => (
                 <button
@@ -93,7 +95,7 @@ export function StepOrganic({ petsCount, petsType, residents, onChange }: StepOr
       <div className="bg-brand-ice rounded-lg p-6">
         <h3 className="font-semibold text-brand-ink flex items-center gap-2 mb-4">
           <Users className="w-5 h-5 text-brand-wave-blue" />
-          Number of Residents
+          {t("residentsTitle")}
         </h3>
         <div className="flex items-center gap-2">
           {[1, 2, 3, 4, 5, "6+"].map((n) => (

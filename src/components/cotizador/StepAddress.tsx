@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { MapPin, Home } from "lucide-react";
 import { ACTIVE_ZONES } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
@@ -18,6 +19,7 @@ interface StepAddressProps {
 }
 
 export function StepAddress({ address, zone, postalCode, onChange, squareFeet, onSquareFeetConfirm }: StepAddressProps) {
+  const t = useTranslations("cotizador.address");
   const [postalError, setPostalError] = React.useState("");
   const [savedProperties, setSavedProperties] = useState<ClientProperty[]>([]);
   const [bcSuggestion, setBcSuggestion] = useState<{ squareFeet: number; confidence: string } | null>(null);
@@ -63,7 +65,7 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
     const upper = value.toUpperCase();
     onChange({ address, zone, postalCode: upper });
     if (upper.length >= 6) {
-      setPostalError(isValidCanadianPostal(upper) ? "" : "Invalid format. Use: V6X 1A1");
+      setPostalError(isValidCanadianPostal(upper) ? "" : t("postalInvalid"));
     } else {
       setPostalError("");
     }
@@ -100,15 +102,15 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
   return (
     <div className="space-y-8">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-brand-ink mb-2">Where is your home?</h2>
-        <p className="text-gray-600">We serve Richmond, Vancouver, North Vancouver, West Vancouver, and UBC.</p>
+        <h2 className="text-2xl font-bold text-brand-ink mb-2">{t("title")}</h2>
+        <p className="text-gray-600">{t("subtitle")}</p>
       </div>
 
       {savedProperties.length > 0 && (
         <div className="bg-brand-ice rounded-lg p-6">
           <label htmlFor="saved-property-select" className="block font-semibold text-brand-ink mb-2 flex items-center gap-2">
             <Home className="w-5 h-5 text-brand-wave-blue" />
-            Use a saved property
+            {t("savedPropertyLabel")}
           </label>
           <select
             id="saved-property-select"
@@ -125,7 +127,7 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
             }}
             className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none transition-all bg-white"
           >
-            <option value="">Select a saved address...</option>
+            <option value="">{t("savedPropertyPlaceholder")}</option>
             {savedProperties.map((property) => (
               <option key={property.id} value={property.id}>
                 {property.nickname ? `${property.nickname} — ` : ""}
@@ -141,20 +143,20 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
       <div className="bg-brand-ice rounded-lg p-6">
         <label htmlFor="street-address-input" className="block font-semibold text-brand-ink mb-2 flex items-center gap-2">
           <MapPin className="w-5 h-5 text-brand-wave-blue" />
-          Street Address
+          {t("streetLabel")}
         </label>
         <input
           id="street-address-input"
           type="text"
           value={address}
           onChange={(e) => onChange({ address: e.target.value, zone, postalCode })}
-          placeholder="e.g. 123 Main Street, Richmond"
+          placeholder={t("streetPlaceholder")}
           className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none transition-all"
         />
         {bcSuggestion && !bcDismissed && bcSuggestion.squareFeet !== squareFeet && (
           <div className="mt-3 p-3 bg-brand-gold/10 border border-brand-gold/30 rounded-lg text-sm">
             <p className="text-brand-ink">
-              Public records suggest ~{bcSuggestion.squareFeet} ft². Confirm it?
+              {t("bcSuggestionText", { value: bcSuggestion.squareFeet })}
             </p>
             <div className="flex gap-2 mt-2">
               <button
@@ -165,14 +167,14 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
                 }}
                 className="px-3 py-1.5 rounded-lg bg-brand-navy text-white text-xs font-medium"
               >
-                Correct
+                {t("bcSuggestionCorrect")}
               </button>
               <button
                 type="button"
                 onClick={() => setBcDismissed(true)}
                 className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-medium text-gray-600"
               >
-                No, it&apos;s different
+                {t("bcSuggestionDifferent")}
               </button>
             </div>
           </div>
@@ -181,7 +183,7 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
 
       {/* Zone */}
       <div className="bg-brand-ice rounded-lg p-6">
-        <label className="block font-semibold text-brand-ink mb-3">Area / Zone</label>
+        <label className="block font-semibold text-brand-ink mb-3">{t("zoneLabel")}</label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {ACTIVE_ZONES.map((z) => {
             const isSelected = zone === z.name;
@@ -203,7 +205,7 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
                     </span>
                   )}
                   {z.surcharge === 0 && (
-                    <span className="text-sm text-state-success font-medium">Base</span>
+                    <span className="text-sm text-state-success font-medium">{t("zoneBase")}</span>
                   )}
                 </div>
               </button>
@@ -214,13 +216,13 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
 
       {/* Postal Code */}
       <div className="bg-brand-ice rounded-lg p-6">
-        <label htmlFor="postal-code-input" className="block font-semibold text-brand-ink mb-2">Postal Code</label>
+        <label htmlFor="postal-code-input" className="block font-semibold text-brand-ink mb-2">{t("postalLabel")}</label>
         <input
           id="postal-code-input"
           type="text"
           value={postalCode}
           onChange={(e) => handlePostalChange(e.target.value)}
-          placeholder="e.g. V7E 2A1"
+          placeholder={t("postalPlaceholder")}
           className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none transition-all uppercase"
         />
         {postalError && (

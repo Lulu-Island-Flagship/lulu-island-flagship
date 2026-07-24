@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { SERVICE_CATEGORIES, ServiceCategory } from "@/lib/pricing";
 import { Home, Building2 } from "lucide-react";
 
@@ -15,14 +16,16 @@ interface StepCategoryProps {
 }
 
 export function StepCategory({ value, onChange }: StepCategoryProps) {
+  const t = useTranslations("cotizador.category");
+
   return (
     <div className="space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-brand-ink mb-2">
-          What type of space do you need cleaned?
+          {t("title")}
         </h2>
         <p className="text-gray-600">
-          Select the category that best describes your space.
+          {t("subtitle")}
         </p>
       </div>
 
@@ -47,10 +50,9 @@ export function StepCategory({ value, onChange }: StepCategoryProps) {
                 {ICONS[cat.key]}
               </div>
               <h3 className="font-semibold text-brand-ink mb-1">
-                {cat.label}
+                {t(`items.${cat.key}.label`)}
               </h3>
-              <p className="text-sm text-gray-500">{cat.description}</p>
-              <p className="text-xs text-gray-400 mt-1">{cat.labelEs}</p>
+              <p className="text-sm text-gray-500">{t(`items.${cat.key}.description`)}</p>
             </button>
           );
         })}

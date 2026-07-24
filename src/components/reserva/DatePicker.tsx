@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Calendar, AlertCircle } from "lucide-react";
 
 interface DatePickerProps {
@@ -50,6 +51,7 @@ function addYears(dateStr: string, years: number): string {
 }
 
 export function DatePicker({ value, onChange, minDate, maxDate }: DatePickerProps) {
+  const t = useTranslations("reserva.datePicker");
   const vancouverToday = getVancouverDateString();
   const vancouverHour = getVancouverHour();
   const tomorrow = addDays(vancouverToday, 1);
@@ -63,16 +65,16 @@ export function DatePicker({ value, onChange, minDate, maxDate }: DatePickerProp
 
   useEffect(() => {
     if (value && value === tomorrow && cutoffPassed) {
-      setWarning("Bookings for tomorrow close at 5:00 PM. Please select a later date.");
+      setWarning(t("cutoffWarning"));
     } else {
       setWarning("");
     }
-  }, [value, tomorrow, cutoffPassed]);
+  }, [value, tomorrow, cutoffPassed, t]);
 
   return (
     <div className="space-y-3">
       <label htmlFor="service-date-input" className="block text-sm font-medium text-brand-ink">
-        Select Service Date
+        {t("label")}
       </label>
       <div className="relative">
         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -93,7 +95,7 @@ export function DatePicker({ value, onChange, minDate, maxDate }: DatePickerProp
         </div>
       ) : (
         <p className="text-xs text-gray-500">
-          Bookings close at 5:00 PM the day before. Earliest available: {effectiveMin}
+          {t("helpText", { date: effectiveMin })}
         </p>
       )}
     </div>

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Loader2, MapPin, Clock, Truck } from "lucide-react";
 
 interface TrackingData {
@@ -21,6 +22,7 @@ interface TrackingData {
  * solo dentro de los 30 minutos previos al servicio agendado.
  */
 export default function ServiceTrackingPage() {
+  const t = useTranslations("cuenta.servicios.tracking");
   const params = useParams();
   const orderId = params?.orderId as string;
   const [data, setData] = useState<TrackingData | null>(null);
@@ -40,13 +42,13 @@ export default function ServiceTrackingPage() {
       const res = await fetch(`/api/client/orders/${orderId}/vehicle-tracking`, { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load tracking");
+        setError(err.error || t("loadFailed"));
         return;
       }
       const json = await res.json();
       setData(json);
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setLoading(false);
     }
@@ -72,7 +74,7 @@ export default function ServiceTrackingPage() {
         <div className="bg-white rounded-xl border p-8 text-center space-y-2">
           <Clock className="w-10 h-10 text-gray-300 mx-auto" />
           <p className="text-sm text-gray-600">
-            {data.message || "El tracking en vivo no está disponible en este momento."}
+            {data.message || t("notAvailable")}
           </p>
         </div>
       </div>
@@ -83,10 +85,10 @@ export default function ServiceTrackingPage() {
     <div className="max-w-2xl space-y-4">
       <div>
         <h1 className="text-2xl font-bold text-brand-ink flex items-center gap-2">
-          <Truck className="w-6 h-6 text-brand-navy" /> Your Team is on the Way
+          <Truck className="w-6 h-6 text-brand-navy" /> {t("title")}
         </h1>
         <p className="text-sm text-gray-500 mt-1">
-          Live location of your service vehicle — updates automatically.
+          {t("subtitle")}
         </p>
       </div>
 
@@ -99,7 +101,7 @@ export default function ServiceTrackingPage() {
         </div>
         {data.lastUpdatedAt && (
           <p className="text-xs text-gray-400">
-            Last updated {new Date(data.lastUpdatedAt).toLocaleTimeString()}
+            {t("lastUpdated", { time: new Date(data.lastUpdatedAt).toLocaleTimeString() })}
           </p>
         )}
         <a
@@ -108,7 +110,7 @@ export default function ServiceTrackingPage() {
           rel="noopener noreferrer"
           className="inline-block text-sm text-brand-navy font-medium underline"
         >
-          Open in Maps
+          {t("openInMaps")}
         </a>
       </div>
     </div>

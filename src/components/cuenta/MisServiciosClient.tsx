@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Loader2,
-  AlertCircle,
   Calendar,
   MapPin,
   ChevronDown,
@@ -17,6 +17,8 @@ import {
   Images,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { StatusBanner } from "./StatusBanner";
+import { Skeleton, SkeletonServiceList } from "@/components/ui/Skeleton";
 
 interface ClaimableZone {
   zone: string;
@@ -47,11 +49,12 @@ interface WarrantyClaim {
   resolution_notes: string | null;
 }
 
-const FINAL_ACTION_LABEL: Record<string, string> = {
-  free_recleaning: "Free re-cleaning scheduled",
-  explain_no_action: "Reviewed — closure photo shown, no action needed",
-  dismiss: "Dismissed",
-};
+// warranty_claims.final_action — valores conocidos del backend
+const FINAL_ACTIONS = ["free_recleaning", "explain_no_action", "dismiss"];
+
+// orders.status CHECK constraint (migración 001_modulo1_base_schema.sql):
+// ('pending', 'confirmed', 'completed', 'cancelled', 'no_show')
+const ORDER_STATUSES = ["pending", "confirmed", "completed", "cancelled", "no_show"];
 
 const STATUS_STYLES: Record<string, string> = {
   completed: "bg-green-50 text-green-700",
@@ -62,6 +65,10 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function MisServiciosClient() {
+  const t = useTranslations("cuenta.servicios");
+  const tCommon = useTranslations("cuenta.common");
+  const tStatus = useTranslations("cuenta.orderStatus");
+  const tFinalAction = useTranslations("cuenta.servicios.finalAction");
   const [orders, setOrders] = useState<ClientOrder[]>([]);
   const [claims, setClaims] = useState<WarrantyClaim[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,7 +89,7 @@ export default function MisServiciosClient() {
       ]);
       if (!ordersRes.ok) {
         const err = await ordersRes.json();
-        setError(err.error || "Failed to load services");
+        setError(err.error || t("loadFailed"));
         return;
       }
       const ordersData = await ordersRes.json();
@@ -93,7 +100,7 @@ export default function MisServiciosClient() {
         setClaims(claimsData.claims || []);
       }
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setLoading(false);
     }
@@ -101,8 +108,12 @@ export default function MisServiciosClient() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+      <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
+        <div className="text-center space-y-2">
+          <Skeleton className="h-8 w-64 mx-auto" />
+          <Skeleton className="h-4 w-80 mx-auto" />
+        </div>
+        <SkeletonServiceList count={4} />
       </div>
     );
   }
@@ -110,17 +121,17 @@ export default function MisServiciosClient() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-brand-ink mb-2">My Services</h1>
-        <p className="text-gray-600">Your service history. Report an issue within a completed service if something wasn&apos;t right.</p>
+        <h1 className="text-3xl font-bold text-brand-ink mb-2">{t("title")}</h1>
+        <p className="text-gray-600">{t("subtitle")}</p>
         <div className="flex items-center justify-center gap-3 mt-2">
           <a href="../propiedades" className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
-            Manage my properties
+            {t("manageProperties")}
           </a>
           <a href="../billetera" className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
-            Lulu Wallet
+            {t("luluWallet")}
           </a>
           <a href="../referidos" className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
-            Refer a friend
+            {t("referFriend")}
           </a>
         </div>
       </div>
@@ -128,17 +139,19 @@ export default function MisServiciosClient() {
       <NextRecurringVisitCard />
       <LivePortfolioNotice />
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-          <p className="text-red-700 text-sm">{error}</p>
-        </div>
-      )}
+      <StatusBanner
+        variant="error"
+        message={error}
+        onRetry={loadAll}
+        onDismiss={() => setError("")}
+        retryLabel={tCommon("retry")}
+        dismissLabel={tCommon("dismiss")}
+      />
 
       {orders.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
           <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500">No services yet.</p>
+          <p className="text-gray-500">{t("noServices")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -151,10 +164,10 @@ export default function MisServiciosClient() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-brand-ink">
-                        {order.quotes?.service_subtype || "Cleaning service"}
+                        {order.quotes?.service_subtype || t("defaultServiceLabel")}
                       </span>
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_STYLES[order.status] || "bg-gray-100 text-gray-600"}`}>
-                        {order.status}
+                        {ORDER_STATUSES.includes(order.status) ? tStatus(order.status) : order.status}
                       </span>
                     </div>
                     <div className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
@@ -174,7 +187,7 @@ export default function MisServiciosClient() {
                         href={`servicios/${order.id}/galeria`}
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-navy hover:underline"
                       >
-                        View photos & checklist
+                        {t("viewPhotosChecklist")}
                       </a>
                     )}
                     {order.status === "confirmed" && (
@@ -182,7 +195,7 @@ export default function MisServiciosClient() {
                         href={`servicios/${order.id}/tracking`}
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-navy hover:underline"
                       >
-                        Track your team
+                        {t("trackYourTeam")}
                       </a>
                     )}
                     {order.status === "completed" && order.claimableZones.length > 0 && (
@@ -191,7 +204,7 @@ export default function MisServiciosClient() {
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-wave-blue hover:text-brand-navy border border-brand-wave-blue/30 rounded-lg px-3 py-1.5"
                       >
                         <Flag className="w-3.5 h-3.5" />
-                        Report an issue
+                        {t("reportIssue")}
                         <ChevronDown className={`w-3 h-3 transition-transform ${claimingOrderId === order.id ? "rotate-180" : ""}`} />
                       </button>
                     )}
@@ -212,10 +225,12 @@ export default function MisServiciosClient() {
                           <span className="text-gray-400">— {claim.reason}</span>
                         </div>
                         {claim.final_action && (
-                          <p className="mt-1 text-gray-600">{FINAL_ACTION_LABEL[claim.final_action] || claim.final_action}</p>
+                          <p className="mt-1 text-gray-600">
+                            {FINAL_ACTIONS.includes(claim.final_action) ? tFinalAction(claim.final_action) : claim.final_action}
+                          </p>
                         )}
                         {claim.status === "open" && !claim.final_action && (
-                          <p className="mt-1 text-gray-500">Under review.</p>
+                          <p className="mt-1 text-gray-500">{t("underReview")}</p>
                         )}
                       </div>
                     ))}
@@ -253,6 +268,7 @@ function ClaimForm({
   onSubmitted: () => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations("cuenta.servicios.claimForm");
   const availableZones = order.claimableZones.filter((z) => !alreadyClaimedZones.has(z.zone));
   const [zone, setZone] = useState(availableZones[0]?.zone || "");
   const [reason, setReason] = useState("");
@@ -264,11 +280,11 @@ function ClaimForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!zone) {
-      setFormError("Select a zone");
+      setFormError(t("selectZone"));
       return;
     }
     if (reason.trim().length < 3) {
-      setFormError("Please describe the issue (at least a few words)");
+      setFormError(t("describeIssue"));
       return;
     }
 
@@ -284,7 +300,7 @@ function ClaimForm({
           .from("service-photos")
           .upload(fileName, photoFile, { contentType: photoFile.type });
         if (uploadError) {
-          setFormError("Failed to upload photo, please try again.");
+          setFormError(t("photoUploadFailed"));
           setSubmitting(false);
           return;
         }
@@ -307,13 +323,13 @@ function ClaimForm({
 
       if (!res.ok) {
         const err = await res.json();
-        setFormError(err.error || "Failed to submit");
+        setFormError(err.error || t("submitFailed"));
         return;
       }
 
       onSubmitted();
     } catch {
-      setFormError("Network error");
+      setFormError(t("networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -322,7 +338,7 @@ function ClaimForm({
   if (availableZones.length === 0) {
     return (
       <div className="px-4 pb-4 text-xs text-gray-500">
-        All zones for this service already have an open claim.
+        {t("allZonesClaimed")}
       </div>
     );
   }
@@ -330,7 +346,7 @@ function ClaimForm({
   return (
     <form onSubmit={handleSubmit} className="px-4 pb-4 pt-1 border-t space-y-3">
       <div className="space-y-1">
-        <label className="text-xs font-medium text-gray-700">Which area?</label>
+        <label className="text-xs font-medium text-gray-700">{t("whichArea")}</label>
         <div className="flex flex-wrap gap-2">
           {availableZones.map((z) => (
             <button
@@ -350,19 +366,19 @@ function ClaimForm({
       </div>
 
       <div className="space-y-1">
-        <label htmlFor="issue-reason-input" className="text-xs font-medium text-gray-700">What happened?</label>
+        <label htmlFor="issue-reason-input" className="text-xs font-medium text-gray-700">{t("whatHappened")}</label>
         <input
           id="issue-reason-input"
           type="text"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="e.g. Bathroom mirror still had smudges"
+          placeholder={t("whatHappenedPlaceholder")}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
         />
       </div>
 
       <div className="space-y-1">
-        <label htmlFor="issue-description-textarea" className="text-xs font-medium text-gray-700">More detail (optional)</label>
+        <label htmlFor="issue-description-textarea" className="text-xs font-medium text-gray-700">{t("moreDetail")}</label>
         <textarea
           id="issue-description-textarea"
           value={description}
@@ -375,19 +391,19 @@ function ClaimForm({
       <div className="space-y-1">
         <label className="text-xs font-medium text-gray-700 flex items-center gap-1.5">
           <Camera className="w-3.5 h-3.5" />
-          Photo (optional, helps us review faster)
+          {t("photoLabel")}
         </label>
         {photoFile ? (
           <div className="flex items-center gap-2 text-xs text-gray-600">
             {photoFile.name}
-            <button type="button" onClick={() => setPhotoFile(null)} className="text-gray-400 hover:text-red-500">
-              <X className="w-3.5 h-3.5" />
+            <button type="button" onClick={() => setPhotoFile(null)} aria-label="Remove photo" className="text-gray-400 hover:text-red-500">
+              <X className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>
         ) : (
           <input
             id="issue-photo-input"
-            aria-label="Adjuntar foto del problema (opcional)"
+            aria-label={t("photoInputAriaLabel")}
             type="file"
             accept="image/*"
             onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
@@ -404,7 +420,7 @@ function ClaimForm({
           onClick={onCancel}
           className="text-xs px-3 py-1.5 rounded-lg text-gray-500 hover:bg-gray-100"
         >
-          Cancel
+          {t("cancel")}
         </button>
         <button
           type="submit"
@@ -412,7 +428,7 @@ function ClaimForm({
           className="inline-flex items-center gap-1.5 text-xs px-4 py-1.5 rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light disabled:opacity-50"
         >
           {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-          Submit
+          {t("submit")}
         </button>
       </div>
     </form>
@@ -426,6 +442,7 @@ function ClaimForm({
  * contrato activo (no molesta a clientes no recurrentes).
  */
 function NextRecurringVisitCard() {
+  const t = useTranslations("cuenta.servicios.recurring");
   const router = useRouter();
   const [hasContract, setHasContract] = useState<boolean | null>(null);
   const [nextDate, setNextDate] = useState<string | null>(null);
@@ -458,7 +475,7 @@ function NextRecurringVisitCard() {
 
   async function updateContractStatus(action: "pause" | "cancel") {
     if (!contractId) return;
-    if (action === "cancel" && !window.confirm("Cancel your recurring plan? You can always book a new one later.")) {
+    if (action === "cancel" && !window.confirm(t("confirmCancel"))) {
       return;
     }
     setStatusAction(action);
@@ -472,13 +489,13 @@ function NextRecurringVisitCard() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setStatusError(json.error || "Could not update your plan");
+        setStatusError(json.error || t("updateFailed"));
         return;
       }
       if (action === "cancel") setCancelled(true);
       else setHasContract(false); // paused: ya no se ofrece "book next visit" hasta reanudar desde soporte/otra vista
     } catch {
-      setStatusError("Network error");
+      setStatusError(t("networkError"));
     } finally {
       setStatusAction(null);
     }
@@ -491,7 +508,7 @@ function NextRecurringVisitCard() {
       const infoRes = await fetch("/api/client/contracts/next-visit", { credentials: "include" });
       const info = await infoRes.json();
       if (!infoRes.ok || !info.prefill) {
-        setBookError(info.error || "Could not load your recurring plan");
+        setBookError(info.error || t("loadFailed"));
         return;
       }
       const day = new Date(`${info.nextDate}T12:00:00Z`).getUTCDay();
@@ -503,14 +520,14 @@ function NextRecurringVisitCard() {
       });
       const quoteJson = await quoteRes.json();
       if (!quoteRes.ok) {
-        setBookError(quoteJson.error || "Could not create quote");
+        setBookError(quoteJson.error || t("quoteFailed"));
         return;
       }
       const locale = typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en";
       const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
       router.push(`/${safeLocale}/reserva/${quoteJson.quoteId}?date=${info.nextDate}`);
     } catch {
-      setBookError("Network error");
+      setBookError(t("networkError"));
     } finally {
       setBooking(false);
     }
@@ -519,7 +536,7 @@ function NextRecurringVisitCard() {
   if (cancelled) {
     return (
       <div className="bg-brand-ice border border-brand-gold/30 rounded-xl p-4 text-sm text-brand-ink">
-        Your recurring plan has been cancelled. You can start a new one anytime from the quote form.
+        {t("cancelledNotice")}
       </div>
     );
   }
@@ -532,16 +549,16 @@ function NextRecurringVisitCard() {
         <div className="flex items-center gap-2 text-sm text-brand-ink">
           <Repeat className="w-4 h-4 text-brand-gold-dark shrink-0" />
           <span>
-            Your recurring plan{nextDate ? ` — next visit ${nextDate}` : ""}
+            {nextDate ? t("planWithNextVisit", { date: nextDate }) : t("plan")}
           </span>
         </div>
         <button
-          aria-label="Reservar próxima visita"
+          aria-label={t("bookNextVisitAriaLabel")}
           onClick={bookNextVisit}
           disabled={booking}
           className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold bg-brand-navy text-white px-4 py-2 rounded-lg disabled:opacity-50"
         >
-          {booking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Book next visit"}
+          {booking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t("bookNextVisit")}
         </button>
       </div>
       {bookError && <p className="text-xs text-state-danger">{bookError}</p>}
@@ -551,14 +568,14 @@ function NextRecurringVisitCard() {
           disabled={statusAction !== null}
           className="text-xs text-gray-500 underline disabled:opacity-50"
         >
-          {statusAction === "pause" ? "Pausing…" : "Pause plan"}
+          {statusAction === "pause" ? t("pausing") : t("pausePlan")}
         </button>
         <button
           onClick={() => updateContractStatus("cancel")}
           disabled={statusAction !== null}
           className="text-xs text-state-danger underline disabled:opacity-50"
         >
-          {statusAction === "cancel" ? "Cancelling…" : "Cancel plan"}
+          {statusAction === "cancel" ? t("cancelling") : t("cancelPlan")}
         </button>
       </div>
       {statusError && <p className="text-xs text-state-danger">{statusError}</p>}
@@ -581,6 +598,7 @@ interface LivePortfolioEntry {
  * retirarlo mientras la ventana de 24h siga abierta.
  */
 function LivePortfolioNotice() {
+  const t = useTranslations("cuenta.servicios.livePortfolio");
   const [entries, setEntries] = useState<LivePortfolioEntry[]>([]);
   const [withdrawing, setWithdrawing] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
@@ -608,13 +626,13 @@ function LivePortfolioNotice() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setNotice(json.error || "Could not withdraw");
+        setNotice(json.error || t("withdrawFailed"));
         return;
       }
       setEntries((prev) => prev.filter((e) => e.id !== id));
-      setNotice("Removed from Live Portfolio.");
+      setNotice(t("removed"));
     } catch {
-      setNotice("Network error");
+      setNotice(t("networkError"));
     } finally {
       setWithdrawing(null);
     }
@@ -631,7 +649,7 @@ function LivePortfolioNotice() {
         >
           <div className="flex items-center gap-2 text-sm text-brand-ink">
             <Images className="w-4 h-4 text-brand-gold-dark shrink-0" />
-            <span>One of your services ({e.anonymous_label}) was selected for our Live Portfolio.</span>
+            <span>{t("selectedNotice", { label: e.anonymous_label })}</span>
           </div>
           {e.canWithdraw && (
             <button
@@ -639,7 +657,7 @@ function LivePortfolioNotice() {
               disabled={withdrawing === e.id}
               className="shrink-0 text-xs font-semibold text-brand-navy border border-brand-navy/30 px-3 py-1.5 rounded-lg disabled:opacity-50"
             >
-              {withdrawing === e.id ? "Removing..." : "Remove it"}
+              {withdrawing === e.id ? t("removing") : t("removeIt")}
             </button>
           )}
         </div>

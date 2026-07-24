@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Loader2, Camera, Clock, MessageSquare, AlertTriangle, CheckCircle2, CalendarPlus } from "lucide-react";
 
 interface RebookDateOption {
@@ -32,6 +33,7 @@ interface GalleryData {
 }
 
 export default function ServiceGalleryPage() {
+  const t = useTranslations("cuenta.servicios.galeria");
   const params = useParams();
   const orderId = params?.orderId as string;
   const [data, setData] = useState<GalleryData | null>(null);
@@ -50,13 +52,13 @@ export default function ServiceGalleryPage() {
       const res = await fetch(`/api/client/orders/${orderId}/gallery`, { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load");
+        setError(err.error || t("loadFailed"));
         return;
       }
       const json = await res.json();
       setData(json);
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setLoading(false);
     }
@@ -102,10 +104,10 @@ export default function ServiceGalleryPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-brand-ink">Your Service</h1>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("yourService")}</h1>
         {data.durationMinutes !== null && data.durationMinutes !== undefined && (
           <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
-            <Clock className="w-4 h-4" /> Completed in {data.durationMinutes} minutes
+            <Clock className="w-4 h-4" /> {t("completedIn", { minutes: data.durationMinutes })}
           </p>
         )}
       </div>
@@ -113,12 +115,12 @@ export default function ServiceGalleryPage() {
       {data.photos && data.photos.length > 0 && (
         <div>
           <h2 className="font-semibold text-brand-ink mb-2 flex items-center gap-1.5">
-            <Camera className="w-4 h-4" /> Photos
+            <Camera className="w-4 h-4" /> {t("photos")}
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {data.photos.map((url, i) => (
               // eslint-disable-next-line @next/next/no-img-element
-              <img key={i} src={url} alt={`Service photo ${i + 1}`} className="rounded-lg aspect-square object-cover" />
+              <img key={i} src={url} alt={t("servicePhotoAlt", { index: i + 1 })} className="rounded-lg aspect-square object-cover" />
             ))}
           </div>
         </div>
@@ -152,6 +154,7 @@ export default function ServiceGalleryPage() {
  * precio o pago nueva.
  */
 function RebookWidget({ orderId }: { orderId: string }) {
+  const t = useTranslations("cuenta.servicios.galeria.rebook");
   const router = useRouter();
   const locale = typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en";
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
@@ -172,12 +175,12 @@ function RebookWidget({ orderId }: { orderId: string }) {
       const res = await fetch(`/api/client/orders/${orderId}/rebook`, { credentials: "include" });
       const json = await res.json();
       if (!res.ok) {
-        setRebookError(json.error || "Could not load rebooking options");
+        setRebookError(json.error || t("loadOptionsFailed"));
         return;
       }
       setRebookInfo(json);
     } catch {
-      setRebookError("Network error");
+      setRebookError(t("networkError"));
     } finally {
       setLoadingOptions(false);
     }
@@ -201,12 +204,12 @@ function RebookWidget({ orderId }: { orderId: string }) {
       });
       const json = await res.json();
       if (!res.ok) {
-        setRebookError(json.error || "Could not create quote");
+        setRebookError(json.error || t("createQuoteFailed"));
         return;
       }
       router.push(`/${safeLocale}/reserva/${json.quoteId}?date=${selectedDate}`);
     } catch {
-      setRebookError("Network error");
+      setRebookError(t("networkError"));
     } finally {
       setConfirming(false);
     }
@@ -218,14 +221,14 @@ function RebookWidget({ orderId }: { orderId: string }) {
         onClick={startRebook}
         className="w-full flex items-center justify-center gap-2 bg-brand-navy text-white py-3 rounded-xl font-semibold hover:bg-brand-navy-light transition-colors"
       >
-        <CalendarPlus className="w-4 h-4" /> Rebook this service
+        <CalendarPlus className="w-4 h-4" /> {t("rebookThisService")}
       </button>
     );
   }
 
   return (
     <div className="bg-white rounded-xl border p-4 space-y-3">
-      <p className="text-sm font-medium text-brand-ink">When would you like your next visit?</p>
+      <p className="text-sm font-medium text-brand-ink">{t("whenNextVisit")}</p>
 
       {loadingOptions && <Loader2 className="w-5 h-5 animate-spin text-brand-gold" />}
 
@@ -248,21 +251,22 @@ function RebookWidget({ orderId }: { orderId: string }) {
       {rebookError && <p className="text-sm text-state-danger">{rebookError}</p>}
 
       <button
-        aria-label="Confirmar nueva fecha de servicio"
+        aria-label={t("confirmDateAriaLabel")}
         onClick={confirmRebook}
         disabled={!selectedDate || confirming}
         className="w-full bg-brand-navy text-white py-3 rounded-xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
       >
-        {confirming ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirm"}
+        {confirming ? <Loader2 className="w-5 h-5 animate-spin" /> : t("confirm")}
       </button>
     </div>
   );
 }
 
 function ChecklistView({ zones }: { zones: ChecklistZone[] }) {
+  const t = useTranslations("cuenta.servicios.galeria");
   return (
     <div>
-      <h2 className="font-semibold text-brand-ink mb-2">Checklist</h2>
+      <h2 className="font-semibold text-brand-ink mb-2">{t("checklist")}</h2>
       <div className="bg-white rounded-xl border divide-y">
         {zones.map((z) => (
           <div key={z.zone} className="p-3">

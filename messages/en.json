@@ -40,6 +40,731 @@
     "zh": "中文",
     "fr": "FR"
   },
+  "cotizador": {
+    "brand": "Lulu Island Flagship",
+    "priceLockedUntil": "Price locked until {time}",
+    "stepOf": "Step {current} of {total}",
+    "stepLabels": {
+      "category": "Category",
+      "purpose": "Service Type",
+      "dimensions": "Dimensions",
+      "addonZones": "Extras",
+      "organic": "Household",
+      "recency": "Recency",
+      "address": "Location",
+      "summary": "Summary"
+    },
+    "nav": {
+      "home": "Home",
+      "back": "Back",
+      "next": "Next",
+      "saving": "Saving...",
+      "submitB2b": "Submit for B2B Review",
+      "reserveNow": "Reserve Now",
+      "homeAriaLabel": "Go to home",
+      "backAriaLabel": "Go back to previous step"
+    },
+    "authErrors": {
+      "providerError": "Sign-in was cancelled or failed with your provider. Please try again.",
+      "sessionExchangeFailed": "We couldn't complete sign-in. Please try again.",
+      "missingCode": "Sign-in link is invalid or expired. Please try again.",
+      "default": "Sign-in failed. Please try again."
+    },
+    "errors": {
+      "acceptTerms": "Please accept the Terms & Conditions to proceed.",
+      "acquisitionRequired": "Please let us know how you heard about us.",
+      "commercialReview": "Commercial / B2B bookings require manual onboarding and PO setup. Our team will contact you shortly.",
+      "genericSubmit": "Failed to save quote. Please try again.",
+      "genericAuth": "Authentication failed. Please try again.",
+      "genericPreview": "Failed to calculate preview"
+    },
+    "summary": {
+      "calculating": "Calculating your server-verified quote...",
+      "ready": "Your Quote is Ready",
+      "readySubtitle": "Full price upfront — no surprises.",
+      "b2bTitle": "Commercial / B2B Quote",
+      "b2bDesc": "This quote requires manual onboarding, PO process, and Net-30 setup before booking. Submitting will notify our sales team.",
+      "poLabel": "Purchase Order (PO) Number *",
+      "poHint": "B2B / Government bookings require a PO before onboarding."
+    },
+    "category": {
+      "title": "What type of space do you need cleaned?",
+      "subtitle": "Select the category that best describes your space.",
+      "items": {
+        "home": { "label": "Home", "description": "Residential cleaning services" },
+        "commercial": { "label": "Commercial", "description": "Office, Airbnb, and construction cleanup" }
+      }
+    },
+    "purpose": {
+      "title": "What type of cleaning do you need?",
+      "subtitle": "Select the service that best matches your situation.",
+      "items": {
+        "first_time": "First Time Cleaning",
+        "regular": "Regular Cleaning",
+        "move_in_out": "Move In/Out",
+        "office": "Office Cleaning",
+        "airbnb": "Airbnb / Short-term Rental",
+        "post_construction": "Post-Construction"
+      }
+    },
+    "dimensions": {
+      "title": "Tell us about your space",
+      "subtitle": "This helps us estimate the time and team needed.",
+      "bedroomsTitle": "Bedrooms",
+      "bedroomsSubtitle": "Including master and guest rooms",
+      "bathroomsTitle": "Bathrooms",
+      "bathroomsSubtitle": "Full and half bathrooms",
+      "squareFeetTitle": "Approximate Square Footage",
+      "squareFeetSubtitle": "Best estimate is fine",
+      "bcAssessment": {
+        "button": "Suggest from BC Assessment",
+        "errorNoAddress": "Enter an address first to search BC Assessment.",
+        "errorLookupFailed": "Lookup failed.",
+        "errorNetwork": "Network error.",
+        "noSuggestion": "No suggestion available",
+        "noSuggestionFallback": "Please enter square footage manually.",
+        "suggested": "Suggested: {value} ft²",
+        "confidence": "Confidence: {level}. Always verify before booking.",
+        "use": "Use",
+        "ignore": "Ignore"
+      }
+    },
+    "addonZones": {
+      "title": "Anything extra?",
+      "subtitle": "Optional areas not included in your base quote.",
+      "empty": "Nothing extra needed for this service — you're all set."
+    },
+    "organic": {
+      "title": "Who lives here?",
+      "subtitle": "This helps us estimate the cleaning effort needed.",
+      "petsTitle": "Pets",
+      "petTypes": {
+        "none": "No pets",
+        "short_hair": "Short hair (cat/dog)",
+        "long_hair": "Long hair (cat/dog)",
+        "multiple": "Multiple / Other"
+      },
+      "howMany": "How many?",
+      "residentsTitle": "Number of Residents"
+    },
+    "recency": {
+      "title": "When was your last professional cleaning?",
+      "subtitle": "More time since the last deep clean means more buildup to tackle.",
+      "presets": {
+        "lessThan30": { "label": "Less than 30 days", "hint": "Recent maintenance" },
+        "oneToTwoMonths": { "label": "1–2 months", "hint": "Some buildup expected" },
+        "twoToThreeMonths": { "label": "2–3 months", "hint": "Moderate buildup" },
+        "moreThanThree": { "label": "More than 3 months", "hint": "Deep clean recommended" }
+      }
+    },
+    "address": {
+      "title": "Where is your home?",
+      "subtitle": "We serve Richmond, Vancouver, North Vancouver, West Vancouver, and UBC.",
+      "savedPropertyLabel": "Use a saved property",
+      "savedPropertyPlaceholder": "Select a saved address...",
+      "streetLabel": "Street Address",
+      "streetPlaceholder": "e.g. 123 Main Street, Richmond",
+      "bcSuggestionText": "Public records suggest ~{value} ft². Confirm it?",
+      "bcSuggestionCorrect": "Correct",
+      "bcSuggestionDifferent": "No, it's different",
+      "zoneLabel": "Area / Zone",
+      "zoneBase": "Base",
+      "postalLabel": "Postal Code",
+      "postalPlaceholder": "e.g. V7E 2A1",
+      "postalInvalid": "Invalid format. Use: V6X 1A1"
+    },
+    "priceBreakdown": {
+      "title": "Price Breakdown",
+      "serviceTypes": {
+        "regular": "Regular Cleaning",
+        "deep": "Deep Cleaning",
+        "move_in_out": "Move-in / Move-out",
+        "post_construction": "Post-Construction"
+      },
+      "organicHeavy": "Heavy organic load",
+      "organicLight": "Light organic load",
+      "recencyLong": "Long time since last clean",
+      "recencyRecent": "Recent cleaning",
+      "zoneSurcharge": "Zone surcharge",
+      "logisticsSurcharge": "Logistics (non-preferred day)",
+      "extraAreas": "Extra areas selected",
+      "ruleAdjustment": "Pricing rule adjustment",
+      "ruleNote": "Final price is calculated server-side. Active pricing rules may adjust this estimate.",
+      "adminReviewTitle": "Admin review required",
+      "adminReviewDesc": "This quote needs manual approval before scheduling. Our team will contact you shortly.",
+      "subtotal": "Subtotal",
+      "gst": "GST (5%)",
+      "pst": "PST (7%)",
+      "total": "Total Projected",
+      "holdTitle": "Reservation Hold: {amount}",
+      "holdDesc": "A temporary authorization (not a charge) will be placed on your card 72 hours before the service. Released if cancelled with more than 72 hours notice. 50% retained if cancelled 24-72 hours before. Full hold retained for no-shows or cancellations within 24 hours."
+    },
+    "consentCheck": {
+      "title": "Consent & Agreements",
+      "tcLabel": "Terms & Conditions",
+      "tcDesc": "I agree to the Terms of Service, including the cancellation policy, payment terms, and service scope. Required to proceed.",
+      "pipaLabel": "Photo Evidence Consent (PIPA) — Optional",
+      "pipaDesc": "I consent to the collection of photographic evidence of the cleaning service for quality assurance and dispute resolution, in accordance with BC's Personal Information Protection Act (PIPA).",
+      "pipaWarning": "Without photo consent, your service will require a mandatory 100% field audit (no extra charge) and the checklist will be completed without photographs.",
+      "marketingLabel": "Marketing Communications (Optional)",
+      "marketingDesc": "I consent to receive promotional emails and SMS about special offers, seasonal cleaning tips, and service reminders. You can unsubscribe at any time. (CASL compliant)",
+      "photoMarketingLabel": "Marketing Photos (Optional)",
+      "photoMarketingDesc": "I consent to allowing Lulu Island Flagship to use before/after photos of my service for marketing purposes (website, social media, portfolio). Without this consent, only anonymous demo property photos will be used."
+    },
+    "languagePreference": {
+      "title": "Preferred Language(s)",
+      "description": "We'll match your service with a team lead who speaks your language. Select in order of preference — the first one is your main language."
+    },
+    "acquisitionChannel": {
+      "title": "How did you hear about us? *",
+      "selectOne": "Select one",
+      "ariaLabel": "How did you hear about us?",
+      "channels": {
+        "google_search": "Google Search",
+        "google_maps": "Google Maps / Business Profile",
+        "social_media": "Social Media",
+        "referral_friend": "Friend / Family Referral",
+        "drive_by": "Saw our vehicle / drove by",
+        "repeat_customer": "I'm a returning customer",
+        "other": "Other"
+      }
+    },
+    "authModal": {
+      "closeAriaLabel": "Close sign-in modal",
+      "verifyPhoneTitle": "Verify Your Phone Number",
+      "signInTitle": "Sign in to Reserve",
+      "verifyPhoneDesc": "For your security, we require a verified phone number before you can complete a reservation. This only takes a minute.",
+      "sameMethodWarning": "Please use the same sign-in method every time — switching methods (e.g. Google, then email) creates a separate account and you'll lose access to your history and wallet.",
+      "phoneNumberLabel": "Phone Number",
+      "phoneHint": "BC/Canada numbers only",
+      "sendSmsCode": "Send SMS Code",
+      "sending": "Sending...",
+      "enterCodeSentTo": "Enter 6-digit code sent to {destination}",
+      "verifyPhone": "Verify Phone",
+      "verifying": "Verifying...",
+      "resendPhone": "Resend code or use different phone",
+      "resendEmail": "Resend code or use different email",
+      "continueWithGoogle": "Continue with Google",
+      "continueWithApple": "Continue with Apple",
+      "or": "or",
+      "emailOption": "Email + Verification Code",
+      "phoneOption": "Phone + SMS Code",
+      "emailAddressLabel": "Email Address",
+      "sendVerificationCode": "Send Verification Code",
+      "verifyAndSignIn": "Verify & Sign In",
+      "backToAllOptions": "← Back to all options",
+      "sendSmsCodeAriaLabel": "Send phone verification SMS code",
+      "sendLinkedSmsCodeAriaLabel": "Send phone number verification SMS code",
+      "verifyPhoneCodeAriaLabel": "Verify phone code",
+      "verifyAndSignInAriaLabel": "Verify code and sign in",
+      "sendEmailCodeAriaLabel": "Send email verification code",
+      "errors": {
+        "invalidEmail": "Please enter a valid email address",
+        "sendCodeFailed": "Failed to send verification code",
+        "invalidPhone": "Please enter a valid phone number",
+        "sendSmsFailed": "Failed to send SMS code",
+        "invalidCode": "Please enter the 6-digit code",
+        "emailRequired": "Email is required. Please go back and enter your email.",
+        "phoneRequired": "Phone number is required. Please go back and enter your phone.",
+        "invalidVerificationCode": "Invalid verification code",
+        "googleFailed": "Google sign-in failed",
+        "appleFailed": "Apple sign-in failed"
+      }
+    }
+  },
+  "reserva": {
+    "header": {
+      "brand": "Lulu Island Flagship",
+      "completeReservation": "Complete Your Reservation"
+    },
+    "steps": {
+      "dateTime": "Date & Time",
+      "card": "Card",
+      "confirm": "Confirm"
+    },
+    "loadError": {
+      "invalidQuoteId": "Invalid quote ID.",
+      "quoteNotFound": "Quote not found or expired.",
+      "quoteExpired": "This quote has expired. Please generate a new quote.",
+      "alreadyStatus": "This quote has already been {status}. Please generate a new quote.",
+      "statusLabels": {
+        "reserved": "reserved",
+        "expired": "expired"
+      },
+      "adminReviewRequired": "This quote requires administrative review before booking. Our sales team will contact you shortly.",
+      "commercialAccount": "Commercial / Government accounts require manual onboarding and PO setup. Please contact our sales team to complete your booking.",
+      "newQuoteButton": "New Quote"
+    },
+    "dateTime": {
+      "title": "When do you need us?"
+    },
+    "datePicker": {
+      "label": "Select Service Date",
+      "cutoffWarning": "Bookings for tomorrow close at 5:00 PM. Please select a later date.",
+      "helpText": "Bookings close at 5:00 PM the day before. Earliest available: {date}"
+    },
+    "timeSlotPicker": {
+      "label": "Select Time",
+      "checkingCapacity": "Checking real-time capacity...",
+      "loadFailed": "Failed to load availability",
+      "networkError": "Network error",
+      "newClientLimitWarning": "New clients can have 1 active reservation at a time. Complete your first service before booking another.",
+      "noSlotsAvailable": "No available slots for this date/zone. Please choose another date.",
+      "capacityNotAvailable": "Capacity data not available. Please select a date first.",
+      "slotUnavailable": "Slot unavailable",
+      "serviceWindow": "Service window: 8:00 AM – 6:00 PM",
+      "weekendSurcharge": "Weekend surcharge applies (Sat/Sun)."
+    },
+    "payment": {
+      "title": "Payment Method",
+      "card": "Card",
+      "paypalFirstTime": "PayPal (first service only)",
+      "alipay": "Alipay",
+      "wechatPay": "WeChat Pay",
+      "paypalDesc": "Complete your payment via PayPal and enter the transaction ID below. This option is only available for first-time services.",
+      "paypalTransactionIdPlaceholder": "PayPal Transaction ID",
+      "paypalTransactionIdAriaLabel": "PayPal transaction number",
+      "paypalPayerEmailPlaceholder": "PayPal payer email (optional)",
+      "paypalPayerEmailAriaLabel": "PayPal payer email (optional)",
+      "walletPayNowAlipay": "Pay the full amount now with Alipay.",
+      "walletPayNowWechat": "Pay the full amount now with WeChat Pay.",
+      "walletBackupCardNote": "A backup card is still required afterwards to cover any extra charges (damage, extra time, late cancellation) — you will never be charged again through {method}.",
+      "backupCardLabel": "Backup card",
+      "preparingCheckout": "Preparing secure checkout...",
+      "tryAgain": "Try again",
+      "signInRequired": "Please sign in to continue with checkout.",
+      "setupIntentFailed": "We couldn't prepare secure checkout. Please try again.",
+      "setupIntentNetworkError": "Network error preparing secure checkout. Please try again."
+    },
+    "priceFreezeCountdown": {
+      "expired": "Your price hold has expired. Please refresh to get a new quote before confirming.",
+      "aboutToExpire": "Your price hold is about to expire — stay on this page to keep it active.",
+      "held": "Your price is held while you complete your reservation."
+    },
+    "recalculateWarning": "Price may not reflect your selected date. Please refresh before confirming.",
+    "confirm": {
+      "button": "Confirm Reservation",
+      "confirmAriaLabel": "Confirm and pay for the reservation",
+      "confirming": "Confirming...",
+      "phoneVerificationRequired": "Phone verification required before confirming — see the popup.",
+      "termsNote": "By confirming, you agree to our cancellation policy. Hold authorization applies 72h before service.",
+      "viewCancellationPolicy": "View cancellation policy",
+      "completeAllSteps": "Please complete all steps before confirming.",
+      "priceHoldExpired": "Your price hold has expired. Please refresh to get a new quote before confirming.",
+      "priceNotConfirmed": "We couldn't confirm your price for this date. Please refresh the page and try again.",
+      "enterPaypalTransactionId": "Please enter your PayPal transaction ID.",
+      "completePaymentFirst": "Please complete payment with {method} first.",
+      "genericError": "Failed to confirm reservation."
+    },
+    "summary": {
+      "title": "Reservation Summary",
+      "defaultServiceLabel": "Cleaning Service",
+      "spaceDetails": "{bedrooms} bed, {bathrooms} bath, {squareFeet} ft²",
+      "dateAtTime": "{date} at {time}",
+      "basePrice": "Base price",
+      "subtotal": "Subtotal",
+      "gst": "GST (5%)",
+      "pst": "PST (7%)",
+      "total": "Total",
+      "savingsMessage": "Nice! You're saving {amount} on this booking.",
+      "surchargesIncludedMessage": "{amount} in zone/logistics/product surcharges is already included above.",
+      "securityHoldLabel": "Security Hold (T-72h):",
+      "securityHoldNote": "Authorization only — no charge at reservation. Charged only if cancellation within 72h or no-show.",
+      "lineLabels": {
+        "organicProducts": "Organic products",
+        "recencyAdjustment": "Recency adjustment",
+        "zoneSurcharge": "Zone surcharge",
+        "logisticsSurcharge": "Logistics surcharge",
+        "additionalZones": "Additional zones"
+      }
+    },
+    "benefits": {
+      "checking": "Checking your benefits…",
+      "title": "Your benefits",
+      "walletBalanceLabel": "Lulu Wallet balance",
+      "walletNotApplied": "Not applied to this booking automatically — manage it from <link>My Wallet</link>.",
+      "referralCreditLabel": "Referral credit",
+      "referralCreditValue": "+{amount} after this service completes"
+    },
+    "stripeCardForm": {
+      "cardDetailsLabel": "Card Details",
+      "postalCodeLabel": "Postal Code",
+      "postalCodePlaceholder": "V6X 1A1",
+      "postalCodeHint": "Canadian format: letter-number-letter space number-letter-number",
+      "invalidPostalCode": "Please enter a valid Canadian postal code (e.g., V6X 1A1).",
+      "cardElementNotFound": "Card element not found.",
+      "cardValidationFailed": "Card validation failed.",
+      "saveButton": "Save Card",
+      "saveCardAriaLabel": "Save payment card",
+      "validating": "Validating...",
+      "secureNote": "Your card is tokenized securely by Stripe. We never store card numbers."
+    },
+    "applePayButton": {
+      "checkoutNotReady": "Checkout session not ready yet. Please try again in a moment.",
+      "validationFailed": "Apple Pay card validation failed.",
+      "orPayWithCard": "or pay with a card below"
+    },
+    "walletPayButton": {
+      "paymentTimedOut": "Payment timed out. Please try again.",
+      "paymentCancelled": "Payment was cancelled.",
+      "couldNotStart": "Could not start payment.",
+      "paymentReceivedFull": "{method} payment received in full.",
+      "scanQrInstruction": "Scan with WeChat to complete payment",
+      "payFullAmountWith": "Pay full amount with {method}",
+      "couldNotDisplayQr": "Could not display WeChat Pay QR code. Please try again.",
+      "genericPaymentFailed": "Payment failed."
+    }
+  },
+  "confirmacion": {
+    "brand": "Lulu Island Flagship",
+    "notFoundTitle": "Reservation Not Found",
+    "notFoundDesc": "We couldn't find your reservation details.",
+    "getQuote": "Get a Quote",
+    "title": "Reservation Confirmed",
+    "subtitle": "Your cleaning service is scheduled. We'll see you then!",
+    "serviceLabel": "Service",
+    "defaultServiceLabel": "Cleaning Service",
+    "dateTimeLabel": "Date & Time",
+    "at": "at",
+    "locationLabel": "Location",
+    "totalLabel": "Total",
+    "whatNextTitle": "What happens next?",
+    "next1": "Total service amount: {amount}. Charged automatically after service completion at 7:00 PM Vancouver time.",
+    "next2": "72 hours before service: a temporary hold of {amount} will be authorized on your card (not charged). It is only charged if you cancel late or don't show up.",
+    "next3": "Day of service: our team arrives at the scheduled time.",
+    "next4": "You'll receive a gallery of before/after photos after the service.",
+    "viewReservation": "View My Reservation",
+    "backToHome": "Back to Home"
+  },
+  "legal": {
+    "backHome": "Back to home",
+    "lastUpdated": "Last updated: July 24, 2026",
+    "nav": {
+      "terms": "Terms of Service",
+      "privacy": "Privacy Policy",
+      "cancellation": "Cancellation Policy"
+    },
+    "terms": {
+      "title": "Terms of Service",
+      "intro": "These Terms of Service govern your use of Lulu Island Flagship Cleaning Services and any reservation you make with us. We provide residential and light-commercial cleaning services in Richmond, Vancouver, North Vancouver, West Vancouver and UBC, British Columbia, Canada.",
+      "sections": [
+        {
+          "heading": "1. Quotes and price hold",
+          "body": "A quote generated through our quote tool reflects a full price with no hidden fees, valid for a limited time window shown on screen. The hold extends automatically while you are actively completing checkout, up to an absolute cap. If your price hold expires before you confirm, you'll need to request a new quote."
+        },
+        {
+          "heading": "2. Reservation and payment authorization (Hold)",
+          "body": "When you confirm a reservation, we place a payment authorization (\"Hold\") to secure your booking. For card payments, this is an authorization hold, not a charge. For Alipay and WeChat Pay, the full service amount is charged upfront at booking. For PayPal (available only for first-time reservations), 50% of the Hold amount is charged as an advance at booking, with the remainder handled at service completion or according to our Cancellation Policy. A backup card is required to complete checkout with any payment method, to cover charges such as damage or approved extra time."
+        },
+        {
+          "heading": "3. Cancellations",
+          "body": "Cancellation windows and penalty amounts are set out in full in our Cancellation Policy, which is part of these Terms. By confirming a reservation, you agree to that policy."
+        },
+        {
+          "heading": "4. Identity and phone verification",
+          "body": "We require phone number verification before your first reservation can be confirmed, as a fraud-prevention and communication measure. This applies regardless of how you signed in (including social login)."
+        },
+        {
+          "heading": "5. Eligible accounts",
+          "body": "Self-serve online booking is available for residential clients. Commercial (B2B) and government accounts, and reservations flagged for administrative review, are handled through a separate process and are not confirmed automatically through this checkout flow. New clients may hold one active reservation at a time until their first service is completed."
+        },
+        {
+          "heading": "6. Service documentation and quality",
+          "body": "Our team documents service completion with checklist photos, which also support our satisfaction guarantee and any warranty claim you raise about missed items. You'll receive a gallery of before/after photos after your service."
+        },
+        {
+          "heading": "7. Changes to these Terms",
+          "body": "We may update these Terms from time to time. Material changes will be reflected on this page with an updated date."
+        },
+        {
+          "heading": "8. Contact",
+          "body": "Questions about these Terms can be sent to hello@luluislandflagship.ca."
+        }
+      ]
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "intro": "This Privacy Policy explains how Lulu Island Flagship Cleaning Services collects, uses, retains, and protects personal information, in compliance with Canada's Personal Information Protection and Electronic Documents Act (PIPEDA) and applicable British Columbia privacy law.",
+      "sections": [
+        {
+          "heading": "1. Information we collect",
+          "body": "Contact details (name, phone number, email); service address; photos taken during service checklists for quality control, and, where a warranty claim is opened, additional evidence photos related to that claim; payment method information — we do not store full card numbers ourselves; card payments and holds are processed and tokenized by Stripe, PayPal advances are processed by PayPal, and Alipay/WeChat Pay payments are processed through Stripe; your reservation and service history; and communications you have with our team."
+        },
+        {
+          "heading": "2. How we use your information",
+          "body": "To schedule and staff your service, verify your identity by phone (one-time code), authorize and process payment holds, captures, and refunds according to our Cancellation Policy, run quality control and resolve warranty claims, comply with legal and tax obligations, and, if you opt in, run our referral and Lulu Wallet programs."
+        },
+        {
+          "heading": "3. Retention",
+          "body": "Quality-control checklist photos are kept for 1 year from the service date. Photos tied to an open or resolved warranty claim/dispute are kept for 2 years and are never deleted while a related dispute remains open. If you request deletion of your personal information, your record is de-identified immediately and retained in a restricted, purge-eligible state for 2 years to meet our tax and legal record-keeping obligations, after which it is permanently purged."
+        },
+        {
+          "heading": "4. Your rights under PIPEDA",
+          "body": "You have the right to access the personal information we hold about you, request correction of inaccurate information, and request deletion of your personal information (subject to the retention obligations described above). To exercise any of these rights, contact us at hello@luluislandflagship.ca. Access and deletion requests are logged and are due a response within 48 hours of receipt under our internal service-level commitment."
+        },
+        {
+          "heading": "5. Breach notification",
+          "body": "If a data breach creates a real risk of significant harm, we will notify the Office of the Information and Privacy Commissioner for British Columbia (OIPC BC) and affected individuals within 72 hours of detecting the breach."
+        },
+        {
+          "heading": "6. Service providers and third parties",
+          "body": "We share the minimum necessary personal information with service providers who help us operate: Stripe (card payments, authorization holds, and refunds), PayPal (first-time reservation advances), Supabase (database and account hosting), and Sentry (technical error monitoring). Each provider is contractually and technically restricted to using your information to provide their service to us."
+        },
+        {
+          "heading": "7. Cookies and session data",
+          "body": "We use functional cookies and local session storage strictly necessary to keep you signed in and to operate the checkout flow. We do not use third-party advertising trackers."
+        },
+        {
+          "heading": "8. Changes to this policy",
+          "body": "We may update this Privacy Policy from time to time. Material changes will be reflected on this page with an updated date."
+        },
+        {
+          "heading": "9. Contact",
+          "body": "Privacy questions or requests can be sent to hello@luluislandflagship.ca."
+        }
+      ]
+    },
+    "cancellation": {
+      "title": "Cancellation Policy",
+      "intro": "This is the exact policy that applies when you cancel a confirmed reservation, or don't show up for one. It governs how your payment Hold is released, captured, or refunded, and applies the same way regardless of which payment method you used at checkout.",
+      "sections": [
+        {
+          "heading": "More than 72 hours before your scheduled service",
+          "body": "Full refund. Your Hold is released with no charge. If you paid the full amount upfront (Alipay/WeChat Pay), it is refunded in full. If you made a PayPal advance payment, it is refunded."
+        },
+        {
+          "heading": "Between 24 and 72 hours before your scheduled service",
+          "body": "50% of your Hold amount is captured as a cancellation penalty; the remaining 50% is released or refunded."
+        },
+        {
+          "heading": "Less than 24 hours before your scheduled service, or no-show",
+          "body": "100% of your Hold amount is captured as a cancellation penalty."
+        },
+        {
+          "heading": "How this applies by payment method",
+          "body": "Card: your Hold is a payment authorization; we capture the applicable percentage above from that same authorization and release the rest — nothing is charged beyond your Hold amount. PayPal (first-time reservations only): the 50% advance already charged at booking is retained according to the same windows; if a window requires retaining more than what was collected upfront (the less-than-24-hours window), the difference is charged to the backup card you registered at checkout. Alipay / WeChat Pay: the full service amount was charged upfront at booking; on cancellation we refund the appropriate amount via Stripe according to the same windows above. Your backup card is never charged again for a wallet-payment cancellation."
+        },
+        {
+          "heading": "No-shows",
+          "body": "A no-show is treated exactly like a cancellation inside the less-than-24-hours window: 100% of your Hold amount is captured."
+        },
+        {
+          "heading": "Questions or disputes",
+          "body": "If you need to cancel, or believe a cancellation charge was applied incorrectly, contact us at hello@luluislandflagship.ca."
+        }
+      ]
+    }
+  },
+  "cuenta": {
+    "nav": {
+      "ariaLabel": "Account navigation",
+      "servicios": "My Services",
+      "propiedades": "My Properties",
+      "billetera": "Lulu Wallet",
+      "referidos": "Lulu Ambassador",
+      "preferencias": "Preferences",
+      "logout": "Log out"
+    },
+    "common": {
+      "retry": "Retry",
+      "dismiss": "Dismiss",
+      "loadFailedRetry": "We couldn't load this. Check your connection and try again.",
+      "networkErrorRetry": "Connection problem. Check your internet and try again."
+    },
+    "orderStatus": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "no_show": "No-show"
+    },
+    "servicios": {
+      "title": "My Services",
+      "subtitle": "Your service history. Report an issue within a completed service if something wasn't right.",
+      "manageProperties": "Manage my properties",
+      "luluWallet": "Lulu Wallet",
+      "referFriend": "Refer a friend",
+      "loadFailed": "Failed to load services",
+      "networkError": "Network error",
+      "noServices": "No services yet.",
+      "defaultServiceLabel": "Cleaning service",
+      "viewPhotosChecklist": "View photos & checklist",
+      "trackYourTeam": "Track your team",
+      "reportIssue": "Report an issue",
+      "underReview": "Under review.",
+      "finalAction": {
+        "free_recleaning": "Free re-cleaning scheduled",
+        "explain_no_action": "Reviewed — closure photo shown, no action needed",
+        "dismiss": "Dismissed"
+      },
+      "claimForm": {
+        "selectZone": "Select a zone",
+        "describeIssue": "Please describe the issue (at least a few words)",
+        "photoUploadFailed": "Failed to upload photo, please try again.",
+        "submitFailed": "Failed to submit",
+        "networkError": "Network error",
+        "allZonesClaimed": "All zones for this service already have an open claim.",
+        "whichArea": "Which area?",
+        "whatHappened": "What happened?",
+        "whatHappenedPlaceholder": "e.g. Bathroom mirror still had smudges",
+        "moreDetail": "More detail (optional)",
+        "photoLabel": "Photo (optional, helps us review faster)",
+        "photoInputAriaLabel": "Attach a photo of the issue (optional)",
+        "cancel": "Cancel",
+        "submit": "Submit"
+      },
+      "recurring": {
+        "confirmCancel": "Cancel your recurring plan? You can always book a new one later.",
+        "updateFailed": "Could not update your plan",
+        "networkError": "Network error",
+        "loadFailed": "Could not load your recurring plan",
+        "quoteFailed": "Could not create quote",
+        "cancelledNotice": "Your recurring plan has been cancelled. You can start a new one anytime from the quote form.",
+        "plan": "Your recurring plan",
+        "planWithNextVisit": "Your recurring plan — next visit {date}",
+        "bookNextVisitAriaLabel": "Book next visit",
+        "bookNextVisit": "Book next visit",
+        "pausing": "Pausing…",
+        "pausePlan": "Pause plan",
+        "cancelling": "Cancelling…",
+        "cancelPlan": "Cancel plan"
+      },
+      "livePortfolio": {
+        "withdrawFailed": "Could not withdraw",
+        "removed": "Removed from Live Portfolio.",
+        "networkError": "Network error",
+        "selectedNotice": "One of your services ({label}) was selected for our Live Portfolio.",
+        "removing": "Removing...",
+        "removeIt": "Remove it"
+      },
+      "tracking": {
+        "loadFailed": "Failed to load tracking",
+        "networkError": "Network error",
+        "notAvailable": "Live tracking isn't available right now.",
+        "title": "Your Team is on the Way",
+        "subtitle": "Live location of your service vehicle — updates automatically.",
+        "lastUpdated": "Last updated {time}",
+        "openInMaps": "Open in Maps"
+      },
+      "galeria": {
+        "loadFailed": "Failed to load",
+        "networkError": "Network error",
+        "yourService": "Your Service",
+        "completedIn": "Completed in {minutes} minutes",
+        "photos": "Photos",
+        "servicePhotoAlt": "Service photo {index}",
+        "checklist": "Checklist",
+        "rebook": {
+          "loadOptionsFailed": "Could not load rebooking options",
+          "networkError": "Network error",
+          "createQuoteFailed": "Could not create quote",
+          "rebookThisService": "Rebook this service",
+          "whenNextVisit": "When would you like your next visit?",
+          "confirmDateAriaLabel": "Confirm new service date",
+          "confirm": "Confirm"
+        }
+      }
+    },
+    "propiedades": {
+      "loadFailed": "Failed to load properties",
+      "networkError": "Network error",
+      "savedSuccess": "Property saved.",
+      "deletedSuccess": "Property removed.",
+      "postalInvalid": "Invalid format. Use: V6X 1A1",
+      "addressRequired": "Address is required",
+      "zoneRequired": "Zone is required",
+      "postalCodeInvalid": "Invalid postal code",
+      "squareFeetInvalid": "Square feet must be a positive number",
+      "saveFailed": "Failed to save property",
+      "confirmDelete": "Are you sure you want to remove this property?",
+      "deleteFailed": "Failed to delete property",
+      "title": "My Properties",
+      "subtitle": "Save multiple addresses to speed up future bookings.",
+      "viewServiceHistory": "View my service history",
+      "editProperty": "Edit property",
+      "addProperty": "Add a property",
+      "cancelEditAriaLabel": "Cancel editing property",
+      "nicknameLabel": "Nickname (optional)",
+      "nicknamePlaceholder": "e.g. Home, Office",
+      "squareFeetLabel": "Square feet (optional)",
+      "squareFeetPlaceholder": "e.g. 1200",
+      "streetAddressLabel": "Street address",
+      "streetAddressPlaceholder": "e.g. 123 Main Street, Richmond",
+      "zoneLabel": "Zone",
+      "postalCodeLabel": "Postal code",
+      "postalCodePlaceholder": "e.g. V7E 2A1",
+      "cancel": "Cancel",
+      "saveChangesAriaLabel": "Save property changes",
+      "addPropertyAriaLabel": "Add property",
+      "saveChanges": "Save changes",
+      "noProperties": "No saved properties yet.",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "billetera": {
+      "networkError": "Network error",
+      "applyFailed": "Failed to apply",
+      "appliedSuccess": "Credit applied to your service.",
+      "title": "Lulu Wallet",
+      "subtitle": "Referral, resolution, and promo credits. Credits expire 12 months after being granted.",
+      "availableToSpend": "Available to spend",
+      "applyToUpcoming": "Apply to an upcoming service",
+      "applying": "Applying...",
+      "applyCredit": "Apply credit",
+      "history": "History",
+      "noActivity": "No wallet activity yet.",
+      "expires": "expires {date}",
+      "transactionType": {
+        "credit": "Credit",
+        "debit": "Debit",
+        "refund": "Refund",
+        "promo": "Promo credit",
+        "payout": "Payout"
+      }
+    },
+    "referidos": {
+      "networkError": "Network error",
+      "redeemFailed": "Could not redeem this code",
+      "title": "Lulu Ambassador",
+      "subtitle": "Refer a friend, both of you get Lulu Wallet credit once they complete their first service.",
+      "yourCode": "Your referral code",
+      "copyCodeAriaLabel": "Copy referral code",
+      "copied": "Copied",
+      "copy": "Copy",
+      "shareCode": "Share this code. When your friend completes their first service, you both get {amount}.",
+      "notEligible": "Referral codes are available to VIP clients (more than 5 completed services and a great account standing). Keep booking with us -- you'll unlock it soon.",
+      "haveCode": "Have a code from a friend?",
+      "redeemInputAriaLabel": "Friend's referral code",
+      "redeemPlaceholder": "e.g. MARIA-AB12",
+      "leaderSelectAriaLabel": "Team leader who referred us (optional)",
+      "leaderSelectPlaceholder": "Did a team leader recommend us? (optional)",
+      "applyCodeAriaLabel": "Apply referral code",
+      "applying": "Applying...",
+      "applyCode": "Apply code"
+    },
+    "preferencias": {
+      "loadFailed": "Failed to load",
+      "saveFailed": "Failed to save",
+      "networkError": "Network error",
+      "savedSuccess": "Preferences saved.",
+      "birthdaySavedSuccess": "Birthday saved.",
+      "title": "Communication Preferences",
+      "subtitle": "Service messages (confirmations, arrival updates, payment receipts) always reach you regardless of this setting — those are transactional, not marketing.",
+      "marketingEmails": "Marketing emails",
+      "marketingEmailsDesc": "Seasonal offers, maintenance reminders, and referral programs. You can opt in or out at any time.",
+      "optedIn": "Currently opted in",
+      "optedOut": "Currently opted out",
+      "autoUnsubscribedNotice": "You were automatically opted out after several unopened emails. Opt back in anytime below.",
+      "saving": "Saving...",
+      "optOut": "Opt out of marketing emails",
+      "optIn": "Opt in to marketing emails",
+      "birthday": "Birthday (optional)",
+      "birthdayDesc": "Tell us your birthday and we'll add a Lulu Wallet gift every year. Completely optional -- never used for anything else.",
+      "birthdayInputAriaLabel": "Birth date",
+      "saveBirthdayAriaLabel": "Save birth date",
+      "save": "Save"
+    }
+  },
   "employee": {
     "loginTitle": "Employee Login",
     "loginSubtitle": "Sign in with your work email",

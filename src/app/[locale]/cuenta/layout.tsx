@@ -15,6 +15,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { AuthModal } from "@/components/cotizador/AuthModal";
+import { CuentaNav } from "@/components/cuenta/CuentaNav";
 
 export default function CuentaLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -92,5 +93,10 @@ export default function CuentaLayout({ children }: { children: React.ReactNode }
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <CuentaNav />
+      {children}
+    </>
+  );
 }

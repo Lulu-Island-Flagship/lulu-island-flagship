@@ -40,6 +40,731 @@
     "zh": "中文",
     "fr": "FR"
   },
+  "cotizador": {
+    "brand": "Lulu Island Flagship",
+    "priceLockedUntil": "Prix verrouillé jusqu'à {time}",
+    "stepOf": "Étape {current} sur {total}",
+    "stepLabels": {
+      "category": "Catégorie",
+      "purpose": "Type de service",
+      "dimensions": "Dimensions",
+      "addonZones": "Extras",
+      "organic": "Foyer",
+      "recency": "Dernier nettoyage",
+      "address": "Emplacement",
+      "summary": "Résumé"
+    },
+    "nav": {
+      "home": "Accueil",
+      "back": "Retour",
+      "next": "Suivant",
+      "saving": "Enregistrement...",
+      "submitB2b": "Soumettre pour révision B2B",
+      "reserveNow": "Réserver maintenant",
+      "homeAriaLabel": "Retourner à l'accueil",
+      "backAriaLabel": "Retourner à l'étape précédente"
+    },
+    "authErrors": {
+      "providerError": "La connexion a été annulée ou a échoué avec votre fournisseur. Veuillez réessayer.",
+      "sessionExchangeFailed": "Nous n'avons pas pu terminer la connexion. Veuillez réessayer.",
+      "missingCode": "Le lien de connexion est invalide ou expiré. Veuillez réessayer.",
+      "default": "Échec de la connexion. Veuillez réessayer."
+    },
+    "errors": {
+      "acceptTerms": "Veuillez accepter les modalités pour continuer.",
+      "acquisitionRequired": "Veuillez nous indiquer comment vous avez entendu parler de nous.",
+      "commercialReview": "Les réservations commerciales / B2B requièrent une intégration manuelle et une configuration de bon de commande. Notre équipe vous contactera sous peu.",
+      "genericSubmit": "Échec de l'enregistrement de la soumission. Veuillez réessayer.",
+      "genericAuth": "Échec de l'authentification. Veuillez réessayer.",
+      "genericPreview": "Échec du calcul de l'estimation"
+    },
+    "summary": {
+      "calculating": "Calcul de votre soumission vérifiée par le serveur en cours...",
+      "ready": "Votre soumission est prête",
+      "readySubtitle": "Prix complet dès le départ — sans surprise.",
+      "b2bTitle": "Soumission commerciale / B2B",
+      "b2bDesc": "Cette soumission nécessite une intégration manuelle, un bon de commande et une configuration net 30 jours avant la réservation. La soumission avisera notre équipe des ventes.",
+      "poLabel": "Numéro de bon de commande (PO) *",
+      "poHint": "Les réservations B2B / gouvernementales nécessitent un bon de commande avant l'intégration."
+    },
+    "category": {
+      "title": "Quel type d'espace avez-vous besoin de faire nettoyer?",
+      "subtitle": "Sélectionnez la catégorie qui décrit le mieux votre espace.",
+      "items": {
+        "home": { "label": "Résidentiel", "description": "Services de nettoyage résidentiel" },
+        "commercial": { "label": "Commercial", "description": "Bureaux, Airbnb et nettoyage après construction" }
+      }
+    },
+    "purpose": {
+      "title": "Quel type de nettoyage souhaitez-vous?",
+      "subtitle": "Sélectionnez le service qui correspond le mieux à votre situation.",
+      "items": {
+        "first_time": "Premier nettoyage",
+        "regular": "Nettoyage régulier",
+        "move_in_out": "Déménagement (entrée/sortie)",
+        "office": "Nettoyage de bureau",
+        "airbnb": "Airbnb / Location à court terme",
+        "post_construction": "Après construction"
+      }
+    },
+    "dimensions": {
+      "title": "Parlez-nous de votre espace",
+      "subtitle": "Cela nous aide à estimer le temps et l'équipe nécessaires.",
+      "bedroomsTitle": "Chambres",
+      "bedroomsSubtitle": "Incluant la chambre principale et les chambres d'amis",
+      "bathroomsTitle": "Salles de bain",
+      "bathroomsSubtitle": "Salles de bain complètes et demi-salles de bain",
+      "squareFeetTitle": "Superficie approximative",
+      "squareFeetSubtitle": "Une estimation approximative suffit",
+      "bcAssessment": {
+        "button": "Suggestion via BC Assessment",
+        "errorNoAddress": "Entrez d'abord une adresse pour effectuer une recherche BC Assessment.",
+        "errorLookupFailed": "La recherche a échoué.",
+        "errorNetwork": "Erreur réseau.",
+        "noSuggestion": "Aucune suggestion disponible",
+        "noSuggestionFallback": "Veuillez entrer la superficie manuellement.",
+        "suggested": "Suggéré : {value} pi²",
+        "confidence": "Fiabilité : {level}. Toujours vérifier avant de réserver.",
+        "use": "Utiliser",
+        "ignore": "Ignorer"
+      }
+    },
+    "addonZones": {
+      "title": "Autre chose à ajouter?",
+      "subtitle": "Zones optionnelles non incluses dans votre soumission de base.",
+      "empty": "Rien à ajouter pour ce service — vous êtes prêt."
+    },
+    "organic": {
+      "title": "Qui habite ici?",
+      "subtitle": "Cela nous aide à estimer l'effort de nettoyage requis.",
+      "petsTitle": "Animaux de compagnie",
+      "petTypes": {
+        "none": "Aucun animal",
+        "short_hair": "Poil court (chat/chien)",
+        "long_hair": "Poil long (chat/chien)",
+        "multiple": "Plusieurs / Autre"
+      },
+      "howMany": "Combien?",
+      "residentsTitle": "Nombre de résidents"
+    },
+    "recency": {
+      "title": "Quand avez-vous eu votre dernier nettoyage professionnel?",
+      "subtitle": "Plus le temps écoulé depuis le dernier nettoyage en profondeur est long, plus l'accumulation à traiter est importante.",
+      "presets": {
+        "lessThan30": { "label": "Moins de 30 jours", "hint": "Entretien récent" },
+        "oneToTwoMonths": { "label": "1 à 2 mois", "hint": "Une certaine accumulation attendue" },
+        "twoToThreeMonths": { "label": "2 à 3 mois", "hint": "Accumulation modérée" },
+        "moreThanThree": { "label": "Plus de 3 mois", "hint": "Nettoyage en profondeur recommandé" }
+      }
+    },
+    "address": {
+      "title": "Où se trouve votre domicile?",
+      "subtitle": "Nous desservons Richmond, Vancouver, North Vancouver, West Vancouver et UBC.",
+      "savedPropertyLabel": "Utiliser une propriété enregistrée",
+      "savedPropertyPlaceholder": "Sélectionner une adresse enregistrée...",
+      "streetLabel": "Adresse civique",
+      "streetPlaceholder": "ex. 123 Main Street, Richmond",
+      "bcSuggestionText": "Les registres publics suggèrent environ {value} pi². Confirmer?",
+      "bcSuggestionCorrect": "Correct",
+      "bcSuggestionDifferent": "Non, c'est différent",
+      "zoneLabel": "Secteur / Zone",
+      "zoneBase": "De base",
+      "postalLabel": "Code postal",
+      "postalPlaceholder": "ex. V7E 2A1",
+      "postalInvalid": "Format invalide. Utilisez : V6X 1A1"
+    },
+    "priceBreakdown": {
+      "title": "Détail du prix",
+      "serviceTypes": {
+        "regular": "Nettoyage régulier",
+        "deep": "Nettoyage en profondeur",
+        "move_in_out": "Déménagement (entrée/sortie)",
+        "post_construction": "Après construction"
+      },
+      "organicHeavy": "Charge organique élevée",
+      "organicLight": "Charge organique légère",
+      "recencyLong": "Longue période depuis le dernier nettoyage",
+      "recencyRecent": "Nettoyage récent",
+      "zoneSurcharge": "Supplément de zone",
+      "logisticsSurcharge": "Logistique (jour non préférentiel)",
+      "extraAreas": "Zones supplémentaires sélectionnées",
+      "ruleAdjustment": "Ajustement de règle tarifaire",
+      "ruleNote": "Le prix final est calculé côté serveur. Les règles tarifaires actives peuvent ajuster cette estimation.",
+      "adminReviewTitle": "Révision administrative requise",
+      "adminReviewDesc": "Cette soumission nécessite une approbation manuelle avant la planification. Notre équipe vous contactera sous peu.",
+      "subtotal": "Sous-total",
+      "gst": "TPS (5%)",
+      "pst": "TVP (7%)",
+      "total": "Total projeté",
+      "holdTitle": "Retenue de réservation : {amount}",
+      "holdDesc": "Une autorisation temporaire (pas un débit) sera placée sur votre carte 72 heures avant le service. Libérée en cas d'annulation avec plus de 72 heures de préavis. 50% retenu en cas d'annulation entre 24 et 72 heures avant. Retenue complète en cas d'absence ou d'annulation dans les 24 heures."
+    },
+    "consentCheck": {
+      "title": "Consentements et accords",
+      "tcLabel": "Modalités et conditions",
+      "tcDesc": "J'accepte les modalités de service, y compris la politique d'annulation, les modalités de paiement et la portée du service. Requis pour continuer.",
+      "pipaLabel": "Consentement aux preuves photo (PIPA) — Optionnel",
+      "pipaDesc": "Je consens à la collecte de preuves photographiques du service de nettoyage à des fins d'assurance qualité et de résolution de différends, conformément à la Loi sur la protection des renseignements personnels de la C.-B. (PIPA).",
+      "pipaWarning": "Sans consentement photo, votre service nécessitera un audit terrain obligatoire à 100% (sans frais supplémentaires) et la liste de vérification sera complétée sans photographies.",
+      "marketingLabel": "Communications marketing (Optionnel)",
+      "marketingDesc": "Je consens à recevoir des courriels et SMS promotionnels au sujet d'offres spéciales, de conseils de nettoyage saisonniers et de rappels de service. Vous pouvez vous désabonner en tout temps. (Conforme à la LCAP)",
+      "photoMarketingLabel": "Photos marketing (Optionnel)",
+      "photoMarketingDesc": "Je consens à ce que Lulu Island Flagship utilise des photos avant/après de mon service à des fins marketing (site web, médias sociaux, portfolio). Sans ce consentement, seules des photos anonymes de propriétés de démonstration seront utilisées."
+    },
+    "languagePreference": {
+      "title": "Langue(s) préférée(s)",
+      "description": "Nous jumellerons votre service avec un chef d'équipe qui parle votre langue. Sélectionnez par ordre de préférence — le premier est votre langue principale."
+    },
+    "acquisitionChannel": {
+      "title": "Comment avez-vous entendu parler de nous? *",
+      "selectOne": "Sélectionner une option",
+      "ariaLabel": "Comment avez-vous entendu parler de nous?",
+      "channels": {
+        "google_search": "Recherche Google",
+        "google_maps": "Google Maps / Fiche d'établissement",
+        "social_media": "Médias sociaux",
+        "referral_friend": "Référence d'un ami / famille",
+        "drive_by": "Vu notre véhicule / en passant",
+        "repeat_customer": "Je suis un client fidèle",
+        "other": "Autre"
+      }
+    },
+    "authModal": {
+      "closeAriaLabel": "Fermer la fenêtre de connexion",
+      "verifyPhoneTitle": "Vérifiez votre numéro de téléphone",
+      "signInTitle": "Connectez-vous pour réserver",
+      "verifyPhoneDesc": "Pour votre sécurité, un numéro de téléphone vérifié est requis avant de pouvoir compléter une réservation. Cela ne prend qu'une minute.",
+      "sameMethodWarning": "Veuillez toujours utiliser la même méthode de connexion — changer de méthode (p. ex. Google, puis courriel) crée un compte distinct et vous perdrez l'accès à votre historique et à votre portefeuille.",
+      "phoneNumberLabel": "Numéro de téléphone",
+      "phoneHint": "Numéros de la C.-B./Canada seulement",
+      "sendSmsCode": "Envoyer le code SMS",
+      "sending": "Envoi en cours...",
+      "enterCodeSentTo": "Entrez le code à 6 chiffres envoyé à {destination}",
+      "verifyPhone": "Vérifier le téléphone",
+      "verifying": "Vérification en cours...",
+      "resendPhone": "Renvoyer le code ou utiliser un autre téléphone",
+      "resendEmail": "Renvoyer le code ou utiliser un autre courriel",
+      "continueWithGoogle": "Continuer avec Google",
+      "continueWithApple": "Continuer avec Apple",
+      "or": "ou",
+      "emailOption": "Courriel + Code de vérification",
+      "phoneOption": "Téléphone + Code SMS",
+      "emailAddressLabel": "Adresse courriel",
+      "sendVerificationCode": "Envoyer le code de vérification",
+      "verifyAndSignIn": "Vérifier et se connecter",
+      "backToAllOptions": "← Retour à toutes les options",
+      "sendSmsCodeAriaLabel": "Envoyer le code SMS de vérification du téléphone",
+      "sendLinkedSmsCodeAriaLabel": "Envoyer le code SMS de vérification du numéro de téléphone",
+      "verifyPhoneCodeAriaLabel": "Vérifier le code du téléphone",
+      "verifyAndSignInAriaLabel": "Vérifier le code et se connecter",
+      "sendEmailCodeAriaLabel": "Envoyer le code de vérification par courriel",
+      "errors": {
+        "invalidEmail": "Veuillez entrer une adresse courriel valide",
+        "sendCodeFailed": "Échec de l'envoi du code de vérification",
+        "invalidPhone": "Veuillez entrer un numéro de téléphone valide",
+        "sendSmsFailed": "Échec de l'envoi du code SMS",
+        "invalidCode": "Veuillez entrer le code à 6 chiffres",
+        "emailRequired": "Le courriel est requis. Veuillez revenir en arrière et entrer votre courriel.",
+        "phoneRequired": "Le numéro de téléphone est requis. Veuillez revenir en arrière et entrer votre téléphone.",
+        "invalidVerificationCode": "Code de vérification invalide",
+        "googleFailed": "Échec de la connexion Google",
+        "appleFailed": "Échec de la connexion Apple"
+      }
+    }
+  },
+  "reserva": {
+    "header": {
+      "brand": "Lulu Island Flagship",
+      "completeReservation": "Complétez votre réservation"
+    },
+    "steps": {
+      "dateTime": "Date et heure",
+      "card": "Carte",
+      "confirm": "Confirmer"
+    },
+    "loadError": {
+      "invalidQuoteId": "Numéro de soumission invalide.",
+      "quoteNotFound": "Soumission introuvable ou expirée.",
+      "quoteExpired": "Cette soumission a expiré. Veuillez générer une nouvelle soumission.",
+      "alreadyStatus": "Cette soumission est déjà « {status} ». Veuillez générer une nouvelle soumission.",
+      "statusLabels": {
+        "reserved": "réservée",
+        "expired": "expirée"
+      },
+      "adminReviewRequired": "Cette soumission nécessite une révision administrative avant la réservation. Notre équipe des ventes vous contactera sous peu.",
+      "commercialAccount": "Les comptes commerciaux / gouvernementaux nécessitent une intégration manuelle et une configuration de bon de commande. Veuillez contacter notre équipe des ventes pour compléter votre réservation.",
+      "newQuoteButton": "Nouvelle soumission"
+    },
+    "dateTime": {
+      "title": "Quand avez-vous besoin de nous?"
+    },
+    "datePicker": {
+      "label": "Sélectionner la date du service",
+      "cutoffWarning": "Les réservations pour demain ferment à 17h00. Veuillez choisir une date ultérieure.",
+      "helpText": "Les réservations ferment à 17h00 la veille. Date la plus proche disponible : {date}"
+    },
+    "timeSlotPicker": {
+      "label": "Sélectionner l'heure",
+      "checkingCapacity": "Vérification de la disponibilité en temps réel...",
+      "loadFailed": "Échec du chargement de la disponibilité",
+      "networkError": "Erreur réseau",
+      "newClientLimitWarning": "Les nouveaux clients ne peuvent avoir qu'une seule réservation active à la fois. Complétez votre premier service avant d'en réserver un autre.",
+      "noSlotsAvailable": "Aucun créneau disponible pour cette date/zone. Veuillez choisir une autre date.",
+      "capacityNotAvailable": "Données de disponibilité non disponibles. Veuillez d'abord sélectionner une date.",
+      "slotUnavailable": "Créneau non disponible",
+      "serviceWindow": "Plage de service : 8h00 – 18h00",
+      "weekendSurcharge": "Un supplément de fin de semaine s'applique (sam./dim.)."
+    },
+    "payment": {
+      "title": "Mode de paiement",
+      "card": "Carte",
+      "paypalFirstTime": "PayPal (premier service seulement)",
+      "alipay": "Alipay",
+      "wechatPay": "WeChat Pay",
+      "paypalDesc": "Complétez votre paiement via PayPal et entrez le numéro de transaction ci-dessous. Cette option est disponible uniquement pour les services de première visite.",
+      "paypalTransactionIdPlaceholder": "Numéro de transaction PayPal",
+      "paypalTransactionIdAriaLabel": "Numéro de transaction PayPal",
+      "paypalPayerEmailPlaceholder": "Courriel du payeur PayPal (optionnel)",
+      "paypalPayerEmailAriaLabel": "Courriel du payeur PayPal (optionnel)",
+      "walletPayNowAlipay": "Payez le montant complet dès maintenant avec Alipay.",
+      "walletPayNowWechat": "Payez le montant complet dès maintenant avec WeChat Pay.",
+      "walletBackupCardNote": "Une carte de secours est tout de même requise par la suite pour couvrir tous frais supplémentaires (dommages, temps supplémentaire, annulation tardive) — vous ne serez plus jamais débité via {method}.",
+      "backupCardLabel": "Carte de secours",
+      "preparingCheckout": "Préparation du paiement sécurisé...",
+      "tryAgain": "Réessayer",
+      "signInRequired": "Veuillez vous connecter pour continuer le paiement.",
+      "setupIntentFailed": "Nous n'avons pas pu préparer le paiement sécurisé. Veuillez réessayer.",
+      "setupIntentNetworkError": "Erreur réseau lors de la préparation du paiement sécurisé. Veuillez réessayer."
+    },
+    "priceFreezeCountdown": {
+      "expired": "Votre retenue de prix a expiré. Veuillez actualiser pour obtenir une nouvelle soumission avant de confirmer.",
+      "aboutToExpire": "Votre retenue de prix est sur le point d'expirer — restez sur cette page pour la garder active.",
+      "held": "Votre prix est retenu pendant que vous complétez votre réservation."
+    },
+    "recalculateWarning": "Le prix pourrait ne pas refléter la date sélectionnée. Veuillez actualiser avant de confirmer.",
+    "confirm": {
+      "button": "Confirmer la réservation",
+      "confirmAriaLabel": "Confirmer et payer la réservation",
+      "confirming": "Confirmation en cours...",
+      "phoneVerificationRequired": "Vérification téléphonique requise avant de confirmer — voir la fenêtre contextuelle.",
+      "termsNote": "En confirmant, vous acceptez notre politique d'annulation. L'autorisation de retenue s'applique 72h avant le service.",
+      "viewCancellationPolicy": "Voir la politique d'annulation",
+      "completeAllSteps": "Veuillez compléter toutes les étapes avant de confirmer.",
+      "priceHoldExpired": "Votre retenue de prix a expiré. Veuillez actualiser pour obtenir une nouvelle soumission avant de confirmer.",
+      "priceNotConfirmed": "Nous n'avons pas pu confirmer votre prix pour cette date. Veuillez actualiser la page et réessayer.",
+      "enterPaypalTransactionId": "Veuillez entrer votre numéro de transaction PayPal.",
+      "completePaymentFirst": "Veuillez d'abord compléter le paiement avec {method}.",
+      "genericError": "Échec de la confirmation de la réservation."
+    },
+    "summary": {
+      "title": "Résumé de la réservation",
+      "defaultServiceLabel": "Service de nettoyage",
+      "spaceDetails": "{bedrooms} chambre(s), {bathrooms} salle(s) de bain, {squareFeet} pi²",
+      "dateAtTime": "{date} à {time}",
+      "basePrice": "Prix de base",
+      "subtotal": "Sous-total",
+      "gst": "TPS (5%)",
+      "pst": "TVP (7%)",
+      "total": "Total",
+      "savingsMessage": "Super! Vous économisez {amount} sur cette réservation.",
+      "surchargesIncludedMessage": "{amount} en suppléments de zone/logistique/produits est déjà inclus ci-dessus.",
+      "securityHoldLabel": "Retenue de sécurité (72h avant) :",
+      "securityHoldNote": "Autorisation seulement — aucun débit à la réservation. Débité uniquement en cas d'annulation dans les 72h ou d'absence.",
+      "lineLabels": {
+        "organicProducts": "Produits biologiques",
+        "recencyAdjustment": "Ajustement de récence",
+        "zoneSurcharge": "Supplément de zone",
+        "logisticsSurcharge": "Supplément logistique",
+        "additionalZones": "Zones supplémentaires"
+      }
+    },
+    "benefits": {
+      "checking": "Vérification de vos avantages…",
+      "title": "Vos avantages",
+      "walletBalanceLabel": "Solde Lulu Wallet",
+      "walletNotApplied": "Non appliqué automatiquement à cette réservation — gérez-le depuis <link>Mon portefeuille</link>.",
+      "referralCreditLabel": "Crédit de parrainage",
+      "referralCreditValue": "+{amount} une fois ce service terminé"
+    },
+    "stripeCardForm": {
+      "cardDetailsLabel": "Détails de la carte",
+      "postalCodeLabel": "Code postal",
+      "postalCodePlaceholder": "V6X 1A1",
+      "postalCodeHint": "Format canadien : lettre-chiffre-lettre espace chiffre-lettre-chiffre",
+      "invalidPostalCode": "Veuillez entrer un code postal canadien valide (ex. : V6X 1A1).",
+      "cardElementNotFound": "Élément de carte introuvable.",
+      "cardValidationFailed": "Échec de la validation de la carte.",
+      "saveButton": "Enregistrer la carte",
+      "saveCardAriaLabel": "Enregistrer la carte de paiement",
+      "validating": "Validation en cours...",
+      "secureNote": "Votre carte est tokenisée de façon sécurisée par Stripe. Nous ne stockons jamais les numéros de carte."
+    },
+    "applePayButton": {
+      "checkoutNotReady": "La session de paiement n'est pas encore prête. Veuillez réessayer dans un instant.",
+      "validationFailed": "Échec de la validation de la carte Apple Pay.",
+      "orPayWithCard": "ou payez avec une carte ci-dessous"
+    },
+    "walletPayButton": {
+      "paymentTimedOut": "Le paiement a expiré. Veuillez réessayer.",
+      "paymentCancelled": "Le paiement a été annulé.",
+      "couldNotStart": "Impossible de démarrer le paiement.",
+      "paymentReceivedFull": "Paiement {method} reçu en totalité.",
+      "scanQrInstruction": "Scannez avec WeChat pour compléter le paiement",
+      "payFullAmountWith": "Payer le montant complet avec {method}",
+      "couldNotDisplayQr": "Impossible d'afficher le code QR WeChat Pay. Veuillez réessayer.",
+      "genericPaymentFailed": "Échec du paiement."
+    }
+  },
+  "confirmacion": {
+    "brand": "Lulu Island Flagship",
+    "notFoundTitle": "Réservation introuvable",
+    "notFoundDesc": "Nous n'avons pas pu trouver les détails de votre réservation.",
+    "getQuote": "Obtenir une soumission",
+    "title": "Réservation confirmée",
+    "subtitle": "Votre service de nettoyage est planifié. À bientôt!",
+    "serviceLabel": "Service",
+    "defaultServiceLabel": "Service de nettoyage",
+    "dateTimeLabel": "Date et heure",
+    "at": "à",
+    "locationLabel": "Emplacement",
+    "totalLabel": "Total",
+    "whatNextTitle": "Que se passe-t-il ensuite?",
+    "next1": "Montant total du service : {amount}. Débité automatiquement après la fin du service à 19h00, heure de Vancouver.",
+    "next2": "72 heures avant le service : une autorisation temporaire de {amount} sera placée sur votre carte (pas un débit). Elle n'est débitée que si vous annulez tardivement ou ne vous présentez pas.",
+    "next3": "Jour du service : notre équipe arrive à l'heure prévue.",
+    "next4": "Vous recevrez une galerie de photos avant/après une fois le service terminé.",
+    "viewReservation": "Voir ma réservation",
+    "backToHome": "Retour à l'accueil"
+  },
+  "legal": {
+    "backHome": "Retour à l'accueil",
+    "lastUpdated": "Dernière mise à jour : 24 juillet 2026",
+    "nav": {
+      "terms": "Conditions d'utilisation",
+      "privacy": "Politique de confidentialité",
+      "cancellation": "Politique d'annulation"
+    },
+    "terms": {
+      "title": "Conditions d'utilisation",
+      "intro": "Les présentes Conditions d'utilisation régissent votre utilisation de Lulu Island Flagship Cleaning Services et toute réservation effectuée auprès de nous. Nous offrons des services de nettoyage résidentiel et commercial léger à Richmond, Vancouver, North Vancouver, West Vancouver et UBC, en Colombie-Britannique, Canada.",
+      "sections": [
+        {
+          "heading": "1. Soumissions et gel de prix",
+          "body": "Une soumission générée via notre outil de soumission reflète un prix complet, sans frais cachés, valide pendant une période limitée affichée à l'écran. Le gel se prolonge automatiquement tant que vous complétez activement le paiement, jusqu'à une limite absolue. Si votre gel de prix expire avant que vous ne confirmiez, vous devrez demander une nouvelle soumission."
+        },
+        {
+          "heading": "2. Réservation et autorisation de paiement (Hold)",
+          "body": "Lorsque vous confirmez une réservation, nous plaçons une autorisation de paiement (« Hold ») pour garantir votre réservation. Pour les paiements par carte, il s'agit d'une autorisation, pas d'un débit. Pour Alipay et WeChat Pay, le montant total du service est débité d'avance au moment de la réservation. Pour PayPal (disponible uniquement pour une première réservation), 50 % du montant du Hold est débité à titre d'avance au moment de la réservation, le solde étant traité à la fin du service ou selon notre Politique d'annulation. Une carte de sauvegarde est requise pour finaliser le paiement, quel que soit le mode utilisé, afin de couvrir des frais tels que des dommages ou du temps supplémentaire approuvé."
+        },
+        {
+          "heading": "3. Annulations",
+          "body": "Les délais d'annulation et les montants de pénalité sont détaillés intégralement dans notre Politique d'annulation, qui fait partie intégrante des présentes Conditions. En confirmant une réservation, vous acceptez cette politique."
+        },
+        {
+          "heading": "4. Identité et vérification téléphonique",
+          "body": "Nous exigeons la vérification de votre numéro de téléphone avant que votre première réservation puisse être confirmée, à titre de mesure de prévention de la fraude et de communication, peu importe votre méthode de connexion (y compris la connexion sociale)."
+        },
+        {
+          "heading": "5. Comptes admissibles",
+          "body": "La réservation en libre-service en ligne est offerte aux clients résidentiels. Les comptes commerciaux (B2B) et gouvernementaux, ainsi que les réservations signalées pour révision administrative, sont traités par un processus distinct et ne sont pas confirmés automatiquement par ce parcours de paiement. Les nouveaux clients ne peuvent avoir qu'une seule réservation active à la fois jusqu'à ce que leur premier service soit complété."
+        },
+        {
+          "heading": "6. Documentation et qualité du service",
+          "body": "Notre équipe documente la réalisation du service à l'aide de photos de la liste de vérification, qui appuient également notre garantie de satisfaction et toute réclamation de garantie que vous soumettez pour des éléments manqués. Vous recevrez une galerie de photos avant/après votre service."
+        },
+        {
+          "heading": "7. Modifications des présentes Conditions",
+          "body": "Nous pouvons mettre à jour ces Conditions de temps à autre. Les changements importants seront reflétés sur cette page avec une date mise à jour."
+        },
+        {
+          "heading": "8. Contact",
+          "body": "Pour toute question concernant ces Conditions, écrivez-nous à hello@luluislandflagship.ca."
+        }
+      ]
+    },
+    "privacy": {
+      "title": "Politique de confidentialité",
+      "intro": "Cette Politique de confidentialité explique comment Lulu Island Flagship Cleaning Services collecte, utilise, conserve et protège les renseignements personnels, en conformité avec la Loi sur la protection des renseignements personnels et les documents électroniques du Canada (LPRPDE / PIPEDA) et la législation applicable de la Colombie-Britannique en matière de protection de la vie privée.",
+      "sections": [
+        {
+          "heading": "1. Renseignements que nous recueillons",
+          "body": "Coordonnées (nom, numéro de téléphone, courriel); adresse du service; photos prises lors des listes de vérification du service à des fins de contrôle de qualité, et, si une réclamation de garantie est ouverte, photos de preuve supplémentaires liées à cette réclamation; renseignements sur le mode de paiement — nous ne conservons pas nous-mêmes les numéros complets de carte; les paiements par carte et les autorisations (Hold) sont traités et tokenisés par Stripe, les avances PayPal sont traitées par PayPal, et les paiements Alipay/WeChat Pay sont traités via Stripe; votre historique de réservations et de services; ainsi que vos communications avec notre équipe."
+        },
+        {
+          "heading": "2. Comment nous utilisons vos renseignements",
+          "body": "Pour planifier et affecter le personnel à votre service, vérifier votre identité par code à usage unique envoyé par texto, autoriser et traiter les autorisations, débits et remboursements de paiement conformément à notre Politique d'annulation, effectuer le contrôle de qualité et résoudre les réclamations de garantie, respecter nos obligations légales et fiscales, et, si vous y consentez, gérer nos programmes de parrainage et de Lulu Wallet."
+        },
+        {
+          "heading": "3. Conservation",
+          "body": "Les photos des listes de vérification de contrôle de qualité sont conservées 1 an à partir de la date du service. Les photos liées à une réclamation de garantie ou un litige ouvert ou résolu sont conservées 2 ans et ne sont jamais supprimées tant qu'un litige connexe demeure ouvert. Si vous demandez la suppression de vos renseignements personnels, votre dossier est dépersonnalisé immédiatement et conservé dans un état restreint, éligible à la purge, pendant 2 ans afin de respecter nos obligations fiscales et légales de conservation des dossiers, après quoi il est définitivement supprimé."
+        },
+        {
+          "heading": "4. Vos droits en vertu de la LPRPDE (PIPEDA)",
+          "body": "Vous avez le droit d'accéder aux renseignements personnels que nous détenons à votre sujet, de demander la correction de renseignements inexacts et de demander la suppression de vos renseignements personnels (sous réserve des obligations de conservation décrites ci-dessus). Pour exercer l'un de ces droits, contactez-nous à hello@luluislandflagship.ca. Les demandes d'accès et de suppression sont consignées et doivent recevoir une réponse dans les 48 heures suivant leur réception, selon notre engagement de service interne."
+        },
+        {
+          "heading": "5. Notification en cas d'atteinte à la vie privée",
+          "body": "Si une atteinte à la vie privée crée un risque réel de préjudice grave, nous en informerons le Commissariat à l'information et à la protection de la vie privée de la Colombie-Britannique (OIPC BC) ainsi que les personnes concernées dans les 72 heures suivant la détection de l'incident."
+        },
+        {
+          "heading": "6. Fournisseurs de services et tiers",
+          "body": "Nous partageons le minimum nécessaire de renseignements personnels avec les fournisseurs de services qui nous aident à exploiter notre entreprise : Stripe (paiements par carte, autorisations et remboursements), PayPal (avances pour une première réservation), Supabase (hébergement de la base de données et des comptes) et Sentry (surveillance technique des erreurs). Chaque fournisseur est contractuellement et techniquement limité à utiliser vos renseignements pour nous fournir son service."
+        },
+        {
+          "heading": "7. Témoins (cookies) et données de session",
+          "body": "Nous utilisons uniquement des témoins fonctionnels et un stockage de session local strictement nécessaires pour maintenir votre connexion et faire fonctionner le processus de paiement. Nous n'utilisons pas de traceurs publicitaires tiers."
+        },
+        {
+          "heading": "8. Modifications de cette politique",
+          "body": "Nous pouvons mettre à jour cette Politique de confidentialité de temps à autre. Les changements importants seront reflétés sur cette page avec une date mise à jour."
+        },
+        {
+          "heading": "9. Contact",
+          "body": "Pour toute question ou demande relative à la vie privée, écrivez-nous à hello@luluislandflagship.ca."
+        }
+      ]
+    },
+    "cancellation": {
+      "title": "Politique d'annulation",
+      "intro": "Voici la politique exacte qui s'applique lorsque vous annulez une réservation confirmée, ou si vous ne vous présentez pas. Elle régit la façon dont votre autorisation de paiement (Hold) est libérée, débitée ou remboursée, et s'applique de la même façon peu importe le mode de paiement utilisé lors du paiement.",
+      "sections": [
+        {
+          "heading": "Plus de 72 heures avant votre service prévu",
+          "body": "Remboursement complet. Votre Hold est libéré, sans frais. Si vous avez payé le montant total à l'avance (Alipay/WeChat Pay), il est intégralement remboursé. Si vous avez versé une avance PayPal, elle est remboursée."
+        },
+        {
+          "heading": "Entre 24 et 72 heures avant votre service prévu",
+          "body": "50 % du montant de votre Hold est débité à titre de pénalité d'annulation; les 50 % restants sont libérés ou remboursés."
+        },
+        {
+          "heading": "Moins de 24 heures avant votre service prévu, ou absence",
+          "body": "100 % du montant de votre Hold est débité à titre de pénalité d'annulation."
+        },
+        {
+          "heading": "Application selon le mode de paiement",
+          "body": "Carte : votre Hold est une autorisation de paiement; nous débitons le pourcentage applicable ci-dessus à partir de cette même autorisation et libérons le reste — aucun montant supérieur à votre Hold n'est jamais débité. PayPal (première réservation uniquement) : l'avance de 50 % déjà débitée lors de la réservation est retenue selon les mêmes délais; si le délai applicable exige de retenir plus que ce qui a été perçu à l'avance (délai de moins de 24 heures), la différence est débitée sur la carte de sauvegarde enregistrée lors du paiement. Alipay / WeChat Pay : le montant total du service a été débité d'avance lors de la réservation; en cas d'annulation, nous remboursons le montant approprié via Stripe selon les mêmes délais ci-dessus. Votre carte de sauvegarde n'est jamais débitée de nouveau pour une annulation liée à un paiement par portefeuille électronique."
+        },
+        {
+          "heading": "Absences (no-show)",
+          "body": "Une absence est traitée exactement comme une annulation dans le délai de moins de 24 heures : 100 % du montant de votre Hold est débité."
+        },
+        {
+          "heading": "Questions ou litiges",
+          "body": "Si vous devez annuler, ou si vous croyez que des frais d'annulation ont été appliqués par erreur, contactez-nous à hello@luluislandflagship.ca."
+        }
+      ]
+    }
+  },
+  "cuenta": {
+    "nav": {
+      "ariaLabel": "Navigation du compte",
+      "servicios": "Mes services",
+      "propiedades": "Mes propriétés",
+      "billetera": "Portefeuille Lulu",
+      "referidos": "Ambassadeur Lulu",
+      "preferencias": "Préférences",
+      "logout": "Déconnexion"
+    },
+    "common": {
+      "retry": "Réessayer",
+      "dismiss": "Fermer",
+      "loadFailedRetry": "Le chargement a échoué. Vérifiez votre connexion et réessayez.",
+      "networkErrorRetry": "Problème de connexion. Vérifiez votre connexion internet et réessayez."
+    },
+    "orderStatus": {
+      "pending": "En attente",
+      "confirmed": "Confirmé",
+      "completed": "Terminé",
+      "cancelled": "Annulé",
+      "no_show": "Absence"
+    },
+    "servicios": {
+      "title": "Mes services",
+      "subtitle": "Votre historique de services. Signalez un problème pour un service terminé si quelque chose n'allait pas.",
+      "manageProperties": "Gérer mes propriétés",
+      "luluWallet": "Portefeuille Lulu",
+      "referFriend": "Référer un ami",
+      "loadFailed": "Échec du chargement des services",
+      "networkError": "Erreur réseau",
+      "noServices": "Aucun service pour le moment.",
+      "defaultServiceLabel": "Service de nettoyage",
+      "viewPhotosChecklist": "Voir les photos et la liste de vérification",
+      "trackYourTeam": "Suivre votre équipe",
+      "reportIssue": "Signaler un problème",
+      "underReview": "En cours de révision.",
+      "finalAction": {
+        "free_recleaning": "Nouveau nettoyage gratuit planifié",
+        "explain_no_action": "Révisé — photo de clôture montrée, aucune action requise",
+        "dismiss": "Rejeté"
+      },
+      "claimForm": {
+        "selectZone": "Sélectionnez une zone",
+        "describeIssue": "Veuillez décrire le problème (au moins quelques mots)",
+        "photoUploadFailed": "Échec du téléversement de la photo, veuillez réessayer.",
+        "submitFailed": "Échec de la soumission",
+        "networkError": "Erreur réseau",
+        "allZonesClaimed": "Toutes les zones de ce service ont déjà une réclamation ouverte.",
+        "whichArea": "Quelle zone?",
+        "whatHappened": "Que s'est-il passé?",
+        "whatHappenedPlaceholder": "ex. Le miroir de la salle de bain avait encore des traces",
+        "moreDetail": "Plus de détails (optionnel)",
+        "photoLabel": "Photo (optionnel, nous aide à réviser plus rapidement)",
+        "photoInputAriaLabel": "Joindre une photo du problème (optionnel)",
+        "cancel": "Annuler",
+        "submit": "Soumettre"
+      },
+      "recurring": {
+        "confirmCancel": "Annuler votre plan récurrent? Vous pouvez toujours en réserver un nouveau plus tard.",
+        "updateFailed": "Impossible de mettre à jour votre plan",
+        "networkError": "Erreur réseau",
+        "loadFailed": "Impossible de charger votre plan récurrent",
+        "quoteFailed": "Impossible de créer la soumission",
+        "cancelledNotice": "Votre plan récurrent a été annulé. Vous pouvez en démarrer un nouveau à tout moment depuis le formulaire de soumission.",
+        "plan": "Votre plan récurrent",
+        "planWithNextVisit": "Votre plan récurrent — prochaine visite {date}",
+        "bookNextVisitAriaLabel": "Réserver la prochaine visite",
+        "bookNextVisit": "Réserver la prochaine visite",
+        "pausing": "Mise en pause…",
+        "pausePlan": "Mettre le plan en pause",
+        "cancelling": "Annulation…",
+        "cancelPlan": "Annuler le plan"
+      },
+      "livePortfolio": {
+        "withdrawFailed": "Impossible de retirer",
+        "removed": "Retiré du Live Portfolio.",
+        "networkError": "Erreur réseau",
+        "selectedNotice": "Un de vos services ({label}) a été sélectionné pour notre Live Portfolio.",
+        "removing": "Retrait en cours...",
+        "removeIt": "Le retirer"
+      },
+      "tracking": {
+        "loadFailed": "Échec du chargement du suivi",
+        "networkError": "Erreur réseau",
+        "notAvailable": "Le suivi en direct n'est pas disponible en ce moment.",
+        "title": "Votre équipe est en route",
+        "subtitle": "Emplacement en direct de votre véhicule de service — mise à jour automatique.",
+        "lastUpdated": "Dernière mise à jour {time}",
+        "openInMaps": "Ouvrir dans Maps"
+      },
+      "galeria": {
+        "loadFailed": "Échec du chargement",
+        "networkError": "Erreur réseau",
+        "yourService": "Votre service",
+        "completedIn": "Terminé en {minutes} minutes",
+        "photos": "Photos",
+        "servicePhotoAlt": "Photo du service {index}",
+        "checklist": "Liste de vérification",
+        "rebook": {
+          "loadOptionsFailed": "Impossible de charger les options de nouvelle réservation",
+          "networkError": "Erreur réseau",
+          "createQuoteFailed": "Impossible de créer la soumission",
+          "rebookThisService": "Réserver à nouveau ce service",
+          "whenNextVisit": "Quand souhaitez-vous votre prochaine visite?",
+          "confirmDateAriaLabel": "Confirmer la nouvelle date de service",
+          "confirm": "Confirmer"
+        }
+      }
+    },
+    "propiedades": {
+      "loadFailed": "Échec du chargement des propriétés",
+      "networkError": "Erreur réseau",
+      "savedSuccess": "Propriété enregistrée.",
+      "deletedSuccess": "Propriété supprimée.",
+      "postalInvalid": "Format invalide. Utilisez : V6X 1A1",
+      "addressRequired": "L'adresse est requise",
+      "zoneRequired": "La zone est requise",
+      "postalCodeInvalid": "Code postal invalide",
+      "squareFeetInvalid": "La superficie doit être un nombre positif",
+      "saveFailed": "Échec de l'enregistrement de la propriété",
+      "confirmDelete": "Êtes-vous certain de vouloir supprimer cette propriété?",
+      "deleteFailed": "Échec de la suppression de la propriété",
+      "title": "Mes propriétés",
+      "subtitle": "Enregistrez plusieurs adresses pour accélérer vos futures réservations.",
+      "viewServiceHistory": "Voir mon historique de services",
+      "editProperty": "Modifier la propriété",
+      "addProperty": "Ajouter une propriété",
+      "cancelEditAriaLabel": "Annuler la modification de la propriété",
+      "nicknameLabel": "Surnom (optionnel)",
+      "nicknamePlaceholder": "ex. Maison, Bureau",
+      "squareFeetLabel": "Superficie en pieds carrés (optionnel)",
+      "squareFeetPlaceholder": "ex. 1200",
+      "streetAddressLabel": "Adresse civique",
+      "streetAddressPlaceholder": "ex. 123 Main Street, Richmond",
+      "zoneLabel": "Zone",
+      "postalCodeLabel": "Code postal",
+      "postalCodePlaceholder": "ex. V7E 2A1",
+      "cancel": "Annuler",
+      "saveChangesAriaLabel": "Enregistrer les modifications de la propriété",
+      "addPropertyAriaLabel": "Ajouter une propriété",
+      "saveChanges": "Enregistrer les modifications",
+      "noProperties": "Aucune propriété enregistrée pour le moment.",
+      "edit": "Modifier",
+      "delete": "Supprimer"
+    },
+    "billetera": {
+      "networkError": "Erreur réseau",
+      "applyFailed": "Échec de l'application",
+      "appliedSuccess": "Crédit appliqué à votre service.",
+      "title": "Portefeuille Lulu",
+      "subtitle": "Crédits de référence, de résolution et promotionnels. Les crédits expirent 12 mois après leur attribution.",
+      "availableToSpend": "Solde disponible",
+      "applyToUpcoming": "Appliquer à un service à venir",
+      "applying": "Application en cours...",
+      "applyCredit": "Appliquer le crédit",
+      "history": "Historique",
+      "noActivity": "Aucune activité de portefeuille pour le moment.",
+      "expires": "expire le {date}",
+      "transactionType": {
+        "credit": "Crédit",
+        "debit": "Débit",
+        "refund": "Remboursement",
+        "promo": "Crédit promotionnel",
+        "payout": "Versement"
+      }
+    },
+    "referidos": {
+      "networkError": "Erreur réseau",
+      "redeemFailed": "Impossible d'échanger ce code",
+      "title": "Ambassadeur Lulu",
+      "subtitle": "Référez un ami — vous obtenez tous les deux un crédit au Portefeuille Lulu une fois qu'il complète son premier service.",
+      "yourCode": "Votre code de référence",
+      "copyCodeAriaLabel": "Copier le code de référence",
+      "copied": "Copié",
+      "copy": "Copier",
+      "shareCode": "Partagez ce code. Lorsque votre ami complète son premier service, vous obtenez tous les deux {amount}.",
+      "notEligible": "Les codes de référence sont réservés aux clients VIP (plus de 5 services complétés et un excellent dossier de compte). Continuez à réserver avec nous -- vous le débloquerez bientôt.",
+      "haveCode": "Vous avez un code d'un ami?",
+      "redeemInputAriaLabel": "Code de référence d'un ami",
+      "redeemPlaceholder": "ex. MARIA-AB12",
+      "leaderSelectAriaLabel": "Chef d'équipe qui nous a recommandés (optionnel)",
+      "leaderSelectPlaceholder": "Un chef d'équipe nous a-t-il recommandés? (optionnel)",
+      "applyCodeAriaLabel": "Appliquer le code de référence",
+      "applying": "Application en cours...",
+      "applyCode": "Appliquer le code"
+    },
+    "preferencias": {
+      "loadFailed": "Échec du chargement",
+      "saveFailed": "Échec de l'enregistrement",
+      "networkError": "Erreur réseau",
+      "savedSuccess": "Préférences enregistrées.",
+      "birthdaySavedSuccess": "Date de naissance enregistrée.",
+      "title": "Préférences de communication",
+      "subtitle": "Les messages de service (confirmations, mises à jour d'arrivée, reçus de paiement) vous parviennent toujours, peu importe ce paramètre — ce sont des communications transactionnelles, pas du marketing.",
+      "marketingEmails": "Courriels marketing",
+      "marketingEmailsDesc": "Offres saisonnières, rappels d'entretien et programmes de référence. Vous pouvez vous y inscrire ou vous désinscrire en tout temps.",
+      "optedIn": "Actuellement inscrit",
+      "optedOut": "Actuellement désinscrit",
+      "autoUnsubscribedNotice": "Vous avez été automatiquement désinscrit après plusieurs courriels non ouverts. Réinscrivez-vous à tout moment ci-dessous.",
+      "saving": "Enregistrement...",
+      "optOut": "Se désinscrire des courriels marketing",
+      "optIn": "S'inscrire aux courriels marketing",
+      "birthday": "Date de naissance (optionnel)",
+      "birthdayDesc": "Indiquez-nous votre date de naissance et nous ajouterons un cadeau au Portefeuille Lulu chaque année. Entièrement optionnel -- jamais utilisé à d'autres fins.",
+      "birthdayInputAriaLabel": "Date de naissance",
+      "saveBirthdayAriaLabel": "Enregistrer la date de naissance",
+      "save": "Enregistrer"
+    }
+  },
   "employee": {
     "loginTitle": "Connexion employé",
     "loginSubtitle": "Connectez-vous avec votre courriel de travail",

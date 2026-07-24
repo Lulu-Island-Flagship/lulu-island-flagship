@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, Wallet, Gift } from "lucide-react";
+import { StatusBanner } from "@/components/cuenta/StatusBanner";
 
 interface WalletTransaction {
   id: string;
@@ -26,14 +28,28 @@ function formatDollars(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+// orders.status CHECK constraint (migración 001_modulo1_base_schema.sql):
+// ('pending', 'confirmed', 'completed', 'cancelled', 'no_show')
+const ORDER_STATUSES = ["pending", "confirmed", "completed", "cancelled", "no_show"];
+
+// transactions.type — valores conocidos del backend, con fallback al tipo crudo
+// si apareciera un valor nuevo no traducido.
+const WALLET_TX_TYPES = ["credit", "debit", "refund", "promo", "payout"];
+
 export default function WalletPage() {
-  const [balance, setBalance] = useState(0);
+  const t = useTranslations("cuenta.billetera");
+  const tStatus = useTranslations("cuenta.orderStatus");
+  const tCommon = useTranslations("cuenta.common");
+  // El total histórico se recibe y guarda pero hoy solo se muestra
+  // availableBalance (saldo disponible real) en la UI.
+  const [_balance, setBalance] = useState(0);
   const [availableBalance, setAvailableBalance] = useState(0);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [orders, setOrders] = useState<UnpaidOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [applying, setApplying] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     load();
@@ -59,7 +75,7 @@ export default function WalletPage() {
         setOrders(unpaid);
       }
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setLoading(false);
     }
@@ -68,6 +84,7 @@ export default function WalletPage() {
   async function applyToOrder(orderId: string) {
     setApplying(orderId);
     setError("");
+    setSuccessMessage("");
     try {
       const res = await fetch("/api/client/wallet/apply", {
         method: "POST",
@@ -77,12 +94,13 @@ export default function WalletPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to apply");
+        setError(err.error || t("applyFailed"));
         return;
       }
       await load();
+      setSuccessMessage(t("appliedSuccess"));
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setApplying(null);
     }
@@ -99,13 +117,27 @@ export default function WalletPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold text-brand-ink">Lulu Wallet</h1>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Referral, resolution, and promo credits. Credits expire 12 months after being granted.
+          {t("subtitle")}
         </p>
       </div>
 
-      {error && <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{error}</div>}
+      <StatusBanner
+        variant="error"
+        message={error}
+        onRetry={load}
+        onDismiss={() => setError("")}
+        retryLabel={tCommon("retry")}
+        dismissLabel={tCommon("dismiss")}
+      />
+      <StatusBanner
+        variant="success"
+        message={successMessage}
+        onDismiss={() => setSuccessMessage("")}
+        autoDismissMs={4000}
+        dismissLabel={tCommon("dismiss")}
+      />
 
       <div className="bg-white rounded-xl border p-5 flex items-center gap-4">
         <div className="w-12 h-12 rounded-lg bg-brand-gold/10 flex items-center justify-center">
@@ -113,26 +145,28 @@ export default function WalletPage() {
         </div>
         <div>
           <p className="text-2xl font-bold text-brand-ink">{formatDollars(availableBalance)}</p>
-          <p className="text-xs text-gray-500">Available to spend</p>
+          <p className="text-xs text-gray-500">{t("availableToSpend")}</p>
         </div>
       </div>
 
       {orders.length > 0 && availableBalance > 0 && (
         <div>
-          <h2 className="font-semibold text-brand-ink mb-2">Apply to an upcoming service</h2>
+          <h2 className="font-semibold text-brand-ink mb-2">{t("applyToUpcoming")}</h2>
           <div className="bg-white rounded-xl border divide-y">
             {orders.map((o) => (
               <div key={o.id} className="p-3 flex items-center justify-between">
                 <div>
                   <p className="text-sm text-brand-ink">{o.service_date}</p>
-                  <p className="text-xs text-gray-500">{o.status}</p>
+                  <p className="text-xs text-gray-500">
+                    {ORDER_STATUSES.includes(o.status) ? tStatus(o.status) : o.status}
+                  </p>
                 </div>
                 <button
                   onClick={() => applyToOrder(o.id)}
                   disabled={applying === o.id}
                   className="text-xs bg-brand-navy text-white px-3 py-1.5 rounded-lg disabled:opacity-50"
                 >
-                  {applying === o.id ? "Applying..." : "Apply credit"}
+                  {applying === o.id ? t("applying") : t("applyCredit")}
                 </button>
               </div>
             ))}
@@ -141,26 +175,28 @@ export default function WalletPage() {
       )}
 
       <div>
-        <h2 className="font-semibold text-brand-ink mb-2">History</h2>
+        <h2 className="font-semibold text-brand-ink mb-2">{t("history")}</h2>
         {transactions.length === 0 ? (
           <div className="bg-white rounded-xl border p-6 text-center text-sm text-gray-500">
             <Gift className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            No wallet activity yet.
+            {t("noActivity")}
           </div>
         ) : (
           <div className="bg-white rounded-xl border divide-y">
-            {transactions.map((t) => (
-              <div key={t.id} className="p-3 flex items-center justify-between text-sm">
+            {transactions.map((tx) => (
+              <div key={tx.id} className="p-3 flex items-center justify-between text-sm">
                 <div>
-                  <p className="text-brand-ink">{t.description || t.type}</p>
+                  <p className="text-brand-ink">
+                    {tx.description || (WALLET_TX_TYPES.includes(tx.type) ? t(`transactionType.${tx.type}`) : tx.type)}
+                  </p>
                   <p className="text-xs text-gray-400">
-                    {new Date(t.created_at).toLocaleDateString("en-CA", { timeZone: "America/Vancouver" })}
-                    {t.expires_at && ` — expires ${new Date(t.expires_at).toLocaleDateString("en-CA")}`}
+                    {new Date(tx.created_at).toLocaleDateString("en-CA", { timeZone: "America/Vancouver" })}
+                    {tx.expires_at && ` — ${t("expires", { date: new Date(tx.expires_at).toLocaleDateString("en-CA") })}`}
                   </p>
                 </div>
-                <span className={t.type === "debit" || t.type === "payout" ? "text-state-danger" : "text-state-success"}>
-                  {t.type === "debit" || t.type === "payout" ? "-" : "+"}
-                  {formatDollars(t.amount)}
+                <span className={tx.type === "debit" || tx.type === "payout" ? "text-state-danger" : "text-state-success"}>
+                  {tx.type === "debit" || tx.type === "payout" ? "-" : "+"}
+                  {formatDollars(tx.amount)}
                 </span>
               </div>
             ))}
