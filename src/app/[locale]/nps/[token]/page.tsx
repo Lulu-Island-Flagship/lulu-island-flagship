@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { AuthModal } from "@/components/cotizador/AuthModal";
 import { Loader2, CheckCircle2, Home } from "lucide-react";
 
 export default function NpsSurveyPage() {
@@ -19,6 +20,15 @@ export default function NpsSurveyPage() {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  // Fix 2026-07-24 (auditoría nps/[token], mismo problema que
+  // encuesta/[token]): nps_surveys tiene RLS "Clients read own nps surveys"
+  // (auth.uid() = client_user_id, migración 163). Sin sesión, la consulta
+  // siempre devuelve 0 filas -- idéntico al caso de token inválido -- así que
+  // antes se mostraba "This survey link is invalid or expired." a un cliente
+  // con un link perfectamente válido que solo no había iniciado sesión. Se
+  // verifica la sesión antes de consultar; sin sesión se pide login (no se
+  // asume token inválido, esa es una causa real distinta).
+  const [needsAuth, setNeedsAuth] = useState(false);
 
   useEffect(() => {
     verifyToken();
@@ -28,6 +38,16 @@ export default function NpsSurveyPage() {
   async function verifyToken() {
     setLoading(true);
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setNeedsAuth(true);
+        setLoading(false);
+        return;
+      }
+      setNeedsAuth(false);
+
       const { data: survey, error: surveyError } = await supabase
         .from("nps_surveys")
         .select("id, responded_at")
@@ -76,6 +96,20 @@ export default function NpsSurveyPage() {
     return (
       <main className="min-h-screen bg-brand-ice flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+      </main>
+    );
+  }
+
+  // Fix 2026-07-24: caso "falta login", distinto de "token inválido" --
+  // ver comentario junto a needsAuth arriba. onSuccess reintenta
+  // verifyToken (mismo token, misma URL) tras autenticarse.
+  if (needsAuth) {
+    return (
+      <main className="min-h-screen bg-brand-ice">
+        <AuthModal
+          onClose={() => router.push(`/${safeLocale}`)}
+          onSuccess={() => verifyToken()}
+        />
       </main>
     );
   }

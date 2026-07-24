@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { AuthModal } from "@/components/cotizador/AuthModal";
 import { ThumbsUp, ThumbsDown, Loader2, CheckCircle2, Home, Gift } from "lucide-react";
 
 export default function PreReviewSurveyPage() {
@@ -20,6 +21,18 @@ export default function PreReviewSurveyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [creditGranted, setCreditGranted] = useState(0);
+  // Fix 2026-07-24 (auditoría encuesta/[token]): `orders` tiene RLS "Clients
+  // read own orders" (auth.uid() = client_id, migración 001/008) -- un
+  // cliente que abre el link de la encuesta (SMS/email) sin sesión activa en
+  // ese navegador siempre recibe 0 filas, exactamente el mismo resultado
+  // PostgREST que un token inválido/expirado. Antes eso se mostraba como
+  // "This survey link is invalid or expired.", lo cual es falso y confunde:
+  // el token es válido, solo falta loguearse. Ahora se verifica la sesión
+  // ANTES de consultar `orders`; sin sesión se muestra un login (mismo
+  // AuthModal que el resto del sitio), y solo si YA hay sesión y la consulta
+  // igual falla se asume token inválido/expirado (causa real distinta, no
+  // debe mezclarse con "falta login").
+  const [needsAuth, setNeedsAuth] = useState(false);
 
   useEffect(() => {
     verifyToken();
@@ -29,6 +42,16 @@ export default function PreReviewSurveyPage() {
   async function verifyToken() {
     setLoading(true);
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setNeedsAuth(true);
+        setLoading(false);
+        return;
+      }
+      setNeedsAuth(false);
+
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .select("id, status")
@@ -85,6 +108,20 @@ export default function PreReviewSurveyPage() {
     return (
       <main className="min-h-screen bg-brand-ice flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+      </main>
+    );
+  }
+
+  // Fix 2026-07-24: caso "falta login", distinto de "token inválido" --
+  // ver comentario junto a needsAuth arriba. onSuccess reintenta
+  // verifyToken (mismo token, misma URL) tras autenticarse.
+  if (needsAuth) {
+    return (
+      <main className="min-h-screen bg-brand-ice">
+        <AuthModal
+          onClose={() => router.push(`/${safeLocale}`)}
+          onSuccess={() => verifyToken()}
+        />
       </main>
     );
   }
@@ -152,7 +189,7 @@ export default function PreReviewSurveyPage() {
               className={`flex-1 flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-colors ${satisfied === false ? "border-state-danger bg-red-50" : "border-gray-200"}`}
             >
               <ThumbsDown className={`w-8 h-8 ${satisfied === false ? "text-state-danger" : "text-gray-400"}`} />
-              <span className="text-sm font-medium">Something's off</span>
+              <span className="text-sm font-medium">Something&apos;s off</span>
             </button>
           </div>
 
@@ -177,7 +214,7 @@ export default function PreReviewSurveyPage() {
           </button>
 
           <p className="text-xs text-gray-400 text-center">
-            This is a private check-in, not a public review. You'll get $10 Lulu Wallet credit for answering.
+            This is a private check-in, not a public review. You&apos;ll get $10 Lulu Wallet credit for answering.
           </p>
         </div>
       </div>

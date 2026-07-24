@@ -217,6 +217,20 @@ export default function HomePage() {
           <p className="text-sm">
             {t('footer.copyright')}
           </p>
+          {/* Enlaces legales (términos, privacidad, cancelación) -- páginas
+              públicas nuevas, contenido fiel a las reglas reales de
+              src/lib/order-cancellation.ts y src/lib/pipeda.ts. */}
+          <nav className="flex items-center gap-4 text-xs text-gray-400">
+            <a href={`/${locale}/terminos`} className="hover:text-gray-600 transition-colors">
+              {t('legal.nav.terms')}
+            </a>
+            <a href={`/${locale}/privacidad`} className="hover:text-gray-600 transition-colors">
+              {t('legal.nav.privacy')}
+            </a>
+            <a href={`/${locale}/cancelacion`} className="hover:text-gray-600 transition-colors">
+              {t('legal.nav.cancellation')}
+            </a>
+          </nav>
           {/* v8.3: enlace discreto al Portal de equipo (empleado, coordinador,
               QC, manager) -- deliberadamente en el footer, no en el hero, para
               no confundir a clientes potenciales con acceso de staff. */}
