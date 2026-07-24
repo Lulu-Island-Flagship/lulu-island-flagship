@@ -183,7 +183,7 @@ export async function GET(request: NextRequest) {
     const { data: todaysOrders, error: ordersError } = await supabase
       .from("orders")
       .select(
-        "id, quote_id, user_id, service_time, service_datetime, status, payment_option, stripe_hold_payment_intent_id, hold_authorized_amount_cents, hold_amount_cents, paypal_advance_amount, stripe_customer_id, stripe_payment_method_id, quotes(total)"
+        "id, quote_id, user_id, service_time, service_datetime, status, payment_option, stripe_hold_payment_intent_id, hold_authorized_amount_cents, hold_amount_cents, paypal_advance_amount, wallet_amount_collected_cents, stripe_customer_id, stripe_payment_method_id, quotes(total)"
       )
       .eq("service_date", today)
       .eq("status", "confirmed");
@@ -367,12 +367,23 @@ export async function GET(request: NextRequest) {
           // card_amount_charged_cents ya están en centavos --
           // paypal_advance_amount sigue en dólares (fuera de alcance), se
           // escala x100 al sumarlo.
+          //
+          // Fix (auditoría externa 2026-07-24): para alipay/wechat_pay,
+          // captureNoShowPenalty() deja amountChargedCents en 0 a propósito
+          // (el no-show no genera cargo nuevo, el 100% ya se cobró al
+          // reservar). Sin sumar wallet_amount_collected_cents aquí, este
+          // UPDATE sobreescribía total_paid_cents a 0 al marcar la orden
+          // como no_show, borrando el mismo cobro real que el fix de
+          // stripe/confirm/route.ts ya deja bien puesto al crear la orden.
           await supabase
             .from("orders")
             .update({
               status: "no_show",
               hold_captured_at: captureResult.payments.hold ? now.toISOString() : null,
-              total_paid_cents: Math.round((order.paypal_advance_amount || 0) * 100) + captureResult.amountChargedCents,
+              total_paid_cents:
+                Math.round((order.paypal_advance_amount || 0) * 100) +
+                captureResult.amountChargedCents +
+                (order.wallet_amount_collected_cents || 0),
               card_amount_charged_cents: captureResult.amountChargedCents,
               capture_last_error: null,
               updated_at: now.toISOString(),

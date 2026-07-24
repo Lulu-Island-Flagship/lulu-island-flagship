@@ -362,7 +362,24 @@ export async function POST(request: NextRequest) {
         { status: 402 }
       );
     }
-    if (setupIntent.payment_method !== paymentMethodId) {
+    // Fix 2026-07-24 (detectado en QA manual / auditoría externa): TODA
+    // reserva con PayPal primer servicio se rechazaba con 400 "Payment
+    // method mismatch", sin excepción. Causa: para payment_option ===
+    // "paypal_first_time" no se renderiza StripeCardForm (no hay tarjeta
+    // principal que tokenizar), así que la UI (reserva/[quoteId]/page.tsx)
+    // hace setPaymentMethodId("paypal") -- un string literal fijo, nunca un
+    // PaymentMethod real de Stripe (formato pm_xxx). El SetupIntent creado
+    // al cargar la página SÍ es real y SÍ se usa, pero solo para registrar
+    // la tarjeta de respaldo obligatoria (daño, tiempo extra, cancelación
+    // tardía) -- su payment_method nunca fue pensado para coincidir con el
+    // string "paypal". Comparar ambos aquí incondicionalmente garantizaba
+    // el rechazo del 100% de las reservas PayPal. Para "card", "alipay" y
+    // "wechat_pay" el paymentMethodId SÍ es un PaymentMethod real (viene de
+    // StripeCardForm, adjunto al mismo SetupIntent), así que ahí la
+    // comparación exacta se mantiene sin relajar -- es la única forma de
+    // verificar que la tarjeta que el cliente completó es la misma que
+    // quedó registrada en el SetupIntent verificado arriba.
+    if (selectedPaymentOption !== "paypal_first_time" && setupIntent.payment_method !== paymentMethodId) {
       return NextResponse.json(
         { error: "Payment method mismatch. Please try again." },
         { status: 400 }
@@ -588,6 +605,30 @@ export async function POST(request: NextRequest) {
             ? walletPaymentIntentId
             : null,
         wallet_amount_collected_cents:
+          selectedPaymentOption === "alipay" || selectedPaymentOption === "wechat_pay"
+            ? walletAmountCollectedCents
+            : 0,
+        // Fix (auditoría externa 2026-07-24, dinero real confirmado): este
+        // INSERT seteaba wallet_amount_collected_cents arriba, pero NUNCA
+        // total_paid_cents -- la columna que TODO el resto del sistema
+        // (admin/accounting, cron/qbo-sync, client-segments, etc.) lee como
+        // "cuánto se cobró realmente" de una orden (ver RAÍZ-3, migración
+        // 229). Resultado: el 100% cobrado por adelantado vía Alipay/WeChat
+        // Pay quedaba invisible para toda la contabilidad, aunque sí se
+        // cobró de verdad en Stripe (walletAmountCollectedCents, verificado
+        // arriba) y quedó registrado en wallet_amount_collected_cents y en
+        // shadow_ledger_entries. Se setea aquí en la misma escritura,
+        // siguiendo el mismo criterio que ya usan los demás payment_option:
+        // 'card' deja total_paid_cents en 0 hasta que el hold se capture
+        // (cron batch-capture), y 'paypal_first_time' registra el anticipo
+        // real ya cobrado (paypal_advance_amount) por su propio camino
+        // (shadow ledger) sin tocar total_paid_cents hasta ese mismo cron.
+        // Alipay/WeChat Pay, a diferencia de ambos, cobra el 100% de una
+        // sola vez y de forma síncrona ANTES de este INSERT (verificado
+        // arriba contra la API de Stripe), así que no hay motivo para
+        // esperar a un cron: total_paid_cents = walletAmountCollectedCents
+        // desde el momento en que la orden nace.
+        total_paid_cents:
           selectedPaymentOption === "alipay" || selectedPaymentOption === "wechat_pay"
             ? walletAmountCollectedCents
             : 0,

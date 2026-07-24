@@ -64,6 +64,12 @@ interface OrderRow {
   capture_attempts: number;
   capture_force_full_by: string | null;
   wallet_amount_used_cents: number | null;
+  // Fix (auditoría externa 2026-07-24): monto real cobrado por adelantado en
+  // Alipay/WeChat Pay (distinto de wallet_amount_used_cents, que es crédito
+  // de la billetera Lulu aplicado a órdenes con tarjeta). Necesario para no
+  // perder ese cobro al recalcular total_paid_cents abajo -- ver nota junto
+  // al UPDATE final.
+  wallet_amount_collected_cents: number | null;
   quotes: { total: number }[] | null;
 }
 
@@ -214,7 +220,7 @@ export async function GET(request: NextRequest) {
     const { data: orders, error } = await supabase
       .from("orders")
       .select(
-        "id, quote_id, user_id, payment_option, stripe_hold_payment_intent_id, stripe_customer_id, stripe_payment_method_id, hold_amount_cents, hold_authorized_amount_cents, paypal_advance_amount, capture_attempts, capture_force_full_by, wallet_amount_used_cents, quotes(total)"
+        "id, quote_id, user_id, payment_option, stripe_hold_payment_intent_id, stripe_customer_id, stripe_payment_method_id, hold_amount_cents, hold_authorized_amount_cents, paypal_advance_amount, capture_attempts, capture_force_full_by, wallet_amount_used_cents, wallet_amount_collected_cents, quotes(total)"
       )
       .eq("service_date", todayStr)
       .eq("status", "completed")
@@ -675,9 +681,21 @@ export async function GET(request: NextRequest) {
             // capture_authorized_amount es columna fuera de alcance de RAÍZ-3
             // (sigue en dólares) -- se preserva su unidad original.
             capture_authorized_amount: Math.round(amountChargedCents / 100),
+            // Fix (auditoría externa 2026-07-24): para alipay/wechat_pay,
+            // amountChargedCents se queda intencionalmente en 0 (ver el
+            // bloque de arriba -- no hay saldo que cobrar, el 100% ya se
+            // cobró en /api/stripe/confirm). Antes de este fix, este UPDATE
+            // SOBREESCRIBÍA total_paid_cents con esa suma sin incluir
+            // wallet_amount_collected_cents, borrando a 0 todas las noches
+            // el cobro real ya reflejado al crear la orden (mismo bug de
+            // fondo que el fix en stripe/confirm/route.ts). Se suma aquí
+            // siguiendo el mismo criterio: walletAppliedCents ya sigue
+            // siendo crédito de billetera Lulu aplicado a la orden (campo
+            // distinto), no confundir con este.
             total_paid_cents:
               amountChargedCents +
               walletAppliedCents +
+              (order.wallet_amount_collected_cents || 0) +
               (order.payment_option === "paypal_first_time" ? Math.round((order.paypal_advance_amount || 0) * 100) : 0),
             card_amount_charged_cents: amountChargedCents,
             capture_attempts: 0,

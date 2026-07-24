@@ -24,6 +24,42 @@ import {
  */
 const GRANTABLE_TYPES: WalletTransactionType[] = ["credit", "promo", "refund"];
 
+// Fix auditoría externa 2026-07-24: POST /api/admin/wallet otorgaba crédito
+// sin límite máximo por operación y sin ninguna protección de idempotencia.
+// La migración 233 (fix Kimi-C1, 2026-07-21) ya había dejado anotado este
+// hueco como "riesgo residual documentado (fuera de alcance de ese fix)":
+// apply_wallet_delta() cierra el vector de tocar la wallet de OTRO usuario,
+// pero no valida montos ni deduplica llamadas legítimas repetidas del mismo
+// admin -- un doble clic en el botón "otorgar crédito", o un retry de red
+// del navegador/proxy, ejecuta el POST dos veces y duplica el crédito. Cada
+// llamada crea una fila nueva en wallet_transactions (solo tiene índices
+// normales por wallet_id/user_id/order_id, ningún UNIQUE que prevenga esto)
+// y el RPC con SELECT...FOR UPDATE resuelve condiciones de carrera entre
+// llamadas CONCURRENTES pero no compara contra transacciones recientes
+// idénticas, así que dos llamadas secuenciales (una tras otra, no en
+// paralelo) se procesan ambas sin problema.
+//
+// Fix de hoy, dos capas:
+//   1) Límite máximo por operación individual (ver MAX_GRANT_AMOUNT_CENTS
+//      abajo) -- ninguna otra parte del código tenía ya una convención de
+//      límite para créditos de wallet (grep en src/lib/wallet*.ts y
+//      cron/*), así que se fija uno nuevo, conservador: $500 CAD. Si un
+//      caso real necesita otorgar más, el admin hace varias operaciones --
+//      la fricción es intencional para un movimiento de dinero de este
+//      tamaño, no un descuido a "arreglar" subiendo el límite.
+//   2) Ventana corta de idempotencia: antes de llamar al RPC, se busca en
+//      wallet_transactions una fila para la MISMA wallet + mismo type +
+//      mismo amount + misma description, insertada en los últimos 10
+//      segundos. Si existe, se rechaza con 409 en vez de insertar de
+//      nuevo. No se usa una idempotency-key explícita del cliente (que
+//      exigiría tocar el frontend y agregar una columna UNIQUE nueva vía
+//      migración) porque el caso real a cerrar es el doble clic / retry de
+//      red -- ambos repiten el mismo payload exacto en una ventana de
+//      segundos, así que comparar contra la transacción más reciente ya
+//      guardada es suficiente y no requiere rediseñar el schema.
+const MAX_GRANT_AMOUNT_CENTS = 50_000; // $500.00 CAD por operación individual
+const IDEMPOTENCY_WINDOW_SECONDS = 10;
+
 export async function GET(request: NextRequest) {
   const auth = await requireAdminRole("finance", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase) {
@@ -104,6 +140,17 @@ export async function POST(request: NextRequest) {
   }
   const amountCents = Math.round(amountDollars * 100);
 
+  // Fix auditoría externa 2026-07-24 (ver comentario junto a
+  // MAX_GRANT_AMOUNT_CENTS arriba): límite máximo por operación individual.
+  if (amountCents > MAX_GRANT_AMOUNT_CENTS) {
+    return NextResponse.json(
+      {
+        error: `amountDollars no puede superar $${(MAX_GRANT_AMOUNT_CENTS / 100).toFixed(2)} CAD por operación. Para montos mayores, hazlo en varias operaciones.`,
+      },
+      { status: 400 }
+    );
+  }
+
   const { data: wallet, error: walletError } = await supabase
     .from("client_wallets")
     .select("id")
@@ -112,6 +159,36 @@ export async function POST(request: NextRequest) {
   if (walletError) return NextResponse.json({ error: walletError.message }, { status: 500 });
   if (!wallet) {
     return NextResponse.json({ error: "Este cliente no tiene billetera (sin client_profiles activo)" }, { status: 404 });
+  }
+
+  const trimmedDescription = body.description?.trim() || null;
+
+  // Fix auditoría externa 2026-07-24 (ver comentario junto a
+  // IDEMPOTENCY_WINDOW_SECONDS arriba): chequeo de ventana corta contra
+  // doble clic / retry de red -- rechaza si ya existe una fila idéntica
+  // (misma wallet, mismo type, mismo amount, misma description) insertada
+  // en los últimos IDEMPOTENCY_WINDOW_SECONDS segundos.
+  const idempotencyWindowStartIso = new Date(Date.now() - IDEMPOTENCY_WINDOW_SECONDS * 1000).toISOString();
+  let recentDuplicateQuery = supabase
+    .from("wallet_transactions")
+    .select("id")
+    .eq("wallet_id", wallet.id)
+    .eq("type", body.type)
+    .eq("amount", amountCents)
+    .gte("created_at", idempotencyWindowStartIso)
+    .limit(1);
+  recentDuplicateQuery = trimmedDescription
+    ? recentDuplicateQuery.eq("description", trimmedDescription)
+    : recentDuplicateQuery.is("description", null);
+  const { data: recentDuplicate, error: recentDuplicateError } = await recentDuplicateQuery.maybeSingle();
+  if (recentDuplicateError) {
+    return NextResponse.json({ error: recentDuplicateError.message }, { status: 500 });
+  }
+  if (recentDuplicate) {
+    return NextResponse.json(
+      { error: "Ya se procesó una operación idéntica hace instantes, evita el doble clic" },
+      { status: 409 }
+    );
   }
 
   const nowIso = new Date().toISOString();
@@ -127,7 +204,7 @@ export async function POST(request: NextRequest) {
     p_order_id: body.orderId || null,
     p_type: body.type,
     p_delta: amountCents,
-    p_description: body.description?.trim() || null,
+    p_description: trimmedDescription,
     p_expires_at: expiresAt,
   });
   if (rpcError) return NextResponse.json({ error: rpcError.message }, { status: 500 });
