@@ -9,6 +9,7 @@ import {
 import { dispatchCommunication } from "@/lib/send-communication";
 import { buildReviewLink, buildReviewQrSvg, hasOpenCriticalDispute } from "@/lib/review-delivery";
 import { ensureZoneAssignment } from "@/lib/zone-assignment";
+import { haversineDistance, ARRIVAL_GEOFENCE_RADIUS_METERS } from "@/lib/geocode";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -327,6 +328,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No assignment found for this service" }, { status: 403 });
     }
 
+    // Fix Kimi-A4 (auditoría externa Kimi Code, 2026-07-21, verificado y
+    // confirmado real, parte 1/2): esta ruta nunca verificaba que la
+    // asignación siguiera activa antes de aceptar t_in/t_start/t_out --
+    // un empleado podía marcar tiempos sobre una asignación ya cancelada
+    // (ej. porque el cliente canceló la orden, ver orders/[orderId]/cancel
+    // que sí marca assignments.status='cancelled', migración de esa
+    // ruta más arriba en esta sesión).
+    if (["t_in", "t_start", "t_out"].includes(eventType) && assignment.status === "cancelled") {
+      return NextResponse.json(
+        { error: "This assignment was cancelled -- time events are no longer accepted" },
+        { status: 409 }
+      );
+    }
+
     // Actualizar status de la asignación según el evento (solo para eventos de progreso)
     let newStatus = assignment.status;
     if (eventType === "t_in") newStatus = "arrived";
@@ -339,6 +354,65 @@ export async function POST(request: NextRequest) {
     }
     if (eventType === "t_out" && assignment.status !== "in_progress") {
       return NextResponse.json({ error: "Must start service (T_start) before finishing" }, { status: 400 });
+    }
+
+    // Fix Kimi-A4 (auditoría externa Kimi Code, 2026-07-21, verificado y
+    // confirmado real, parte 2/2): T_in nunca validaba la geocerca contra
+    // la dirección real del servicio -- ARRIVAL_GEOFENCE_RADIUS_METERS
+    // (src/lib/geocode.ts) ya existía, creado exactamente para este caso,
+    // pero nunca se conectó aquí. Sin esto, un empleado podía declarar
+    // t_in desde cualquier parte (o sin GPS) mientras nunca marcara
+    // geofenceBypass:true -- las 3 salvaguardas de bypass de arriba solo
+    // se exigen SI el cliente decide declarar bypass, nunca se fuerza la
+    // declaración cuando realmente hace falta.
+    if (eventType === "t_in" && geofenceBypass !== true) {
+      const { data: orderForGeofence } = await supabase
+        .from("orders")
+        .select("address_lat, address_lng")
+        .eq("id", orderId)
+        .maybeSingle();
+
+      const hasOrderCoords =
+        typeof orderForGeofence?.address_lat === "number" &&
+        typeof orderForGeofence?.address_lng === "number";
+      const hasReportedCoords = typeof locationLat === "number" && typeof locationLng === "number";
+
+      if (hasOrderCoords && hasReportedCoords) {
+        const distanceMeters = haversineDistance(
+          { lat: locationLat, lng: locationLng },
+          { lat: orderForGeofence!.address_lat as number, lng: orderForGeofence!.address_lng as number }
+        );
+        if (distanceMeters > ARRIVAL_GEOFENCE_RADIUS_METERS) {
+          return NextResponse.json(
+            {
+              error:
+                "GPS location is outside the arrival geofence for this service address. " +
+                "If this is a real discrepancy (GPS inaccurate, entrance far from pin, parking restriction), " +
+                "resubmit with geofenceBypass:true and the required reason/category/photo.",
+              distanceMeters: Math.round(distanceMeters),
+              allowedRadiusMeters: ARRIVAL_GEOFENCE_RADIUS_METERS,
+              requiresBypass: true,
+            },
+            { status: 409 }
+          );
+        }
+      } else if (!hasReportedCoords) {
+        // Sin coordenadas reportadas del empleado, no hay forma de validar
+        // -- se rechaza igual que estar fuera de la geocerca, no se acepta
+        // un T_in "a ciegas" sin bypass declarado.
+        return NextResponse.json(
+          {
+            error:
+              "Location (locationLat/locationLng) is required for T_in unless geofenceBypass:true is declared.",
+            requiresBypass: true,
+          },
+          { status: 400 }
+        );
+      }
+      // Si el pedido no tiene address_lat/address_lng geocodificado
+      // (hasOrderCoords===false), se degrada a permitir sin bloquear --
+      // no hay contra qué comparar, y no se debe castigar al empleado por
+      // un dato de geocodificación faltante del lado de la orden.
     }
 
     // E4.11 — Protocolo de Cierre Externo: T_out no se acepta sin checklist

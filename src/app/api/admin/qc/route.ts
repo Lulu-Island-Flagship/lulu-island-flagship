@@ -40,7 +40,39 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ reviews: data || [] }, { status: 200 });
+    const reviews = data || [];
+
+    // Fix A (QC Wall sin evidencia fotográfica, auditoría 2026-07-24): el
+    // revisor aprobaba/rechazaba sin ver ninguna foto del trabajo, aunque
+    // los empleados suben evidencia al cerrar el checklist (bucket
+    // "service-photos", ver src/components/empleado/ChecklistCierre.tsx).
+    // Se adjuntan aquí las fotos guardadas en service_checklist_items para
+    // las órdenes visibles en esta página, agrupadas por order_id.
+    const orderIds = Array.from(new Set(reviews.map((r) => r.order_id).filter(Boolean)));
+    let photosByOrder: Record<string, { url: string; label: string }[]> = {};
+    if (orderIds.length > 0) {
+      const { data: photoRows, error: photoError } = await supabase
+        .from("service_checklist_items")
+        .select("order_id, item_label, photo_url")
+        .in("order_id", orderIds)
+        .not("photo_url", "is", null);
+
+      if (!photoError && photoRows) {
+        photosByOrder = photoRows.reduce((acc: Record<string, { url: string; label: string }[]>, row) => {
+          if (!row.photo_url) return acc;
+          if (!acc[row.order_id]) acc[row.order_id] = [];
+          acc[row.order_id].push({ url: row.photo_url, label: row.item_label || "" });
+          return acc;
+        }, {});
+      }
+    }
+
+    const reviewsWithPhotos = reviews.map((r) => ({
+      ...r,
+      photos: photosByOrder[r.order_id] || [],
+    }));
+
+    return NextResponse.json({ reviews: reviewsWithPhotos }, { status: 200 });
   } catch (err: Error | unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -80,6 +112,47 @@ export async function POST(request: NextRequest) {
 
     if (!orderId || !employeeId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    // Fix Kimi-M1 (auditoría externa Kimi Code, 2026-07-21, verificado y
+    // confirmado real): esta ruta creaba una qc_review para cualquier
+    // (orderId, employeeId) sin verificar que el empleado esté realmente
+    // asignado a esa orden ni que la orden esté 'completed' -- podía
+    // desincronizar el estado de QC (crear una review "pendiente" sobre un
+    // servicio que ni siquiera ha ocurrido, o atribuida a un empleado que
+    // nunca trabajó en él). Es una ruta solo-admin (RBAC qc_wall ya la
+    // protege de terceros), pero se agrega la validación de todas formas
+    // como defensa en profundidad ante uso manual incorrecto.
+    const { data: order } = await supabase
+      .from("orders")
+      .select("status")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+    if (order.status !== "completed") {
+      return NextResponse.json(
+        { error: `Order status is '${order.status}', expected 'completed' to create a QC review` },
+        { status: 409 }
+      );
+    }
+
+    const { data: assignment } = await supabase
+      .from("assignments")
+      .select("id")
+      .eq("order_id", orderId)
+      .eq("employee_id", employeeId)
+      .is("deleted_at", null)
+      .neq("status", "cancelled")
+      .maybeSingle();
+
+    if (!assignment) {
+      return NextResponse.json(
+        { error: "Employee is not assigned to this order (or the assignment is cancelled/deleted)" },
+        { status: 409 }
+      );
     }
 
     // v8.3 E5.2 — anti-gaming habilitado (src/lib/anti-gaming.ts, migración

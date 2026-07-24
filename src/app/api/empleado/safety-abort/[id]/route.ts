@@ -39,6 +39,24 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { data: employee } = await supabase
+      .from("employees")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!employee) {
+      return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
+    }
+
+    // Fix Kimi-M5 (auditoría externa Kimi Code, 2026-07-21, verificado y
+    // confirmado real): este PATCH no verificaba que el SOS pertenezca al
+    // empleado que llama -- a diferencia de M6 (duplicados/orden ajena en
+    // el POST, que se deja intencionalmente sin bloquear por ser seguridad
+    // P0), este SÍ es un riesgo real distinto: sin este chequeo, cualquier
+    // empleado autenticado podía inyectar coordenadas GPS falsas en el SOS
+    // ACTIVO de OTRO empleado, potencialmente desviando una respuesta de
+    // emergencia real. Se restringe a `.eq("reported_by", employee.id)`.
     const { data, error } = await supabase
       .from("safety_aborts")
       .update({
@@ -47,6 +65,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         gps_updated_at: new Date().toISOString(),
       })
       .eq("id", params.id)
+      .eq("reported_by", employee.id)
       .select()
       .single();
 

@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { assertStripe } from "@/lib/stripe";
 import { computeCancellationDecision } from "@/lib/order-cancellation";
+import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
 
 /**
  * POST /api/orders/[orderId]/cancel
@@ -80,7 +81,7 @@ export async function POST(
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .select(
-        "id, user_id, status, service_datetime, payment_option, stripe_hold_payment_intent_id, hold_authorized_amount_cents, hold_amount_cents, paypal_advance_amount, paypal_transaction_id, stripe_customer_id, stripe_payment_method_id, wallet_amount_used_cents, quotes(total, zone)"
+        "id, user_id, status, service_datetime, payment_option, stripe_hold_payment_intent_id, hold_authorized_amount_cents, hold_amount_cents, paypal_advance_amount, paypal_transaction_id, stripe_customer_id, stripe_payment_method_id, wallet_amount_used_cents, wallet_payment_intent_id, wallet_amount_collected_cents, quotes(total, zone)"
       )
       .eq("id", orderId)
       .single();
@@ -150,7 +151,11 @@ export async function POST(
       holdAmount: order.hold_amount_cents || 0,
       paymentOption: order.payment_option,
       paypalAdvanceAmount: Math.round((order.paypal_advance_amount || 0) * 100),
+      walletAmountCollected: order.wallet_amount_collected_cents || 0,
     });
+
+    const isWalletOrder = order.payment_option === "alipay" || order.payment_option === "wechat_pay";
+    let walletRefundedCents = 0;
 
     // RAÍZ-3 (2026-07-21, migración 229): penaltyCharged ahora se acumula en
     // CENTAVOS (todos los inputs de computeCancellationDecision ya se pasan
@@ -237,6 +242,32 @@ export async function POST(
       }
     }
 
+    // 4. Alipay/WeChat Pay: el 100% ya fue cobrado por adelantado vía un
+    // PaymentIntent real de Stripe (no vía card off_session) -- cancelar
+    // nunca implica un cargo nuevo, solo reembolsar (a través de la misma
+    // API de Stripe, síncrono) la porción que no corresponde retener como
+    // penalidad (decision.walletRefundAmount, calculado por la función pura
+    // de arriba: 100% en >72h, mitad del hold en 24-72h, 0 en <24h/no-show).
+    if (decision.walletRefundAmount > 0 && order.wallet_payment_intent_id) {
+      try {
+        const refund = await stripe.refunds.create(
+          {
+            payment_intent: order.wallet_payment_intent_id,
+            amount: decision.walletRefundAmount,
+            metadata: { order_id: orderId, charge_type: "wallet_cancellation_refund" },
+          },
+          { idempotencyKey: `${orderId}:cancel-wallet-refund` }
+        );
+        walletRefundedCents = refund.amount;
+      } catch (err) {
+        console.error(`Failed to refund Alipay/WeChat Pay payment for order ${orderId}:`, err);
+        return NextResponse.json(
+          { error: "Failed to process refund. Please contact support." },
+          { status: 502 }
+        );
+      }
+    }
+
     // RAÍZ-3 (2026-07-21, migración 229): total_paid_cents/
     // card_amount_charged_cents ya están en centavos -- paypal_advance_amount
     // sigue en dólares (fuera de alcance), se escala x100 al restarlo.
@@ -245,22 +276,84 @@ export async function POST(
     // ganador de la carrera) -- este UPDATE ya no necesita (ni debe) volver
     // a tocar status, solo persiste los montos/timestamps calculados tras
     // los cargos de Stripe.
+    //
+    // Alipay/WeChat Pay: total_paid_cents es lo YA cobrado por adelantado
+    // menos lo reembolsado (no penaltyChargedCents, que para estas órdenes
+    // se queda en 0 -- no hubo cargo NUEVO, solo retención de dinero ya
+    // cobrado). card_amount_charged_cents es 0 porque nunca se tocó la
+    // tarjeta de respaldo en esta cancelación.
     await supabase
       .from("orders")
       .update({
         hold_released_at: holdCancelled ? new Date().toISOString() : null,
         hold_captured_at: payments.hold ? new Date().toISOString() : null,
-        total_paid_cents: penaltyChargedCents,
-        card_amount_charged_cents:
-          order.payment_option === "paypal_first_time"
+        total_paid_cents: isWalletOrder
+          ? Math.max(0, (order.wallet_amount_collected_cents || 0) - walletRefundedCents)
+          : penaltyChargedCents,
+        card_amount_charged_cents: isWalletOrder
+          ? 0
+          : order.payment_option === "paypal_first_time"
             ? Math.max(0, penaltyChargedCents - Math.round((order.paypal_advance_amount || 0) * 100))
             : penaltyChargedCents,
+        wallet_refunded_amount_cents: walletRefundedCents,
         paypal_refund_required: paypalRefundRequired,
         paypal_refund_status: paypalRefundRequired ? "pending" : "not_required",
         capture_last_error: null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", orderId);
+
+    if (walletRefundedCents > 0) {
+      try {
+        await supabase.from("shadow_ledger_entries").insert(
+          buildShadowLedgerEntry({
+            eventType: "wallet_refund",
+            orderId,
+            userId: order.user_id,
+            amountCents: walletRefundedCents,
+            processor: "stripe",
+            externalReference: order.wallet_payment_intent_id,
+            occurredAt: new Date(),
+            metadata: { source: "orders_cancel_route", hoursUntilService: hoursLeft, paymentOption: order.payment_option },
+          })
+        );
+      } catch (shadowLedgerErr) {
+        console.error(`Shadow ledger insert failed for wallet refund on order ${orderId}:`, shadowLedgerErr);
+      }
+    }
+
+    // Fix F3 (auditoría operativa/contable 2026-07-21, verificado y
+    // confirmado real): esta ruta cobra dinero real (captura de hold vía
+    // Stripe, o el cargo adicional de PayPal <24h) y actualiza
+    // total_paid_cents/card_amount_charged_cents, pero NUNCA insertaba en
+    // shadow_ledger_entries -- el tipo 'cancellation_penalty' ya existe en
+    // shadow-ledger.ts (documentado como evento que DEBE loguearse) pero
+    // nadie lo usaba. Sin esto, la penalidad de cancelación cobrada es
+    // invisible para la reconciliación interna. Se registra solo si
+    // realmente se cobró algo (penaltyChargedCents > 0) -- una cancelación
+    // >72h con liberación completa del hold, sin cargo, no genera evento
+    // de dinero real y no debe loguearse como tal.
+    if (penaltyChargedCents > 0) {
+      try {
+        await supabase.from("shadow_ledger_entries").insert(
+          buildShadowLedgerEntry({
+            eventType: "cancellation_penalty",
+            orderId,
+            userId: order.user_id,
+            amountCents: penaltyChargedCents,
+            processor: order.payment_option === "paypal_first_time" ? "paypal" : "stripe",
+            externalReference: payments.penalty || payments.hold || null,
+            occurredAt: new Date(),
+            metadata: { source: "orders_cancel_route", hoursUntilService: hoursLeft },
+          })
+        );
+      } catch (shadowLedgerErr) {
+        // La penalidad ya fue cobrada realmente (Stripe) -- un fallo al
+        // registrar el shadow ledger no debe revertir la cancelación ya
+        // procesada, pero queda logueado para reconciliación manual.
+        console.error(`Shadow ledger insert failed for cancellation penalty on order ${orderId}:`, shadowLedgerErr);
+      }
+    }
 
     // v8.3 fix (auditoría 2026-07-15): cancelar la orden nunca marcaba las
     // asignaciones (assignments) como canceladas. El listado de servicios
@@ -297,11 +390,21 @@ export async function POST(
           const refundCents = walletAmountUsedCents;
           // v8.3 fix (auditoría 2026-07-15): mutación atómica vía RPC
           // (migración 180) en vez de read-then-write sin bloqueo.
+          //
+          // Fix F5 (auditoría operativa/contable 2026-07-21, verificado y
+          // confirmado real): usaba p_type: "credit", que expira a los 12
+          // meses (isExpiringWalletCreditType, src/lib/wallet.ts) -- pero
+          // esto es dinero PROPIO del cliente que ya había aplicado a la
+          // orden, devuelto porque la orden se canceló, no un incentivo
+          // promocional nuevo. wallet.ts documenta explícitamente:
+          // "Reembolsos... son dinero que ya era del cliente... nunca
+          // expiran". Se corrige a 'refund' (valor válido en el CHECK de
+          // wallet_transactions.type, migración 025).
           const { error: rpcError } = await supabase.rpc("apply_wallet_delta", {
             p_wallet_id: wallet.id,
             p_user_id: order.user_id,
             p_order_id: orderId,
-            p_type: "credit",
+            p_type: "refund",
             p_delta: refundCents,
             p_description: `Reembolso por cancelación de orden ${orderId}`,
           });

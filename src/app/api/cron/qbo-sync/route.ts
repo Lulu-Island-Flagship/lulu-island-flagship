@@ -74,10 +74,20 @@ export async function GET(request: NextRequest) {
 
     // Órdenes nuevas (nunca intentadas) + reintentos pendientes cuyo backoff
     // ya se cumplió o que nunca se les asignó qbo_sync_attempts.
+    // Fix (auditoría operativa/contable 2026-07-21, F2 -- confirmado real):
+    // esta consulta pedía gst/pst/subtotal directo de `orders`, pero esas
+    // columnas NUNCA existieron ahí (viven en `quotes`, ver
+    // 001_modulo1_base_schema.sql) -- PostgREST rechaza un select con una
+    // columna inexistente con un error 400, así que ESTA CONSULTA FALLABA
+    // SIEMPRE, y el cron completo devolvía 500 en cada corrida sin
+    // sincronizar ni una sola orden a QBO. Se corrige con el join real
+    // orders.quote_id -> quotes.gst/pst (mismo patrón que
+    // stripe/confirm/route.ts y otras rutas de esta sesión). `subtotal` se
+    // quita del select -- no se usa en ningún punto de este archivo.
     const { data: orders, error } = await supabase
       .from("orders")
       .select(
-        "id, user_id, total_paid_cents, card_amount_charged_cents, gst, pst, subtotal, qbo_sync_attempts, qbo_last_attempt_at"
+        "id, user_id, total_paid_cents, card_amount_charged_cents, qbo_sync_attempts, qbo_last_attempt_at, quotes:quote_id ( gst, pst )"
       )
       .in("qbo_export_status", ["pending", "failed"])
       .gte("capture_captured_at", since)
@@ -114,11 +124,13 @@ export async function GET(request: NextRequest) {
 
       // action === "attempt_now"
       // RAÍZ-3 (2026-07-21, migración 229): total_paid_cents ya está en
-      // centavos -- sin *100. gst/pst siguen en dólares (columnas de
-      // `orders`, fuera de alcance de la migración 229), se escalan x100.
+      // centavos -- sin *100. gst/pst viven en `quotes` (fuera de alcance
+      // de RAÍZ-3, siguen en dólares con decimales), se leen vía el join
+      // de arriba (fix F2) y se escalan x100.
+      const quoteForTax = (order.quotes as unknown as { gst: number; pst: number }[] | null)?.[0];
       const gross = Math.round(order.total_paid_cents || 0);
-      const gst = Math.round(((order as { gst?: number }).gst || 0) * 100);
-      const pst = Math.round(((order as { pst?: number }).pst || 0) * 100);
+      const gst = Math.round((quoteForTax?.gst || 0) * 100);
+      const pst = Math.round((quoteForTax?.pst || 0) * 100);
       const fee = Math.round(gross * 0.029 + 30);
       const net = gross - fee;
 

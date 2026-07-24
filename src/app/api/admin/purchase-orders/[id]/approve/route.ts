@@ -164,7 +164,7 @@ export async function POST(
     // inventory_items.current_stock nunca se movía en ningún endpoint --
     // todo el motor de reposición (computeReorderSuggestions,
     // computeConsumptionProjections) corría sobre un número congelado.
-    let stockUpdateErrors: string[] = [];
+    const stockUpdateErrors: string[] = [];
     if (action === "receive") {
       const { data: lines, error: linesError } = await supabase
         .from("purchase_order_lines")

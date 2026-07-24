@@ -29,7 +29,7 @@
 
 export type CancellationWindow = "full_refund" | "partial_penalty" | "full_penalty";
 
-export type PaymentOption = "card" | "paypal_first_time";
+export type PaymentOption = "card" | "paypal_first_time" | "alipay" | "wechat_pay";
 
 export interface CancellationDecisionInput {
   /** Horas hasta el servicio (puede ser negativo si ya pasó / no-show). */
@@ -43,6 +43,15 @@ export interface CancellationDecisionInput {
   paymentOption: PaymentOption;
   /** order.paypal_advance_amount, escalado a la unidad del resto de inputs por el caller (0 si no aplica). */
   paypalAdvanceAmount: number;
+  /**
+   * order.wallet_amount_collected_cents (feature 2026-07-21): monto YA
+   * cobrado en su totalidad al reservar vía Alipay/WeChat Pay. 0 si no
+   * aplica (card/paypal_first_time). A diferencia de PayPal (que solo
+   * adelanta el 50% del hold y deja el resto pendiente de cobro futuro),
+   * Alipay/WeChat Pay ya cobraron el 100% -- así que cancelar nunca implica
+   * un cobro NUEVO, solo decidir cuánto de lo ya cobrado se reembolsa.
+   */
+  walletAmountCollected?: number;
 }
 
 export interface CancellationDecision {
@@ -61,6 +70,12 @@ export interface CancellationDecision {
   paypalAmountRetained: number;
   /** PayPal <24h: diferencia que hay que cobrar por Stripe además del anticipo retenido. */
   stripeAdditionalChargeAmount: number;
+  /**
+   * Alipay/WeChat Pay: monto a reembolsar vía Stripe refund del
+   * PaymentIntent que ya cobró el 100% (walletAmountCollected - penalidad
+   * correspondiente a la ventana). 0 para card/paypal_first_time.
+   */
+  walletRefundAmount: number;
 }
 
 function resolveWindow(hoursUntilService: number): CancellationWindow {
@@ -79,7 +94,23 @@ export function computeCancellationDecision(
   );
   const window = resolveWindow(input.hoursUntilService);
 
+  const isWallet = input.paymentOption === "alipay" || input.paymentOption === "wechat_pay";
+  const walletAmountCollected = Math.max(0, Math.round(input.walletAmountCollected || 0));
+
   if (window === "full_refund") {
+    if (isWallet) {
+      return {
+        window,
+        effectiveHoldAmount,
+        penaltyAmount: 0,
+        releaseStripeHold: false,
+        captureFromExistingHold: 0,
+        paypalRefundRequired: false,
+        paypalAmountRetained: 0,
+        stripeAdditionalChargeAmount: 0,
+        walletRefundAmount: walletAmountCollected,
+      };
+    }
     return {
       window,
       effectiveHoldAmount,
@@ -90,11 +121,26 @@ export function computeCancellationDecision(
         input.paymentOption === "paypal_first_time" && input.paypalAdvanceAmount > 0,
       paypalAmountRetained: 0,
       stripeAdditionalChargeAmount: 0,
+      walletRefundAmount: 0,
     };
   }
 
   if (window === "partial_penalty") {
     const penaltyAmount = Math.round(effectiveHoldAmount * 0.5);
+
+    if (isWallet) {
+      return {
+        window,
+        effectiveHoldAmount,
+        penaltyAmount,
+        releaseStripeHold: false,
+        captureFromExistingHold: 0,
+        paypalRefundRequired: false,
+        paypalAmountRetained: 0,
+        stripeAdditionalChargeAmount: 0,
+        walletRefundAmount: Math.max(0, walletAmountCollected - penaltyAmount),
+      };
+    }
 
     if (input.paymentOption === "paypal_first_time") {
       const paypalAmountRetained = Math.min(input.paypalAdvanceAmount, penaltyAmount);
@@ -107,6 +153,7 @@ export function computeCancellationDecision(
         paypalRefundRequired: false,
         paypalAmountRetained,
         stripeAdditionalChargeAmount: 0,
+        walletRefundAmount: 0,
       };
     }
 
@@ -119,10 +166,25 @@ export function computeCancellationDecision(
       paypalRefundRequired: false,
       paypalAmountRetained: 0,
       stripeAdditionalChargeAmount: 0,
+      walletRefundAmount: 0,
     };
   }
 
   // full_penalty (<24h o no-show)
+  if (isWallet) {
+    return {
+      window,
+      effectiveHoldAmount,
+      penaltyAmount: effectiveHoldAmount,
+      releaseStripeHold: false,
+      captureFromExistingHold: 0,
+      paypalRefundRequired: false,
+      paypalAmountRetained: 0,
+      stripeAdditionalChargeAmount: 0,
+      walletRefundAmount: Math.max(0, walletAmountCollected - effectiveHoldAmount),
+    };
+  }
+
   if (input.paymentOption === "paypal_first_time") {
     const paypalAmountRetained = Math.min(
       input.paypalAdvanceAmount || Math.round(input.holdAmount * 0.5),
@@ -138,6 +200,7 @@ export function computeCancellationDecision(
       paypalRefundRequired: false,
       paypalAmountRetained,
       stripeAdditionalChargeAmount,
+      walletRefundAmount: 0,
     };
   }
 
@@ -150,5 +213,6 @@ export function computeCancellationDecision(
     paypalRefundRequired: false,
     paypalAmountRetained: 0,
     stripeAdditionalChargeAmount: 0,
+    walletRefundAmount: 0,
   };
 }

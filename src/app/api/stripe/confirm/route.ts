@@ -17,6 +17,7 @@ import {
 } from "@/lib/installment-payment";
 import { isSmsProviderConfigured } from "@/lib/sms";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
+import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -72,6 +73,7 @@ export async function POST(request: NextRequest) {
       paypalTransactionId,
       paypalPayerEmail,
       useInstallmentPlan,
+      walletPaymentIntentId,
     } = body;
 
     if (!quoteId || !serviceDate || !serviceTime || !paymentMethodId) {
@@ -81,7 +83,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const requestedOption = paymentOption === "paypal_first_time" ? "paypal_first_time" : "card";
+    const requestedOption: "card" | "paypal_first_time" | "alipay" | "wechat_pay" =
+      paymentOption === "paypal_first_time" || paymentOption === "alipay" || paymentOption === "wechat_pay"
+        ? paymentOption
+        : "card";
 
     const supabase = getSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -276,12 +281,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const selectedPaymentOption: "card" | "paypal_first_time" = requestedOption;
+    const selectedPaymentOption: "card" | "paypal_first_time" | "alipay" | "wechat_pay" = requestedOption;
 
-    // SetupIntent de Stripe es obligatorio en AMBAS opciones (spec v8.2).
+    // SetupIntent de Stripe es obligatorio en TODAS las opciones (spec v8.2,
+    // extendido 2026-07-21 a Alipay/WeChat Pay: aunque esos medios ya cobran
+    // el 100% por adelantado, la tarjeta de respaldo sigue siendo necesaria
+    // para cargos extra reales -- daño, tiempo adicional, cancelación tardía).
     if (!stripeSetupIntentId) {
       return NextResponse.json(
-        { error: "Card registration is required for all reservations, including PayPal first service." },
+        { error: "Card registration is required for all reservations, including PayPal/Alipay/WeChat Pay first service." },
         { status: 400 }
       );
     }
@@ -420,6 +428,74 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Alipay/WeChat Pay (feature 2026-07-21): verificar el PaymentIntent
+    // real contra la API de Stripe -- a diferencia de PayPal (transacción
+    // externa, verificada por su propia API vía verifyPayPalTransaction),
+    // esto ya es un PaymentIntent de Stripe creado por /api/stripe/wallet-intent
+    // y confirmado en el navegador del cliente (redirect de Alipay / QR de
+    // WeChat Pay). Nunca se confía en un monto del cliente: se compara
+    // contra el total server-side de la quote, igual que el resto del route.
+    let walletAmountCollectedCents = 0;
+    if (selectedPaymentOption === "alipay" || selectedPaymentOption === "wechat_pay") {
+      if (!walletPaymentIntentId) {
+        return NextResponse.json(
+          { error: "Missing wallet payment confirmation" },
+          { status: 400 }
+        );
+      }
+
+      // Evitar reutilización del mismo PaymentIntent en otra orden (mismo
+      // patrón anti-reuso que paypal_transaction_id arriba; el índice único
+      // parcial de la migración 241 es la última línea de defensa).
+      const { data: existingWalletOrder } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("wallet_payment_intent_id", walletPaymentIntentId)
+        .neq("status", "cancelled")
+        .maybeSingle();
+
+      if (existingWalletOrder) {
+        return NextResponse.json(
+          { error: "This payment has already been used for another order" },
+          { status: 409 }
+        );
+      }
+
+      let walletPi;
+      try {
+        walletPi = await stripe.paymentIntents.retrieve(walletPaymentIntentId);
+      } catch (err) {
+        console.error("Failed to retrieve wallet PaymentIntent:", err);
+        return NextResponse.json(
+          { error: "Could not verify payment. Please try again." },
+          { status: 402 }
+        );
+      }
+
+      const expectedAmountCents = Math.round(Number(quoteRow.total) * 100);
+
+      if (walletPi.status !== "succeeded") {
+        return NextResponse.json(
+          { error: `Payment not completed (status: ${walletPi.status}). Please complete payment before confirming.` },
+          { status: 402 }
+        );
+      }
+      if (walletPi.currency !== "cad" || walletPi.amount !== expectedAmountCents) {
+        return NextResponse.json(
+          { error: "Payment amount does not match the quote total" },
+          { status: 402 }
+        );
+      }
+      if (walletPi.metadata?.quote_id !== quoteId) {
+        return NextResponse.json(
+          { error: "Payment does not match this reservation" },
+          { status: 402 }
+        );
+      }
+
+      walletAmountCollectedCents = walletPi.amount_received || walletPi.amount;
+    }
+
     // En el flujo corregido NO autorizamos el hold en la confirmación.
     // El cron /api/cron/hold-authorize lo hará T-72h antes del servicio.
     // Esto evita que los holds expiren para servicios lejanos y cumple el spec.
@@ -507,6 +583,14 @@ export async function POST(request: NextRequest) {
         paypal_transaction_id: selectedPaymentOption === "paypal_first_time" ? paypalTransactionId || null : null,
         paypal_payer_email: selectedPaymentOption === "paypal_first_time" ? paypalPayerEmail || null : null,
         paypal_advance_amount: selectedPaymentOption === "paypal_first_time" ? paypalAdvanceAmount : 0,
+        wallet_payment_intent_id:
+          selectedPaymentOption === "alipay" || selectedPaymentOption === "wechat_pay"
+            ? walletPaymentIntentId
+            : null,
+        wallet_amount_collected_cents:
+          selectedPaymentOption === "alipay" || selectedPaymentOption === "wechat_pay"
+            ? walletAmountCollectedCents
+            : 0,
         // RAÍZ-3 (2026-07-21, migración 229): orders.hold_amount_cents está en
         // centavos; holdAmount (derivado de quotes.hold_amount, dólares) se
         // escala x100 al escribirlo aquí. hold_authorized_amount_cents nace en
@@ -547,6 +631,61 @@ export async function POST(request: NextRequest) {
         { error: orderError.message },
         { status: 500 }
       );
+    }
+
+    // Fix F4 (auditoría operativa/contable 2026-07-21, verificado y
+    // confirmado real): el anticipo de PayPal (paypal_advance_amount) se
+    // guardaba en `orders`, pero nunca se registraba en shadow_ledger_entries
+    // -- el propio docstring de shadow-ledger.ts ya documentaba "anticipo
+    // PayPal (hold-authorize)" como uno de los eventos de dinero real que
+    // DEBEN loguearse, pero ningún caller lo hacía. Sin esto, el dinero real
+    // ya cobrado por PayPal quedaba invisible para la reconciliación interna
+    // (replayOrderBalance) y para el futuro job de conciliación QBO.
+    if (selectedPaymentOption === "paypal_first_time" && paypalAdvanceAmount > 0) {
+      try {
+        await supabase.from("shadow_ledger_entries").insert(
+          buildShadowLedgerEntry({
+            eventType: "paypal_advance_received",
+            orderId: order.id,
+            userId: user.id,
+            amountCents: Math.round(paypalAdvanceAmount * 100),
+            processor: "paypal",
+            externalReference: paypalTransactionId || null,
+            occurredAt: new Date(),
+            metadata: { source: "stripe_confirm_route" },
+          })
+        );
+      } catch (shadowLedgerErr) {
+        // El anticipo de PayPal ya fue verificado y la orden ya existe --
+        // un fallo al registrar el shadow ledger no debe bloquear la
+        // reserva del cliente, pero sí queda logueado para reconciliación
+        // manual (mismo patrón que el resto del archivo).
+        console.error(`Shadow ledger insert failed for PayPal advance on order ${order.id}:`, shadowLedgerErr);
+      }
+    }
+
+    // Alipay/WeChat Pay: registrar el cobro completo real (100% del total)
+    // en Shadow Ledger, mismo patrón/razón que el anticipo PayPal arriba.
+    if (
+      (selectedPaymentOption === "alipay" || selectedPaymentOption === "wechat_pay") &&
+      walletAmountCollectedCents > 0
+    ) {
+      try {
+        await supabase.from("shadow_ledger_entries").insert(
+          buildShadowLedgerEntry({
+            eventType: "wallet_full_payment_received",
+            orderId: order.id,
+            userId: user.id,
+            amountCents: walletAmountCollectedCents,
+            processor: "stripe",
+            externalReference: walletPaymentIntentId,
+            occurredAt: new Date(),
+            metadata: { source: "stripe_confirm_route", paymentOption: selectedPaymentOption },
+          })
+        );
+      } catch (shadowLedgerErr) {
+        console.error(`Shadow ledger insert failed for wallet payment on order ${order.id}:`, shadowLedgerErr);
+      }
     }
 
     // Update quote status to reserved

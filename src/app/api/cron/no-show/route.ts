@@ -125,6 +125,12 @@ async function captureNoShowPenalty(
         console.warn(`Could not cancel hold for PayPal order ${order.id}:`, err);
       }
     }
+  } else if (order.payment_option === "alipay" || order.payment_option === "wechat_pay") {
+    // Alipay/WeChat Pay (feature 2026-07-21): el 100% ya se cobró por
+    // adelantado vía un PaymentIntent real de Stripe al reservar -- un
+    // no-show no genera ningún cargo nuevo (el dinero ya está en la cuenta,
+    // el no-show no lo reduce). No hay hold que capturar ni tarjeta que
+    // tocar; result.amountChargedCents se queda en 0 intencionalmente.
   } else {
     // Tarjeta: capturar hold completo como penalidad.
     const holdAmountCents = Math.min(

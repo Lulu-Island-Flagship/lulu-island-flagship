@@ -127,11 +127,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Cannot vote for yourself" }, { status: 400 });
     }
 
-    // Lunes de esta semana en Vancouver (también en POST)
-    const vancouverDate = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", year: "numeric", month: "2-digit", day: "2-digit" });
-    const vancouverToday = new Date(vancouverDate + "T12:00:00-07:00");
+    // Fix Kimi-A9 (auditoría externa Kimi Code, 2026-07-21, verificado y
+    // confirmado real): este POST tenía su PROPIO cálculo de "lunes de esta
+    // semana", distinto del que ya se corrigió en el GET de este mismo
+    // archivo (fix D-P1-6, más arriba en este mismo día de auditoría) --
+    // `getDate() - getDay() + 1` manda el domingo a la semana SIGUIENTE
+    // (getDay()===0 sin caso especial), permitiendo votar hasta 3 veces al
+    // mismo compañero en 8 días si alguno de los votos cae en domingo. Se
+    // alinea con el cálculo ya corregido del GET (mismo patrón exacto que
+    // empleado/ritual/inicio/route.ts).
+    const vancouverDateStr = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", year: "numeric", month: "2-digit", day: "2-digit" }).split(",")[0];
+    const vancouverToday = new Date(vancouverDateStr + "T12:00:00Z");
+    const day = vancouverToday.getUTCDay();
+    const diff = day === 0 ? 6 : day - 1;
     const monday = new Date(vancouverToday);
-    monday.setDate(vancouverToday.getDate() - vancouverToday.getDay() + 1);
+    monday.setUTCDate(vancouverToday.getUTCDate() - diff);
     const weekStart = monday.toISOString().split("T")[0];
 
     // Verificar si ya votó por este compañero esta semana

@@ -104,7 +104,7 @@ export async function submitServiceEventOrQueue(
     // encolar un evento que el servidor ya rechazó solo pospondría el mismo error.
     const err = await res.json().catch(() => ({}));
     return { queued: false, ok: false, error: err.error || `HTTP ${res.status}` };
-  } catch (e) {
+  } catch {
     // Fallo de red real: encolar silenciosamente.
     await enqueueServiceEvent({
       localId: `${orderId}-${eventType}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { evaluateSampledRejectionRate, decideGamingConsequence } from "@/lib/anti-gaming";
-import { calculatePayroll, DEFAULT_SERVICE_MINUTES } from "@/lib/payroll";
+import { calculatePayroll, DEFAULT_SERVICE_MINUTES, BC_MIN_WAGE_HOURLY } from "@/lib/payroll";
 
 // POST /api/admin/qc/[orderId]/review — aprobar o rechazar servicio
 export async function POST(
@@ -56,6 +56,25 @@ export async function POST(
       .eq("order_id", orderId)
       .single();
 
+    // Fix Kimi-A6 (auditoría externa Kimi Code, 2026-07-21, verificado y
+    // confirmado real): esta ruta nunca comparaba reviewer.id (el
+    // supervisor autenticado que hace la revisión) contra
+    // existingReview.employee_id (el empleado que ejecutó el servicio). Si
+    // un supervisor también aparece asignado como empleado en una orden
+    // (pasa en la práctica -- supervisores de campo sí hacen servicios),
+    // podía aprobar/rechazar su propio trabajo sin ningún bloqueo --
+    // auto-revisión completa del muro QC que existe precisamente para que
+    // un tercero valide el servicio.
+    if (existingReview?.employee_id && existingReview.employee_id === reviewer.id) {
+      return NextResponse.json(
+        {
+          error:
+            "No puedes revisar tu propio servicio en el muro QC -- se requiere que otro supervisor/QC lo evalúe.",
+        },
+        { status: 403 }
+      );
+    }
+
     // v8.3 fix (migración N/A -- solo API, auditoría 2026-07-21, A-8): esta
     // ruta no validaba el estado previo antes de mutar una review terminal.
     // Una review ya 'approved' de una orden ya COBRADA (capture_captured_at
@@ -63,7 +82,14 @@ export async function POST(
     // aviso ni confirmación explícita -- a diferencia de
     // /api/empleado/qc-resubmit, que sí valida estado previo. Se bloquea
     // con 409 salvo que el body incluya confirmReopenPaidOrder:true.
-    if (existingReview?.status === "approved") {
+    //
+    // Fix Kimi-A8 (auditoría externa Kimi Code, 2026-07-21, verificado y
+    // confirmado real): este guard solo miraba status==='approved', pero
+    // qc_reviews.status también puede ser 'auto' (elite auto-aprobado, ver
+    // migración 231) -- una orden auto-aprobada y ya cobrada podía
+    // reabrirse (rechazo/rework retroactivo) sin ninguna confirmación,
+    // exactamente el mismo riesgo que 'approved' pero sin el bloqueo.
+    if (existingReview?.status === "approved" || existingReview?.status === "auto") {
       const { data: orderForReopenCheck } = await supabase
         .from("orders")
         .select("capture_captured_at")
@@ -142,11 +168,30 @@ export async function POST(
 
       if (wageEmployee?.min_wage_floor_enabled !== false) {
         if (wageEmployee?.day_rate != null) {
+          // Fix F10 (auditoría operativa/contable 2026-07-21, verificado y
+          // confirmado real): calculatePayroll() usaba el default
+          // BC_MIN_WAGE_HOURLY hardcodeado en el código ($18.25) en vez de
+          // payroll_settings.bc_min_wage_hourly, que existe exactamente
+          // para esto y es editable por un owner_admin vía
+          // admin_update_config (whitelist, migración 235). Hoy coinciden
+          // en valor, pero si BC actualiza el salario mínimo legal y el
+          // owner_admin lo edita en el panel, este chequeo seguiría
+          // evaluando contra el valor viejo hardcodeado.
+          const { data: minWageSetting } = await supabase
+            .from("payroll_settings")
+            .select("bc_min_wage_hourly")
+            .is("effective_to", null)
+            .order("effective_from", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          const effectiveMinWageHourly = minWageSetting?.bc_min_wage_hourly ?? BC_MIN_WAGE_HOURLY;
           const payrollCheck = calculatePayroll({
             dayRate: wageEmployee.day_rate,
             estimatedServiceMinutes: DEFAULT_SERVICE_MINUTES,
             reworkMinutes: totalReworkMinutesIfUsed,
             maxReworkMinutes,
+            minWageHourly: effectiveMinWageHourly,
           });
 
           if (payrollCheck.minimumWageAdjustment > 0) {
@@ -162,14 +207,14 @@ export async function POST(
                     (payrollCheck.grossAmount - payrollCheck.minimumWageAdjustment) /
                     100 /
                     (DEFAULT_SERVICE_MINUTES / 60)
-                  ).toFixed(2)}/h antes del ajuste de mínimo legal, por debajo de $18.25/h.`,
+                  ).toFixed(2)}/h antes del ajuste de mínimo legal, por debajo de $${effectiveMinWageHourly.toFixed(2)}/h.`,
               })
               .eq("order_id", orderId);
 
             return NextResponse.json(
               {
                 error:
-                  "Este rework llevaría la tarifa efectiva del empleado por debajo del mínimo legal de BC ($18.25/h). " +
+                  `Este rework llevaría la tarifa efectiva del empleado por debajo del mínimo legal de BC ($${effectiveMinWageHourly.toFixed(2)}/h). ` +
                   "Se requiere escalación a supervisor para aprobar compensación adicional antes de continuar con el rework.",
                 escalationRequired: true,
                 priorReworkMinutes,
@@ -190,12 +235,21 @@ export async function POST(
         note,
         reviewer_id: reviewer.id,
         reviewed_at: nowForUpdate.toISOString(),
-        // v8.3 E5 (migración 190): timer de 30 min. Se limpian los campos de
+        // v8.3 E5 (migración 190): timer de rework. Se limpian los campos de
         // rework anteriores si esta revisión NO es 'rework' (ej. tras
         // resubmisión el admin aprueba/rechaza directamente).
+        //
+        // Fix Kimi-A7 (auditoría externa Kimi Code, 2026-07-21, verificado y
+        // confirmado real): este deadline estaba HARDCODEADO a 30 minutos,
+        // sin importar acceptedReworkWindowMinutes (que sí usa
+        // employees.max_rework_minutes cuando existe, ver arriba). Un
+        // empleado con max_rework_minutes=45 pasaba el chequeo de piso
+        // salarial evaluado sobre 45 min, pero el cron qc-rework-expiry
+        // igual lo vencía a los 30 -- inconsistencia entre lo que se evaluó
+        // y lo que realmente se hizo cumplir.
         rework_started_at: isRework ? nowForUpdate.toISOString() : null,
         rework_deadline: isRework
-          ? new Date(nowForUpdate.getTime() + 30 * 60 * 1000).toISOString()
+          ? new Date(nowForUpdate.getTime() + acceptedReworkWindowMinutes * 60 * 1000).toISOString()
           : null,
         rework_note: isRework ? note : null,
         rework_resubmitted_at: null,

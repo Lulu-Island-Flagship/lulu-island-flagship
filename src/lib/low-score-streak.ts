@@ -27,6 +27,7 @@ export interface LowScoreStreakResult {
 
 const LOW_SCORE_THRESHOLD = 50;
 const STREAK_LENGTH_REQUIRED = 3;
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * @param currentWeek Score de la semana que se acaba de calcular.
@@ -40,13 +41,29 @@ export function evaluateLowScoreStreak(
 ): LowScoreStreakResult {
   const chain = [currentWeek, ...priorWeeksDescending];
 
+  // Fix Kimi-M4 (auditoría externa Kimi Code, 2026-07-21, verificado y
+  // confirmado real): esta función contaba "consecutivas" solo por
+  // POSICIÓN en el arreglo, sin verificar que las semanas realmente estén
+  // separadas por 7 días exactos. El caller (weekly-scores/route.ts) trae
+  // las últimas N filas EXISTENTES de employee_scores -- si al empleado le
+  // falta una semana (de baja, cron que no corrió esa semana, etc.), las
+  // filas disponibles pueden tener huecos de calendario y aun así
+  // contarse como "3 semanas consecutivas por debajo de 50", documentando
+  // una racha que en realidad tuvo una interrupción.
   let consecutive = 0;
-  for (const week of chain) {
-    if (week.totalScore < LOW_SCORE_THRESHOLD) {
-      consecutive++;
-    } else {
+  for (let i = 0; i < chain.length; i++) {
+    const week = chain[i];
+    if (week.totalScore >= LOW_SCORE_THRESHOLD) {
       break;
     }
+    if (i > 0) {
+      const prevWeekStart = new Date(`${chain[i - 1].weekStart}T00:00:00Z`).getTime();
+      const thisWeekStart = new Date(`${week.weekStart}T00:00:00Z`).getTime();
+      if (prevWeekStart - thisWeekStart !== WEEK_MS) {
+        break; // hueco de calendario: la racha se interrumpe aquí
+      }
+    }
+    consecutive++;
   }
 
   if (consecutive < STREAK_LENGTH_REQUIRED) {

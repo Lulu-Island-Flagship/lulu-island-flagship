@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
     // Empleados activos
     const { data: employees, error: empError } = await supabase
       .from("employees")
-      .select("id")
+      .select("id, trust_level, suspension_reason")
       .eq("is_active", true);
 
     if (empError) {
@@ -119,15 +119,51 @@ export async function GET(request: NextRequest) {
       rating: v.rating,
     }));
 
+    // Fix Kimi-M3 (auditoría externa Kimi Code, 2026-07-21, verificado y
+    // confirmado real): este INSERT no tenía protección contra duplicados
+    // si el cron se reintenta o corre dos veces para la misma semana.
+    // detectReciprocalHighRatings() no garantiza un orden canónico entre
+    // employeeA/employeeB entre corridas (depende del orden de iteración
+    // del array de votos), así que un UNIQUE simple sobre
+    // (employee_a, employee_b, week_start) no bastaría -- se verifica
+    // primero si ya existe una bandera para este par en cualquier orden
+    // (migración 237 agrega además un índice único sobre
+    // LEAST/GREATEST(employee_a, employee_b) + week_start como respaldo
+    // ante una carrera real entre dos ejecuciones concurrentes).
     const collusionPairs = detectReciprocalHighRatings(weekVotes);
     for (const pair of collusionPairs) {
-      await supabase.from("peer_vote_collusion_flags").insert({
+      const { data: existingFlag } = await supabase
+        .from("peer_vote_collusion_flags")
+        .select("id")
+        .eq("week_start", weekStart)
+        .is("deleted_at", null)
+        .or(
+          `and(employee_a.eq.${pair.employeeA},employee_b.eq.${pair.employeeB}),and(employee_a.eq.${pair.employeeB},employee_b.eq.${pair.employeeA})`
+        )
+        .maybeSingle();
+
+      if (existingFlag) {
+        continue;
+      }
+
+      const { error: collusionInsertError } = await supabase.from("peer_vote_collusion_flags").insert({
         week_start: weekStart,
         employee_a: pair.employeeA,
         employee_b: pair.employeeB,
         rating_a_to_b: pair.ratingAtoB,
         rating_b_to_a: pair.ratingBtoA,
       });
+
+      // El índice único de la migración 237 puede rechazar esta inserción
+      // si otra ejecución concurrente ganó la carrera entre el SELECT de
+      // arriba y este INSERT -- es el comportamiento esperado (defensa en
+      // profundidad), no un error real; se loguea y se continúa.
+      if (collusionInsertError) {
+        console.error(
+          `Collusion flag insert skipped for pair ${pair.employeeA}/${pair.employeeB} week ${weekStart} (likely duplicate):`,
+          collusionInsertError.message
+        );
+      }
     }
 
     const results = [];
@@ -146,7 +182,28 @@ export async function GET(request: NextRequest) {
       }
 
       let totalScore = scoreData?.[0]?.total_score || 0;
-      const trustLevel = scoreData?.[0]?.trust_level || "standard";
+      const computedTrustLevel = scoreData?.[0]?.trust_level || "standard";
+
+      // Fix Kimi-A10 (auditoría externa Kimi Code, 2026-07-21, verificado y
+      // confirmado real): recalculate_weekly_score() (migración 227)
+      // calcula trust_level PURO por umbral de puntaje, sin mirar si el
+      // empleado ya está suspendido manualmente por detección de
+      // manipulación del muro QC (employees.suspension_reason, ver
+      // admin/qc/[orderId]/review/route.ts) -- ese flujo exige
+      // explícitamente "revisión humana requerida antes de cualquier
+      // decisión de despido (B.2.23)". Sin este guard, si el puntaje del
+      // empleado se recupera la semana siguiente, este cron le devolvía
+      // trust_level a 'standard'/'elite' AUTOMÁTICAMENTE, levantando la
+      // suspensión sin que ningún humano interviniera -- exactamente lo
+      // que B.2.23 prohíbe. No existe hoy ninguna ruta que limpie
+      // suspension_reason (verificado por grep) -- por eso la única señal
+      // disponible es su presencia; se preserva el trust_level actual
+      // mientras suspension_reason siga sin limpiar, sin importar el
+      // puntaje recién calculado.
+      const trustLevel =
+        emp.trust_level === "suspended" && emp.suspension_reason
+          ? "suspended"
+          : computedTrustLevel;
       const telemetryScore = scoreData?.[0]?.telemetry_score || 0;
       const auditScore = scoreData?.[0]?.audit_score || 0;
       let peerScore = scoreData?.[0]?.peer_score || 0;

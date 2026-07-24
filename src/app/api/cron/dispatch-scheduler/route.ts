@@ -596,7 +596,7 @@ export async function GET(request: NextRequest) {
     if (phase === "published") {
       const { proposals, availableTeams, pendingLanguage, discrepancies, maxTeamSizeCorrections, overtimeRejectionNotices } =
         await buildProposals(supabase, targetDate);
-      const fallback = await recordAndEscalateDispatchDiscrepancies(supabase, discrepancies);
+      await recordAndEscalateDispatchDiscrepancies(supabase, discrepancies);
       // v8.3 E3 (D.4/E2#9) — umbral "equipo #6": ver nota de alcance en
       // dispatch-approval.ts sobre por qué `hasRedAlerts` usa discrepancias
       // + correcciones de N_max como proxy (no existe todavía el semáforo de

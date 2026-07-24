@@ -62,7 +62,13 @@ export async function GET(request: NextRequest) {
         .update({
           status: "rejected",
           rework_expired_at: nowIso,
-          note: "Rechazado automáticamente: venció el timer de 30 min de rework sin resubmisión",
+          // Fix Kimi-B1 (auditoría externa Kimi Code, 2026-07-21, verificado
+          // y confirmado real): esta fila quedaba 'rejected' sin
+          // reviewed_at, sin ninguna traza de CUÁNDO se resolvió (reviewer_id
+          // se deja NULL a propósito -- fue el sistema, no un humano, quien
+          // rechazó por vencimiento; el note ya lo aclara).
+          reviewed_at: nowIso,
+          note: "Rechazado automáticamente: venció el timer de rework sin resubmisión",
         })
         .eq("id", review.id)
         .eq("status", "rework"); // guard contra doble-procesamiento en corridas solapadas

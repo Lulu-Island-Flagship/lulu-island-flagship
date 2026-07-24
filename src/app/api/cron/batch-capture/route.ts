@@ -50,7 +50,7 @@ interface OrderRow {
   id: string;
   quote_id: string;
   user_id: string;
-  payment_option: "card" | "paypal_first_time";
+  payment_option: "card" | "paypal_first_time" | "alipay" | "wechat_pay";
   stripe_hold_payment_intent_id: string | null;
   stripe_customer_id: string | null;
   stripe_payment_method_id: string | null;
@@ -632,6 +632,15 @@ export async function GET(request: NextRequest) {
               console.warn(`Could not cancel hold for PayPal order ${order.id}:`, err);
             }
           }
+        } else if (order.payment_option === "alipay" || order.payment_option === "wechat_pay") {
+          // Alipay/WeChat Pay (feature 2026-07-21): el 100% ya se cobró por
+          // adelantado vía un PaymentIntent real de Stripe al reservar --
+          // nunca hay hold (hold-authorize/hold-preauth-check filtran
+          // payment_option="card", así que estas órdenes nunca llegan a
+          // tener uno) ni saldo pendiente que capturar.
+          // amountChargedCents se queda en 0 intencionalmente: el cobro real
+          // ya se registró como wallet_full_payment_received en
+          // /api/stripe/confirm, no aquí.
         }
 
         // Stripe fee aproximada para QBO (2.9% + 0.30 CAD)

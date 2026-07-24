@@ -3,7 +3,6 @@ import { requireAdminRole } from "@/lib/admin";
 import { getCycleForDate, getPreviousCycle, aggregateCycle, type CycleEntry } from "@/lib/payroll-cycle";
 import {
   buildCycleDeductions,
-  cycleDeductionsToCsv,
   cycleDeductionsToCsvWithSin,
   attachSinToLines,
   totalCycleDeductions,

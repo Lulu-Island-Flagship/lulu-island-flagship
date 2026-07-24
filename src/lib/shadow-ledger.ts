@@ -38,7 +38,9 @@ export type ShadowLedgerEventType =
   | "paypal_advance_received"
   | "paypal_refund"
   | "capture_failed"
-  | "warranty_refund";
+  | "warranty_refund"
+  | "wallet_full_payment_received"
+  | "wallet_refund";
 
 export type ShadowLedgerProcessor = "stripe" | "paypal" | "internal";
 
@@ -133,12 +135,18 @@ export interface ReplayedOrderBalance {
 }
 
 export function replayOrderBalance(entries: LedgerEntryForReplay[]): ReplayedOrderBalance {
-  const REFUND_EVENTS: ShadowLedgerEventType[] = ["hold_released", "paypal_refund", "warranty_refund"];
+  const REFUND_EVENTS: ShadowLedgerEventType[] = [
+    "hold_released",
+    "paypal_refund",
+    "warranty_refund",
+    "wallet_refund",
+  ];
   const COLLECTION_EVENTS: ShadowLedgerEventType[] = [
     "hold_captured",
     "balance_captured",
     "cancellation_penalty",
     "paypal_advance_received",
+    "wallet_full_payment_received",
   ];
 
   let totalCollectedCents = 0;

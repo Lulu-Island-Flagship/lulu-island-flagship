@@ -67,8 +67,8 @@ import {
  *    estado que src/lib/telephony-router.ts). No se simula.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function findPropertyRiskForAddress(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   clientProfileId: string,
   address: string

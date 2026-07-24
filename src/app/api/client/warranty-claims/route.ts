@@ -2,19 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { validateWarrantyClaimInput } from "@/lib/warranty-claim-validation";
+import { validateWarrantyClaimInput, WARRANTY_CLAIM_WINDOW_DAYS } from "@/lib/warranty-claim-validation";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
-
-// v8.3 auditoría 2026-07-21 (E-B4): las garantías no tenían ningún plazo
-// -- no existía ninguna constante de ventana de reclamación en el repo,
-// así que se podía reclamar sobre un servicio de hace 3 años. 7 días
-// desde el service_date es un valor RAZONABLE elegido para cerrar el
-// hueco (defecto visible se nota en la primera semana), pero debe
-// confirmarse con negocio -- no hay ninguna especificación previa en el
-// repo que fije este número.
-export const WARRANTY_CLAIM_WINDOW_DAYS = 7;
 
 function getSupabaseClient() {
   const cookieStore = cookies();

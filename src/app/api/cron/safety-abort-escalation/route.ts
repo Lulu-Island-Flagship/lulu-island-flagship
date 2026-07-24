@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { evaluateSafetyAbortEscalation } from "@/lib/safety-abort";
+import { evaluateSafetyAbortEscalation, type SafetyAbortStage } from "@/lib/safety-abort";
+import { publishUnifiedAlert } from "@/lib/unified-alerts";
 
 /**
  * v8.3 ROUND 2 — hallazgo crítico de seguridad: esta ruta usaba
@@ -75,6 +76,47 @@ export async function GET(request: NextRequest) {
         if (!updateError) {
           updated += 1;
           transitions.push({ id: row.id, from: row.stage, to: result.stage });
+
+          // Fix Kimi-A11 (auditoría externa Kimi Code, 2026-07-21,
+          // verificado y confirmado real): este cron solo persistía
+          // stage/auto_approved -- nunca publicaba en unified_alerts al
+          // AVANZAR de etapa. El POST inicial (/api/empleado/safety-abort)
+          // sí alerta al activar el SOS, pero una escalación (nadie
+          // reconoció a tiempo, situación más urgente) no generaba NINGUNA
+          // señal nueva -- un admin solo se enteraría reabriendo
+          // manualmente el registro del SOS. El adaptador real de
+          // Twilio (SMS/llamada) sigue sin existir (ver comentario
+          // arriba) -- esto solo cubre la bandeja unificada interna, que
+          // sí existe hoy.
+          const alertBySeverityStage: Partial<
+            Record<SafetyAbortStage, { severity: "p0_safety"; title: string }>
+          > = {
+            escalated_admin_call: {
+              severity: "p0_safety",
+              title: "SOS sin reconocer 2+ min -- escalado a llamada de admin",
+            },
+            escalated_emergency_admin: {
+              severity: "p0_safety",
+              title: "SOS sin reconocer 4+ min -- escalado a Admin de Emergencia",
+            },
+            auto_approved: {
+              severity: "p0_safety",
+              title: "SOS auto-aprobado por seguridad (10+ min sin reconocer) -- revisión ex-post obligatoria",
+            },
+          };
+
+          const alertInfo = alertBySeverityStage[result.stage];
+          if (alertInfo) {
+            await publishUnifiedAlert(supabase, {
+              sourceModule: "safety_abort",
+              sourceTable: "safety_aborts",
+              sourceId: row.id,
+              tier: "respond_10min",
+              severity: alertInfo.severity,
+              title: alertInfo.title,
+              summary: `SOS ${row.id}: ${result.minutesElapsed.toFixed(1)} min transcurridos sin reconocimiento (sos_started_at=${row.sos_started_at}).`,
+            });
+          }
         }
       }
     }

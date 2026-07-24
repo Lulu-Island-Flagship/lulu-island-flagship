@@ -85,12 +85,23 @@ export async function GET(request: NextRequest) {
           })
           .eq("id", order.id);
 
+        // Fix Kimi-A13/M10 (auditoría externa Kimi Code, 2026-07-21,
+        // verificado y confirmado real -- y más grave de lo reportado):
+        // buildShadowLedgerEntry() LANZA una excepción si amountCents < 0
+        // (por diseño -- la magnitud siempre es >= 0, la dirección la da
+        // event_type, ver src/lib/shadow-ledger.ts). Este código pasaba un
+        // monto NEGATIVO. Como todo el for-loop de este cron está dentro de
+        // un único try/catch (no por-iteración), la excepción no solo
+        // impedía este registro contable -- abortaba el procesamiento de
+        // TODAS las órdenes restantes del batch (hasta 50) en cada corrida,
+        // después de que el reembolso real en PayPal ya se había emitido
+        // para la orden que disparó el throw.
         await supabase.from("shadow_ledger_entries").insert(
           buildShadowLedgerEntry({
             eventType: "warranty_refund",
             orderId: order.id,
             userId: order.user_id,
-            amountCents: -Math.round(Number(order.paypal_advance_amount) * 100),
+            amountCents: Math.round(Number(order.paypal_advance_amount) * 100),
             processor: "paypal",
             externalReference: refundResult.refundId ?? order.paypal_transaction_id,
             occurredAt: new Date(),

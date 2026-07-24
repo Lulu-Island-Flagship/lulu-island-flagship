@@ -14,6 +14,20 @@ export interface WarrantyClaimInput {
   photoUrls?: unknown;
 }
 
+// v8.3 auditoría 2026-07-21 (E-B4): las garantías no tenían ningún plazo --
+// no existía ninguna constante de ventana de reclamación en el repo, así que
+// se podía reclamar sobre un servicio de hace 3 años. 7 días desde el
+// service_date es un valor RAZONABLE elegido para cerrar el hueco (defecto
+// visible se nota en la primera semana), pero debe confirmarse con negocio
+// -- no hay ninguna especificación previa en el repo que fije este número.
+//
+// Fix (2026-07-25): vivía como `export const` dentro de route.ts, lo cual
+// rompe el build de Next.js -- un archivo route.ts solo puede exportar
+// handlers HTTP (GET/POST/...) y un puñado de campos de configuración
+// reservados (runtime, dynamic, revalidate, etc.), nunca constantes propias.
+// Se mueve aquí, al módulo de validación hermano que route.ts ya importaba.
+export const WARRANTY_CLAIM_WINDOW_DAYS = 7;
+
 const MIN_REASON_LENGTH = 3;
 const MAX_REASON_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 2000;

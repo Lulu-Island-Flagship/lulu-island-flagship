@@ -29,7 +29,7 @@ function getSupabaseClient() {
  * src/lib/rest-documentation.ts: si su rol ese día fue 'driver', sus
  * tramos de tránsito NUNCA cuentan como descanso (sigue siendo trabajo).
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   const supabase = getSupabaseClient();
   const {
     data: { user },
