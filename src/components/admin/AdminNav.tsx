@@ -25,13 +25,16 @@
 // (requireAdminRole(...) en src/app/api/admin/**/route.ts), no inventado.
 
 import { useState, useRef, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { roleAllows, type AdminRole, type AdminResource } from "@/lib/admin-rbac";
 
-type NavLink = { label: string; href: string; resource: AdminResource };
-type NavGroup = { label: string; links: NavLink[] };
+export type NavLink = { label: string; href: string; resource: AdminResource };
+export type NavGroup = { label: string; links: NavLink[] };
 
-function buildGroups(adminPath: string): NavGroup[] {
+// Exportado para que AdminBreadcrumbs.tsx reuse la misma estructura de
+// grupos/labels en vez de mantener una segunda lista duplicada.
+export function buildGroups(adminPath: string): NavGroup[] {
   return [
     {
       label: "Operations",
@@ -54,9 +57,15 @@ function buildGroups(adminPath: string): NavGroup[] {
         // src/app/api/admin/safety-aborts/route.ts: un SOS es, en esencia,
         // el ticket de máxima prioridad del sistema, no un resource propio.
         { label: "SOS", href: `${adminPath}/sos`, resource: "tickets" },
-        // Disaster Recovery consume /api/admin/dr-drill, que usa el
+        // DR Drills consume /api/admin/dr-drill, que usa el
         // resource "feature_flags" (interruptores del sistema, solo owner_admin).
-        { label: "Disaster Recovery", href: `${adminPath}/recuperacion-desastres`, resource: "feature_flags" },
+        // 2026-07-24: apuntaba a /admin/recuperacion-desastres, una página
+        // duplicada con menos funcionalidad que /admin/dr-drill (la que enlaza
+        // el dashboard). Se consolidó en una sola página real; ver comentario
+        // en dr-drill/page.tsx. /admin/recuperacion-desastres ahora solo redirige.
+        // Label alineado con el título de la tarjeta del dashboard ("DR Drills")
+        // para que ambos puntos de entrada usen el mismo texto.
+        { label: "DR Drills", href: `${adminPath}/dr-drill`, resource: "feature_flags" },
         // v8.3 fix M-7 (auditoría implacable 2026-07-20b): página huérfana --
         // /admin/contingencia existía y funcionaba (manual de contingencia de
         // una página, E7 D.7.10) pero no tenía ningún link en ningún lado del
@@ -125,39 +134,66 @@ function filterGroupsByRole(groups: NavGroup[], roles: AdminRole[]): NavGroup[] 
     .filter((group) => group.links.length > 0);
 }
 
-function DesktopDropdown({ group }: { group: NavGroup }) {
+/** Un link cuenta como activo si la ruta actual es exactamente su href, o
+ * un descendiente de él (ej. /admin/pricing-rules/sandbox activa también
+ * "Pricing Rules" -- pero se usa comparación por segmento completo, no
+ * startsWith crudo, para que /admin/servicios no active /admin/servicios-x). */
+function isLinkActive(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function DesktopDropdown({ group, pathname }: { group: NavGroup; pathname: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const groupActive = group.links.some((link) => isLinkActive(pathname, link.href));
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
     document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onClickOutside);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, []);
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1 text-sm hover:text-brand-gold transition-colors py-2"
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-current={groupActive ? "true" : undefined}
+        className={`flex items-center gap-1 text-sm transition-colors py-2 ${
+          groupActive ? "text-brand-gold font-semibold" : "hover:text-brand-gold"
+        }`}
       >
         {group.label}
-        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
       </button>
       {open && (
         <div className="absolute left-0 top-full mt-1 bg-white text-brand-ink rounded-lg shadow-elevation-2 border py-1 min-w-[180px] z-50">
-          {group.links.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="block px-4 py-2 text-sm hover:bg-gray-50 whitespace-nowrap"
-              onClick={() => setOpen(false)}
-            >
-              {link.label}
-            </a>
-          ))}
+          {group.links.map((link) => {
+            const active = isLinkActive(pathname, link.href);
+            return (
+              <a
+                key={link.href}
+                href={link.href}
+                aria-current={active ? "page" : undefined}
+                className={`block px-4 py-2 text-sm whitespace-nowrap ${
+                  active ? "bg-brand-gold/10 text-brand-navy font-semibold" : "hover:bg-gray-50"
+                }`}
+                onClick={() => setOpen(false)}
+              >
+                {link.label}
+              </a>
+            );
+          })}
         </div>
       )}
     </div>
@@ -166,15 +202,29 @@ function DesktopDropdown({ group }: { group: NavGroup }) {
 
 export default function AdminNav({ adminPath, roles }: { adminPath: string; roles: AdminRole[] }) {
   const groups = filterGroupsByRole(buildGroups(adminPath), roles);
+  const pathname = usePathname() || "";
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileGroupOpen, setMobileGroupOpen] = useState<string | null>(null);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      if (mobileGroupOpen !== null) {
+        setMobileGroupOpen(null);
+      } else if (mobileOpen) {
+        setMobileOpen(false);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [mobileOpen, mobileGroupOpen]);
 
   return (
     <>
       {/* Desktop: dropdowns agrupados, ya no 19 links en fila */}
       <div className="hidden md:flex items-center gap-5 text-sm">
         {groups.map((group) => (
-          <DesktopDropdown key={group.label} group={group} />
+          <DesktopDropdown key={group.label} group={group} pathname={pathname} />
         ))}
       </div>
 
@@ -182,44 +232,59 @@ export default function AdminNav({ adminPath, roles }: { adminPath: string; role
       <button
         className="md:hidden p-2"
         onClick={() => setMobileOpen((v) => !v)}
-        aria-label="Toggle menu"
+        aria-label={mobileOpen ? "Close menu" : "Open menu"}
+        aria-expanded={mobileOpen}
       >
-        {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        {mobileOpen ? <X className="w-5 h-5" aria-hidden="true" /> : <Menu className="w-5 h-5" aria-hidden="true" />}
       </button>
 
       {mobileOpen && (
         <div className="md:hidden absolute top-full left-0 right-0 bg-brand-navy text-white shadow-elevation-2 z-50 max-h-[80vh] overflow-y-auto">
-          {groups.map((group) => (
-            <div key={group.label} className="border-t border-white/10">
-              <button
-                className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium"
-                onClick={() =>
-                  setMobileGroupOpen((v) => (v === group.label ? null : group.label))
-                }
-              >
-                {group.label}
-                <ChevronDown
-                  className={`w-4 h-4 transition-transform ${
-                    mobileGroupOpen === group.label ? "rotate-180" : ""
+          {groups.map((group) => {
+            const groupActive = group.links.some((link) => isLinkActive(pathname, link.href));
+            return (
+              <div key={group.label} className="border-t border-white/10">
+                <button
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium ${
+                    groupActive ? "text-brand-gold" : ""
                   }`}
-                />
-              </button>
-              {mobileGroupOpen === group.label && (
-                <div className="pb-2">
-                  {group.links.map((link) => (
-                    <a
-                      key={link.href}
-                      href={link.href}
-                      className="block px-8 py-2 text-sm text-white/80 hover:text-white"
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      {link.label}
-                    </a>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+                  onClick={() =>
+                    setMobileGroupOpen((v) => (v === group.label ? null : group.label))
+                  }
+                  aria-expanded={mobileGroupOpen === group.label}
+                  aria-current={groupActive ? "true" : undefined}
+                >
+                  {group.label}
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform ${
+                      mobileGroupOpen === group.label ? "rotate-180" : ""
+                    }`}
+                    aria-hidden="true"
+                  />
+                </button>
+                {mobileGroupOpen === group.label && (
+                  <div className="pb-2">
+                    {group.links.map((link) => {
+                      const active = isLinkActive(pathname, link.href);
+                      return (
+                        <a
+                          key={link.href}
+                          href={link.href}
+                          aria-current={active ? "page" : undefined}
+                          className={`block px-8 py-2 text-sm ${
+                            active ? "text-brand-gold font-semibold" : "text-white/80 hover:text-white"
+                          }`}
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          {link.label}
+                        </a>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </>

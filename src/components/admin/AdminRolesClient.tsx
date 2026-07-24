@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Loader2, Mail, Shield, AlertCircle, UserPlus, UserMinus } from "lucide-react";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 interface AdminRoleRow {
   id: string;
@@ -38,6 +39,9 @@ export default function AdminRolesClient() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokeError, setRevokeError] = useState("");
+  // 2026-07-24 fix: reemplaza confirm("Revoke this admin role? ...") por
+  // ConfirmActionModal — guarda el id del rol pendiente de confirmar.
+  const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
 
   useEffect(() => {
     loadRoles();
@@ -64,7 +68,6 @@ export default function AdminRolesClient() {
   }
 
   async function revokeRole(id: string) {
-    if (!confirm("Revoke this admin role? The user will lose access to the resources it grants.")) return;
     setRevokingId(id);
     setRevokeError("");
     try {
@@ -77,6 +80,7 @@ export default function AdminRolesClient() {
       setRoles((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
       setRevokeError(err instanceof Error ? err.message : "Failed to revoke role");
+      throw err;
     } finally {
       setRevokingId(null);
     }
@@ -139,10 +143,10 @@ export default function AdminRolesClient() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Role</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Granted</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600"></th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Role</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Granted</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -165,7 +169,7 @@ export default function AdminRolesClient() {
                     </td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => revokeRole(r.id)}
+                        onClick={() => setConfirmRevokeId(r.id)}
                         disabled={revokingId === r.id}
                         aria-label={`Revoke ${ROLE_LABEL[r.role]} from ${r.email || r.user_id}`}
                         className="flex items-center gap-1 text-xs text-state-danger hover:opacity-80 disabled:opacity-50"
@@ -188,6 +192,20 @@ export default function AdminRolesClient() {
           onCreated={(role) => {
             setRoles((prev) => [...prev, role]);
             setShowAddModal(false);
+          }}
+        />
+      )}
+
+      {confirmRevokeId && (
+        <ConfirmActionModal
+          title="Revoke this admin role?"
+          message="The user will lose access to the resources it grants."
+          confirmLabel="Revoke"
+          danger
+          onCancel={() => setConfirmRevokeId(null)}
+          onConfirm={async () => {
+            await revokeRole(confirmRevokeId);
+            setConfirmRevokeId(null);
           }}
         />
       )}

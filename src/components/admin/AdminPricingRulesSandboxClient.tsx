@@ -296,15 +296,15 @@ export default function AdminPricingRulesSandboxClient() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b sticky top-0">
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Case</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Subtotal</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Adjustment</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Final</th>
+                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Case</th>
+                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Subtotal</th>
+                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Adjustment</th>
+                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Final</th>
                     {shadowMode && result.mode === "shadow" && (
-                      <th className="text-left px-4 py-3 font-medium text-gray-600">Baseline / Diff</th>
+                      <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Baseline / Diff</th>
                     )}
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Applied rules</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Applied rules</th>
+                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">

@@ -138,7 +138,7 @@ export default function NeighborhoodPage() {
         <form onSubmit={submitComplaint} className="bg-white rounded-xl border p-4 space-y-3 max-w-md">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-brand-ink">Log Neighbor Complaint</h2>
-            <button type="button" onClick={() => setShowComplaintForm(false)}><X className="w-5 h-5 text-gray-400" /></button>
+            <button type="button" onClick={() => setShowComplaintForm(false)} aria-label="Close form"><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
           </div>
           <input type="text" aria-label="ID de la propiedad" placeholder="Property ID" value={complaintForm.clientPropertyId} onChange={(e) => setComplaintForm((f) => ({ ...f, clientPropertyId: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
           <textarea aria-label="Descripción de la queja" placeholder="Description" value={complaintForm.description} onChange={(e) => setComplaintForm((f) => ({ ...f, description: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" rows={3} required />
@@ -152,7 +152,7 @@ export default function NeighborhoodPage() {
         <form onSubmit={submitLead} className="bg-white rounded-xl border p-4 space-y-3 max-w-md">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-brand-ink">Log Neighbor Lead</h2>
-            <button type="button" onClick={() => setShowLeadForm(false)}><X className="w-5 h-5 text-gray-400" /></button>
+            <button type="button" onClick={() => setShowLeadForm(false)} aria-label="Close form"><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
           </div>
           <input type="text" aria-label="Nombre del vecino" placeholder="Name" value={leadForm.name} onChange={(e) => setLeadForm((f) => ({ ...f, name: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
           <input type="tel" aria-label="Teléfono de contacto (opcional)" placeholder="Phone (optional)" value={leadForm.contactPhone} onChange={(e) => setLeadForm((f) => ({ ...f, contactPhone: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" />

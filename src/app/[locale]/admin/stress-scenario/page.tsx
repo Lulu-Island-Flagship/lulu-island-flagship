@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Loader2, TrendingDown, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 interface SimulatedMonth {

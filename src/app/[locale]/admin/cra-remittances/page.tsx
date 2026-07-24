@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, Landmark, AlertTriangle, CheckCircle2 } from "lucide-react";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 interface Period {
   id: string;
@@ -38,6 +39,9 @@ export default function CraRemittancesPage() {
   const [overdueCount, setOverdueCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // 2026-07-24 fix: reemplaza los dos window.prompt() (referencia + monto)
+  // por un único ConfirmActionModal con dos campos.
+  const [filingId, setFilingId] = useState<string | null>(null);
 
   useEffect(() => {
     load(year);
@@ -60,24 +64,17 @@ export default function CraRemittancesPage() {
     }
   }
 
-  async function markFiled(id: string) {
-    const confirmationReference = window.prompt("Confirmation reference / receipt number:");
-    if (!confirmationReference) return;
-    const amountStr = window.prompt("Amount remitted (CAD, optional):");
+  async function markFiled(id: string, confirmationReference: string, amountStr: string) {
     const amountCents = amountStr ? Math.round(parseFloat(amountStr) * 100) : undefined;
-    try {
-      const res = await fetch(`/api/admin/cra-remittances/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ confirmationReference, amountCents }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed");
-      await load(year);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error");
-    }
+    const res = await fetch(`/api/admin/cra-remittances/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ confirmationReference, amountCents }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed");
+    await load(year);
   }
 
   return (
@@ -121,12 +118,12 @@ export default function CraRemittancesPage() {
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-3 py-2 text-left">Type</th>
-                <th className="px-3 py-2 text-left">Period</th>
-                <th className="px-3 py-2 text-left">Due</th>
-                <th className="px-3 py-2 text-right">Amount</th>
-                <th className="px-3 py-2 text-left">Status</th>
-                <th className="px-3 py-2 text-left"></th>
+                <th scope="col" className="px-3 py-2 text-left">Type</th>
+                <th scope="col" className="px-3 py-2 text-left">Period</th>
+                <th scope="col" className="px-3 py-2 text-left">Due</th>
+                <th scope="col" className="px-3 py-2 text-right">Amount</th>
+                <th scope="col" className="px-3 py-2 text-left">Status</th>
+                <th scope="col" className="px-3 py-2 text-left"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
@@ -152,7 +149,7 @@ export default function CraRemittancesPage() {
                   </td>
                   <td className="px-3 py-2">
                     {p.status === "pending" && (
-                      <button onClick={() => markFiled(p.id)} className="text-xs text-brand-navy underline">
+                      <button onClick={() => setFilingId(p.id)} className="text-xs text-brand-navy underline">
                         Mark filed
                       </button>
                     )}
@@ -162,6 +159,32 @@ export default function CraRemittancesPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {filingId && (
+        <ConfirmActionModal
+          title="Mark remittance as filed"
+          confirmLabel="Mark filed"
+          fields={[
+            {
+              key: "confirmationReference",
+              label: "Confirmation reference / receipt number",
+              autoFocus: true,
+            },
+            {
+              key: "amount",
+              label: "Amount remitted (CAD)",
+              type: "number",
+              required: false,
+              helperText: "Optional",
+            },
+          ]}
+          onCancel={() => setFilingId(null)}
+          onConfirm={async (values) => {
+            await markFiled(filingId, values.confirmationReference, values.amount);
+            setFilingId(null);
+          }}
+        />
       )}
     </div>
   );

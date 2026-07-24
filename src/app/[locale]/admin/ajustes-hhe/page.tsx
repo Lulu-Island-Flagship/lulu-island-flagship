@@ -95,7 +95,7 @@ export default function AjustesHhePage() {
       </div>
       <p className="mb-6 text-sm text-gray-500">
         Sustained deviation ≥30 days between estimated HHE and actual person-hours (approximated
-        from completed checklist range × assigned team — there's no dedicated clock-in/out in the
+        from completed checklist range × assigned team — there&apos;s no dedicated clock-in/out in the
         schema yet). Applying here closes the current cell and opens a new one in the HHE table;
         it is logged and reversible from Configuration History.
       </p>

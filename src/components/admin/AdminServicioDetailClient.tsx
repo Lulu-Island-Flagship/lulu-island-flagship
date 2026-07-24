@@ -150,9 +150,10 @@ export default function AdminServicioDetailClient() {
       <div className="flex items-center gap-3">
         <button
           onClick={() => router.push(`${adminPath}/servicios`)}
+          aria-label="Back to Services"
           className="text-gray-500 hover:text-brand-navy"
         >
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="w-5 h-5" aria-hidden="true" />
         </button>
         <h1 className="text-2xl font-bold text-brand-ink">Service Checklist</h1>
       </div>

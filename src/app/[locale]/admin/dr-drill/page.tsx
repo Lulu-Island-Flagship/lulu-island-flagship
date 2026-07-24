@@ -1,5 +1,18 @@
 "use client";
 
+// 2026-07-23: Consolidación de páginas duplicadas de continuidad de negocio.
+// Existían dos páginas separadas para lo mismo: esta (/admin/dr-drill, enlazada
+// solo desde el dashboard) y /admin/recuperacion-desastres (enlazada solo desde
+// AdminNav.tsx). Ambas consumían la misma API (/api/admin/dr-drill) pero
+// /admin/dr-drill tenía más funcionalidad real: bitácora manual para los 3 tipos
+// de simulacro no automatizables (succession_simulation, emergency_kit_check,
+// fallback_no_admin) y seguimiento de vencimiento por tipo (overdueStatuses).
+// /admin/recuperacion-desastres solo exponía el botón de restore_verification y
+// no tenía forma de registrar los otros simulacros -- estaba incompleta frente a
+// esta. Se conservó esta página como única fuente de verdad, se le agregó el
+// badge "confirmed / declared in plan" que sí tenía la otra, y
+// /admin/recuperacion-desastres ahora solo redirige aquí (ver su page.tsx).
+// AdminDashboardClient.tsx y AdminNav.tsx apuntan ambos a esta misma URL.
 import React, { useEffect, useState } from "react";
 import { Loader2, ShieldCheck, ShieldAlert, AlertTriangle, PlayCircle, ClipboardEdit } from "lucide-react";
 
@@ -22,6 +35,15 @@ interface RtoTarget {
   rto_hours: number;
   recovery_method: string;
   is_example: boolean;
+}
+
+// 2026-07-23: RTO consolidada en formato legible (antes en /admin/recuperacion-desastres,
+// eliminada por duplicar esta página — ver comentario más abajo y en AdminNav.tsx).
+function formatRto(hours: number): string {
+  if (hours === 0) return "Immediate";
+  if (hours < 1) return `${Math.round(hours * 60)} min`;
+  if (hours < 24) return `${hours} h`;
+  return `${(hours / 24).toFixed(1)} days`;
 }
 
 interface OverdueStatus {
@@ -257,9 +279,16 @@ export default function DrDrillPage() {
         <h2 className="font-semibold text-brand-ink mb-2">RTO Targets</h2>
         <div className="bg-white rounded-xl border divide-y">
           {rtoTargets.map((t) => (
-            <div key={t.id} className="p-3 flex items-center justify-between text-sm">
-              <span className="text-brand-ink">{t.data_type}{t.is_example && <span className="text-gray-400"> (example)</span>}</span>
-              <span className="text-gray-500">{t.rto_hours}h — {t.recovery_method}</span>
+            <div key={t.id} className="p-3 flex items-center justify-between text-sm gap-3">
+              <span className="text-brand-ink">{t.data_type.replace(/_/g, " ")}</span>
+              <span className="text-gray-500">{formatRto(t.rto_hours)} — {t.recovery_method}</span>
+              {t.is_example ? (
+                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800 shrink-0">
+                  declared in plan, not confirmed by drill
+                </span>
+              ) : (
+                <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-800 shrink-0">confirmed</span>
+              )}
             </div>
           ))}
         </div>

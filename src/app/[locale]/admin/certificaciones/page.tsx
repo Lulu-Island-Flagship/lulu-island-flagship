@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, ShieldCheck, AlertTriangle, XCircle } from "lucide-react";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 interface Certification {
   id: string;
@@ -39,6 +40,10 @@ export default function CertificacionesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ employeeId: "", level: "1", expiresAt: "" });
+  // 2026-07-24 fix: reemplaza window.prompt("Revocation reason:") por
+  // ConfirmActionModal — guarda el id de la certificación a revocar mientras
+  // el modal está abierto.
+  const [revokingId, setRevokingId] = useState<string | null>(null);
 
   useEffect(() => {
     load();
@@ -83,22 +88,16 @@ export default function CertificacionesPage() {
     }
   }
 
-  async function revoke(id: string) {
-    const reason = window.prompt("Revocation reason:");
-    if (!reason) return;
-    try {
-      const res = await fetch(`/api/admin/certifications/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ reason }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error");
-    }
+  async function revoke(id: string, reason: string) {
+    const res = await fetch(`/api/admin/certifications/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ reason }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed");
+    await load();
   }
 
   return (
@@ -193,7 +192,7 @@ export default function CertificacionesPage() {
                       Level {c.level} · expires {new Date(c.expires_at).toLocaleDateString("en-CA")} ·{" "}
                       {c.status}
                       {!c.revoked_at && (
-                        <button onClick={() => revoke(c.id)} className="ml-1 hover:opacity-70">
+                        <button onClick={() => setRevokingId(c.id)} className="ml-1 hover:opacity-70">
                           <XCircle className="w-3 h-3" />
                         </button>
                       )}
@@ -204,6 +203,21 @@ export default function CertificacionesPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {revokingId && (
+        <ConfirmActionModal
+          title="Revoke certification"
+          message="This certification will be marked as revoked and can no longer be used to make the employee assignable to dispatch."
+          confirmLabel="Revoke"
+          danger
+          fields={[{ key: "reason", label: "Revocation reason", autoFocus: true }]}
+          onCancel={() => setRevokingId(null)}
+          onConfirm={async (values) => {
+            await revoke(revokingId, values.reason);
+            setRevokingId(null);
+          }}
+        />
       )}
     </div>
   );

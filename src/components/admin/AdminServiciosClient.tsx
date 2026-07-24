@@ -253,9 +253,10 @@ export default function AdminServiciosClient() {
               <h2 className="text-lg font-bold text-brand-ink">Assign Team</h2>
               <button
                 onClick={() => setDispatchOrderId(null)}
+                aria-label="Close dialog"
                 className="text-gray-400 hover:text-gray-600"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
 

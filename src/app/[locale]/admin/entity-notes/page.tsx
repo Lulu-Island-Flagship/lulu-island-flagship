@@ -223,8 +223,8 @@ export default function EntityNotesPage() {
                           <p className="text-xs text-gray-400 mt-1">Shown in: {n.suggest_context.join(", ")}</p>
                         )}
                       </div>
-                      <button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-state-danger shrink-0">
-                        <Trash2 className="w-4 h-4" />
+                      <button onClick={() => deleteNote(n.id)} aria-label="Delete note" className="text-gray-300 hover:text-state-danger shrink-0">
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </button>
                     </div>
                   ))}

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, FileSignature, AlertTriangle, CheckCircle2 } from "lucide-react";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 interface Review {
   id: string;
@@ -32,6 +33,11 @@ export default function ContractReviewsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  // 2026-07-24 fix: reemplaza los dos window.prompt() de esta página
+  // (razón de descarte y firma digital por nombre escrito) por
+  // ConfirmActionModal. Cada uno guarda el id de la revisión pendiente.
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
+  const [signingId, setSigningId] = useState<string | null>(null);
 
   useEffect(() => {
     load();
@@ -66,7 +72,13 @@ export default function ContractReviewsPage() {
       if (!res.ok) throw new Error(data.error || "Failed");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error");
+      const message = err instanceof Error ? err.message : "Network error";
+      setError(message);
+      // 2026-07-24 fix: re-lanzar para que ConfirmActionModal (dismiss/sign)
+      // pueda mostrar el error dentro del propio modal y mantenerlo abierto
+      // para reintentar. El botón "Approve" (fire-and-forget) atrapa este
+      // throw por su cuenta más abajo -- el error ya quedó en `error`.
+      throw err;
     } finally {
       setBusyId(null);
     }
@@ -133,17 +145,18 @@ export default function ContractReviewsPage() {
                 <div className="flex gap-2">
                   <button
                     disabled={busyId === r.id}
-                    onClick={() => act(r.id, { action: "approve" })}
+                    onClick={() => {
+                      act(r.id, { action: "approve" }).catch(() => {
+                        /* error already surfaced via the page-level `error` state */
+                      });
+                    }}
                     className="text-xs bg-brand-navy text-white px-3 py-1.5 rounded"
                   >
                     Approve
                   </button>
                   <button
                     disabled={busyId === r.id}
-                    onClick={() => {
-                      const reason = window.prompt("Reason for dismissing this review:");
-                      if (reason) act(r.id, { action: "dismiss", reason });
-                    }}
+                    onClick={() => setDismissingId(r.id)}
                     className="text-xs border px-3 py-1.5 rounded"
                   >
                     Dismiss
@@ -154,10 +167,7 @@ export default function ContractReviewsPage() {
               {r.status === "approved" && (
                 <button
                   disabled={busyId === r.id}
-                  onClick={() => {
-                    const name = window.prompt("Client's typed full name (digital signature):");
-                    if (name) act(r.id, { action: "sign", signedByName: name });
-                  }}
+                  onClick={() => setSigningId(r.id)}
                   className="text-xs bg-green-700 text-white px-3 py-1.5 rounded flex items-center gap-1"
                 >
                   <CheckCircle2 className="w-3 h-3" /> Capture signature
@@ -171,6 +181,43 @@ export default function ContractReviewsPage() {
           ))}
           {reviews.length === 0 && <div className="text-sm text-gray-400">No reviews triggered yet.</div>}
         </div>
+      )}
+
+      {dismissingId && (
+        <ConfirmActionModal
+          title="Dismiss this review"
+          message="The renewal review will be marked as dismissed and the proposed terms will not be applied."
+          confirmLabel="Dismiss"
+          danger
+          fields={[{ key: "reason", label: "Reason for dismissing this review", autoFocus: true }]}
+          onCancel={() => setDismissingId(null)}
+          onConfirm={async (values) => {
+            await act(dismissingId, { action: "dismiss", reason: values.reason });
+            setDismissingId(null);
+          }}
+        />
+      )}
+
+      {signingId && (
+        <ConfirmActionModal
+          title="Capture client signature"
+          message="Read the proposed terms to the client and type the full name exactly as they say it, on the call."
+          noticeText="Typing the client's full name here constitutes a digital signature (clickwrap: typed name + IP + timestamp are recorded), the same as the original quote consent. This supersedes the previous contract version once submitted."
+          confirmLabel="Capture signature"
+          fields={[
+            {
+              key: "signedByName",
+              label: "Client's typed full name (digital signature)",
+              placeholder: "Full legal name",
+              autoFocus: true,
+            },
+          ]}
+          onCancel={() => setSigningId(null)}
+          onConfirm={async (values) => {
+            await act(signingId, { action: "sign", signedByName: values.signedByName });
+            setSigningId(null);
+          }}
+        />
       )}
     </div>
   );

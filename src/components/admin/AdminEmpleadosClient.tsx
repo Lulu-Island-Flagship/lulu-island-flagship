@@ -197,14 +197,14 @@ export default function AdminEmpleadosClient() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Role</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Day Rate</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Languages</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Career Level</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600"></th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Role</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Day Rate</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Languages</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Career Level</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody className="divide-y">

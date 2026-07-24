@@ -209,7 +209,7 @@ export default function ExperimentsPage() {
         <form onSubmit={submitCreate} className="bg-white rounded-xl border p-4 space-y-3 max-w-md">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-brand-ink">New Experiment</h2>
-            <button type="button" onClick={() => setShowForm(false)}><X className="w-5 h-5 text-gray-400" /></button>
+            <button type="button" onClick={() => setShowForm(false)} aria-label="Close form"><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
           </div>
           <input type="text" aria-label="Nombre del experimento" placeholder="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
           <select aria-label="Tipo de experimento" value={form.experimentType} onChange={(e) => setForm((f) => ({ ...f, experimentType: e.target.value as ExperimentType }))} className="w-full border rounded-lg px-3 py-2 text-sm">
@@ -233,7 +233,7 @@ export default function ExperimentsPage() {
         <form onSubmit={submitAssign} className="bg-white rounded-xl border p-4 space-y-3 max-w-md">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-brand-ink">Assign Client</h2>
-            <button type="button" onClick={() => setAssignTarget(null)}><X className="w-5 h-5 text-gray-400" /></button>
+            <button type="button" onClick={() => setAssignTarget(null)} aria-label="Close form"><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
           </div>
           <input type="text" aria-label="ID de usuario del cliente" placeholder="Client user ID" value={assignClientId} onChange={(e) => setAssignClientId(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" required />
           <button type="submit" aria-label="Asignar cliente al experimento" disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
@@ -246,7 +246,7 @@ export default function ExperimentsPage() {
         <form onSubmit={submitEvaluate} className="bg-white rounded-xl border p-4 space-y-3 max-w-lg">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-brand-ink">Mark winner — {evaluateTarget.name}</h2>
-            <button type="button" onClick={() => setEvaluateTarget(null)}><X className="w-5 h-5 text-gray-400" /></button>
+            <button type="button" onClick={() => setEvaluateTarget(null)} aria-label="Close form"><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
           </div>
           <p className="text-xs text-gray-500">
             Enter observed results per variant. Confidence must be pre-computed (z-test or equivalent) outside this form.

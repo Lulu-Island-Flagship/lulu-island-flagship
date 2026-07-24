@@ -190,7 +190,7 @@ export default function SeguridadPage() {
             <AlertTriangle className="h-5 w-5 shrink-0 text-state-warning" />
             <p className="text-sm font-semibold text-brand-ink">
               Save these codes now. They will not be shown again -- if you lose
-              them, you'll need to generate a new set (which invalidates these).
+              them, you&apos;ll need to generate a new set (which invalidates these).
             </p>
           </div>
           <div className="mb-3 grid grid-cols-1 gap-1 rounded-md bg-white p-3 font-mono text-sm sm:grid-cols-2">
@@ -217,7 +217,7 @@ export default function SeguridadPage() {
               aria-label="I've saved these codes somewhere safe"
               className="mt-0.5"
             />
-            I've saved these codes somewhere safe.
+            I&apos;ve saved these codes somewhere safe.
           </label>
           {ackSaved && (
             <button

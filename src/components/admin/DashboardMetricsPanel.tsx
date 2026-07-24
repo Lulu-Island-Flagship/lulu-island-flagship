@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Loader2, AlertCircle, TrendingUp, HelpCircle } from "lucide-react";
+import { AlertCircle, TrendingUp, HelpCircle } from "lucide-react";
+import { SkeletonMetricsGrid } from "@/components/ui/Skeleton";
 
 type Semaphore = "green" | "yellow" | "red" | "unknown";
 
@@ -55,7 +56,9 @@ function MetricCard({
   title,
   value,
   unit,
-  threshold,
+  // Se recibe para completitud del contrato de datos pero thresholdLabel ya
+  // trae el valor formateado listo para mostrar -- no se usa el número crudo.
+  threshold: _threshold,
   thresholdLabel,
   semaphore,
   subtitle,
@@ -158,8 +161,14 @@ export default function DashboardMetricsPanel() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8 bg-white rounded-xl border">
-        <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-brand-wave-blue" />
+          <h2 className="text-sm font-semibold text-brand-ink">
+            Business Health — last 30 days
+          </h2>
+        </div>
+        <SkeletonMetricsGrid count={5} />
       </div>
     );
   }

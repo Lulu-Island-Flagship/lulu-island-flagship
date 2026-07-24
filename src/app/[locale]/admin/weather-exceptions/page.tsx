@@ -135,8 +135,8 @@ export default function WeatherExceptionsPage() {
         <form onSubmit={handleCreate} className="bg-white rounded-xl border p-4 space-y-4 max-w-xl">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-brand-ink">New Weather Exception</h2>
-            <button type="button" onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
-              <X className="w-5 h-5" />
+            <button type="button" onClick={() => setShowForm(false)} aria-label="Close form" className="text-gray-400 hover:text-gray-600">
+              <X className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

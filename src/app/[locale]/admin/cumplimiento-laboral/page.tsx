@@ -144,11 +144,11 @@ export default function CumplimientoLaboralPage() {
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 py-2 text-left">Employee</th>
-                    <th className="px-3 py-2 text-left">Date</th>
-                    <th className="px-3 py-2 text-right">Segments</th>
-                    <th className="px-3 py-2 text-right">Qualifying breaks</th>
-                    <th className="px-3 py-2 text-left">Risk</th>
+                    <th scope="col" className="px-3 py-2 text-left">Employee</th>
+                    <th scope="col" className="px-3 py-2 text-left">Date</th>
+                    <th scope="col" className="px-3 py-2 text-right">Segments</th>
+                    <th scope="col" className="px-3 py-2 text-right">Qualifying breaks</th>
+                    <th scope="col" className="px-3 py-2 text-left">Risk</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -184,11 +184,11 @@ export default function CumplimientoLaboralPage() {
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 py-2 text-left">Employee</th>
-                    <th className="px-3 py-2 text-left">Date</th>
-                    <th className="px-3 py-2 text-left">Reason</th>
-                    <th className="px-3 py-2 text-left">Pay type</th>
-                    <th className="px-3 py-2 text-left">Note</th>
+                    <th scope="col" className="px-3 py-2 text-left">Employee</th>
+                    <th scope="col" className="px-3 py-2 text-left">Date</th>
+                    <th scope="col" className="px-3 py-2 text-left">Reason</th>
+                    <th scope="col" className="px-3 py-2 text-left">Pay type</th>
+                    <th scope="col" className="px-3 py-2 text-left">Note</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -229,9 +229,9 @@ export default function CumplimientoLaboralPage() {
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 py-2 text-left">Employee</th>
-                    <th className="px-3 py-2 text-left">Week</th>
-                    <th className="px-3 py-2 text-right">Longest gap (h)</th>
+                    <th scope="col" className="px-3 py-2 text-left">Employee</th>
+                    <th scope="col" className="px-3 py-2 text-left">Week</th>
+                    <th scope="col" className="px-3 py-2 text-right">Longest gap (h)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -261,11 +261,11 @@ export default function CumplimientoLaboralPage() {
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 py-2 text-left">Employee</th>
-                    <th className="px-3 py-2 text-left">Holiday</th>
-                    <th className="px-3 py-2 text-left">Date</th>
-                    <th className="px-3 py-2 text-left">Eligible</th>
-                    <th className="px-3 py-2 text-right">Avg day pay</th>
+                    <th scope="col" className="px-3 py-2 text-left">Employee</th>
+                    <th scope="col" className="px-3 py-2 text-left">Holiday</th>
+                    <th scope="col" className="px-3 py-2 text-left">Date</th>
+                    <th scope="col" className="px-3 py-2 text-left">Eligible</th>
+                    <th scope="col" className="px-3 py-2 text-right">Avg day pay</th>
                   </tr>
                 </thead>
                 <tbody>

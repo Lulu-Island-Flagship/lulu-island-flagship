@@ -132,7 +132,7 @@ export default function UnifiedAlertsInboxPage() {
       <div>
         <h1 className="text-2xl font-bold text-brand-ink">Unified Alert Inbox</h1>
         <p className="text-sm text-gray-500 mt-1">
-          E0.6 — one queue, two tiers. "Respond in 10 min" alerts trigger Fallback if untouched; "can wait" don't.
+          E0.6 — one queue, two tiers. &quot;Respond in 10 min&quot; alerts trigger Fallback if untouched; &quot;can wait&quot; don&apos;t.
         </p>
       </div>
 

@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import AdminDashboardClient from "@/components/admin/AdminDashboardClient";
 import { getCurrentAdminRoles } from "@/lib/admin";
+
+export const metadata: Metadata = { title: "Dashboard" };
 
 export async function generateStaticParams() {
   return [{ locale: "en" }, { locale: "zh" }, { locale: "fr" }];

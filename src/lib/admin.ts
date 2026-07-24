@@ -167,12 +167,19 @@ export async function requireAdminRole(
 // calculaba is_supervisor() + admin_roles para filtrar AdminNav por rol,
 // pero admin/page.tsx (el dashboard de 45 tarjetas) no tenía forma de
 // pedir esos mismos roles sin duplicar la query a mano en cada Server
-// Component que los necesite. Este helper centraliza esa lectura (misma
-// lógica exacta que admin/layout.tsx: is_supervisor() OR fila activa en
-// admin_roles, con el mismo fallback a "ops_coordinator" cuando
-// is_supervisor() es true pero no hay fila explícita) para que
-// admin/page.tsx (y cualquier otra página admin que necesite filtrar por
-// rol del lado del servidor) la reutilice en vez de reimplementarla.
+// Component que los necesite. Este helper centraliza esa lectura.
+//
+// Fix Kimi-A1 (auditoría externa Kimi Code, 2026-07-21, verificado y
+// confirmado real): esta función tenía el mismo fallback "is_supervisor()
+// sin fila en admin_roles -> tratar como ops_coordinator" que
+// requireAdminRole() (arriba en este archivo) YA HABÍA ELIMINADO como fix
+// de seguridad (comentario "riesgo de acceso fantasma", v8.3 E0
+// 2026-07-11) -- la API rechaza (403) exactamente lo que esta función le
+// hacía creer a la UI que tenía permitido, mostrando menús/botones que
+// después fallan sin explicación. Se elimina el fallback aquí también
+// para que la UI refleje EXACTAMENTE lo que la API permite -- ningún
+// acceso real se pierde (quien de verdad debe ser ops_coordinator necesita
+// una fila explícita en admin_roles, igual que ya exige requireAdminRole()).
 export async function getCurrentAdminRoles(): Promise<{
   user: User | null;
   roles: AdminRole[];
@@ -186,8 +193,6 @@ export async function getCurrentAdminRoles(): Promise<{
     return { user: null, roles: [] };
   }
 
-  const { data: isSupervisor } = await supabase.rpc("is_supervisor", { user_uuid: user.id });
-
   const { data: roleRows } = await supabase
     .from("admin_roles")
     .select("role")
@@ -195,10 +200,6 @@ export async function getCurrentAdminRoles(): Promise<{
     .is("deleted_at", null);
 
   const roles = (roleRows ?? []).map((r) => r.role as AdminRole);
-
-  if (roles.length === 0 && isSupervisor) {
-    roles.push("ops_coordinator");
-  }
 
   return { user, roles };
 }

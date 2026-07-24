@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, Users, Plus, ShieldAlert, AlertTriangle, CheckCircle2, Trash2 } from "lucide-react";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 interface Successor {
   id: string;
@@ -35,6 +36,9 @@ export default function SuccessionPage() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: "", relationship: "", contactPhone: "", contactEmail: "" });
+  // 2026-07-24 fix: reemplaza window.confirm("Remove this trusted successor?")
+  // por ConfirmActionModal.
+  const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
 
   useEffect(() => {
     load();
@@ -93,23 +97,17 @@ export default function SuccessionPage() {
   }
 
   async function deactivate(id: string) {
-    if (!window.confirm("Remove this trusted successor?")) return;
-    try {
-      const res = await fetch("/api/admin/succession", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ action: "deactivate_successor", id }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        setError(err.error || "Failed");
-        return;
-      }
-      await load();
-    } catch {
-      setError("Network error");
+    const res = await fetch("/api/admin/succession", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ action: "deactivate_successor", id }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed");
     }
+    await load();
   }
 
   if (loading) {
@@ -229,12 +227,25 @@ export default function SuccessionPage() {
                   {[s.relationship, s.contact_phone, s.contact_email].filter(Boolean).join(" · ")}
                 </p>
               </div>
-              <button aria-label={`Eliminar sucesor de confianza ${s.name}`} onClick={() => deactivate(s.id)} className="text-gray-400 hover:text-red-500">
+              <button aria-label={`Eliminar sucesor de confianza ${s.name}`} onClick={() => setDeactivatingId(s.id)} className="text-gray-400 hover:text-red-500">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
           ))}
         </div>
+      )}
+
+      {deactivatingId && (
+        <ConfirmActionModal
+          title="Remove this trusted successor?"
+          confirmLabel="Remove"
+          danger
+          onCancel={() => setDeactivatingId(null)}
+          onConfirm={async () => {
+            await deactivate(deactivatingId);
+            setDeactivatingId(null);
+          }}
+        />
       )}
     </div>
   );

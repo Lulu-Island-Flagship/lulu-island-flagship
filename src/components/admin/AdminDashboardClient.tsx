@@ -202,8 +202,10 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       icon: LifeBuoy,
       href: `/${safeLocale}/admin/dr-drill`,
       color: "bg-orange-50 text-orange-600",
-      // No está en AdminNav.tsx (distinto de "Disaster Recovery" del nav,
-      // que apunta a /recuperacion-desastres) -- API usa "feature_flags"
+      // 2026-07-23: también enlazada ahora desde AdminNav.tsx como "Disaster
+      // Recovery" (antes apuntaba a /admin/recuperacion-desastres, una página
+      // duplicada con menos funcionalidad; se consolidó en esta -- ver
+      // comentario en dr-drill/page.tsx). API usa "feature_flags"
       // (src/app/api/admin/dr-drill/route.ts).
       resource: "feature_flags",
     },
@@ -475,7 +477,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
 
       <AutopilotModeBanner locale={safeLocale} />
 
-      <DashboardMetricsPanel />
+      {roleAllows(roles, "finance") && <DashboardMetricsPanel />}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {visibleCards.map((card) => {

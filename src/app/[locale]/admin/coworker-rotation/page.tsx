@@ -125,7 +125,7 @@ export default function CoworkerRotationPage() {
           {violations.length > 0 && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2">
               <h2 className="font-semibold text-red-800 flex items-center gap-2 text-sm">
-                <AlertTriangle className="w-4 h-4" /> "Never together" exceptions violated this month
+                <AlertTriangle className="w-4 h-4" /> &quot;Never together&quot; exceptions violated this month
               </h2>
               {violations.map((v, i) => (
                 <p key={i} className="text-xs text-red-700">
@@ -158,7 +158,7 @@ export default function CoworkerRotationPage() {
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h2 className="font-semibold text-brand-ink">"Never together" exceptions</h2>
+              <h2 className="font-semibold text-brand-ink">&quot;Never together&quot; exceptions</h2>
               <button
                 onClick={() => setShowForm(true)}
                 className="inline-flex items-center gap-1.5 text-sm text-brand-navy hover:underline"

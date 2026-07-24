@@ -62,7 +62,7 @@ export default function ManualContingenciaPage() {
           <h1 className="text-xl font-bold text-brand-ink">Contingency Manual</h1>
         </div>
         <p className="text-sm text-gray-600 mb-6">
-          One page. If the situation isn't listed below: 10 min Fallback → Emergency Admin.
+          One page. If the situation isn&apos;t listed below: 10 min Fallback → Emergency Admin.
         </p>
 
         <div className="bg-white rounded-xl shadow-elevation-1 divide-y">
@@ -80,7 +80,7 @@ export default function ManualContingenciaPage() {
         <div className="mt-6 bg-brand-navy text-white rounded-xl p-4">
           <p className="text-sm font-semibold mb-1">Golden rule</p>
           <p className="text-sm text-white/90">
-            If the situation isn't on this list → 10-minute Fallback → escalate to
+            If the situation isn&apos;t on this list → 10-minute Fallback → escalate to
             Emergency Admin. Never improvise a new exception without logging the case
             afterward so it can be added here.
           </p>

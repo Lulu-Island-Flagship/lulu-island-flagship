@@ -9,6 +9,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, Undo2, History } from "lucide-react";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 interface Snapshot {
   id: string;
@@ -42,6 +43,9 @@ function ConfigHistoryContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [undoing, setUndoing] = useState<string | null>(null);
+  // 2026-07-24 fix: reemplaza confirm("Undo this change? ...") por
+  // ConfirmActionModal — guarda el id del snapshot pendiente de confirmar.
+  const [undoTargetId, setUndoTargetId] = useState<string | null>(null);
   // v8.3 E6 — permite llegar pre-filtrado desde /admin/comunicaciones (?table=...)
   const [tableFilter, setTableFilter] = useState(() => searchParams?.get("table") ?? "");
 
@@ -69,7 +73,6 @@ function ConfigHistoryContent() {
   }
 
   async function undo(id: string) {
-    if (!confirm("Undo this change? The previous values will be restored (the undo is also logged).")) return;
     setUndoing(id);
     setError("");
     try {
@@ -81,8 +84,6 @@ function ConfigHistoryContent() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Error undoing");
       await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
     } finally {
       setUndoing(null);
     }
@@ -143,7 +144,7 @@ function ConfigHistoryContent() {
                   )}
                   {!s.undone_at && (
                     <button
-                      onClick={() => undo(s.id)}
+                      onClick={() => setUndoTargetId(s.id)}
                       disabled={undoing === s.id}
                       className="ml-auto flex items-center gap-1 rounded-md border border-brand-navy px-3 py-1 text-xs text-brand-navy hover:bg-brand-ice"
                     >
@@ -172,6 +173,20 @@ function ConfigHistoryContent() {
             );
           })}
         </div>
+      )}
+
+      {undoTargetId && (
+        <ConfirmActionModal
+          title="Undo this change?"
+          message="The previous values will be restored (the undo is also logged)."
+          confirmLabel="Undo"
+          danger
+          onCancel={() => setUndoTargetId(null)}
+          onConfirm={async () => {
+            await undo(undoTargetId);
+            setUndoTargetId(null);
+          }}
+        />
       )}
     </div>
   );

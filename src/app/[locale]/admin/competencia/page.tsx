@@ -82,7 +82,7 @@ export default function CompetenciaPage() {
 
       <p className="text-sm text-gray-500 mb-6">
         Up to 10 active competitors (D.10.10). Current data: monthly manual checklist from E1. Automated
-        scraping ⏸️ deferred (requires reviewing each site's TOS before automating) — once enabled,
+        scraping ⏸️ deferred (requires reviewing each site&apos;s TOS before automating) — once enabled,
         it feeds this same table via <code>source = &apos;scraping&apos;</code>, without breaking this panel.
       </p>
 
@@ -117,12 +117,12 @@ export default function CompetenciaPage() {
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-3 py-2 text-left">Competitor</th>
-                  <th className="px-3 py-2 text-left">Zone</th>
-                  <th className="px-3 py-2 text-right">Price</th>
-                  <th className="px-3 py-2 text-right">Rating</th>
-                  <th className="px-3 py-2 text-right">Reviews</th>
-                  <th className="px-3 py-2 text-left">Last capture</th>
+                  <th scope="col" className="px-3 py-2 text-left">Competitor</th>
+                  <th scope="col" className="px-3 py-2 text-left">Zone</th>
+                  <th scope="col" className="px-3 py-2 text-right">Price</th>
+                  <th scope="col" className="px-3 py-2 text-right">Rating</th>
+                  <th scope="col" className="px-3 py-2 text-right">Reviews</th>
+                  <th scope="col" className="px-3 py-2 text-left">Last capture</th>
                 </tr>
               </thead>
               <tbody>

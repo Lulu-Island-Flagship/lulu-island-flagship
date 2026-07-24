@@ -327,9 +327,9 @@ export default function AdminPricingSettingsClient() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Service Type</th>
+                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Service Type</th>
                     {hheRangeLabels.map((label) => (
-                      <th key={label} className="text-right px-4 py-3 font-medium text-gray-600">
+                      <th key={label} scope="col" className="text-right px-4 py-3 font-medium text-gray-600">
                         {label}
                       </th>
                     ))}
@@ -399,12 +399,12 @@ export default function AdminPricingSettingsClient() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Service Type</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">≤700 ft²</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">700–1,500</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">1,500–2,500</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">2,500–3,500</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">&gt;3,500</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Service Type</th>
+                  <th scope="col" className="text-right px-4 py-3 font-medium text-gray-600">≤700 ft²</th>
+                  <th scope="col" className="text-right px-4 py-3 font-medium text-gray-600">700–1,500</th>
+                  <th scope="col" className="text-right px-4 py-3 font-medium text-gray-600">1,500–2,500</th>
+                  <th scope="col" className="text-right px-4 py-3 font-medium text-gray-600">2,500–3,500</th>
+                  <th scope="col" className="text-right px-4 py-3 font-medium text-gray-600">&gt;3,500</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -443,10 +443,10 @@ export default function AdminPricingSettingsClient() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Previous</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">New</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Reason</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Previous</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">New</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Reason</th>
                 </tr>
               </thead>
               <tbody className="divide-y">

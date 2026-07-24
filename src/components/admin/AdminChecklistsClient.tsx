@@ -560,26 +560,30 @@ export default function AdminChecklistsClient() {
                     <div className="flex items-center gap-1 relative">
                       <button
                         onClick={() => openEdit(zone)}
+                        aria-label={`Edit zone ${zone.zone_label}`}
                         className="p-1.5 text-gray-400 hover:text-brand-navy transition-colors"
                       >
-                        <Edit2 className="w-4 h-4" />
+                        <Edit2 className="w-4 h-4" aria-hidden="true" />
                       </button>
                       {zone.is_active && (
                         <button
                           onClick={() => handleDeleteZone(zone.id, zone.zone_label)}
                           className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
                           title="Deactivate"
+                          aria-label={`Deactivate zone ${zone.zone_label}`}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" aria-hidden="true" />
                         </button>
                       )}
                       <button
                         onClick={() => setOpenZoneMenu(openZoneMenu === zone.id ? null : zone.id)}
                         className="p-1.5 text-gray-400 hover:text-brand-navy transition-colors"
                         title="More options"
+                        aria-label={`More options for zone ${zone.zone_label}`}
+                        aria-expanded={openZoneMenu === zone.id}
                         data-zone-menu
                       >
-                        <MoreHorizontal className="w-4 h-4" />
+                        <MoreHorizontal className="w-4 h-4" aria-hidden="true" />
                       </button>
                       {openZoneMenu === zone.id && (
                         <div data-zone-menu className="absolute right-0 top-8 bg-white border rounded-lg shadow-lg z-10 w-40">
@@ -659,9 +663,10 @@ export default function AdminChecklistsClient() {
                 </h2>
                 <button
                   onClick={() => setShowModal(false)}
+                  aria-label="Close dialog"
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-5 h-5" aria-hidden="true" />
                 </button>
               </div>
 
@@ -880,9 +885,10 @@ export default function AdminChecklistsClient() {
                       ) : (
                         <button
                           onClick={() => removeItem(index)}
+                          aria-label="Remove item"
                           className="text-gray-400 hover:text-red-500"
                         >
-                          <X className="w-4 h-4" />
+                          <X className="w-4 h-4" aria-hidden="true" />
                         </button>
                       )}
                     </div>

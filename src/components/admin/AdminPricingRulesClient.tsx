@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { ZONES, SERVICE_TYPES, SERVICE_SUBTYPES } from "@/lib/pricing";
 import { detectRuleConflicts, type PricingRule, type RuleCondition } from "@/lib/rules";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 interface RuleAuditEntry {
   id: string;
@@ -208,6 +209,11 @@ export default function AdminPricingRulesClient() {
   const [auditLogs, setAuditLogs] = useState<RuleAuditEntry[]>([]);
   const [showAuditForRule, setShowAuditForRule] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
+  // 2026-07-24 fix: reemplaza los dos window.prompt() (razón de
+  // activar/desactivar y razón de eliminar) por ConfirmActionModal — guarda
+  // la regla pendiente de confirmar para cada acción.
+  const [toggleTargetRule, setToggleTargetRule] = useState<PricingRule | null>(null);
+  const [deleteTargetRule, setDeleteTargetRule] = useState<PricingRule | null>(null);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -412,16 +418,8 @@ export default function AdminPricingRulesClient() {
     }
   }
 
-  async function toggleRule(rule: PricingRule) {
+  async function toggleRule(rule: PricingRule, reason: string) {
     setUpdatingId(rule.id);
-    const promptReason = window.prompt(
-      `Reason for ${rule.isActive ? "disabling" : "enabling"} rule "${rule.name}"?`
-    );
-    if (!promptReason) {
-      setUpdatingId(null);
-      return;
-    }
-
     try {
       const res = await fetch("/api/admin/pricing-rules", {
         method: "PATCH",
@@ -430,42 +428,33 @@ export default function AdminPricingRulesClient() {
         body: JSON.stringify({
           id: rule.id,
           is_active: !rule.isActive,
-          reason: promptReason,
+          reason,
         }),
       });
 
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to update rule");
-        return;
+        throw new Error(err.error || "Failed to update rule");
       }
 
       await loadRules();
-    } catch {
-      setError("Network error");
     } finally {
       setUpdatingId(null);
     }
   }
 
-  async function deleteRule(rule: PricingRule) {
-    const deleteReason = window.prompt(`Reason for deleting rule "${rule.name}"?`);
-    if (!deleteReason) return;
-
+  async function deleteRule(rule: PricingRule, reason: string) {
     setDeletingId(rule.id);
     try {
       const res = await fetch(
-        `/api/admin/pricing-rules?id=${encodeURIComponent(rule.id)}&reason=${encodeURIComponent(deleteReason)}`,
+        `/api/admin/pricing-rules?id=${encodeURIComponent(rule.id)}&reason=${encodeURIComponent(reason)}`,
         { method: "DELETE", credentials: "include" }
       );
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to delete rule");
-        return;
+        throw new Error(err.error || "Failed to delete rule");
       }
       await loadRules();
-    } catch {
-      setError("Network error");
     } finally {
       setDeletingId(null);
     }
@@ -588,9 +577,10 @@ export default function AdminPricingRulesClient() {
                 setIsFormOpen(false);
                 resetForm();
               }}
+              aria-label="Close form"
               className="text-gray-400 hover:text-gray-600"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
 
@@ -693,9 +683,10 @@ export default function AdminPricingRulesClient() {
                         type="button"
                         onClick={() => removeCondition(index)}
                         disabled={conditions.length === 1}
+                        aria-label={`Remove condition ${index + 1}`}
                         className="text-gray-400 hover:text-red-500 disabled:opacity-30"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </button>
                     </div>
                   </div>
@@ -820,12 +811,12 @@ export default function AdminPricingRulesClient() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Rule</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Conditions</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Action</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Priority</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Actions</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Rule</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Conditions</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Action</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Priority</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -888,36 +879,39 @@ export default function AdminPricingRulesClient() {
                         <td className="px-4 py-3 align-top">
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => toggleRule(rule)}
+                              onClick={() => setToggleTargetRule(rule)}
                               disabled={updatingId === rule.id}
                               className="text-gray-500 hover:text-brand-navy disabled:opacity-50"
                               title={rule.isActive ? "Disable" : "Enable"}
+                              aria-label={rule.isActive ? `Disable rule ${rule.name}` : `Enable rule ${rule.name}`}
                             >
                               {updatingId === rule.id ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
+                                <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
                               ) : rule.isActive ? (
-                                <ToggleRight className="w-6 h-6 text-green-600" />
+                                <ToggleRight className="w-6 h-6 text-green-600" aria-hidden="true" />
                               ) : (
-                                <ToggleLeft className="w-6 h-6 text-gray-400" />
+                                <ToggleLeft className="w-6 h-6 text-gray-400" aria-hidden="true" />
                               )}
                             </button>
                             <button
                               onClick={() => openEditForm(rule)}
                               className="text-gray-500 hover:text-brand-navy"
                               title="Edit"
+                              aria-label={`Edit rule ${rule.name}`}
                             >
-                              <Tag className="w-4 h-4" />
+                              <Tag className="w-4 h-4" aria-hidden="true" />
                             </button>
                             <button
-                              onClick={() => deleteRule(rule)}
+                              onClick={() => setDeleteTargetRule(rule)}
                               disabled={deletingId === rule.id}
                               className="text-gray-500 hover:text-red-500 disabled:opacity-50"
                               title="Delete"
+                              aria-label={`Delete rule ${rule.name}`}
                             >
                               {deletingId === rule.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                               ) : (
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-4 h-4" aria-hidden="true" />
                               )}
                             </button>
                             <button
@@ -931,8 +925,9 @@ export default function AdminPricingRulesClient() {
                               }}
                               className="text-gray-500 hover:text-brand-navy"
                               title="Audit history"
+                              aria-label={`View audit history for rule ${rule.name}`}
                             >
-                              <History className="w-4 h-4" />
+                              <History className="w-4 h-4" aria-hidden="true" />
                             </button>
                           </div>
                         </td>
@@ -965,6 +960,47 @@ export default function AdminPricingRulesClient() {
             </table>
           </div>
         </div>
+      )}
+
+      {toggleTargetRule && (
+        <ConfirmActionModal
+          title={`${toggleTargetRule.isActive ? "Disable" : "Enable"} rule "${toggleTargetRule.name}"`}
+          confirmLabel={toggleTargetRule.isActive ? "Disable" : "Enable"}
+          danger={toggleTargetRule.isActive}
+          fields={[
+            {
+              key: "reason",
+              label: `Reason for ${toggleTargetRule.isActive ? "disabling" : "enabling"} this rule`,
+              autoFocus: true,
+            },
+          ]}
+          onCancel={() => setToggleTargetRule(null)}
+          onConfirm={async (values) => {
+            await toggleRule(toggleTargetRule, values.reason);
+            setToggleTargetRule(null);
+          }}
+        />
+      )}
+
+      {deleteTargetRule && (
+        <ConfirmActionModal
+          title={`Delete rule "${deleteTargetRule.name}"`}
+          message="This pricing rule will be permanently removed."
+          confirmLabel="Delete"
+          danger
+          fields={[
+            {
+              key: "reason",
+              label: "Reason for deleting this rule",
+              autoFocus: true,
+            },
+          ]}
+          onCancel={() => setDeleteTargetRule(null)}
+          onConfirm={async (values) => {
+            await deleteRule(deleteTargetRule, values.reason);
+            setDeleteTargetRule(null);
+          }}
+        />
       )}
     </div>
   );

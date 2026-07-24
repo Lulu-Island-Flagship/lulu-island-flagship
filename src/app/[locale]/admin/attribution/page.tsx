@@ -126,7 +126,7 @@ export default function AttributionPage() {
         </p>
         <p className="text-xs text-gray-500 mt-2">
           Suggested marketing budget this month: {money(data.budgetRange.minCents)} – {money(data.budgetRange.maxCents)}{" "}
-          (8-10% of last month's revenue {money(data.previousMonthRevenueCents)})
+          (8-10% of last month&apos;s revenue {money(data.previousMonthRevenueCents)})
         </p>
       </div>
 
@@ -134,8 +134,8 @@ export default function AttributionPage() {
         <form onSubmit={submitSpend} className="bg-white rounded-xl border p-4 space-y-3 max-w-md">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-brand-ink">Record spend — {data.month}</h2>
-            <button type="button" onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
-              <X className="w-5 h-5" />
+            <button type="button" onClick={() => setShowForm(false)} aria-label="Close form" className="text-gray-400 hover:text-gray-600">
+              <X className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
           <input
@@ -181,7 +181,7 @@ export default function AttributionPage() {
         {data.channels.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-500">
             <TrendingUp className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            No channel data yet — record spend and wait for quotes with "how did you hear about us" answered.
+            No channel data yet — record spend and wait for quotes with &quot;how did you hear about us&quot; answered.
           </div>
         ) : (
           data.channels.map((c) => (

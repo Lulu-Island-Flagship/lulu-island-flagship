@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, ShieldAlert, AlertTriangle, CheckCircle2 } from "lucide-react";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 interface DsRequest {
   id: string;
@@ -38,6 +39,9 @@ export default function PipedaPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  // 2026-07-24 fix: reemplaza window.prompt("Export reference ...") por
+  // ConfirmActionModal.
+  const [completingRequestId, setCompletingRequestId] = useState<string | null>(null);
 
   const [newRequest, setNewRequest] = useState({ clientUserId: "", requestType: "access", correctionDetails: "" });
   const [newIncident, setNewIncident] = useState({ description: "", severity: "unknown" });
@@ -99,13 +103,16 @@ export default function PipedaPage() {
         body: JSON.stringify({ action, ...extra }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Failed to update");
-        return;
-      }
+      if (!res.ok) throw new Error(data.error || "Failed to update");
       await load();
-    } catch {
-      setError("Network error");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Network error";
+      setError(message);
+      // 2026-07-24 fix: re-lanzar para que ConfirmActionModal (Complete con
+      // export reference) pueda mostrar el error y mantenerse abierto. Los
+      // botones "Start processing" / "Complete" sin export reference son
+      // fire-and-forget y atrapan este throw por su cuenta más abajo.
+      throw new Error(message);
     } finally {
       setBusyId(null);
     }
@@ -232,7 +239,11 @@ export default function PipedaPage() {
                   </div>
                   {r.status === "pending" && (
                     <button
-                      onClick={() => updateRequest(r.id, "start_processing")}
+                      onClick={() => {
+                        updateRequest(r.id, "start_processing").catch(() => {
+                          /* error already surfaced via the page-level `error` state */
+                        });
+                      }}
                       disabled={busyId === r.id}
                       className="text-xs font-medium bg-brand-navy text-white px-3 py-1.5 rounded-lg disabled:opacity-50"
                     >
@@ -241,10 +252,7 @@ export default function PipedaPage() {
                   )}
                   {r.status === "processing" && r.request_type === "access" && (
                     <button
-                      onClick={() => {
-                        const ref = window.prompt("Export reference (where the file was placed)");
-                        if (ref) updateRequest(r.id, "complete", { exportReference: ref });
-                      }}
+                      onClick={() => setCompletingRequestId(r.id)}
                       disabled={busyId === r.id}
                       className="text-xs font-medium bg-state-success text-white px-3 py-1.5 rounded-lg disabled:opacity-50"
                     >
@@ -253,7 +261,11 @@ export default function PipedaPage() {
                   )}
                   {r.status === "processing" && r.request_type !== "access" && (
                     <button
-                      onClick={() => updateRequest(r.id, "complete")}
+                      onClick={() => {
+                        updateRequest(r.id, "complete").catch(() => {
+                          /* error already surfaced via the page-level `error` state */
+                        });
+                      }}
                       disabled={busyId === r.id}
                       className="text-xs font-medium bg-state-success text-white px-3 py-1.5 rounded-lg disabled:opacity-50"
                     >
@@ -352,6 +364,26 @@ export default function PipedaPage() {
           </div>
         )}
       </div>
+
+      {completingRequestId && (
+        <ConfirmActionModal
+          title="Complete data access request"
+          message="The client's data export must already be prepared and placed somewhere retrievable before marking this complete."
+          confirmLabel="Complete"
+          fields={[
+            {
+              key: "exportReference",
+              label: "Export reference (where the file was placed)",
+              autoFocus: true,
+            },
+          ]}
+          onCancel={() => setCompletingRequestId(null)}
+          onConfirm={async (values) => {
+            await updateRequest(completingRequestId, "complete", { exportReference: values.exportReference });
+            setCompletingRequestId(null);
+          }}
+        />
+      )}
     </div>
   );
 }

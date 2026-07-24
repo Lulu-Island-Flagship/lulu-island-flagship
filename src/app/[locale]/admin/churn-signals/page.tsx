@@ -150,8 +150,8 @@ export default function ChurnSignalsPage() {
         <form onSubmit={submitManual} className="bg-white rounded-xl border p-4 space-y-3 max-w-lg">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-brand-ink">Manual Signal</h2>
-            <button type="button" onClick={() => setShowManualForm(false)} className="text-gray-400 hover:text-gray-600">
-              <X className="w-5 h-5" />
+            <button type="button" onClick={() => setShowManualForm(false)} aria-label="Close form" className="text-gray-400 hover:text-gray-600">
+              <X className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
           <input

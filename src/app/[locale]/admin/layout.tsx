@@ -2,11 +2,25 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import AdminNav from "@/components/admin/AdminNav";
+import AdminBreadcrumbs from "@/components/admin/AdminBreadcrumbs";
 import type { AdminRole } from "@/lib/admin-rbac";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+
+// Título base de las ~70 páginas de /admin: cada page.tsx solo necesita
+// exportar `export const metadata = { title: "..." }` con un título corto
+// (ej. "Dispatch") y este template lo envuelve en "Dispatch | Lulu Island
+// Admin" para la pestaña del navegador. Páginas sin metadata propio caen al
+// `default` de abajo en vez de quedar sin título.
+export const metadata: Metadata = {
+  title: {
+    template: "%s | Lulu Island Admin",
+    default: "Lulu Island Admin",
+  },
+};
 
 export default async function AdminLayout({
   children,
@@ -94,14 +108,18 @@ export default async function AdminLayout({
   const adminRoles = (roleRows ?? []).map((r) => r.role as AdminRole);
   const hasAdminAccess = !!isSupervisor || adminRoles.length > 0;
 
-  // is_supervisor() puede ser true por employees.role='supervisor' sin que
-  // exista fila en admin_roles (ver comentario arriba, v8.3 E0 2026-07-11) --
-  // en ese caso no hay un AdminRole real que pasarle al nav. Se trata como
-  // ops_coordinator (el rol operativo más cercano a "supervisor de campo")
-  // para que al menos vea el nav operativo en vez de nada.
-  if (adminRoles.length === 0 && isSupervisor) {
-    adminRoles.push("ops_coordinator");
-  }
+  // Fix Kimi-A1 (auditoría externa Kimi Code, 2026-07-21, verificado y
+  // confirmado real): este fallback ("is_supervisor() sin fila en
+  // admin_roles -> tratar como ops_coordinator") hacía que AdminNav
+  // mostrara enlaces operativos que requireAdminRole() (src/lib/admin.ts)
+  // YA HABÍA DEJADO de conceder sin fila explícita (fix de seguridad v8.3
+  // E0 2026-07-11, "riesgo de acceso fantasma") -- el usuario veía el
+  // enlace y al hacer clic recibía 403 sin explicación. Se elimina el
+  // fallback: un supervisor de campo sin admin_roles sigue entrando al
+  // layout (hasAdminAccess arriba ya lo permite vía is_supervisor()) pero
+  // ve el nav vacío hasta que un owner_admin le asigne un rol real --
+  // exactamente el comportamiento que requireAdminRole() ya documenta como
+  // intencional (ver comentario en admin.ts).
 
   if (!hasAdminAccess) {
     return (
@@ -130,6 +148,16 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Skip link para usuarios de teclado/lector de pantalla — visualmente
+          oculto hasta recibir foco (mismo patrón sr-only que ya usa
+          src/app/[locale]/page.tsx), salta el nav admin e ir directo al
+          contenido principal (#admin-main-content). */}
+      <a
+        href="#admin-main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:bg-white focus:text-brand-ink focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-elevation-2 focus:outline focus:outline-2 focus:outline-brand-navy"
+      >
+        Skip to main content
+      </a>
       {/* Admin Nav — v8.3 E0: reemplazado el 2026-07-11 por feedback directo
           (notas a mano): la fila plana de 19 links era "muy desordenada".
           Ahora es un menú agrupado por categoría (desktop: dropdowns,
@@ -150,7 +178,12 @@ export default async function AdminLayout({
           </form>
         </div>
       </nav>
-      <main className="max-w-6xl mx-auto px-4 py-6">{children}</main>
+      <main id="admin-main-content" className="max-w-6xl mx-auto px-4 py-6">
+        {/* Montado a nivel de layout para cubrir las ~70 rutas de /admin sin
+            tocar cada page.tsx individualmente. */}
+        <AdminBreadcrumbs adminPath={adminPath} />
+        {children}
+      </main>
     </div>
   );
 }

@@ -167,7 +167,7 @@ export default function PartnersPage() {
         <form onSubmit={submitPartner} className="bg-white rounded-xl border p-4 space-y-3 max-w-md">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-brand-ink">New Partner</h2>
-            <button type="button" onClick={() => setShowPartnerForm(false)}><X className="w-5 h-5 text-gray-400" /></button>
+            <button type="button" onClick={() => setShowPartnerForm(false)} aria-label="Close form"><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
           </div>
           <select
             aria-label="Tipo de socio"
@@ -191,7 +191,7 @@ export default function PartnersPage() {
         <form onSubmit={submitCalc} className="bg-white rounded-xl border p-4 space-y-3 max-w-md">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-brand-ink">Calculate Commission</h2>
-            <button type="button" onClick={() => setShowCalcForm(false)}><X className="w-5 h-5 text-gray-400" /></button>
+            <button type="button" onClick={() => setShowCalcForm(false)} aria-label="Close form"><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
           </div>
           <select aria-label="Seleccionar socio" value={calcForm.partnerId} onChange={(e) => setCalcForm((f) => ({ ...f, partnerId: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required>
             <option value="" disabled>Select partner</option>
