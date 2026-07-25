@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, CheckCircle2, Circle } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
 
 interface Item {
   item_key: string;
@@ -11,6 +12,8 @@ interface Item {
 }
 
 export default function LegacyMigrationPage() {
+  const t = useTranslations("admin.legacyMigration");
+  const locale = useLocale();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -58,8 +61,8 @@ export default function LegacyMigrationPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-brand-ink">Legacy Migration Closure</h1>
-        <p className="text-sm text-gray-500 mt-1">D.11.8 — closing out the old site (www → app redirect, Godaddy archive + cancellation).</p>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t("subtitle")}</p>
       </div>
 
       <div className="bg-white rounded-xl border divide-y">
@@ -73,7 +76,11 @@ export default function LegacyMigrationPage() {
               )}
               <div>
                 <p className="text-sm text-brand-ink">{item.label}</p>
-                {item.completed_at && <p className="text-xs text-gray-400">Done {new Date(item.completed_at).toLocaleDateString()}</p>}
+                {item.completed_at && (
+                  <p className="text-xs text-gray-400">
+                    {t("done", { date: new Date(item.completed_at).toLocaleDateString(locale) })}
+                  </p>
+                )}
               </div>
             </div>
             {!item.completed_at && (
@@ -82,7 +89,7 @@ export default function LegacyMigrationPage() {
                 disabled={busyKey === item.item_key}
                 className="bg-brand-navy text-white px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 shrink-0"
               >
-                {busyKey === item.item_key ? "..." : "Mark done"}
+                {busyKey === item.item_key ? "…" : t("markDone")}
               </button>
             )}
           </div>

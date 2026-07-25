@@ -6,7 +6,9 @@
     "keywords": "cleaning services, house cleaning, Richmond BC, Vancouver cleaning, deep cleaning, move-in cleaning"
   },
   "nav": {
-    "location": "Richmond, BC"
+    "location": "Richmond, BC",
+    "login": "Sign In",
+    "teamPortal": "Team Portal"
   },
   "hero": {
     "badge": "Serving Richmond, Vancouver, North & West Vancouver, UBC",
@@ -85,14 +87,26 @@
       "b2bTitle": "Commercial / B2B Quote",
       "b2bDesc": "This quote requires manual onboarding, PO process, and Net-30 setup before booking. Submitting will notify our sales team.",
       "poLabel": "Purchase Order (PO) Number *",
-      "poHint": "B2B / Government bookings require a PO before onboarding."
+      "poHint": "B2B / Government bookings require a PO before onboarding.",
+      "retryCalculation": "Try Again",
+      "profileWarningTitle": "We couldn't fully update your profile",
+      "profileWarningDesc": "Your quote was saved, but part of your account profile couldn't be updated. This won't stop you from booking, but please double-check your contact details in My Account afterwards.",
+      "adminReviewTitle": "Your quote needs a quick review",
+      "adminReviewDesc": "Your quote was saved, but our team needs to manually review a few details before it's fully confirmed. You can continue to reservation now — we'll follow up if anything needs your input.",
+      "continueToReservation": "Continue to Reservation"
     },
     "category": {
       "title": "What type of space do you need cleaned?",
       "subtitle": "Select the category that best describes your space.",
       "items": {
-        "home": { "label": "Home", "description": "Residential cleaning services" },
-        "commercial": { "label": "Commercial", "description": "Office, Airbnb, and construction cleanup" }
+        "home": {
+          "label": "Home",
+          "description": "Residential cleaning services"
+        },
+        "commercial": {
+          "label": "Commercial",
+          "description": "Office, Airbnb, and construction cleanup"
+        }
       }
     },
     "purpose": {
@@ -115,7 +129,11 @@
       "bathroomsTitle": "Bathrooms",
       "bathroomsSubtitle": "Full and half bathrooms",
       "squareFeetTitle": "Approximate Square Footage",
-      "squareFeetSubtitle": "Best estimate is fine"
+      "squareFeetSubtitle": "Best estimate is fine",
+      "decreaseBedroomsAriaLabel": "Decrease number of bedrooms",
+      "increaseBedroomsAriaLabel": "Increase number of bedrooms",
+      "decreaseBathroomsAriaLabel": "Decrease number of bathrooms",
+      "increaseBathroomsAriaLabel": "Increase number of bathrooms"
     },
     "addonZones": {
       "title": "Anything extra?",
@@ -139,10 +157,22 @@
       "title": "When was your last professional cleaning?",
       "subtitle": "More time since the last deep clean means more buildup to tackle.",
       "presets": {
-        "lessThan30": { "label": "Less than 30 days", "hint": "Recent maintenance" },
-        "oneToTwoMonths": { "label": "1–2 months", "hint": "Some buildup expected" },
-        "twoToThreeMonths": { "label": "2–3 months", "hint": "Moderate buildup" },
-        "moreThanThree": { "label": "More than 3 months", "hint": "Deep clean recommended" }
+        "lessThan30": {
+          "label": "Less than 30 days",
+          "hint": "Recent maintenance"
+        },
+        "oneToTwoMonths": {
+          "label": "1–2 months",
+          "hint": "Some buildup expected"
+        },
+        "twoToThreeMonths": {
+          "label": "2–3 months",
+          "hint": "Moderate buildup"
+        },
+        "moreThanThree": {
+          "label": "More than 3 months",
+          "hint": "Deep clean recommended"
+        }
       }
     },
     "address": {
@@ -314,6 +344,10 @@
       "paypalTransactionIdAriaLabel": "PayPal transaction number",
       "paypalPayerEmailPlaceholder": "PayPal payer email (optional)",
       "paypalPayerEmailAriaLabel": "PayPal payer email (optional)",
+      "paypalManualEntryWarning": "Enter the exact 17-character Transaction ID from your PayPal confirmation email. Double-check every character — an incorrect ID can delay or block your booking confirmation.",
+      "paypalTransactionIdHint": "17 characters, letters and numbers only (e.g. 1AB2345CD6789012E). Find it in your PayPal confirmation email.",
+      "paypalTransactionIdInvalidLength": "PayPal transaction IDs are 17 characters — you've entered {count}.",
+      "paypalPayerEmailInvalid": "Enter a valid email address, or leave this blank.",
       "walletPayNowAlipay": "Pay the full amount now with Alipay.",
       "walletPayNowWechat": "Pay the full amount now with WeChat Pay.",
       "walletBackupCardNote": "A backup card is still required afterwards to cover any extra charges (damage, extra time, late cancellation) — you will never be charged again through {method}.",
@@ -341,6 +375,8 @@
       "priceHoldExpired": "Your price hold has expired. Please refresh to get a new quote before confirming.",
       "priceNotConfirmed": "We couldn't confirm your price for this date. Please refresh the page and try again.",
       "enterPaypalTransactionId": "Please enter your PayPal transaction ID.",
+      "invalidPaypalTransactionId": "PayPal transaction IDs are exactly 17 characters. Please check your PayPal confirmation email and re-enter it.",
+      "invalidPaypalPayerEmail": "Please enter a valid PayPal payer email, or leave it blank.",
       "completePaymentFirst": "Please complete payment with {method} first.",
       "genericError": "Failed to confirm reservation."
     },
@@ -406,7 +442,9 @@
   "confirmacion": {
     "brand": "Lulu Island Flagship",
     "notFoundTitle": "Reservation Not Found",
-    "notFoundDesc": "We couldn't find your reservation details.",
+    "notFoundDesc": "We couldn't find this reservation, or it isn't associated with your account. If you just booked, try refreshing — otherwise check My Services or get a new quote.",
+    "missingOrderIdTitle": "No Reservation Specified",
+    "missingOrderIdDesc": "This link is missing the reservation reference. If you followed a bookmark or an old link, try booking again or check your reservations in My Services.",
     "getQuote": "Get a Quote",
     "title": "Reservation Confirmed",
     "subtitle": "Your cleaning service is scheduled. We'll see you then!",
@@ -515,6 +553,8 @@
     "cancellation": {
       "title": "Cancellation Policy",
       "intro": "This is the exact policy that applies when you cancel a confirmed reservation, or don't show up for one. It governs how your payment Hold is released, captured, or refunded, and applies the same way regardless of which payment method you used at checkout.",
+      "howToCancel": "To cancel an upcoming service, go to Account → My Services.",
+      "howToCancelCta": "Go to My Services",
       "sections": [
         {
           "heading": "More than 72 hours before your scheduled service",
@@ -622,6 +662,7 @@
         "removed": "Removed from Live Portfolio.",
         "networkError": "Network error",
         "selectedNotice": "One of your services ({label}) was selected for our Live Portfolio.",
+        "explanation": "Anonymized before/after photos (no name or address shown) may be used on our website and social media. <link>Learn more in our Privacy Policy</link>.",
         "removing": "Removing...",
         "removeIt": "Remove it"
       },
@@ -632,7 +673,8 @@
         "title": "Your Team is on the Way",
         "subtitle": "Live location of your service vehicle — updates automatically.",
         "lastUpdated": "Last updated {time}",
-        "openInMaps": "Open in Maps"
+        "openInMaps": "Open in Maps",
+        "mapFrameTitle": "Map showing your service vehicle's live location"
       },
       "galeria": {
         "loadFailed": "Failed to load",
@@ -641,6 +683,9 @@
         "completedIn": "Completed in {minutes} minutes",
         "photos": "Photos",
         "servicePhotoAlt": "Service photo {index}",
+        "enlargePhotoAriaLabel": "View photo {index} full size",
+        "photoLightboxAriaLabel": "Full size photo viewer",
+        "closeAriaLabel": "Close",
         "checklist": "Checklist",
         "rebook": {
           "loadOptionsFailed": "Could not load rebooking options",
@@ -720,6 +765,7 @@
       "copied": "Copied",
       "copy": "Copy",
       "shareCode": "Share this code. When your friend completes their first service, you both get {amount}.",
+      "shareCodeGeneric": "Share this code. When your friend completes their first service, you both get a referral credit.",
       "notEligible": "Referral codes are available to VIP clients (more than 5 completed services and a great account standing). Keep booking with us -- you'll unlock it soon.",
       "haveCode": "Have a code from a friend?",
       "redeemInputAriaLabel": "Friend's referral code",
@@ -792,6 +838,2623 @@
       "iArrived": "I Arrived",
       "startCleaning": "Start Cleaning",
       "finishService": "Finish Service"
+    },
+    "dashboard": {
+      "redirecting": "Redirecting to the Team Portal…",
+      "logout": "Sign out",
+      "date": "{date}",
+      "startShiftError": "Couldn't start your shift. Please check your connection and try again.",
+      "startShiftConnectionError": "Connection error starting your shift. Please try again.",
+      "downloadingRoute": "Downloading today's route for offline use…",
+      "routeReady": "Today's route saved for offline use.",
+      "routeFailed": "Couldn't save today's route for offline use — stay connected until reconnected.",
+      "loadError": "Couldn't load today's services. Check your connection and try again.",
+      "clientLabel": "Client: {name}",
+      "more": "More",
+      "myScore": "My Score",
+      "peerVoting": "Peer Voting",
+      "checkin": "Check-in",
+      "cloths": "Cloths",
+      "shiftRitual": "Shift Ritual",
+      "marketing": "Marketing",
+      "sickDay": "Sick Day",
+      "myBreaks": "My Breaks",
+      "safety": "Safety",
+      "unsyncedWarning": "You have {count} unsynced item(s). They'll finish syncing once you're back online — sign out anyway?",
+      "unsyncedSyncing": "Syncing your offline data before signing out…",
+      "atTime": "{date} at {time}",
+      "defaultServiceLabel": "Cleaning"
+    }
+  },
+  "survey": {
+    "unavailableTitle": "Survey Unavailable",
+    "invalidOrExpired": "This survey link is invalid or expired.",
+    "somethingWrong": "Something went wrong.",
+    "goHome": "Go Home",
+    "thankYouTitle": "Thank you!",
+    "creditGranted": "{amount} added to your Lulu Wallet",
+    "thankYouBody": "We appreciate you taking the time.",
+    "checkInTitle": "Quick 30-second check-in",
+    "checkInSubtitle": "Was everything to your satisfaction?",
+    "yes": "Yes",
+    "somethingOff": "Something's off",
+    "complaintPlaceholder": "What happened? We'll follow up quickly.",
+    "submit": "Submit",
+    "submitFailed": "Failed to submit.",
+    "networkError": "Network error. Please try again.",
+    "privacyNote": "This is a private check-in, not a public review. You'll get $10 Lulu Wallet credit for answering."
+  },
+  "nps": {
+    "unavailableTitle": "Survey Unavailable",
+    "invalidOrExpired": "This survey link is invalid or expired.",
+    "somethingWrong": "Something went wrong.",
+    "goHome": "Go Home",
+    "thankYouTitle": "Thank you!",
+    "thankYouBody": "Your feedback helps us improve.",
+    "questionTitle": "One quick question",
+    "questionSubtitle": "On a scale of 0-10, how likely are you to recommend us to a friend or colleague?",
+    "notLikely": "Not likely",
+    "veryLikely": "Very likely",
+    "commentPlaceholder": "Anything you'd like to add? (optional)",
+    "submit": "Submit",
+    "submitFailed": "Failed to submit.",
+    "networkError": "Network error. Please try again."
+  },
+  "admin": {
+    "common": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "edit": "Edit",
+      "confirm": "Confirm",
+      "loading": "Loading...",
+      "error": "Error",
+      "retry": "Retry",
+      "search": "Search",
+      "filter": "Filter",
+      "export": "Export",
+      "add": "Add",
+      "close": "Close",
+      "submit": "Submit",
+      "back": "Back",
+      "next": "Next",
+      "yes": "Yes",
+      "no": "No",
+      "actions": "Actions",
+      "status": "Status",
+      "active": "Active",
+      "inactive": "Inactive",
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "unknown": "Unknown",
+      "viewDetails": "View details",
+      "download": "Download",
+      "refresh": "Refresh",
+      "noResults": "No results found",
+      "errorGeneric": "Something went wrong. Please try again.",
+      "tryAgain": "Try again",
+      "required": "Required",
+      "optional": "(optional)",
+      "working": "Working...",
+      "dismiss": "Dismiss"
+    },
+    "nav": {
+      "brand": "Admin",
+      "signOut": "Sign Out",
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu",
+      "groups": {
+        "operations": "Operations",
+        "qualityRisk": "Quality & Risk",
+        "salesCustomer": "Sales & Customer",
+        "financeSettings": "Finance & Settings"
+      },
+      "links": {
+        "services": "Services",
+        "employees": "Employees",
+        "vehicles": "Vehicles",
+        "checklists": "Checklists",
+        "inventario": "Inventory",
+        "qc": "QC",
+        "audits": "Audits",
+        "nearMisses": "Near-Misses",
+        "riesgo": "Risk",
+        "sos": "SOS",
+        "drDrills": "DR Drills",
+        "contingencia": "Contingency",
+        "tickets": "Tickets",
+        "quoteReviews": "Quote Reviews",
+        "upsells": "Upsells",
+        "marketing": "Marketing",
+        "competencia": "Competitors",
+        "warrantyClaims": "Warranty Claims",
+        "phoneBooking": "Phone Booking",
+        "pricingRules": "Pricing Rules",
+        "pricingRulesSandbox": "Pricing Rules Sandbox",
+        "pricingSettings": "Pricing Settings",
+        "contabilidad": "Accounting",
+        "teamRanking": "Team Ranking",
+        "ajustesHhe": "HHE Settings",
+        "seguridad": "Security",
+        "wallet": "Wallet",
+        "comunicaciones": "Communications",
+        "configHistory": "Config History",
+        "roles": "Roles"
+      }
+    },
+    "layout": {
+      "skipToContent": "Skip to main content",
+      "accessTitle": "Admin Access",
+      "accessStatus": "Status:",
+      "accessNotAuthorized": "Not authorized",
+      "accessUserEmail": "User email:",
+      "accessNoEmail": "no email",
+      "accessDenied": "Your account does not have an admin role assigned.",
+      "goHome": "Go to Home"
+    },
+    "dashboard": {
+      "title": "Admin Dashboard",
+      "cards": {
+        "alertInbox": {
+          "title": "Alert Inbox",
+          "description": "Unified queue — respond in 10 min vs. can wait (E0.6)"
+        },
+        "todaysServices": {
+          "title": "Today's Services",
+          "description": "View all scheduled services for today with checklist progress"
+        },
+        "dispatchReview": {
+          "title": "Dispatch review",
+          "description": "Daily assignment matrix — override, language match, workday alerts (D.4)"
+        },
+        "employees": {
+          "title": "Employees",
+          "description": "View all active and inactive employees"
+        },
+        "upsellsReview": {
+          "title": "Upsells Review",
+          "description": "Review upsells proposed by employees"
+        },
+        "checklists": {
+          "title": "Checklists",
+          "description": "Manage SOP checklist templates by zone and service type"
+        },
+        "qcWall": {
+          "title": "QC Wall",
+          "description": "Approve or reject completed services with evidence"
+        },
+        "fieldAudits": {
+          "title": "Field Audits",
+          "description": "Register field evaluations and view peer vote aggregates"
+        },
+        "tickets": {
+          "title": "Tickets",
+          "description": "Disputes, discrepancies, and consultation queue"
+        },
+        "quoteReviews": {
+          "title": "Quote Reviews",
+          "description": "Approve or reject quotes below the 15% margin floor"
+        },
+        "pricingRules": {
+          "title": "Pricing Rules",
+          "description": "Headless rule engine — active rules and audit log"
+        },
+        "pricingSettings": {
+          "title": "Pricing Settings",
+          "description": "Target hourly rate and HHE table preview"
+        },
+        "businessInsurance": {
+          "title": "Business Insurance",
+          "description": "Vehicular, general liability, and E&O policy registry"
+        },
+        "seasonalCampaigns": {
+          "title": "Seasonal Campaigns",
+          "description": "The 5 pre-loaded campaigns, modulated by real demand signals"
+        },
+        "succession": {
+          "title": "Succession Mode",
+          "description": "Trusted successors and burnout/succession status"
+        },
+        "drDrills": {
+          "title": "DR Drills",
+          "description": "Disaster recovery drill log — restore, succession, kit, fallback (E11.4)"
+        },
+        "weatherExceptions": {
+          "title": "Weather Exceptions",
+          "description": "Adverse weather log — reschedule vs. safe abort + Day Rate (D.10#10)"
+        },
+        "workplaceIncidents": {
+          "title": "Workplace Incidents",
+          "description": "Injuries — WorkSafeBC 72h pre-filled report countdown (D.10#6)"
+        },
+        "churnSignals": {
+          "title": "Churn Signals",
+          "description": "At-risk clients — survey, reactivation discount, personal follow-up (D.10.9)"
+        },
+        "attribution": {
+          "title": "Attribution",
+          "description": "CAC/LTV by channel + suggested budget allocation (D.10.2)"
+        },
+        "partners": {
+          "title": "Partners & Commissions",
+          "description": "Real estate, property manager, vet, builder referrals — all T4A (D.10.6)"
+        },
+        "neighborhood": {
+          "title": "Neighborhood",
+          "description": "Concierge notices, noise rules, complaints, and neighbor leads (E11.5)"
+        },
+        "experiments": {
+          "title": "A/B Experiments",
+          "description": "Price/copy/UI experiments — recurring clients always protected (D.10.11)"
+        },
+        "clientSegments": {
+          "title": "Client Segments",
+          "description": "VIP / Regular / Sporadic / At Risk / New (E5.14)"
+        },
+        "wellbeing": {
+          "title": "Team Wellbeing",
+          "description": "Aggregated sleep/mood check-ins — never individual (E8.1/E8.3)"
+        },
+        "teams": {
+          "title": "Teams",
+          "description": "Minimal team identity (name + avatar) feeding the weekly Top-3 ranking (E8.9/E8.10)"
+        },
+        "routeShortcuts": {
+          "title": "Route Shortcuts",
+          "description": "Employee-reported shortcuts pending validation — validating pays $10 (E8 learning route)"
+        },
+        "coworkerRotation": {
+          "title": "Coworker Rotation",
+          "description": "Minimum 3 distinct coworkers/month + \"never together\" exceptions (E8.14)"
+        },
+        "livePortfolio": {
+          "title": "Live Portfolio",
+          "description": "Auto-surfaced candidates — one-tap approve, client keeps a 24h withdrawal right (E5.15)"
+        },
+        "seoLocal": {
+          "title": "SEO Local & GBP",
+          "description": "Google Business Profile checklist + quarterly NAP verification (E10.3)"
+        },
+        "employeeMarketing": {
+          "title": "Employee Marketing",
+          "description": "Day-in-the-life reels & badge showcase — employee consent + one-touch approval (E10.8)"
+        },
+        "payrollExport": {
+          "title": "Payroll Export",
+          "description": "CPP/EI/WorkSafeBC/Vacation Pay per employee, CSV/JSON export (E9.3)"
+        },
+        "economicParameters": {
+          "title": "Economic Parameters",
+          "description": "Minimum wage / Day Rate — simulate impact, one click to apply (E9.6)"
+        },
+        "legalMonitoring": {
+          "title": "Legal Monitoring",
+          "description": "7 regulatory feeds, blind-feed alert, open change alerts (E9.7)"
+        },
+        "pipeda": {
+          "title": "PIPEDA Compliance",
+          "description": "Data subject requests (48h) + breach protocol (72h) (E9.9)"
+        },
+        "giftProgram": {
+          "title": "Gift Program",
+          "description": "Residential retention gifts + property-manager building benefits (E9.11)"
+        },
+        "growthMetrics": {
+          "title": "Growth Metrics",
+          "description": "Funnel, referrals, churn, NPS scorecard vs. targets (E10.13)"
+        },
+        "entityNotes": {
+          "title": "Operational Notes",
+          "description": "Notes tied to employees/properties, surfaced by context (E11.2)"
+        },
+        "stressScenario": {
+          "title": "Financial Stress Scenario",
+          "description": "-30% revenue x 3 months simulation, levers in order, review threshold (E11.7)"
+        },
+        "legacyMigration": {
+          "title": "Legacy Migration Closure",
+          "description": "www redirect + Godaddy archive/cancellation checklist (E11.8)"
+        },
+        "certifications": {
+          "title": "Certifications",
+          "description": "Chemical handling levels with real expiry — blocks dispatch when lapsed (E9.4)"
+        },
+        "craRemittances": {
+          "title": "CRA Remittances",
+          "description": "CPP/EI monthly, GST/PST quarterly, T4 annual — reminder calendar (E9.4)"
+        },
+        "backupStatus": {
+          "title": "Backup Status",
+          "description": "Transactions/payroll/clients/photos CSV+hash + pg_dump reminder (E9.10)"
+        },
+        "contractReviews": {
+          "title": "Contract Renewal Reviews",
+          "description": "60 days before anniversary — legal diff, approval, digital signature (E9.8)"
+        },
+        "laborCompliance": {
+          "title": "BC Labor Compliance",
+          "description": "Documented breaks, sick leave, weekly 32h rest, statutory holiday pay"
+        }
+      }
+    },
+    "checklists": {
+      "cannotDelete": "Cannot delete: this checklist is in use by one or more active services."
+    },
+    "empleados": {
+      "saveCareerLevelFailed": "Failed to save career level. Please try again."
+    },
+    "inventario": {
+      "purchaseOrderFailed": "Could not generate the purchase order."
+    },
+    "upsells": {
+      "reviewError": "Something went wrong while reviewing this upsell. Please try again."
+    },
+    "monitoreoLegal": {
+      "invalidImpact": "Enter a valid number for the impact."
+    },
+    "ajustesHhe": {
+      "title": "Suggested HHE Adjustments",
+      "intro": "Sustained deviation ≥30 days between estimated HHE and actual person-hours (approximated from completed checklist range × assigned team — there's no dedicated clock-in/out in the schema yet). Applying here closes the current cell and opens a new one in the HHE table; it is logged and reversible from Configuration History.",
+      "error": "Error",
+      "errorLoading": "Error loading suggestions",
+      "errorApplying": "Error applying adjustment",
+      "noDeviations": "No sustained deviations detected ({count} observations analyzed).",
+      "apply": "Apply",
+      "fasterTeamsTitle": "Consistently Faster Teams",
+      "fasterTeamsIntro": "D.9.2: a team completing services ≥20% faster than estimated, sustained over 30 days, suggests assigning more complex services or reducing N — this is a staffing/dispatch decision, not an HHE table change, so there is no one-click apply here; review it in Team Ranking / Dispatch.",
+      "observationSummary": "{days} days of observation, {percent}% consistent"
+    },
+    "contingencia": {
+      "title": "Contingency Manual",
+      "subtitle": "One page. If the situation isn't listed below: 10 min Fallback → Emergency Admin.",
+      "items": {
+        "noOnlinePayment": {
+          "situation": "Client with no online payment",
+          "action": "\"Payment pending\" + e-transfer/cash with receipt."
+        },
+        "pwaDown": {
+          "situation": "PWA won't load",
+          "action": "Phone + paper + photos with cellphone."
+        },
+        "qboNotSynced": {
+          "situation": "QBO not synced >48h",
+          "action": "Call."
+        },
+        "noAccess": {
+          "situation": "No access (keys)",
+          "action": "Key protocol → no-show."
+        },
+        "stripeBlocked": {
+          "situation": "Stripe blocked",
+          "action": "\"Payment pending\" globally."
+        },
+        "supabaseDown": {
+          "situation": "Supabase down",
+          "action": "Offline, do not cancel services."
+        },
+        "dispute": {
+          "situation": "Dispute",
+          "action": "Never refund without reviewing evidence."
+        },
+        "injury": {
+          "situation": "Injury",
+          "action": "WorkSafeBC 72h, do not admit fault."
+        },
+        "damageAccusation": {
+          "situation": "Damage accusation",
+          "action": "Pre-service photo."
+        }
+      },
+      "goldenRule": {
+        "title": "Golden rule",
+        "text": "If the situation isn't on this list → 10-minute Fallback → escalate to Emergency Admin. Never improvise a new exception without logging the case afterward so it can be added here."
+      }
+    },
+    "legacyMigration": {
+      "title": "Legacy Migration Closure",
+      "subtitle": "D.11.8 — closing out the old site (www → app redirect, Godaddy archive + cancellation).",
+      "done": "Done {date}",
+      "markDone": "Mark done"
+    },
+    "comunicacionesDetail": {
+      "title": "Communication Timeline",
+      "orderLabel": "Order {orderId}"
+    },
+    "alerts": {
+      "title": "Unified Alert Inbox",
+      "subtitle": "E0.6 — one queue, two tiers. \"Respond in 10 min\" alerts trigger Fallback if untouched; \"can wait\" don't.",
+      "severity": {
+        "p0_safety": "P0 — Safety",
+        "p1_urgent": "P1 — Urgent",
+        "p2_automatic": "P2 — Automatic"
+      },
+      "actions": {
+        "acknowledge": "Acknowledge",
+        "resolve": "Resolve"
+      },
+      "status": {
+        "acknowledged": "Acknowledged"
+      },
+      "sections": {
+        "respondNow": "Respond in 10 min ({count})",
+        "canWait": "Can wait ({count})"
+      },
+      "emptyStates": {
+        "nothingUrgent": "Nothing urgent.",
+        "nothingPending": "Nothing pending."
+      },
+      "errors": {
+        "loadFailed": "Failed to load",
+        "actionFailed": "Failed",
+        "network": "Network error"
+      }
+    },
+    "employeeMarketing": {
+      "title": "Employee Marketing",
+      "subtitle": "Day-in-the-life reels and public badge showcases (D.10.8). Visible only when BOTH the employee has consented AND an admin has approved — withdrawing consent always un-publishes immediately.",
+      "empty": "No employee has requested a marketing feature yet.",
+      "errorLoading": "Failed to load",
+      "errorNetwork": "Network error",
+      "errorApproving": "Failed to approve",
+      "consentedOn": "consented {date}",
+      "noConsentYet": "no consent yet",
+      "approve": "Approve",
+      "approving": "...",
+      "featureType": {
+        "day_in_life_reel": "Day-in-the-life reel",
+        "public_badge_showcase": "Public badge showcase"
+      },
+      "visibility": {
+        "not_visible_awaiting_consent": "Awaiting employee consent",
+        "not_visible_awaiting_admin_approval": "Awaiting admin approval",
+        "not_visible_consent_withdrawn": "Consent withdrawn",
+        "visible": "Live / visible"
+      }
+    },
+    "quotesReview": {
+      "title": "Quote Reviews",
+      "pendingCount": "{count} pending",
+      "reviewRequired": "Review Required",
+      "bedBathSqft": "{bed} bed · {bath} bath · {sqft} ft²",
+      "clientScore": "Client score: {score}",
+      "hold": "Hold: {amount}",
+      "margin": "Margin: {pct}%",
+      "reject": "Reject",
+      "approve": "Approve",
+      "approvedReason": "Approved by admin",
+      "rejectedReason": "Rejected by admin",
+      "emptyState": "No quotes pending admin review.",
+      "errors": {
+        "loadFailed": "Failed to load quotes",
+        "network": "Network error",
+        "reviewFailed": "Review failed",
+        "networkReview": "Network error during review"
+      }
+    },
+    "entityNotes": {
+      "title": "Operational Knowledge Notes",
+      "subtitle": "Notes tied to an entity, surfaced by context (D.11.2) — e.g. \"don't pair with Pedro\" on an employee, or \"steep stairs\" on a property. Survives even if the person who knows it leaves.",
+      "entityTypeLabel": "Entity type",
+      "selectEntity": "Select entity",
+      "selectPlaceholder": "Select…",
+      "newNote": "New note",
+      "newNotePlaceholder": "New note…",
+      "surfaceIn": "Surface in:",
+      "addNote": "Add note",
+      "noNotes": "No notes yet for this entity.",
+      "shownIn": "Shown in: {contexts}",
+      "deleteNote": "Delete note",
+      "errorLoading": "Failed to load",
+      "errorNetwork": "Network error",
+      "entityType": {
+        "employee": "Employee",
+        "clientProperty": "Client Property",
+        "clientProfile": "Client",
+        "vehicle": "Vehicle"
+      }
+    },
+    "attribution": {
+      "title": "Attribution — CAC / LTV",
+      "subtitle": "No real ad-platform integration — spend is recorded by hand, same as the manual competitor checklist.",
+      "recordSpend": "Record Spend ({month})",
+      "ltv": {
+        "label": "LTV (global, D.3 formula — never shown without it)",
+        "inputsLine": "avg ticket {avgTicket} × {frequency}/mo × {margin}% margin × {retentionMonths}mo retention (conservative assumption pending real cohort data)",
+        "suggestedBudgetLine": "Suggested marketing budget this month: {min} – {max} (8-10% of last month's revenue {revenue})"
+      },
+      "form": {
+        "title": "Record spend — {month}",
+        "closeAria": "Close form",
+        "channelAria": "Marketing channel (e.g. google_search)",
+        "channelPlaceholder": "Channel (e.g. google_search)",
+        "spendAria": "Spend this month in dollars",
+        "spendPlaceholder": "Spend this month ($)",
+        "notesAria": "Notes about the attribution spend",
+        "notesPlaceholder": "Notes (optional)",
+        "saveAria": "Save attribution spend",
+        "saving": "Saving...",
+        "save": "Save"
+      },
+      "emptyState": "No channel data yet — record spend and wait for quotes with \"how did you hear about us\" answered.",
+      "channelRow": {
+        "newCustomers": "{count} new customers (90d) · spend {spend} this month",
+        "suggestedBudget": "Suggested budget: {amount}",
+        "cac": "CAC {amount}",
+        "cacHealthy": "CAC < LTV/3",
+        "cacUnhealthy": "CAC too high"
+      },
+      "errors": {
+        "loadFailed": "Failed to load",
+        "saveFailed": "Failed to save",
+        "network": "Network error"
+      }
+    },
+    "regalos": {
+      "title": "Gift Program",
+      "subtitle": "Residential 12+ month retention gifts, and property-manager building benefits (never a hidden personal gift — declared partnership commissions live under Partners & Commissions).",
+      "errors": {
+        "failed": "Failed",
+        "network": "Network error"
+      },
+      "residentialGifts": {
+        "heading": "Residential gifts",
+        "clientUserIdAria": "Client user ID",
+        "clientUserIdPlaceholder": "Client user ID",
+        "monthsActiveAria": "Months active",
+        "monthsActivePlaceholder": "Months active",
+        "firstYearValueAria": "First year value in dollars",
+        "firstYearValuePlaceholder": "1st yr value $",
+        "ltvAria": "Client lifetime value (LTV) in dollars, optional",
+        "ltvPlaceholder": "LTV $ (optional)",
+        "evaluate": "Evaluate",
+        "emptyState": "No gifts logged.",
+        "monthsActiveCount": "{count} months active",
+        "needsApproval": "needs approval",
+        "approvedLabel": "approved",
+        "deliveredLabel": "delivered",
+        "approve": "Approve",
+        "markDelivered": "Mark delivered"
+      },
+      "buildingBenefits": {
+        "heading": "Property manager building benefits",
+        "selectPartnerAria": "Select property manager partner",
+        "selectPartnerOption": "Select property manager partner...",
+        "descriptionAria": "Benefit description",
+        "descriptionPlaceholder": "e.g. Free common-area cleaning session",
+        "logBenefit": "Log benefit",
+        "emptyState": "No benefits logged.",
+        "unknownPartner": "(partner)",
+        "markDelivered": "Mark delivered"
+      }
+    },
+    "experiments": {
+      "title": "A/B Experiments",
+      "subtitle": "Recurring clients are always excluded. Winner is calculated, never picked by hand.",
+      "newExperiment": "New Experiment",
+      "closeForm": "Close form",
+      "experimentName": "Experiment name",
+      "name": "Name",
+      "experimentType": "Experiment type",
+      "types": {
+        "price": "Price",
+        "copy": "Copy",
+        "uiUx": "UI/UX",
+        "batchSchedule": "Batch schedule"
+      },
+      "controlPercent": "Control percentage",
+      "controlPercentShort": "Control %",
+      "variantPercent": "Variant percentage",
+      "variantPercentShort": "Variant %",
+      "variantHint": "Variant must stay under 20% of traffic; percentages must add to 100.",
+      "createExperiment": "Create experiment",
+      "saving": "Saving...",
+      "create": "Create",
+      "assignClient": "Assign client",
+      "clientUserId": "Client user ID",
+      "assignClientToExperiment": "Assign client to experiment",
+      "assigning": "Assigning...",
+      "assign": "Assign",
+      "markWinner": "Mark winner",
+      "evaluateHint": "Enter observed results per variant. Confidence must be pre-computed (z-test or equivalent) outside this form.",
+      "sampleSizeFor": "Sample size for {variant}",
+      "sampleSize": "Sample size",
+      "conversionRateFor": "Conversion rate % for {variant}",
+      "conversionPercent": "Conv. %",
+      "marginRatioFor": "Margin ratio % for {variant}",
+      "marginPercent": "Margin %",
+      "confidencePercent": "Confidence %",
+      "statisticalConfidence": "Statistical confidence percentage",
+      "evaluateAndMarkWinner": "Evaluate experiment and mark winner",
+      "evaluating": "Evaluating...",
+      "evaluate": "Evaluate",
+      "noExperiments": "No experiments yet.",
+      "vs": "vs.",
+      "winnerLabel": "Winner: {winner} — {reason}",
+      "start": "Start",
+      "errorLoading": "Failed to load",
+      "errorNetwork": "Network error",
+      "errorGeneric": "Failed",
+      "errorEvaluating": "Failed to evaluate experiment",
+      "status": {
+        "draft": "draft",
+        "running": "running",
+        "completed": "completed"
+      }
+    },
+    "audits": {
+      "title": "Field Audits",
+      "sections": {
+        "pendingAudits": "Pending Audits (Today's Completed)",
+        "auditHistory": "Audit History",
+        "peerVotes": "Peer Vote Aggregates (This Week)"
+      },
+      "emptyStates": {
+        "noPending": "No completed services pending audit for today.",
+        "noAudits": "No audits recorded yet.",
+        "noPeerVotes": "No peer votes recorded for this week."
+      },
+      "mandatoryAudit": "Mandatory audit: {reasons}",
+      "actions": {
+        "audit": "Audit"
+      },
+      "unknownEmployee": "Unknown",
+      "appealed": "Appealed",
+      "fiveWeekAvg": "5-week avg",
+      "voteCount": "{count} votes",
+      "scoreLabels": {
+        "poor": "Poor",
+        "fair": "Fair",
+        "acceptable": "Acceptable",
+        "good": "Good",
+        "excellent": "Excellent"
+      },
+      "criteria": {
+        "punctuality": "Punctuality",
+        "thoroughness": "Thoroughness",
+        "professionalism": "Professionalism",
+        "clientSatisfaction": "Client satisfaction",
+        "sopCompliance": "SOP compliance"
+      },
+      "modal": {
+        "title": "Field Audit",
+        "address": "Address",
+        "date": "Date",
+        "at": "at",
+        "overallScore": "Overall Score (1-5)",
+        "overallScoreAria": "Overall audit score (1 to 5)",
+        "criteria": "Criteria (1-5)",
+        "notesAria": "Field audit notes",
+        "notesPlaceholder": "Notes (optional)...",
+        "dispatchProbability": "Dispatch probability",
+        "announceAria": "Announce audit result to client",
+        "announceLabel": "Announce audit result to client",
+        "autoAnnounceNote": "Auto-announcement is enabled when probability is ≥ 80%.",
+        "submitAria": "Submit field audit",
+        "submit": "Submit Audit"
+      },
+      "errors": {
+        "loadFailed": "Failed to load audits",
+        "network": "Network error",
+        "noEmployeeAssigned": "No employee assigned to this order",
+        "submitFailed": "Failed to submit audit"
+      }
+    },
+    "riesgo": {
+      "title": "Risk by Address",
+      "subtitle": "Visible to admin and lead — never to the client. 0-2 flags = standard · 3-4 = auditor required · 5+ = pre-inspection required.",
+      "recordAssessment": "Record assessment",
+      "propertyIdAria": "Client property ID (UUID)",
+      "propertyIdPlaceholder": "client_property_id (UUID)",
+      "filterAria": "Filter by client property ID",
+      "filterPlaceholder": "Filter by client_property_id (optional)",
+      "search": "Search",
+      "emptyState": "No assessments recorded yet.",
+      "blockedNotice": "Blocked — not a Lulu service",
+      "errors": {
+        "missingPropertyId": "Missing property ID (client_property_id).",
+        "saveFailed": "Could not save the assessment."
+      },
+      "flags": {
+        "steep_stairs": "Steep stairs (+PPE +15 min)",
+        "aggressive_dog": "Aggressive dog (owner must be present)",
+        "mold_over_1sqm": "Mold >1m² (NOT a Lulu service — hard block)",
+        "confined_space": "Confined space (2 people + 15 min check-in)",
+        "defective_lockbox": "Defective lockbox (key escalation)"
+      },
+      "tiers": {
+        "standard": "Standard (0-2 flags)",
+        "auditor_required": "Auditor required (3-4 flags)",
+        "pre_inspection_required": "Pre-inspection required (5+ flags)"
+      }
+    },
+    "featureFlags": {
+      "title": "Feature Flags",
+      "searchFlags": "Search feature flags",
+      "searchPlaceholder": "Search…",
+      "staleCriticalWarning": "{count} critical flag(s) have been off for more than 7 days:",
+      "noModule": "No module",
+      "activeCount": "{active}/{total} active",
+      "descriptionOf": "Description of {name}",
+      "noDescription": "No description.",
+      "turnOff": "Turn off",
+      "turnOn": "Turn on",
+      "switchDescriptionFallback": "This switch enables or disables a system feature.",
+      "criticalFlagWarning": "⚠ Critical flag (P0): turning it off disables a core business feature.",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "saving": "Saving…",
+      "errorLoading": "Error loading flags",
+      "errorSaving": "Error saving",
+      "error": "Error"
+    },
+    "routeShortcuts": {
+      "title": "Route Shortcuts",
+      "subtitle": "Shortcuts reported by employees. Validating pays $10 once per shortcut.",
+      "pendingOnlyAria": "Show only shortcuts pending validation",
+      "pendingOnlyLabel": "Pending only",
+      "emptyState": "No shortcuts reported.",
+      "validated": "Validated",
+      "validateAction": "Validate (+$10)",
+      "errors": {
+        "loadFailed": "Failed to load",
+        "network": "Network error"
+      }
+    },
+    "backups": {
+      "title": "Backup Status",
+      "subtitle": "Transactions daily, payroll per cycle, clients weekly, photos manifest monthly. CSV+SHA-256 stored in Supabase Storage (offsite B2/Glacier replication not yet connected — no external credentials configured). pg_dump requires direct Postgres access and is a manual monthly reminder here, verified separately via DR Drills (E11.4).",
+      "loading": "Loading…",
+      "dueToRun": "Due to run",
+      "upToDate": "Up to date",
+      "lastSuccess": "Last success: {date} · {rows} rows · {destination} · {hash}",
+      "neverRun": "Never run successfully.",
+      "lastAttemptFailed": "Last attempt failed: {error}",
+      "jobLabels": {
+        "transactionsDaily": "Transactions (daily)",
+        "payrollPerCycle": "Payroll (per cycle)",
+        "clientsWeekly": "Clients (weekly)",
+        "photosMonthly": "Photos manifest (monthly)",
+        "pgDumpMonthly": "pg_dump (monthly reminder)"
+      },
+      "errors": {
+        "loadFailed": "Failed to load",
+        "network": "Network error"
+      }
+    },
+    "growthMetrics": {
+      "title": "Growth Metrics Scorecard",
+      "subtitle": "Last {days} days (D.10.13). Targets: funnel >15%/25%, CAC<LTV/3, churn<10%, NPS>50, referrals>20%.",
+      "noData": "No data",
+      "meetsTarget": "Meets target",
+      "belowTarget": "Below target",
+      "funnelConversion": "Funnel conversion",
+      "referralRate": "Referral rate (new clients)",
+      "churnRate": "Churn rate",
+      "churnDetail": "{signals} signals / {active} active clients",
+      "nps": "NPS",
+      "npsDetail": "{promoters} promoters · {passives} passives · {detractors} detractors ({responses} responses)",
+      "errorLoading": "Failed to load",
+      "errorNetwork": "Network error",
+      "funnelStage": {
+        "below_target": "Below target (needs >15%)",
+        "acceptable": "Acceptable (>15%)",
+        "excellent": "Excellent (>25%)"
+      }
+    },
+    "seasonalCampaigns": {
+      "title": "Seasonal Campaigns",
+      "subtitle": "The 5 pre-loaded campaigns (D.10.4). The suggested month is a hint — the actual trigger is modulated by demand signals. There is no live weather feed yet, so enter today's signals manually.",
+      "suggestedMonth": "Suggested: {month}",
+      "signalsHeading": "Today's demand signals",
+      "evaluateAll": "Evaluate all 5 campaigns",
+      "evaluationsHeading": "Evaluations",
+      "noEvaluations": "No evaluations yet.",
+      "recommendsTrigger": "{multiplier}x — recommends trigger",
+      "approve": "Approve",
+      "reject": "Reject",
+      "markDispatched": "Mark dispatched",
+      "errors": {
+        "loadFailed": "Failed to load",
+        "network": "Network error",
+        "evaluateFailed": "Failed to evaluate",
+        "actionFailed": "Failed"
+      },
+      "signals": {
+        "rainyAria": "Rainy day",
+        "rainy": "Rainy (+30%)",
+        "localEventAria": "Local event",
+        "localEvent": "Local event (−20%)",
+        "schoolVacationAria": "School vacation",
+        "schoolVacation": "School vacation (−30%)",
+        "highPollenAria": "High pollen concentration",
+        "highPollen": "High pollen (+25%)",
+        "holidayAria": "Applicable holiday",
+        "noHoliday": "No holiday",
+        "mothersDay": "Mother's Day (+40%)",
+        "christmas": "Christmas (+50%)"
+      },
+      "statuses": {
+        "suggested": "suggested",
+        "approved": "approved",
+        "rejected": "rejected",
+        "dispatched": "dispatched"
+      },
+      "months": {
+        "january": "January",
+        "february": "February",
+        "march": "March",
+        "april": "April",
+        "may": "May",
+        "june": "June",
+        "july": "July",
+        "august": "August",
+        "september": "September",
+        "october": "October",
+        "november": "November",
+        "december": "December"
+      },
+      "dispatchModal": {
+        "title": "Mark campaign as dispatched",
+        "message": "This activates the seasonal pricing multiplier live for all new bookings. This cannot be undone."
+      }
+    },
+    "businessInsurance": {
+      "title": "Business Insurance",
+      "subtitle": "Vehicular, general liability, and E&O policies. This registry does not by itself enable any \"insured/bonded\" claim on the site — that requires your separate written confirmation (B.4).",
+      "addRenewPolicy": "Add / Renew Policy",
+      "missingPolicies": "Missing policies on file: {types}.",
+      "emptyState": "No policies registered yet.",
+      "belowMinimum": "below spec minimum",
+      "coverageAmount": "${amount} coverage",
+      "expires": "Expires {date}",
+      "policyTypes": {
+        "vehicular": "Vehicular liability",
+        "generalLiability": "General liability",
+        "errorsOmissions": "Errors & Omissions"
+      },
+      "status": {
+        "active": "Active",
+        "expiringSoon": "Expiring soon",
+        "expired": "EXPIRED"
+      },
+      "form": {
+        "title": "New / Renewed Policy",
+        "closeAria": "Close form",
+        "policyType": "Policy type",
+        "policyTypeAria": "Policy type",
+        "minCoverage": "min. ${amount}",
+        "providerAria": "Insurance provider or broker",
+        "providerPlaceholder": "Provider / broker",
+        "policyNumberAria": "Policy number",
+        "policyNumberPlaceholder": "Policy number (optional)",
+        "coverageAria": "Coverage amount in dollars",
+        "coveragePlaceholder": "Coverage amount ($)",
+        "effectiveFrom": "Effective from",
+        "effectiveFromAria": "Policy effective start date",
+        "expiryDate": "Expiry date",
+        "expiryDateAria": "Policy expiry date",
+        "saveAria": "Save insurance policy",
+        "saving": "Saving...",
+        "save": "Save Policy"
+      },
+      "errors": {
+        "loadFailed": "Failed to load",
+        "saveFailed": "Failed to save",
+        "network": "Network error"
+      }
+    },
+    "livePortfolio": {
+      "title": "Live Portfolio",
+      "subtitle": "Objectively-qualified candidates. Judge the before/after visual difference and approve with one tap. Approving starts the client's 24-hour withdrawal window.",
+      "empty": "No candidates waiting for review.",
+      "checklistScore": "Checklist {checklist}% · Employee score {score}",
+      "approve": "Approve",
+      "reject": "Reject",
+      "rejectModalTitle": "Reject candidate",
+      "rejectModalMessage": "This candidate will be removed from the review queue and won't be shown again for approval. This cannot be undone.",
+      "errorLoading": "Failed to load",
+      "errorNetwork": "Network error",
+      "errorUpdating": "Failed to update"
+    },
+    "marketing": {
+      "title": "Marketing — educational content (blog)",
+      "intro": "Every post goes through the PIPA validator (B.2.20) and the positioning consistency validator (B.2.24/B.2.25) before it can be approved. \"Insured/bonded\" is blocked automatically while the",
+      "introFlagSuffix": "flag is off.",
+      "loading": "Loading…",
+      "untitled": "(untitled)",
+      "sourceSample": "Source: {source} · sample={sample}",
+      "noContent": "(no content)",
+      "evaluateAction": "Evaluate (PIPA + positioning)",
+      "approve": "Approve",
+      "reject": "Reject",
+      "publish": "Publish",
+      "noPosts": "No posts recorded.",
+      "errorLoading": "Error loading marketing",
+      "errorRunningAction": "Error running the action",
+      "errorUnknown": "Unknown error",
+      "validationPassed": "PIPA + positioning validation: OK. Post moved to pending approval.",
+      "validationFailed": "Validation failed: {reasons}",
+      "status": {
+        "draft": "Draft",
+        "pendingApproval": "Pending approval",
+        "approved": "Approved",
+        "published": "Published",
+        "rejected": "Rejected"
+      }
+    },
+    "certificaciones": {
+      "title": "Employee Certifications",
+      "subtitle": "Chemical handling certification, 3 progressive levels (D.9 Doc 3). An employee with all certifications expired or revoked is excluded from tomorrow's dispatch automatically.",
+      "blockedBanner": "{count} active employee(s) currently blocked from dispatch — no valid certification.",
+      "loading": "Loading…",
+      "active": "active",
+      "inactive": "inactive",
+      "blockedFromDispatch": "Blocked from dispatch",
+      "noCertification": "No certification registered yet.",
+      "certBadge": "Level {level} · expires {date} · {status}",
+      "statusLabels": {
+        "valid": "valid",
+        "expiring_soon": "expiring soon",
+        "expired": "expired",
+        "revoked": "revoked",
+        "none": "none"
+      },
+      "registerForm": {
+        "title": "Register a certification",
+        "employeeAria": "Select employee",
+        "selectEmployee": "Select employee…",
+        "levelAria": "Select certification level",
+        "level": "Level {level}",
+        "expiresAria": "Certification expiry date",
+        "add": "Add"
+      },
+      "revokeModal": {
+        "title": "Revoke certification",
+        "message": "This certification will be marked as revoked and can no longer be used to make the employee assignable to dispatch.",
+        "confirm": "Revoke",
+        "reasonLabel": "Revocation reason"
+      },
+      "errors": {
+        "loadFailed": "Failed to load",
+        "genericFailed": "Failed",
+        "network": "Network error"
+      }
+    },
+    "seguridad": {
+      "title": "Backup Codes",
+      "intro": "One-time-use codes to get into the admin panel if you lose access to your Google account. Keep them off this device (printed or in a password manager) — they're only shown once, when generated.",
+      "currentSetGeneratedOn": "Current set generated on",
+      "unusedOfTotal": "unused codes of {total}",
+      "usedCount": "{count} already used",
+      "noUnusedCodesLeft": "You have no unused codes left. Generate a new set.",
+      "noCodesGeneratedYet": "You haven't generated backup codes yet.",
+      "regenerateButton": "Regenerate backup codes",
+      "generateButton": "Generate backup codes",
+      "confirmModal": {
+        "titleRegenerate": "Generate a new set?",
+        "titleGenerate": "Generate backup codes?",
+        "invalidatesWarning": "This invalidates the {count} unused code(s) from your current set immediately.",
+        "tenCodesNotice": "You'll get 10 single-use codes, shown only once.",
+        "cancel": "Cancel",
+        "generatingAria": "Generating backup codes",
+        "confirmAria": "Confirm backup code generation",
+        "generating": "Generating…",
+        "confirm": "Confirm"
+      },
+      "saveCodesWarning": "Save these codes now. They will not be shown again -- if you lose them, you'll need to generate a new set (which invalidates these).",
+      "copiedAria": "Backup codes copied to clipboard",
+      "copyAllAria": "Copy all backup codes",
+      "copied": "Copied",
+      "copyAll": "Copy all",
+      "ackSavedAria": "I've saved these codes somewhere safe",
+      "ackSavedLabel": "I've saved these codes somewhere safe.",
+      "done": "Done",
+      "errors": {
+        "loadFailed": "Error loading backup code status",
+        "generateFailed": "Error generating codes",
+        "generic": "Error"
+      }
+    },
+    "nearMisses": {
+      "title": "Near-Misses",
+      "subtitle": "No-penalty reporting, optional anonymity. Who reported is never shown here — only the aggregated weekly pattern and the suggested action per category.",
+      "previousWeek": "← Previous week",
+      "nextWeek": "Next week →",
+      "totalReportedThisWeek": "Total reported this week",
+      "noReports": "No reports this week.",
+      "reportCount": "{count} report(s)",
+      "errorLoading": "Could not load the near-misses dashboard.",
+      "errorNetwork": "Network error.",
+      "category": {
+        "nearFall": "Near-fall",
+        "nearChemicalMix": "Near chemical mix",
+        "nearBite": "Near-bite",
+        "nearBurn": "Near-burn",
+        "other": "Other"
+      }
+    },
+    "seoLocal": {
+      "title": "SEO Local & Google Business Profile",
+      "subtitle": "Operational checklist (D.10.3). There is no GBP API integration — without OAuth credentials for a real business in this system, each item is marked manually on completion.",
+      "markDone": "Mark done",
+      "lastDoneOn": "last done {date}",
+      "napHeading": "NAP Consistency (Name / Address / Phone)",
+      "napSubtitle": "Manual quarterly verification across directories (GBP, Yelp, Bing Places).",
+      "lastCheck": "Last check: {date}",
+      "consistent": "consistent",
+      "inconsistenciesFound": "inconsistencies found",
+      "overdueNotice": "Overdue — more than 91 days since the last verification.",
+      "recordConsistent": "Record: consistent",
+      "recordInconsistent": "Record: inconsistencies found",
+      "frequencies": {
+        "once": "once",
+        "weekly": "weekly",
+        "quarterly": "quarterly"
+      },
+      "statuses": {
+        "never_done": "Never done",
+        "ok": "OK",
+        "due_soon": "Due soon",
+        "overdue": "Overdue"
+      },
+      "errors": {
+        "loadFailed": "Failed to load",
+        "network": "Network error"
+      }
+    },
+    "churnSignals": {
+      "title": "Churn Signals",
+      "subtitle": "D.10.9 — recurring clients 60+ days inactive get a survey, sporadic clients 90+ days get a reactivation offer. Competitor mentions and team score drops are flagged manually below.",
+      "flagManually": "Flag Manually",
+      "markActioned": "Mark actioned",
+      "dismiss": "Dismiss",
+      "actions": {
+        "survey_20": "Send survey ($20 credit)",
+        "discount_30_percent": "Send reactivation offer (30% off)",
+        "personal_intervention": "Personal call required",
+        "flag_unreported_dispute": "Investigate — possible unreported dispute"
+      },
+      "sources": {
+        "cron": "automatic",
+        "manual": "manual"
+      },
+      "statusLabels": {
+        "pending": "pending",
+        "actioned": "actioned",
+        "dismissed": "dismissed"
+      },
+      "sections": {
+        "pending": "Pending ({count})",
+        "resolved": "Resolved"
+      },
+      "emptyStates": {
+        "noPending": "No pending churn signals."
+      },
+      "form": {
+        "title": "Manual Signal",
+        "closeAria": "Close form",
+        "clientIdAria": "Client user ID",
+        "clientIdPlaceholder": "Client user ID",
+        "competitorMentionAria": "Cancelled and mentioned a competitor",
+        "competitorMentionLabel": "Cancelled and mentioned a competitor",
+        "teamScorePreviousAria": "Previous team score",
+        "teamScorePreviousPlaceholder": "Team score before",
+        "teamScoreCurrentAria": "Current team score",
+        "teamScoreCurrentPlaceholder": "Team score now",
+        "saveAria": "Save churn signal",
+        "saving": "Saving...",
+        "save": "Save Signal"
+      },
+      "errors": {
+        "loadFailed": "Failed to load",
+        "genericFailed": "Failed",
+        "network": "Network error"
+      }
+    },
+    "neighborhood": {
+      "title": "Neighborhood",
+      "logComplaint": "Log Complaint",
+      "logNeighborLead": "Log Neighbor Lead",
+      "logNeighborComplaint": "Log Neighbor Complaint",
+      "closeForm": "Close form",
+      "propertyId": "Property ID",
+      "complaintDescription": "Complaint description",
+      "description": "Description",
+      "saveNeighborComplaint": "Save neighbor complaint",
+      "saving": "Saving...",
+      "save": "Save",
+      "neighborName": "Neighbor name",
+      "name": "Name",
+      "contactPhoneOptional": "Contact phone (optional)",
+      "phoneOptional": "Phone (optional)",
+      "contactEmailOptional": "Contact email (optional)",
+      "emailOptional": "Email (optional)",
+      "leadNotes": "Lead notes",
+      "notes": "Notes",
+      "saveNeighborLead": "Save neighbor lead",
+      "neighborComplaints": "Neighbor Complaints",
+      "neighborLeads": "Neighbor Leads",
+      "noneLogged": "None logged.",
+      "unknownAddress": "(unknown address)",
+      "errorLoading": "Failed to load",
+      "errorNetwork": "Network error",
+      "errorGeneric": "Failed"
+    },
+    "clientSegments": {
+      "title": "Client Segments",
+      "subtitle": "VIP (>$500/mo or >10 services) · Regular ($200-500/mo) · Sporadic (<$200/mo) · At Risk (60+ days since last service) · New (1-2 services).",
+      "emptyState": "No clients in this segment.",
+      "segments": {
+        "vip": "VIP",
+        "regular": "Regular",
+        "sporadic": "Sporadic",
+        "atRisk": "At Risk",
+        "new": "New"
+      },
+      "clientRow": {
+        "services": "{count} services · ${spend}/mo",
+        "daysSinceLastService": "{days}d since last service"
+      },
+      "errors": {
+        "loadFailed": "Failed to load",
+        "network": "Network error"
+      }
+    },
+    "sos": {
+      "title": "Safety Abort (SOS)",
+      "subtitle": "The system approves first for safety. The ex-post review is ALWAYS mandatory; if the evidence supports the leader, sanction is prohibited.",
+      "emptyState": "No safety aborts recorded.",
+      "gps": "GPS: {lat}, {lng}",
+      "acknowledgeAction": "Acknowledge (stop escalation)",
+      "reviewedSummary": "Reviewed ex-post. Evidence {supports} the leader — sanction {sanction}.",
+      "supports": "supports",
+      "doesNotSupport": "does not support",
+      "sanctionProhibited": "prohibited",
+      "sanctionNotProhibited": "not prohibited (human review)",
+      "reviewPending": "Ex-post review pending (mandatory — B.3.5)",
+      "evidenceSupportsAria": "Evidence supports the leader",
+      "evidenceSupportsLabel": "Evidence supports the leader",
+      "evidenceDoesNotSupportAria": "Evidence does NOT support the leader",
+      "evidenceDoesNotSupportLabel": "Evidence does NOT support",
+      "reviewNotesAria": "Review notes (optional)",
+      "reviewNotesPlaceholder": "Review notes (optional)",
+      "recordReview": "Record ex-post review",
+      "stages": {
+        "sos_active": "SOS active (0-2 min)",
+        "escalated_admin_call": "Escalated: admin call (2-4 min)",
+        "escalated_emergency_admin": "Escalated: Emergency Admin (4-10 min)",
+        "auto_approved": "Auto-approved for safety (10+ min)",
+        "acknowledged": "Acknowledged by admin"
+      },
+      "errors": {
+        "loadFailed": "Could not load the SOS inbox.",
+        "network": "Network error."
+      }
+    },
+    "parametrosEconomicos": {
+      "title": "Economic Parameters",
+      "subtitle": "BC minimum wage / minimum Day Rate. Simulate first, then apply with one click — never auto-applied.",
+      "appliedSuccessfully": "Applied successfully.",
+      "currentMinWage": "Current BC minimum wage",
+      "perHour": "${amount}/hr",
+      "currentMinDayRate": "Current minimum Day Rate",
+      "standardDayHours": "Standard day hours",
+      "effectiveFrom": "Effective from",
+      "simulateNewWage": "Simulate a new minimum wage",
+      "newWageToSimulate": "New minimum wage to simulate",
+      "wageExample": "e.g. 18.65",
+      "simulateImpact": "Simulate impact of the new minimum wage",
+      "simulating": "Simulating...",
+      "simulate": "Simulate",
+      "deltaPerHour": "{sign}{percent}% per hour ({amountSign}${amount})",
+      "suggestedNewDayRate": "Suggested new minimum Day Rate:",
+      "affectedContracts": "{count} active contract(s) below the new floor need adjustment.",
+      "reasonForChange": "Reason for the minimum wage change",
+      "reasonPlaceholder": "Reason for this change (required, min 3 chars)",
+      "applyWageChange": "Apply minimum wage change",
+      "applying": "Applying...",
+      "applyButton": "Apply this change (one click, cannot be undone silently)",
+      "errorLoading": "Failed to load",
+      "errorNetwork": "Network error",
+      "errorSimulating": "Failed to simulate",
+      "errorApplying": "Failed to apply"
+    },
+    "competencia": {
+      "title": "Competitive Intelligence",
+      "subtitle": "Up to 10 active competitors (D.10.10). Current data: monthly manual checklist from E1. Automated scraping ⏸️ deferred (requires reviewing each site's TOS before automating) — once enabled, it feeds this same table via <code>source = 'scraping'</code>, without breaking this panel.",
+      "loading": "Loading…",
+      "activeCount": "{count} / 10 active competitors",
+      "noData": "no data",
+      "noCompetitors": "No competitors recorded.",
+      "table": {
+        "competitor": "Competitor",
+        "zone": "Zone",
+        "price": "Price",
+        "rating": "Rating",
+        "reviews": "Reviews",
+        "lastCapture": "Last capture"
+      },
+      "errors": {
+        "loadFailed": "Error loading competitive intelligence",
+        "unknown": "Unknown error"
+      }
+    },
+    "stressScenario": {
+      "title": "Financial Stress Scenario",
+      "subtitle": "Simulates -30% revenue for 3 consecutive months (D.11.7). Run it WITH the owner present and document which levers apply — the fixed order (Day Rate → dormant reactivation → pause new gifts → cut unprofitable zones) is never skipped or reordered.",
+      "fields": {
+        "revenue": "Current monthly revenue ($)",
+        "fixedCosts": "Current monthly fixed costs ($)",
+        "variableCosts": "Current monthly variable costs ($)",
+        "cashOnHand": "Cash on hand ($, optional — for reserve rule)",
+        "biweeklyPayroll": "Biweekly payroll ($, optional)"
+      },
+      "ownerPresentLabel": "The owner is present for this run",
+      "leversIntro": "Levers documented as plan (in order, don't skip):",
+      "levers": {
+        "dayRatePorBloque": "1. Day Rate per block",
+        "reactivacionDormidos": "2. Dormant client reactivation",
+        "pausarRegalosNuevos": "3. Pause new gifts",
+        "cortarZonasNoRentables": "4. Cut unprofitable zones"
+      },
+      "notesAria": "Notes, optional",
+      "notesPlaceholder": "Notes (optional)",
+      "runScenario": "Run scenario",
+      "resultsHeading": "Results",
+      "monthLabel": "Month {index}",
+      "revenueAmount": "{amount} revenue",
+      "netMarginAmount": "{amount} net margin",
+      "crossesThreshold": "Crosses the mandatory review threshold (2+ consecutive negative months) — a review with the owner is required.",
+      "doesNotCrossThreshold": "Does not cross the mandatory review threshold.",
+      "reserveRule": "Expansion reserve rule (3 months fixed + 1 biweekly payroll): required {amount}.",
+      "reserveMet": "Met.",
+      "reserveShortBy": "Short by {amount}.",
+      "errors": {
+        "runFailed": "Failed to run scenario",
+        "network": "Network error"
+      }
+    },
+    "partners": {
+      "title": "Partners & Commissions",
+      "calculateCommission": "Calculate Commission",
+      "registerPartner": "Register Partner",
+      "closeForm": "Close form",
+      "newPartner": "New Partner",
+      "partnerType": "Partner type",
+      "partnerName": "Partner name",
+      "name": "Name",
+      "partnerContactEmailOptional": "Partner contact email (optional)",
+      "contactEmailOptional": "Contact email (optional)",
+      "savePartner": "Save partner",
+      "saving": "Saving...",
+      "save": "Save",
+      "selectPartner": "Select partner",
+      "selectPartnerOption": "Select partner",
+      "orderId": "Order ID",
+      "orderValueDollars": "Order value in dollars",
+      "orderValuePlaceholder": "Order value ($)",
+      "calculateAndLog": "Calculate and log commission",
+      "calculating": "Calculating...",
+      "calculateAndLogShort": "Calculate & Log",
+      "partnersCount": "Partners ({count})",
+      "noPartners": "No partners registered yet.",
+      "commissions": "Commissions",
+      "noCommissions": "No commissions logged yet.",
+      "markPaid": "Mark Paid",
+      "errorNetwork": "Network error",
+      "errorGeneric": "Failed",
+      "type": {
+        "realEstateAgent": "Real Estate Agent (10% first booking)",
+        "propertyManager": "Property Manager (5% monthly)",
+        "veterinarian": "Veterinarian ($20 flat)",
+        "builder": "Builder (15%)"
+      },
+      "commissionStatus": {
+        "pending": "pending",
+        "paid": "paid",
+        "void": "void"
+      }
+    },
+    "comunicaciones": {
+      "title": "Communication Templates",
+      "searchAria": "Search template by event",
+      "searchPlaceholder": "Search event…",
+      "viewHistory": "View history / Undo",
+      "categoryTransactional": "TRANSACTIONAL",
+      "categoryMarketing": "MARKETING",
+      "urgent": "URGENT",
+      "noTemplate": "No template yet.",
+      "editTemplateAria": "Edit template {eventKey} ({language})",
+      "form": {
+        "subjectAria": "Template subject (optional, email only)",
+        "subjectPlaceholder": "Subject (optional, email only)",
+        "bodyAria": "Communication template text",
+        "bodyPlaceholder": "Template text — use {variable} for dynamic values",
+        "reasonAria": "Reason for template change",
+        "reasonPlaceholder": "Reason for change (required)",
+        "cancel": "Cancel",
+        "save": "Save"
+      },
+      "errors": {
+        "loadFailed": "Error loading templates",
+        "saveFailed": "Error saving template",
+        "generic": "Error",
+        "emptyBody": "The template body cannot be empty",
+        "reasonRequired": "A reason for the change is required to edit an existing template"
+      }
+    },
+    "weatherExceptions": {
+      "title": "Weather Exceptions",
+      "description": "D.10 exception #10. No live Environment Canada feed configured yet — declarations are manual today. Resolution (reschedule vs. safe abort) is always computed, never picked freely.",
+      "declareException": "Declare Exception",
+      "empty": "No weather exceptions declared yet.",
+      "leadTime": "{hours}h lead time",
+      "errors": {
+        "loadFailed": "Failed to load",
+        "saveFailed": "Failed to save",
+        "network": "Network error"
+      },
+      "resolutions": {
+        "rescheduleNoPenalty": "Rescheduled — no penalty",
+        "safeAbortDayRateDiscount": "Safe abort — Day Rate + 20% discount"
+      },
+      "form": {
+        "title": "New Weather Exception",
+        "closeAria": "Close form",
+        "affectedDateLabel": "Affected service date",
+        "conditionAria": "Weather condition",
+        "conditionPlaceholder": "Condition (e.g. heavy snowfall, wind >70km/h)",
+        "hasAlertLabel": "We got advance warning before the crew was dispatched",
+        "hasAlertAria": "Advance warning received before crew dispatch",
+        "leadTimeAria": "Hours of advance warning before service",
+        "leadTimePlaceholder": "Hours of lead time before service",
+        "affectedOrdersAria": "Affected orders or zones",
+        "affectedOrdersPlaceholder": "Affected orders / zones (free text — actual rescheduling happens separately)",
+        "notesAria": "Additional notes (optional)",
+        "notesPlaceholder": "Notes (optional)",
+        "saving": "Saving...",
+        "submitAria": "Declare weather exception",
+        "resolutionPrefix": "Resolution:"
+      }
+    },
+    "wellbeing": {
+      "title": "Team Wellbeing",
+      "description": "Aggregated only — no individual check-in is ever readable, not even by owner_admin (RLS-enforced, no SELECT policy exists on the underlying table).",
+      "dateAria": "Wellbeing report date",
+      "noCheckins": "No check-ins recorded for {date}.",
+      "errors": {
+        "loadFailed": "Failed to load",
+        "network": "Network error"
+      },
+      "stats": {
+        "totalCheckins": "Total check-ins",
+        "sleptLessThan6h": "Slept <6h",
+        "happy": "Happy",
+        "neutral": "Neutral",
+        "sad": "Sad"
+      }
+    },
+    "workplaceIncidents": {
+      "title": "Workplace Incidents — WorkSafeBC",
+      "description": "Injuries requiring the 72h WorkSafeBC report (D.10#6). No public submission API exists — this only pre-fills the data from what the system already knows. Copy it into the real WorkSafeBC form.",
+      "empty": "No workplace incidents reported.",
+      "deadline": "Deadline",
+      "ref": "Ref",
+      "hidePrefilled": "Hide pre-filled data",
+      "viewPrefilled": "View pre-filled data",
+      "referenceAria": "WorkSafeBC reference number (optional)",
+      "referencePlaceholder": "Reference # (optional)",
+      "saving": "Saving...",
+      "markFiled": "Mark filed",
+      "copyToClipboard": "Copy to clipboard",
+      "errors": {
+        "loadFailed": "Failed to load",
+        "network": "Network error",
+        "generic": "Failed"
+      },
+      "status": {
+        "pending": "Pending",
+        "due_soon": "Due soon",
+        "overdue": "OVERDUE",
+        "filed_on_time": "Filed on time",
+        "filed_late": "Filed late"
+      },
+      "fields": {
+        "worker": "Worker",
+        "date": "Date",
+        "location": "Location",
+        "bodyPart": "Body part",
+        "natureOfInjury": "Nature of injury",
+        "medicalAttention": "Medical attention",
+        "witnesses": "Witnesses",
+        "immediateAction": "Immediate action"
+      }
+    },
+    "autopilotBanner": {
+      "modePrefix": "Mode:"
+    },
+    "confirmActionModal": {
+      "confirmDefault": "Confirm",
+      "cancelDefault": "Cancel",
+      "closeAria": "Close",
+      "actionFailed": "Action failed",
+      "optional": "optional",
+      "working": "Working..."
+    },
+    "contabilidad": {
+      "title": "Operational Accounting",
+      "intro": "Collected = actual amount captured from the client. Paid = gross payroll. Contribution margin = collected − paid. Actual net margin = collected − paid − employer burden (CPP/EI/WorkSafeBC) − prorated monthly fixed costs (rent, insurance, software, owner compensation). Employer burden is shown as 0 until a payroll snapshot exists for the corresponding cycle. Fixed costs are prorated across the calendar months actually present in the selected range, split evenly per order.",
+      "filters": {
+        "from": "From",
+        "to": "To",
+        "filter": "Filter"
+      },
+      "export": {
+        "label": "Universal export (month)",
+        "csv": "CSV",
+        "json": "JSON",
+        "note": "No dependency on QBO — revenue, payroll, commissions, gifts and tax reserves for the month (D.9.5)."
+      },
+      "loading": "Loading…",
+      "retry": "Retry",
+      "fixedCostsWarning": {
+        "text": "Monthly fixed costs are not configured yet (rent, insurance, software, owner compensation) — actual net margin below does not subtract them and is currently equal to contribution margin.",
+        "setNow": "Set it now"
+      },
+      "fixedCostsForm": {
+        "amountLabel": "Monthly fixed costs ($)",
+        "reasonLabel": "Reason (required)",
+        "reasonPlaceholder": "e.g. initial setup with real rent + insurance",
+        "saveAriaLabel": "Save fixed costs",
+        "saving": "Saving...",
+        "save": "Save",
+        "invalidInput": "Enter a valid amount (0 or more) and a reason before saving.",
+        "saveError": "Couldn't save fixed costs. Please check the values and try again.",
+        "connectionError": "Connection problem. Check your internet and try again."
+      },
+      "fixedCostsSuccess": "Fixed costs saved.",
+      "dismissAriaLabel": "Dismiss",
+      "loadError": "We couldn't load accounting data.",
+      "loadErrorFull": "We couldn't load accounting data. Check your connection and try again.",
+      "summary": {
+        "totalCollected": "Total collected",
+        "netMargin": "Actual net margin"
+      },
+      "tables": {
+        "byZone": "By zone",
+        "byServiceType": "By service type",
+        "byTeam": "By team"
+      },
+      "table": {
+        "group": "Group",
+        "orders": "Orders",
+        "collected": "Collected",
+        "paid": "Paid (payroll)",
+        "employerBurden": "Employer burden",
+        "contributionMargin": "Contribution margin",
+        "netMargin": "Actual net margin",
+        "noData": "No data in the selected range.",
+        "lowMarginWarning": "Highlighted service types are below the {threshold}% contribution margin floor (D.9.2) — consider a pricing rule adjustment or reviewing SOP time for that service."
+      }
+    },
+    "dispatch": {
+      "title": "Dispatch review",
+      "dateAriaLabel": "Date of the dispatch to review",
+      "transitNotice": "Transit time isn't wired to live traffic data yet — workday totals use a fixed 30 min/order placeholder (same one the scheduler uses internally), not a real ETA. Manual assignments you make here are locked and will survive the 5:30 PM automatic publish.",
+      "loadError": "Failed to load dispatch data",
+      "networkError": "Network error",
+      "emptyForDate": "No services scheduled for {date}.",
+      "noAssignmentsYet": "No assignments exist yet for this date — the scheduler proposes at 4:30 PM and publishes at 5:30 PM the day before. You can assign manually now; it will lock and won't be overwritten.",
+      "zoneNA": "Zone n/a",
+      "edit": "Edit",
+      "noOneAssigned": "No one assigned",
+      "lead": "lead",
+      "locked": "locked",
+      "workdaySummary": "Workday summary",
+      "noOneAssignedYet": "No one assigned yet.",
+      "ordersTotal": "{count} order(s) · {hours} total",
+      "languageBadge": {
+        "match": "Language match",
+        "no_match": "No language match",
+        "unassigned": "Unassigned"
+      },
+      "workdayBadge": {
+        "ok": "OK",
+        "overtime_needs_approval": ">8h — needs approval",
+        "blocked": ">10h — blocked"
+      },
+      "modal": {
+        "requires": "Requires {min}-{max} team member(s). Client language(s): {languages}",
+        "assignToAriaLabel": "Assign to {name}",
+        "notesAriaLabel": "Assignment notes (optional)",
+        "notesPlaceholder": "Notes (optional)",
+        "selectAtLeastOne": "Select at least one employee",
+        "saveError": "Failed to save",
+        "cancel": "Cancel",
+        "savingAriaLabel": "Saving assignment",
+        "saveAriaLabel": "Save and lock assignment",
+        "saving": "Saving...",
+        "saveAndLock": "Save & lock"
+      }
+    },
+    "nomina": {
+      "title": "Payroll Export",
+      "subtitle": "CPP/EI/WorkSafeBC/Vacation Pay per employee. Does not include federal/provincial income tax withholding.",
+      "cycleSelectAriaLabel": "Select pay cycle",
+      "cycleOptions": {
+        "previous": "Previous cycle (to pay)",
+        "current": "Current cycle"
+      },
+      "csvButton": "CSV",
+      "loadError": "Failed to load",
+      "networkError": "Network error",
+      "empty": "No payroll entries for this cycle.",
+      "totals": {
+        "gross": "Total gross",
+        "net": "Total estimated net"
+      },
+      "table": {
+        "employee": "Employee",
+        "services": "Services",
+        "gross": "Gross",
+        "cpp": "CPP",
+        "eiEmployee": "EI (emp.)",
+        "workSafeBc": "WorkSafeBC",
+        "vacationPay": "Vacation Pay",
+        "estNet": "Est. Net"
+      }
+    },
+    "dashboardMetrics": {
+      "title": "Business Health — last 30 days",
+      "loadError": "Failed to load metrics",
+      "networkError": "Network error",
+      "noData": "No data",
+      "thresholdsTooltip": "The 4 operational thresholds are fixed by spec; the net margin threshold is a recalibratable starting point, not a fixed spec number.",
+      "target": "Target: >{threshold}%",
+      "targetPlain": "Target: >{threshold}",
+      "cards": {
+        "disputeFreeRate": {
+          "title": "Services w/o dispute",
+          "subtitle": "{completed} completed, {disputed} disputed"
+        },
+        "batchCapture": {
+          "title": "Batch Capture success",
+          "subtitle": "{captured} captured, {failed} failed"
+        },
+        "teamScore": {
+          "title": "Avg. team score",
+          "weekOf": "Week of {week}",
+          "noScores": "No team scores yet"
+        },
+        "contributionMargin": {
+          "title": "Contribution margin"
+        },
+        "netMargin": {
+          "title": "Net margin (real)",
+          "notConfigured": "Monthly fixed costs not set yet",
+          "fixedCostPerService": "Fixed cost/service this month: ${amount}"
+        }
+      },
+      "fixedCosts": {
+        "label": "Monthly fixed costs ($)",
+        "placeholder": "e.g. 3500",
+        "invalidAmount": "Enter a valid non-negative amount",
+        "saveError": "Failed to save",
+        "saving": "Saving...",
+        "save": "Save",
+        "cancel": "Cancel",
+        "update": "Update fixed costs",
+        "set": "Set monthly fixed costs",
+        "savingAriaLabel": "Saving monthly fixed costs",
+        "saveAriaLabel": "Save monthly fixed costs"
+      }
+    },
+    "orderCommunicationTimeline": {
+      "loadError": "Failed to load",
+      "networkError": "Network error",
+      "empty": "No communication logged for this order yet.",
+      "status": {
+        "queued": "Queued",
+        "postponed": "Postponed",
+        "sent": "Sent",
+        "delivered": "Delivered",
+        "read": "Read",
+        "failed": "Failed"
+      }
+    },
+    "pricingRules": {
+      "title": "Pricing Rules",
+      "activeOfTotal": "{active} active of {total}",
+      "newRule": "New rule",
+      "errors": {
+        "loadFailed": "Failed to load pricing rules",
+        "network": "Network error",
+        "saveFailed": "Failed to save rule",
+        "toggleFailed": "Failed to update rule",
+        "deleteFailed": "Failed to delete rule"
+      },
+      "conflicts": {
+        "title": "Detected conflicts between active rules"
+      },
+      "form": {
+        "editTitle": "Edit pricing rule",
+        "createTitle": "Create pricing rule",
+        "closeAria": "Close form",
+        "nameLabel": "Rule name",
+        "namePlaceholder": "e.g. Weekend surcharge",
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "Brief explanation for audit log",
+        "conditionsLabel": "Conditions",
+        "matchLabel": "Match",
+        "matchAll": "All (AND)",
+        "matchAny": "Any (OR)",
+        "matchModeAria": "Condition matching mode (all or any)",
+        "conditionFieldAria": "Condition {index} field",
+        "conditionOperatorAria": "Condition {index} operator",
+        "conditionValueAria": "Value for condition {field}",
+        "conditionValuesAria": "Values for condition {field}",
+        "multiSelectHint": "Hold Ctrl/Cmd to select multiple values.",
+        "removeConditionAria": "Remove condition {index}",
+        "addCondition": "Add condition",
+        "actionLabel": "Action",
+        "valueLabel": "Value",
+        "multiplierHint": "Use 0.90 for 10% discount, 1.20 for 20% surcharge.",
+        "priorityLabel": "Priority",
+        "maxApplicableLabel": "Allow additional rules to apply after this one",
+        "auditReasonLabel": "Audit reason",
+        "auditReasonPlaceholder": "Why are you creating/editing this rule?",
+        "cancel": "Cancel",
+        "saveChanges": "Save changes",
+        "createRule": "Create rule",
+        "saveChangesAria": "Save rule changes",
+        "createRuleAria": "Create pricing rule"
+      },
+      "validation": {
+        "nameRequired": "Rule name is required",
+        "conditionsRequired": "At least one condition is required",
+        "invalidOperator": "Invalid operator for field {field}",
+        "listRequired": "Operator {op} requires a list of values",
+        "actionValueNumber": "Action value must be a number",
+        "multiplierPositive": "Multiplier must be greater than 0",
+        "priorityInteger": "Priority must be a non-negative integer",
+        "reasonRequired": "Reason is required for audit log"
+      },
+      "empty": {
+        "noRules": "No pricing rules found."
+      },
+      "table": {
+        "rule": "Rule",
+        "conditions": "Conditions",
+        "action": "Action",
+        "priority": "Priority",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "stopChain": "Stop chain",
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "conditionsGroup": {
+        "and": "AND",
+        "or": "OR"
+      },
+      "rowActions": {
+        "disableTitle": "Disable",
+        "enableTitle": "Enable",
+        "disableAria": "Disable rule {name}",
+        "enableAria": "Enable rule {name}",
+        "editTitle": "Edit",
+        "editAria": "Edit rule {name}",
+        "deleteTitle": "Delete",
+        "deleteAria": "Delete rule {name}",
+        "auditTitle": "Audit history",
+        "auditAria": "View audit history for rule {name}"
+      },
+      "audit": {
+        "title": "Audit history",
+        "empty": "No audit entries found."
+      },
+      "toggleModal": {
+        "disableTitle": "Disable rule \"{name}\"",
+        "enableTitle": "Enable rule \"{name}\"",
+        "disableConfirm": "Disable",
+        "enableConfirm": "Enable",
+        "disableReasonLabel": "Reason for disabling this rule",
+        "enableReasonLabel": "Reason for enabling this rule"
+      },
+      "deleteModal": {
+        "title": "Delete rule \"{name}\"",
+        "message": "This pricing rule will be permanently removed.",
+        "confirm": "Delete",
+        "reasonLabel": "Reason for deleting this rule"
+      },
+      "ruleFields": {
+        "zone": "Zone",
+        "dayOfWeek": "Day of week",
+        "isPreferredDay": "Preferred day",
+        "serviceType": "Service type",
+        "serviceSubtype": "Service subtype",
+        "squareFeet": "Square feet",
+        "clientScore": "Client score",
+        "servicesCount": "Services count",
+        "disputesLostCount": "Lost disputes",
+        "accountType": "Account type",
+        "clientType": "Client type",
+        "zoneDemand": "Zone demand (0-100)",
+        "organicLoad": "Organic load",
+        "daysSinceCleaning": "Days since cleaning",
+        "advanceNoticeDays": "Advance notice (days)"
+      },
+      "ruleFieldOptions": {
+        "dayOfWeek": {
+          "0": "Sunday",
+          "1": "Monday",
+          "2": "Tuesday",
+          "3": "Wednesday",
+          "4": "Thursday",
+          "5": "Friday",
+          "6": "Saturday"
+        },
+        "isPreferredDay": {
+          "true": "Yes",
+          "false": "No"
+        },
+        "accountType": {
+          "b2c": "B2C",
+          "b2b": "B2B",
+          "government": "Government"
+        },
+        "clientType": {
+          "new": "New",
+          "returning": "Returning",
+          "elite": "Elite"
+        },
+        "organicLoad": {
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "actionOptions": {
+        "priceMultiplier": "Multiply price by",
+        "priceAdd": "Add $ to price",
+        "priceSet": "Set price to $",
+        "block": "Block quote",
+        "flagForReview": "Flag for review"
+      }
+    },
+    "pricingRulesSandbox": {
+      "title": "Pricing Rules Sandbox",
+      "subtitle": "Simulate rule changes against historical quotes before going live.",
+      "backToRules": "Back to rules",
+      "errors": {
+        "loadFailed": "Failed to load pricing rules",
+        "network": "Network error",
+        "simulationFailed": "Simulation failed"
+      },
+      "candidateRules": {
+        "title": "Candidate rules",
+        "selectActive": "Select active",
+        "clear": "Clear",
+        "empty": "No rules available. Create one first.",
+        "selectRuleAria": "Select rule {name}",
+        "priorityLine": "— priority {priority}"
+      },
+      "options": {
+        "shadowMode": "Shadow mode (compare against currently active rules)",
+        "shadowModeAria": "Shadow mode (compare against currently active rules)",
+        "includeSynthetic": "Include synthetic scenarios",
+        "includeSyntheticAria": "Include synthetic scenarios"
+      },
+      "runSimulation": "Run simulation",
+      "stats": {
+        "mode": "Mode",
+        "cases": "Cases",
+        "casesValue": "{quotes} quotes + {synthetic} synthetic",
+        "affectedCases": "Affected cases",
+        "avgDiff": "Avg diff",
+        "blocksFlags": "Blocks / Flags"
+      },
+      "table": {
+        "case": "Case",
+        "subtotal": "Subtotal",
+        "adjustment": "Adjustment",
+        "final": "Final",
+        "baselineDiff": "Baseline / Diff",
+        "appliedRules": "Applied rules",
+        "status": "Status",
+        "none": "None",
+        "blocked": "Blocked",
+        "flagged": "Flagged",
+        "ok": "OK"
+      }
+    },
+    "pricingSettings": {
+      "title": "Pricing Settings",
+      "currentRateLabel": "Current target rate:",
+      "errors": {
+        "networkError": "Network error",
+        "loadFailed": "Failed to load pricing settings",
+        "hheLoadFailed": "Failed to load HHE settings",
+        "hheNetworkError": "Network error loading HHE table",
+        "rateMustBePositive": "Target hourly rate must be a positive number",
+        "reasonRequired": "Reason is required for audit log",
+        "updateFailed": "Failed to update pricing settings",
+        "hheUpdateFailed": "Failed to update HHE settings"
+      },
+      "targetRate": {
+        "title": "Target Hourly Rate",
+        "description": "Changing this rate recalculates all 20 cells of the HHE price table.",
+        "newRateLabel": "New Rate ($/hr)",
+        "effectiveFromLabel": "Effective From (optional)",
+        "effectiveFromHint": "Defaults to today",
+        "reasonLabel": "Reason (audit log)",
+        "reasonPlaceholder": "e.g. Annual rate review 2026",
+        "updateButton": "Update Rate"
+      },
+      "hheTable": {
+        "title": "HHE Table (Editable)",
+        "description": "Edit the 20 estimated labour-hour cells directly. Prices shown are derived from the current target rate.",
+        "serviceTypeHeader": "Service Type",
+        "cellAriaLabel": "Estimated hours: {serviceType}, {range}",
+        "reasonPlaceholder": "e.g. Adjust deep cleaning estimates after field data",
+        "saveButton": "Save HHE Table"
+      },
+      "serviceTypes": {
+        "regular": "Regular",
+        "deep": "Deep",
+        "moveInOut": "Move-in/out",
+        "postConstruction": "Post-construction"
+      },
+      "preview": {
+        "title": "HHE Price Table Preview"
+      },
+      "history": {
+        "title": "Rate Change History",
+        "empty": "No rate changes recorded yet.",
+        "dateHeader": "Date",
+        "previousHeader": "Previous",
+        "newHeader": "New",
+        "reasonHeader": "Reason"
+      }
+    },
+    "qc": {
+      "title": "QC Wall",
+      "unknownEmployee": "Unknown",
+      "errors": {
+        "networkError": "Network error",
+        "loadFailed": "Failed to load QC reviews",
+        "noteRequired": "Note is required",
+        "submitFailed": "Failed to submit review"
+      },
+      "filters": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "auto": "Auto"
+      },
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "auto": "Auto-Approved"
+      },
+      "emptyWithFilter": "No QC reviews with status \"{filter}\".",
+      "photos": {
+        "none": "No photo evidence uploaded",
+        "altText": "Service evidence photo"
+      },
+      "reviewButton": "Review",
+      "reviewedOn": "Reviewed {date}",
+      "modal": {
+        "title": "QC Review",
+        "employeeLabel": "Employee",
+        "dateLabel": "Date",
+        "at": "at",
+        "trustLevelLabel": "Trust Level",
+        "standardTrustLevel": "standard",
+        "photoEvidence": "Photo evidence ({count})",
+        "noPhotosForService": "No photo evidence uploaded for this service.",
+        "approveButton": "Approve",
+        "rejectButton": "Reject",
+        "noteAriaLabel": "Quality control review note",
+        "notePlaceholder": "Review note (required)...",
+        "submitButton": "Submit Review"
+      },
+      "lightbox": {
+        "closeAriaLabel": "Close photo lightbox",
+        "closeButtonAriaLabel": "Close photo",
+        "enlargedAltText": "Service evidence photo, enlarged"
+      }
+    },
+    "servicioDetail": {
+      "title": "Service Checklist",
+      "backToServices": "Back to Services",
+      "evidenceAltText": "Evidence",
+      "noChecklistTemplate": "No checklist template found for this service type.",
+      "errors": {
+        "networkError": "Network error",
+        "loadFailed": "Failed to load checklist"
+      },
+      "progress": {
+        "title": "Checklist Progress",
+        "itemsCount": "{completed} of {total} items",
+        "requiredCount": "{completed} of {total} required"
+      }
+    },
+    "servicios": {
+      "title": "Today's Services",
+      "serviceCount": "{count, plural, one {# service} other {# services}}",
+      "noServicesToday": "No services scheduled for today.",
+      "viewDetails": "View details",
+      "assignTeam": "Assign team",
+      "assign": "Assign",
+      "errors": {
+        "networkError": "Network error",
+        "loadFailed": "Failed to load services"
+      },
+      "statusLabels": {
+        "pending": "Pending",
+        "en_route": "En Route",
+        "arrived": "Arrived",
+        "in_progress": "In Progress",
+        "completed": "Completed",
+        "cancelled": "Cancelled",
+        "no_show": "No Show"
+      },
+      "dispatch": {
+        "title": "Assign Team",
+        "closeDialog": "Close dialog",
+        "selectEmployeesFor": "Select employees for order",
+        "noEmployeesAvailable": "No active employees available.",
+        "assignToEmployee": "Assign to {name}",
+        "cancel": "Cancel",
+        "selectEmployeeError": "Select at least one employee",
+        "dispatchFailed": "Dispatch failed"
+      }
+    },
+    "roles": {
+      "heading": "Admin Roles",
+      "subtitle": "Managers, coordinators and QC reviewers (admin_roles) — separate from field employees.",
+      "roleCount": "{count, plural, one {# role} other {# roles}}",
+      "grantRole": "Grant role",
+      "loadError": "Failed to load admin roles",
+      "networkError": "Network error",
+      "emptyState": "No admin roles assigned yet.",
+      "table": {
+        "email": "Email",
+        "role": "Role",
+        "granted": "Granted",
+        "actions": "Actions"
+      },
+      "revoke": "Revoke",
+      "revoking": "Revoking...",
+      "revokeAriaLabel": "Revoke {role} from {target}",
+      "revokeErrorFallback": "Failed to revoke role",
+      "roleLabels": {
+        "ownerAdmin": "Owner Admin",
+        "opsCoordinator": "Ops Coordinator",
+        "qcOnly": "QC Only"
+      },
+      "confirmRevoke": {
+        "title": "Revoke this admin role?",
+        "message": "The user will lose access to the resources it grants.",
+        "confirmLabel": "Revoke"
+      },
+      "addModal": {
+        "title": "Grant Admin Role",
+        "subtitle": "If the email has no account yet, an invite is sent (same flow as employee onboarding).",
+        "emailLabel": "Email",
+        "emailPlaceholder": "name@example.com",
+        "roleLabel": "Role",
+        "roleOptions": {
+          "ownerAdmin": "Owner Admin — full access",
+          "opsCoordinator": "Ops Coordinator — dispatch/QC/services, no finance/payroll",
+          "qcOnly": "QC Only — photo evidence wall only"
+        },
+        "cancel": "Cancel",
+        "grant": "Grant & Invite",
+        "granting": "Granting...",
+        "grantingAriaLabel": "Granting role",
+        "grantAriaLabel": "Grant role and invite",
+        "grantErrorFallback": "Failed to grant role"
+      }
+    },
+    "tickets": {
+      "heading": "Tickets & Disputes",
+      "statusLabels": {
+        "open": "Open",
+        "inReview": "In Review",
+        "resolved": "Resolved",
+        "escalated": "Escalated"
+      },
+      "priorityLabels": {
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      },
+      "loadError": "Failed to load tickets",
+      "networkError": "Network error",
+      "resolutionNoteRequired": "Resolution note is required",
+      "resolveHoursDisputeError": "Failed to resolve hours dispute",
+      "resolveUpsellError": "Failed to resolve upsell approval",
+      "missingUpsellId": "Ticket is missing upsell_id in context — cannot resolve here",
+      "resolveTicketError": "Failed to resolve ticket",
+      "emptyState": "No tickets with status \"{status}\".",
+      "employeeFallback": "System",
+      "resolveButton": "Resolve",
+      "resolutionLabel": "Resolution:",
+      "resolvedOn": "Resolved {date}",
+      "modal": {
+        "title": "Resolve Ticket",
+        "typeLabel": "Type:",
+        "priorityLabel": "Priority:",
+        "employeeLabel": "Employee:",
+        "hoursDispute": {
+          "explanation": "Approving with a corrected time updates the actual service log — the employee's pay reflects the correction, not just a note. A technical failure never counts against them.",
+          "correctedTimeLabel": "Corrected time (optional — leave blank to reject or to approve without changing the log)",
+          "notePlaceholder": "Resolution note (required)...",
+          "noteAriaLabel": "Hours dispute resolution note",
+          "reject": "Reject",
+          "approve": "Approve"
+        },
+        "upsellApproval": {
+          "explanation": "This upsell went over the 50% cap and needs your approval before it counts toward commission or Batch Capture.",
+          "notePlaceholder": "Note (optional)...",
+          "noteAriaLabel": "Upsell approval note",
+          "reject": "Reject",
+          "approve": "Approve"
+        },
+        "generic": {
+          "resolveTab": "Resolve",
+          "escalateTab": "Escalate",
+          "notePlaceholder": "Resolution note (required)...",
+          "noteAriaLabel": "Ticket resolution note",
+          "submit": "Submit Resolution"
+        }
+      }
+    },
+    "wallet": {
+      "heading": "Lulu Wallet — Admin",
+      "subtitle": "Grant referral/resolution/promo credit to a client. Credit and promo expire 12 months; refunds do not.",
+      "loadError": "Failed to load",
+      "networkError": "Network error",
+      "findClientLabel": "Find client (name, email, or phone)",
+      "searchAriaLabel": "Search client by name, email, or phone",
+      "searchPlaceholder": "Start typing a name, email, or phone number...",
+      "noNameOnFile": "(no name on file)",
+      "noEmail": "no email",
+      "clear": "Clear",
+      "clearAriaLabel": "Clear selected client",
+      "searching": "Searching…",
+      "selectedPrefix": "Selected:",
+      "loadingWalletSuffix": " — loading wallet…",
+      "availableBalanceLabel": "Available (raw balance: {balance})",
+      "grantCreditHeading": "Grant Credit",
+      "selectClientWarning": "Search and select a client above before granting credit.",
+      "typeSelectAriaLabel": "Credit type to grant",
+      "typeOptions": {
+        "credit": "Credit (referral/incentive, expires 12mo)",
+        "promo": "Promo (expires 12mo)",
+        "refund": "Refund (dispute resolution, no expiry)"
+      },
+      "amountAriaLabel": "Amount to grant in dollars",
+      "amountPlaceholder": "Amount ($)",
+      "descriptionAriaLabel": "Description of the credit granted",
+      "descriptionPlaceholder": "Description (e.g. 'Referral bonus — Jane Doe')",
+      "grantButtonAriaLabel": "Grant credit to client",
+      "granting": "Granting...",
+      "grantButton": "Grant Credit",
+      "grantErrorFallback": "Failed to grant",
+      "successMessage": "Granted {amount} ({type}) to {client}.",
+      "historyHeading": "History",
+      "transactionTypeLabels": {
+        "credit": "Credit",
+        "debit": "Debit",
+        "payout": "Payout",
+        "refund": "Refund",
+        "promo": "Promo"
+      },
+      "confirmModal": {
+        "title": "Confirm Credit Grant",
+        "clientLabel": "Client:",
+        "typeLabel": "Type:",
+        "amountLabel": "Amount:",
+        "descriptionLabel": "Description:",
+        "warning": "This will immediately add funds to the client's wallet. Double-check the client and amount before confirming.",
+        "cancel": "Cancel",
+        "confirmAriaLabel": "Confirm credit grant",
+        "confirmButton": "Confirm & Grant",
+        "granting": "Granting..."
+      }
+    },
+    "succession": {
+      "title": "Succession Mode",
+      "subtitle": "Evaluated daily from real operational engagement (write actions), never from just logging in (D.11.1). 10 days without activity → soft burnout alert. 14 days → succession alert. 21 days → automatic activation.",
+      "lastEvaluated": "Last evaluated: {datetime}",
+      "trustedSuccessors": "Trusted Successors",
+      "add": "Add",
+      "form": {
+        "nameAria": "Trusted successor's full name",
+        "namePlaceholder": "Full name",
+        "relationshipAria": "Relationship to successor (e.g. spouse, partner)",
+        "relationshipPlaceholder": "Relationship (e.g. spouse, business partner)",
+        "phoneAria": "Successor's contact phone",
+        "phonePlaceholder": "Phone",
+        "emailAria": "Successor's contact email",
+        "emailPlaceholder": "Email",
+        "saveAria": "Save trusted successor",
+        "saving": "Saving...",
+        "save": "Save",
+        "cancelAria": "Cancel and close successor form",
+        "cancel": "Cancel"
+      },
+      "emptyState": "No trusted successors on file yet. This list should have 1-3 real people with full access but no power to sell the business or remove the owner.",
+      "removeSuccessorAria": "Remove trusted successor {name}",
+      "removeModal": {
+        "title": "Remove this trusted successor?",
+        "confirmLabel": "Remove"
+      },
+      "statuses": {
+        "normal": "Normal",
+        "burnout_alert": "Burnout alert (soft)",
+        "succession_alert": "Succession alert",
+        "auto_activate": "AUTO-ACTIVATED",
+        "manually_activated": "MANUALLY ACTIVATED"
+      },
+      "errors": {
+        "loadFailed": "Failed to load",
+        "network": "Network error",
+        "saveFailed": "Failed to save",
+        "generic": "Failed"
+      }
+    },
+    "configHistory": {
+      "title": "Configuration History",
+      "filterByTableAria": "Filter by table",
+      "allTables": "All tables",
+      "emptyState": "No configuration changes recorded yet.",
+      "undone": "UNDONE",
+      "undo": "Undo",
+      "undoModal": {
+        "title": "Undo this change?",
+        "message": "The previous values will be restored (the undo is also logged)."
+      },
+      "errors": {
+        "loadFailed": "Error loading history",
+        "undoFailed": "Error undoing",
+        "generic": "Error"
+      }
+    },
+    "phoneBooking": {
+      "title": "Phone Booking",
+      "subtitle": "Take the same inputs the web quoter asks for while on the call. The price is calculated by the exact same server-side pricing engine — never re-typed or estimated by hand. Payment is never collected here (PCI) — see the secure link instructions after you submit.",
+      "client": "Client",
+      "clientEmail": "Client email",
+      "clientFullName": "Client full name",
+      "clientPhone": "Client phone",
+      "clientPhonePlaceholder": "Client phone (the number you're speaking on)",
+      "service": "Service",
+      "category": "Category",
+      "serviceCategory": "Service category",
+      "subtype": "Subtype",
+      "serviceSubtype": "Service subtype",
+      "bedrooms": "Bedrooms",
+      "bathrooms": "Bathrooms",
+      "squareFeet": "Square feet",
+      "residents": "Residents",
+      "petsCount": "Pets count",
+      "petsType": "Pets type",
+      "daysSinceCleaning": "Days since last professional cleaning",
+      "daysSinceCleaningAria": "Days since last cleaning",
+      "address": "Address",
+      "fullAddress": "Full address",
+      "zone": "Zone",
+      "postalCode": "Postal code",
+      "purchaseOrderNumber": "Purchase order number",
+      "poPlaceholder": "PO number (required for B2B/Government)",
+      "inclusion": "Inclusion (E6.6)",
+      "noSmartphoneAria": "Client has no smartphone",
+      "noSmartphoneLabel": "Client has no smartphone (call back 2h after service instead of photo gallery; allows e-transfer/cheque/cash with signed receipt)",
+      "printedInvoiceAria": "Client requests printed invoice",
+      "printedInvoiceLabel": "Client requests printed invoice by mail (+$2; always included free for B2B/Government)",
+      "consentAria": "Coordinator confirms verbal consent",
+      "consentLabel": "I read the Terms & Conditions and PIPA notice to the client and they accepted verbally.",
+      "createQuote": "Create phone quote",
+      "quoteCreated": "Quote created — read this breakdown to the client",
+      "basePrice": "Base price",
+      "printedInvoice": "Printed invoice",
+      "subtotal": "Subtotal",
+      "gst": "GST",
+      "pst": "PST",
+      "total": "Total",
+      "reservationHold": "Reservation hold",
+      "needsAdminReview": "This quote needs manual admin review before it can be scheduled.",
+      "quoteId": "Quote ID: {id}",
+      "errorCreating": "Could not create the phone quote.",
+      "errorNetwork": "Network error."
+    },
+    "teamRanking": {
+      "title": "Weekly Team Ranking",
+      "subtitle": "Top 3 only, teams only (B.2.21). Efficiency 40% + quality 30% + punctuality 20% + commercial 10%. No lower position or individual breakdown is ever exposed — the API only returns these 3 rows.",
+      "weekLabel": "Week (Monday)",
+      "viewWeek": "View week",
+      "loading": "Loading…",
+      "weekOf": "Week of {date}",
+      "noScores": "No scores recorded for this week.",
+      "score": "Score: {value}",
+      "errors": {
+        "loadFailed": "Error loading the ranking",
+        "unknown": "Unknown error"
+      }
+    },
+    "contractReviews": {
+      "title": "Contract Renewal Reviews",
+      "subtitle": "Triggered 60 days before each recurring contract's annual anniversary. Approve the proposed terms, then capture the client's signature (typed name — clickwrap, same as the original quote consent) to supersede the previous version.",
+      "loading": "Loading…",
+      "contractLabel": "Contract {id}… · anniversary {date}",
+      "noLegalChanges": "No legal changes detected since last review.",
+      "proposedTerms": "Proposed: {frequency} · {subtype} · {total}",
+      "approve": "Approve",
+      "dismiss": "Dismiss",
+      "captureSignature": "Capture signature",
+      "dismissedReason": "Dismissed: {reason}",
+      "noReviews": "No reviews triggered yet.",
+      "statusLabels": {
+        "pending": "pending",
+        "approved": "approved",
+        "signed": "signed",
+        "dismissed": "dismissed"
+      },
+      "dismissModal": {
+        "title": "Dismiss this review",
+        "message": "The renewal review will be marked as dismissed and the proposed terms will not be applied.",
+        "reasonLabel": "Reason for dismissing this review"
+      },
+      "signModal": {
+        "title": "Capture client signature",
+        "message": "Read the proposed terms to the client and type the full name exactly as they say it, on the call.",
+        "notice": "Typing the client's full name here constitutes a digital signature (clickwrap: typed name + IP + timestamp are recorded), the same as the original quote consent. This supersedes the previous contract version once submitted.",
+        "nameLabel": "Client's typed full name (digital signature)",
+        "namePlaceholder": "Full legal name"
+      },
+      "errors": {
+        "loadFailed": "Failed to load",
+        "genericFailed": "Failed",
+        "network": "Network error"
+      }
+    },
+    "teams": {
+      "title": "Teams",
+      "subtitle": "Minimal team identity (name + initials/color). No photos, no individual data -- feeds the weekly Top-3 ranking.",
+      "newTeamNameAria": "New team name",
+      "newTeamNamePlaceholder": "Team name",
+      "avatarColorAria": "Team avatar color",
+      "createTeamAria": "Create new team",
+      "creating": "Creating...",
+      "createTeam": "Create team",
+      "emptyState": "No teams yet.",
+      "active": "Active",
+      "inactive": "Inactive",
+      "errors": {
+        "loadFailed": "Failed to load",
+        "network": "Network error",
+        "createFailed": "Failed to create team"
+      }
+    },
+    "pipeda": {
+      "title": "PIPEDA Compliance",
+      "subtitle": "Data subject requests (48h) and breach protocol (72h).",
+      "dataSubjectRequests": "Data subject requests",
+      "clientUserId": "Client user ID",
+      "requestTypeAria": "Data request type",
+      "access": "Access",
+      "correction": "Correction",
+      "deletion": "Deletion",
+      "logRequest": "Log request",
+      "correctionDetailsAria": "Details of the requested correction",
+      "whatNeedsCorrecting": "What needs correcting?",
+      "noRequestsLogged": "No requests logged.",
+      "dueStatus": "Due {date} · status {status}",
+      "startProcessing": "Start processing",
+      "complete": "Complete",
+      "breachIncidents": "Breach incidents",
+      "incidentDescriptionAria": "Description of the security incident",
+      "whatHappened": "What happened?",
+      "incidentSeverityAria": "Incident severity",
+      "logIncident": "Log incident (starts 72h clock)",
+      "noIncidentsLogged": "No incidents logged.",
+      "severityDueStatus": "Severity {severity} · due {due} · status {status}",
+      "markOipcNotified": "Mark OIPC notified",
+      "markAffectedNotified": "Mark affected notified",
+      "close": "Close",
+      "completeAccessRequestTitle": "Complete data access request",
+      "completeAccessRequestMessage": "The client's data export must already be prepared and placed somewhere retrievable before marking this complete.",
+      "exportReferenceLabel": "Export reference (where the file was placed)",
+      "errorLoading": "Failed to load",
+      "errorNetwork": "Network error",
+      "errorCreating": "Failed to create",
+      "errorUpdating": "Failed to update",
+      "requestType": {
+        "access": "Access",
+        "correction": "Correction",
+        "deletion": "Deletion"
+      },
+      "requestStatus": {
+        "pending": "pending",
+        "processing": "processing",
+        "completed": "completed",
+        "denied": "denied"
+      },
+      "severity": {
+        "unknown": "Unknown",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      }
+    },
+    "coworkerRotation": {
+      "title": "Coworker Rotation",
+      "subtitle": "Minimum 3 distinct coworkers per month (E8.14). Read-only analysis over assignments — does not touch the dispatch engine.",
+      "monthAria": "Rotation analysis month",
+      "violationsTitle": "\"Never together\" exceptions violated this month",
+      "violationLine": "{a} + {b} — {reason} ({count} order(s))",
+      "rotationStatusTitle": "Rotation status ({count} below minimum)",
+      "noAssignments": "No assignments recorded for {month}.",
+      "distinctCoworkers": "{count} distinct coworkers",
+      "exceptionsTitle": "\"Never together\" exceptions",
+      "add": "Add",
+      "noExceptions": "No exceptions documented.",
+      "form": {
+        "employeeAAria": "Employee A ID",
+        "employeeAPlaceholder": "Employee A ID",
+        "employeeBAria": "Employee B ID",
+        "employeeBPlaceholder": "Employee B ID",
+        "reasonAria": "Reason for the exception",
+        "reasonPlaceholder": "Reason",
+        "saveAria": "Save rotation exception",
+        "saving": "Saving...",
+        "save": "Save",
+        "cancel": "Cancel"
+      },
+      "errors": {
+        "loadFailed": "Failed to load",
+        "saveFailed": "Failed to save",
+        "network": "Network error"
+      }
+    },
+    "vehicles": {
+      "title": "Vehicles",
+      "addVehicle": "Add Vehicle",
+      "newVehicle": "New Vehicle",
+      "closeFormAria": "Close new vehicle form",
+      "vehicleNameAria": "Vehicle name",
+      "vehicleNamePlaceholder": "Vehicle name",
+      "plateAria": "Vehicle license plate (optional)",
+      "platePlaceholder": "License plate (optional)",
+      "insuranceExpiryLabel": "Insurance expiry date (optional)",
+      "saveVehicleAria": "Save vehicle",
+      "saving": "Saving...",
+      "saveVehicle": "Save Vehicle",
+      "emptyState": "No vehicles registered.",
+      "active": "Active",
+      "inactive": "Inactive",
+      "noLocationData": "No location data",
+      "lastSeen": "Last seen: {datetime}",
+      "insuranceExpiryDateAria": "Insurance expiry date",
+      "save": "Save",
+      "cancel": "Cancel",
+      "insuranceExpired": "Insurance EXPIRED ({date}) — cannot be assigned",
+      "insuranceExpiringSoon": "Insurance expires soon ({date})",
+      "insuranceLabel": "Insurance: {date}",
+      "notOnFile": "not on file",
+      "edit": "Edit",
+      "errors": {
+        "loadFailed": "Failed to load vehicles",
+        "network": "Network error",
+        "createFailed": "Failed to create vehicle",
+        "updateInsuranceFailed": "Failed to update insurance date"
+      }
+    },
+    "craRemittances": {
+      "title": "CRA Remittance Calendar",
+      "subtitle": "Reminder calendar only — CPP/EI monthly, GST/PST quarterly NETFILE, T4 annual. Amounts and actual filing happen in QBO / with the accountant; this just makes sure nothing is forgotten (E9.4).",
+      "yearAria": "Select year",
+      "overdueBanner": "{count} period(s) past due and still pending.",
+      "loading": "Loading…",
+      "filed": "Filed",
+      "pending": "Pending",
+      "markFiled": "Mark filed",
+      "types": {
+        "cppEiMonthly": "CPP/EI (monthly)",
+        "gstPstQuarterly": "GST/PST NETFILE (quarterly)",
+        "t4Annual": "T4 (annual)"
+      },
+      "table": {
+        "type": "Type",
+        "period": "Period",
+        "due": "Due",
+        "amount": "Amount",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "modal": {
+        "title": "Mark remittance as filed",
+        "referenceLabel": "Confirmation reference / receipt number",
+        "amountLabel": "Amount remitted (CAD)",
+        "optional": "Optional"
+      },
+      "errors": {
+        "loadFailed": "Failed to load",
+        "genericFailed": "Failed",
+        "network": "Network error"
+      }
+    },
+    "warrantyClaims": {
+      "title": "Warranty Claims",
+      "review": "Review",
+      "zoneLabel": "Zone: {zone}",
+      "clientPhotoCount": "{count} client photo(s)",
+      "emptyState": "No claims with status \"{status}\".",
+      "statusFilters": {
+        "open": "open",
+        "escalated": "escalated",
+        "resolved_client": "resolved client",
+        "resolved_lulu": "resolved lulu",
+        "dismissed": "dismissed"
+      },
+      "resolveModal": {
+        "title": "Resolve claim",
+        "claimedZone": "Claimed zone:",
+        "noZoneAssigned": "(no zone assigned)",
+        "reason": "Reason:",
+        "closurePhotoHeading": "Closure photo (team) — {zone}",
+        "closurePhotoAlt": "Closure photo",
+        "noClosurePhoto": "No closure photo for this zone",
+        "clientEvidenceHeading": "Client evidence",
+        "clientEvidenceAlt": "Client evidence",
+        "noClientEvidence": "Client did not provide their own evidence",
+        "actions": {
+          "freeRecleaning": "Free re-cleaning",
+          "explainNoAction": "Explain, no action",
+          "dismiss": "Dismiss"
+        }
+      },
+      "outcomes": {
+        "autoFavorClientMissingClosureEvidence": "No closure evidence — favors client (automatic)",
+        "autoFavorTeamUnsubstantiatedClaim": "Unsubstantiated by client — explained (automatic)",
+        "requiresHumanReviewContradictoryEvidence": "Evidence from both sides — requires human review"
+      },
+      "forceCapture": {
+        "heading": "Force full capture (overrides withheld/partial capture for this order)",
+        "reasonAria": "Reason for forcing full capture",
+        "reasonPlaceholder": "Reason (required for audit trail)...",
+        "buttonAria": "Force full capture of the order",
+        "capturing": "Capturing...",
+        "button": "Force full capture",
+        "result": "Captured ${amount} (PaymentIntent {paymentIntentId}).",
+        "notApplicable": "n/a"
+      },
+      "resolutionNotesAria": "Resolution notes (optional)",
+      "resolutionNotesPlaceholder": "Resolution notes (optional — if left empty, the system-generated explanation is used)...",
+      "applyDecisionAria": "Apply warranty claim resolution decision",
+      "applyDecision": "Apply decision",
+      "applyAutomaticDecision": "Apply automatic decision",
+      "errors": {
+        "loadFailed": "Failed to load warranty claims",
+        "network": "Network error",
+        "loadDetailFailed": "Failed to load claim detail",
+        "resolveFailed": "Failed to resolve claim",
+        "reasonRequired": "Reason is required for the audit trail.",
+        "forceCaptureFailed": "Failed to force full capture"
+      }
+    },
+    "cumplimientoLaboral": {
+      "title": "BC Labor Compliance",
+      "subtitle": "Rest documented via transit time (drivers never count — they're still working), sick leave reports, weekly 32h consecutive rest, and statutory holiday pay eligibility.",
+      "loading": "Loading…",
+      "noData": "No data.",
+      "noViolations": "No violations recorded.",
+      "noRecordsThisYear": "No records for this year yet.",
+      "noQualifyingBreak": "No qualifying break despite 5h+ continuous",
+      "view": "View",
+      "yes": "Yes",
+      "no": "No",
+      "wageDataUnavailable": "wage data unavailable",
+      "tabs": {
+        "rest": "Breaks (transit)",
+        "sick": "Sick leave",
+        "weekly": "Weekly rest (32h)",
+        "holidays": "Statutory holidays"
+      },
+      "table": {
+        "employee": "Employee",
+        "date": "Date",
+        "segments": "Segments",
+        "qualifyingBreaks": "Qualifying breaks",
+        "risk": "Risk",
+        "reason": "Reason",
+        "payType": "Pay type",
+        "note": "Note",
+        "week": "Week",
+        "longestGap": "Longest gap (h)",
+        "holiday": "Holiday",
+        "eligible": "Eligible",
+        "avgDayPay": "Avg day pay"
+      },
+      "errors": {
+        "network": "Network error"
+      }
+    },
+    "drDrill": {
+      "title": "Disaster Recovery Drills",
+      "subtitle": "Auditable log of DR drills (E11.4). Does not replace Supabase-managed backups or the monthly cold-storage pg_dump — this only records WHEN each drill type was run and its verifiable result.",
+      "requiredEvery": "Required every {days} days",
+      "lastRun": "Last run: {date} ({days}d ago)",
+      "neverRun": "Never run",
+      "overdue": "OVERDUE",
+      "onSchedule": "On schedule",
+      "runRestoreVerificationAria": "Run restore verification",
+      "running": "Running...",
+      "runNow": "Run now",
+      "logDrill": "Log drill",
+      "logFormTitle": "Log: {type}",
+      "rtoTargetsTitle": "RTO Targets",
+      "declaredNotConfirmed": "declared in plan, not confirmed by drill",
+      "confirmed": "confirmed",
+      "historyTitle": "History",
+      "noDrillsLogged": "No drills logged yet.",
+      "durationSeconds": "{seconds}s",
+      "integrityCheckScope": "Integrity check against current connected database",
+      "drillTypes": {
+        "restoreVerification": "Restore verification (automated)",
+        "successionSimulation": "Succession simulation",
+        "emergencyKitCheck": "Emergency kit check",
+        "fallbackNoAdmin": "Fallback without admin"
+      },
+      "resultLabels": {
+        "pass": "Pass",
+        "partial": "Partial",
+        "fail": "Fail"
+      },
+      "rto": {
+        "immediate": "Immediate",
+        "minutes": "{count} min",
+        "hours": "{count} h",
+        "days": "{count} days"
+      },
+      "form": {
+        "testedScopeAria": "Scope of what was tested in the drill",
+        "testedScopePlaceholder": "What was tested (e.g. 'physical kit inspected, seal intact, credentials current')",
+        "resultAria": "Drill result",
+        "notesAria": "Additional drill notes (optional)",
+        "notesPlaceholder": "Notes (optional)",
+        "saveAria": "Save drill log",
+        "saving": "Saving...",
+        "save": "Save",
+        "cancel": "Cancel"
+      },
+      "errors": {
+        "loadFailed": "Failed to load",
+        "runFailed": "Failed to run",
+        "saveFailed": "Failed to save",
+        "network": "Network error"
+      }
+    }
+  },
+  "errorPages": {
+    "notFound": {
+      "title": "Page not found",
+      "description": "The page you're looking for doesn't exist or may have moved.",
+      "cta": "Back to home"
+    },
+    "error": {
+      "title": "Something went wrong",
+      "description": "An unexpected error occurred. Please try again.",
+      "retry": "Try again",
+      "cta": "Back to home"
     }
   }
 }

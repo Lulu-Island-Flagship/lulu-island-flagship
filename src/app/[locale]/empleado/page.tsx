@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import {
   Shield,
@@ -25,44 +26,47 @@ import {
 } from "lucide-react";
 import type { EmployeeService } from "@/types";
 import { downloadAndCacheDayBundle } from "@/lib/offline-day-cache";
+import { getAllQueuedEvents } from "@/lib/offline-queue";
+import { triggerSyncCycle } from "@/lib/offline-sync-client";
 import { ErrorBanner } from "@/components/empleado/ErrorBanner";
 import { SkeletonServiceList } from "@/components/ui/Skeleton";
 
 type JornadaStatus = "not_started" | "started";
 type OfflineDownloadStatus = "idle" | "downloading" | "ready" | "failed";
 
-// v8.3 fix G-1: /empleado ya no tiene su propio login (EmployeeAuthModal,
-// eliminado) -- el único punto de entrada de staff es /portal
-// (StaffLoginScreen.tsx). Cualquier visita sin sesión válida, o con una
-// cuenta que no resuelve a area="empleado", redirige ahí en vez de mostrar
-// un modal propio.
-type EmployeeAccessResult =
-  | { status: "authorized" }
-  // v8.3 fix G-2: esta cuenta SÍ está autorizada (admin/qc), solo no es de
-  // empleado -- no hay que cerrar sesión, solo mandarla a /portal para que
-  // resuelva su destino real.
-  | { status: "wrong_area" }
-  // El servidor (/api/staff/resolve-login) ya cerró la sesión para este
-  // caso (not_registered / pending_activation) antes de responder 403 --
-  // ver comentario en resolveEmployeeAccess() más abajo.
-  | { status: "rejected"; message: string };
-
 export default function EmpleadoPage() {
   const router = useRouter();
   const params = useParams();
+  const t = useTranslations("employee");
 
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authError, setAuthError] = useState("");
+  // Auditoría UX/seguridad 2026-07-25 (#1): antes esta página repetía su
+  // propia verificación de sesión (llamando de nuevo a
+  // /api/staff/resolve-login vía resolveEmployeeAccess()) además de la que
+  // ya hace el layout server-side (src/app/[locale]/empleado/layout.tsx,
+  // resolveStaffLogin()). Esa segunda verificación era puro trabajo
+  // duplicado -- si el layout no redirige, ya sabemos que el usuario está
+  // autenticado y autorizado como empleado -- y encima mostraba un spinner
+  // en inglés fijo ("Redirecting to the Team Portal…") en cada carga antes
+  // de poder ver el dashboard. Se elimina la repetición: isAuthenticated ya
+  // no gatea el render inicial, solo se usa para reaccionar a un cierre de
+  // sesión que ocurra mientras la pestaña sigue abierta.
   const [employeeName, setEmployeeName] = useState("");
   const [employeeRole, setEmployeeRole] = useState("");
 
   const [services, setServices] = useState<EmployeeService[]>([]);
   const [loadingServices, setLoadingServices] = useState(true);
+  // #8: antes un error de red/servidor al cargar /api/empleado/servicios
+  // simplemente dejaba services=[] y loadingServices=false -- indistinguible
+  // de "no tienes servicios hoy" para el empleado. Ahora se separa el estado
+  // de error real del de "genuinely empty".
+  const [servicesError, setServicesError] = useState("");
   const [jornadaStatus, setJornadaStatus] = useState<JornadaStatus>("not_started");
   const [isStartingJornada, setIsStartingJornada] = useState(false);
   const [jornadaError, setJornadaError] = useState("");
   // v8.3 E4 (D.10.1-2): estado de la precarga offline (ruta+SOP+accesos del día).
   const [offlineDownloadStatus, setOfflineDownloadStatus] = useState<OfflineDownloadStatus>("idle");
+  // #7: evita doble-click en "Sign out" mientras se vacía la cola offline.
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Detect locale from route params (needed both by the auth effect below and
   // by navigation links further down) -- movido arriba del useEffect para que
@@ -74,58 +78,27 @@ export default function EmpleadoPage() {
   const locale = (params?.locale as string) || "en";
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
   const portalUrl = `/${safeLocale}/portal?next=/${safeLocale}/empleado`;
+  const intlLocale = safeLocale === "zh" ? "zh-CN" : safeLocale === "fr" ? "fr-CA" : "en-CA";
 
-  // Check auth on mount — verify employee authorization
+  // v8.3 fix G-1 + auditoría 2026-07-25 (#1): el layout server-side ya
+  // garantiza sesión válida y area="empleado" antes de renderizar esta
+  // página (redirect() ocurre antes de llegar aquí) -- así que en el mount
+  // vamos directo a cargar los datos, sin repetir la llamada a
+  // /api/staff/resolve-login. loadEmployeeData() igual maneja un 401/403
+  // (p.ej. sesión que expiró justo entre el layout y este render) mandando
+  // al Portal, así que sigue habiendo una red de seguridad.
   useEffect(() => {
-    async function checkAuth() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // v8.3: la verificación real (incluida la vinculación automática de
-        // employees.user_id en el primer login de un empleado invitado) vive
-        // en /api/staff/resolve-login (src/lib/staff-login.ts) -- único punto
-        // de autorización del Portal de equipo, compartido con /portal.
-        const result = await resolveEmployeeAccess();
-        if (result.status === "authorized") {
-          setIsAuthenticated(true);
-          loadEmployeeData();
-        } else if (result.status === "wrong_area") {
-          router.replace(portalUrl);
-        } else {
-          setAuthError(result.message);
-          setLoadingServices(false);
-          router.replace(portalUrl);
-        }
-      } else {
-        // v8.3 fix G-1: ya no existe un login propio en /empleado -- redirige
-        // al Portal de equipo unificado en vez de mostrar EmployeeAuthModal.
-        setLoadingServices(false);
-        router.replace(portalUrl);
-      }
-    }
-    checkAuth();
+    loadEmployeeData();
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        const result = await resolveEmployeeAccess();
-        if (result.status === "authorized") {
-          setIsAuthenticated(true);
-          setAuthError("");
-          loadEmployeeData();
-        } else if (result.status === "wrong_area") {
-          setIsAuthenticated(false);
-          setServices([]);
-          setLoadingServices(false);
-          router.replace(portalUrl);
-        } else {
-          setIsAuthenticated(false);
-          setServices([]);
-          setLoadingServices(false);
-          router.replace(portalUrl);
-        }
-      } else {
-        setIsAuthenticated(false);
+    // Reacciona a un signOut que ocurra mientras la pestaña sigue abierta
+    // (ej. otra pestaña cerró sesión, o el token expiró y el propio SDK de
+    // Supabase lo detecta) -- no repite la verificación de autorización,
+    // solo saca al usuario si ya no hay sesión.
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
         setServices([]);
         setLoadingServices(false);
+        router.replace(portalUrl);
       }
     });
 
@@ -133,47 +106,20 @@ export default function EmpleadoPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // v8.3: delega en /api/staff/resolve-login (misma lógica que /portal) --
-  // reconoce empleado (area="empleado") y rechaza cualquier otra área o
-  // cuenta no registrada aquí, ya que esta pantalla es solo para empleados.
-  //
-  // v8.3 fix G-2: antes esta función devolvía un simple {authorized, message}
-  // y el caller SIEMPRE llamaba supabase.auth.signOut() cuando authorized
-  // era false -- incluso cuando la única razón era "esta cuenta es de
-  // admin/qc, no de empleado" (data.path !== "/empleado"), lo que cerraba la
-  // sesión de un admin/QC legítimo que solo visitó /empleado por error. Ahora
-  // se distingue: "wrong_area" (cuenta válida, área equivocada -- NUNCA
-  // signOut, solo redirigir a /portal) vs "rejected" (not_registered /
-  // pending_activation -- /api/staff/resolve-login YA ejecuta signOut()
-  // server-side en este caso antes de responder con status 403, ver
-  // src/app/api/staff/resolve-login/route.ts, así que no hace falta
-  // duplicarlo aquí).
-  async function resolveEmployeeAccess(): Promise<EmployeeAccessResult> {
-    try {
-      const res = await fetch("/api/staff/resolve-login", { method: "POST", credentials: "include" });
-      const data = await res.json();
-      if (!res.ok) {
-        return { status: "rejected", message: data.error || "Not authorized — contact your administrator." };
-      }
-      if (data.path !== "/empleado") {
-        return { status: "wrong_area" };
-      }
-      return { status: "authorized" };
-    } catch {
-      return { status: "rejected", message: "Connection error verifying your account. Please try again." };
-    }
-  }
-
   async function loadEmployeeData() {
     setLoadingServices(true);
+    setServicesError("");
     try {
       const res = await fetch("/api/empleado/servicios", { credentials: "include" });
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
           // v8.3 fix G-1: sin modal propio -- al Portal de equipo.
-          setIsAuthenticated(false);
           router.replace(portalUrl);
+          return;
         }
+        // #8: error real del servidor (5xx, etc.) -- se distingue de "no
+        // tienes servicios hoy" en vez de dejar la lista vacía en silencio.
+        setServicesError(t("dashboard.loadError"));
         setLoadingServices(false);
         return;
       }
@@ -186,6 +132,9 @@ export default function EmpleadoPage() {
       await checkJornadaStatus();
     } catch (e) {
       console.error("Load employee data error:", e);
+      // #8: fallo de red (offline, timeout, etc.) -- mismo tratamiento que
+      // un error de servidor, con opción de reintentar.
+      setServicesError(t("dashboard.loadError"));
     } finally {
       setLoadingServices(false);
     }
@@ -214,16 +163,43 @@ export default function EmpleadoPage() {
     }
   }
 
+  // #7: antes handleLogout llamaba directo a supabase.auth.signOut() sin
+  // tocar la cola offline (src/lib/offline-queue.ts) -- si un empleado
+  // cerraba sesión con eventos de servicio (fotos, T_in/T_out, notas)
+  // todavía sin sincronizar, esos quedaban atrapados en IndexedDB del
+  // dispositivo hasta que alguien volviera a iniciar sesión ahí. Ahora se
+  // intenta un ciclo de sync ANTES de cerrar sesión (mientras el token
+  // todavía es válido para escribir), y si sigue quedando algo pendiente
+  // (ej. sin red en este momento) se avisa explícitamente en vez de
+  // cerrar sesión en silencio.
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setIsAuthenticated(false);
-    setServices([]);
-    setEmployeeName("");
-    setJornadaStatus("not_started");
-    setAuthError("");
-    // v8.3 fix G-1: sin modal propio -- de vuelta al Portal de equipo para
-    // un login limpio.
-    router.push(`/${safeLocale}/portal`);
+    setIsLoggingOut(true);
+    try {
+      const pending = await getAllQueuedEvents().catch(() => []);
+      if (pending.length > 0) {
+        await triggerSyncCycle().catch(() => {});
+        const stillPending = await getAllQueuedEvents().catch(() => []);
+        if (stillPending.length > 0) {
+          const proceed = window.confirm(
+            t("dashboard.unsyncedWarning", { count: stillPending.length })
+          );
+          if (!proceed) {
+            setIsLoggingOut(false);
+            return;
+          }
+        }
+      }
+
+      await supabase.auth.signOut();
+      setServices([]);
+      setEmployeeName("");
+      setJornadaStatus("not_started");
+      // v8.3 fix G-1: sin modal propio -- de vuelta al Portal de equipo para
+      // un login limpio.
+      router.push(`/${safeLocale}/portal`);
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   async function sendVehicleLocation() {
@@ -276,7 +252,7 @@ export default function EmpleadoPage() {
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         console.error("Jornada start error:", err.error);
-        setJornadaError(err.error || "Couldn't start your shift. Please check your connection and try again.");
+        setJornadaError(err.error || t("dashboard.startShiftError"));
         return;
       }
 
@@ -296,7 +272,7 @@ export default function EmpleadoPage() {
       setOfflineDownloadStatus(dlResult.ok ? "ready" : "failed");
     } catch (e) {
       console.error("Start jornada error:", e);
-      setJornadaError("Connection error starting your shift. Please try again.");
+      setJornadaError(t("dashboard.startShiftConnectionError"));
     } finally {
       setIsStartingJornada(false);
     }
@@ -315,11 +291,11 @@ export default function EmpleadoPage() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case "pending": return "Pending";
-      case "en_route": return "En Route";
-      case "arrived": return "Arrived";
-      case "in_progress": return "In Progress";
-      case "completed": return "Completed";
+      case "pending": return t("status.pending");
+      case "en_route": return t("status.en_route");
+      case "arrived": return t("status.arrived");
+      case "in_progress": return t("status.in_progress");
+      case "completed": return t("status.completed");
       default: return status;
     }
   };
@@ -335,26 +311,11 @@ export default function EmpleadoPage() {
     }
   };
 
-  if (!isAuthenticated) {
-    // v8.3 fix G-1: sin sesión de empleado válida, siempre estamos en
-    // camino a /portal (ver router.replace(portalUrl) más arriba) -- este
-    // estado solo se ve un instante mientras el redirect ocurre.
-    return (
-      <main className="min-h-screen bg-brand-ice flex items-center justify-center px-4">
-        <div className="text-center space-y-3">
-          <Loader2 className="w-6 h-6 animate-spin text-brand-gold mx-auto" />
-          <p className="text-sm text-gray-500">Redirecting to the Team Portal…</p>
-          {authError && (
-            <div className="bg-white rounded-lg shadow-elevation-2 p-4 max-w-sm w-full mx-auto mt-4">
-              <div className="p-3 bg-state-danger/10 text-state-danger rounded-lg text-sm text-center">
-                {authError}
-              </div>
-            </div>
-          )}
-        </div>
-      </main>
-    );
-  }
+  // Nota #1: el layout server-side (src/app/[locale]/empleado/layout.tsx)
+  // ya garantiza sesión + autorización de empleado antes de que este
+  // componente monte -- no hay un estado "no autenticado" que renderizar
+  // aquí. El único loading real es el de loadEmployeeData() (servicios del
+  // día), manejado más abajo con SkeletonServiceList / servicesError.
 
   return (
     <main className="min-h-screen bg-brand-ice">
@@ -369,11 +330,16 @@ export default function EmpleadoPage() {
             </div>
           </div>
           <button
-            aria-label="Cerrar sesión"
+            aria-label={t("dashboard.logout")}
             onClick={handleLogout}
-            className="text-gray-300 hover:text-white transition-colors"
+            disabled={isLoggingOut}
+            className="text-gray-300 hover:text-white transition-colors disabled:opacity-50"
           >
-            <LogOut className="w-5 h-5" />
+            {isLoggingOut ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <LogOut className="w-5 h-5" />
+            )}
           </button>
         </div>
       </header>
@@ -382,10 +348,10 @@ export default function EmpleadoPage() {
         {/* Welcome */}
         <div>
           <h1 className="text-xl font-bold text-brand-ink">
-            Good morning, {employeeName.split(" ")[0] || "Team"}
+            {t("goodMorning")}, {employeeName.split(" ")[0] || t("team")}
           </h1>
           <p className="text-sm text-gray-500">
-            {new Date().toLocaleDateString("en-CA", {
+            {new Date().toLocaleDateString(intlLocale, {
               weekday: "long",
               month: "long",
               day: "numeric",
@@ -397,7 +363,7 @@ export default function EmpleadoPage() {
         {jornadaStatus === "not_started" ? (
           <div className="space-y-2">
             <button
-              aria-label="Iniciar turno"
+              aria-label={t("startShift")}
               onClick={handleStartJornada}
               disabled={isStartingJornada}
               className="w-full bg-brand-navy text-white py-4 rounded-xl font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
@@ -407,7 +373,7 @@ export default function EmpleadoPage() {
               ) : (
                 <>
                   <Play className="w-5 h-5" />
-                  Start Shift
+                  {t("startShift")}
                 </>
               )}
             </button>
@@ -416,8 +382,8 @@ export default function EmpleadoPage() {
         ) : (
           <div className="bg-state-success/10 text-state-success py-3 px-4 rounded-xl flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5" />
-            <span className="font-medium">Shift Started</span>
-            <span className="text-sm ml-auto">Ready to work</span>
+            <span className="font-medium">{t("shiftStarted")}</span>
+            <span className="text-sm ml-auto">{t("readyToWork")}</span>
           </div>
         )}
 
@@ -427,19 +393,19 @@ export default function EmpleadoPage() {
         {offlineDownloadStatus === "downloading" && (
           <div className="flex items-center gap-2 text-xs text-gray-500 px-1">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            Downloading today&apos;s route for offline use…
+            {t("dashboard.downloadingRoute")}
           </div>
         )}
         {offlineDownloadStatus === "ready" && (
           <div className="flex items-center gap-2 text-xs text-state-success px-1">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            Today&apos;s route saved for offline use.
+            {t("dashboard.routeReady")}
           </div>
         )}
         {offlineDownloadStatus === "failed" && (
           <div className="flex items-center gap-2 text-xs text-state-warning px-1">
             <AlertCircle className="w-3.5 h-3.5" />
-            Couldn&apos;t save today&apos;s route for offline use — stay connected until reconnected.
+            {t("dashboard.routeFailed")}
           </div>
         )}
 
@@ -452,15 +418,19 @@ export default function EmpleadoPage() {
             a una sección secundaria más compacta más abajo. */}
         <div>
           <h2 className="text-lg font-semibold text-brand-ink mb-4">
-            Today&apos;s Services
+            {t("todaysServices")}
           </h2>
 
           {loadingServices ? (
             <SkeletonServiceList count={3} />
+          ) : servicesError ? (
+            // #8: error real (fetch/servidor) distinguido de "genuinely empty"
+            // -- con botón de reintentar en vez de una lista vacía silenciosa.
+            <ErrorBanner message={servicesError} onRetry={loadEmployeeData} retrying={loadingServices} />
           ) : services.length === 0 ? (
             <div className="bg-white rounded-xl shadow-elevation-1 p-8 text-center">
               <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 text-sm">No services assigned for today.</p>
+              <p className="text-gray-500 text-sm">{t("noServices")}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -474,7 +444,7 @@ export default function EmpleadoPage() {
                     <div className="flex items-center gap-2">
                       <Home className="w-4 h-4 text-brand-gold" />
                       <span className="font-medium text-brand-ink capitalize text-sm">
-                        {svc.serviceSubtype?.replace(/_/g, " ") || "Cleaning"}
+                        {svc.serviceSubtype?.replace(/_/g, " ") || t("dashboard.defaultServiceLabel")}
                       </span>
                     </div>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStatusColor(svc.status)}`}>
@@ -486,7 +456,7 @@ export default function EmpleadoPage() {
                   <div className="space-y-1 text-sm text-gray-600">
                     <div className="flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5 text-gray-400" />
-                      <span>{svc.serviceDate} at {svc.serviceTime}</span>
+                      <span>{t("dashboard.atTime", { date: svc.serviceDate, time: svc.serviceTime })}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <MapPin className="w-3.5 h-3.5 text-gray-400" />
@@ -494,13 +464,13 @@ export default function EmpleadoPage() {
                     </div>
                     {svc.clientName && (
                       <div className="text-xs text-gray-400">
-                        Client: {svc.clientName}
+                        {t("dashboard.clientLabel", { name: svc.clientName })}
                       </div>
                     )}
                   </div>
 
                   <div className="flex items-center gap-1 text-brand-navy text-sm font-medium mt-3">
-                    <span>Open Service</span>
+                    <span>{t("openService")}</span>
                     <ChevronRight className="w-4 h-4" />
                   </div>
                 </button>
@@ -518,7 +488,7 @@ export default function EmpleadoPage() {
             día. */}
         <div>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-            More
+            {t("dashboard.more")}
           </h2>
           <div className="grid grid-cols-4 gap-2">
             <a
@@ -526,14 +496,14 @@ export default function EmpleadoPage() {
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
               <Star className="w-4 h-4 text-brand-gold" />
-              <span className="font-medium text-[11px] leading-tight text-brand-ink">My Score</span>
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.myScore")}</span>
             </a>
             <a
               href={`/${safeLocale}/empleado/votacion`}
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
               <Users className="w-4 h-4 text-brand-navy" />
-              <span className="font-medium text-[11px] leading-tight text-brand-ink">Peer Voting</span>
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.peerVoting")}</span>
             </a>
             {/* v8.3 E8.1: checklist de disposición matutina (sueño/ánimo/atajo) — antes construido pero inalcanzable */}
             <a
@@ -541,7 +511,7 @@ export default function EmpleadoPage() {
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
               <Sunrise className="w-4 h-4 text-brand-gold-dark" />
-              <span className="font-medium text-[11px] leading-tight text-brand-ink">Check-in</span>
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.checkin")}</span>
             </a>
             {/* v8.3 E7.3: ciclo de paños/inventario — antes construido pero inalcanzable */}
             <a
@@ -549,7 +519,7 @@ export default function EmpleadoPage() {
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
               <Shirt className="w-4 h-4 text-brand-navy" />
-              <span className="font-medium text-[11px] leading-tight text-brand-ink">Cloths</span>
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.cloths")}</span>
             </a>
             {/* v8.3 E8.13: ritual de inicio/fin de jornada (equipo, clima, ranking, ganancias, insignias) */}
             <a
@@ -557,7 +527,7 @@ export default function EmpleadoPage() {
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
               <Star className="w-4 h-4 text-brand-gold-dark" />
-              <span className="font-medium text-[11px] leading-tight text-brand-ink">Shift Ritual</span>
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.shiftRitual")}</span>
             </a>
             {/* v8.3 E10.8: consentimiento opcional para reels/insignias públicas */}
             <a
@@ -565,7 +535,7 @@ export default function EmpleadoPage() {
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
               <Video className="w-4 h-4 text-brand-navy" />
-              <span className="font-medium text-[11px] leading-tight text-brand-ink">Marketing</span>
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.marketing")}</span>
             </a>
             {/* BC ESA Parte 5.1: reportar ausencia por enfermedad */}
             <a
@@ -573,7 +543,7 @@ export default function EmpleadoPage() {
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
               <AlertCircle className="w-4 h-4 text-state-warning" />
-              <span className="font-medium text-[11px] leading-tight text-brand-ink">Sick Day</span>
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.sickDay")}</span>
             </a>
             {/* BC ESA s.32: descansos documentados vía tránsito */}
             <a
@@ -581,7 +551,7 @@ export default function EmpleadoPage() {
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
               <Clock className="w-4 h-4 text-brand-navy" />
-              <span className="font-medium text-[11px] leading-tight text-brand-ink">My Breaks</span>
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.myBreaks")}</span>
             </a>
             {/* E7 D.10.7: SOS, near-miss y reporte de incidente laboral */}
             <a
@@ -589,7 +559,7 @@ export default function EmpleadoPage() {
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow border border-state-danger/20"
             >
               <AlertOctagon className="w-4 h-4 text-state-danger" />
-              <span className="font-medium text-[11px] leading-tight text-brand-ink">Safety</span>
+              <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.safety")}</span>
             </a>
           </div>
         </div>

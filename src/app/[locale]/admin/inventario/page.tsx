@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Package, Truck, Plus, Loader2, AlertTriangle, ShoppingCart, Check, Calendar, Tag } from "lucide-react";
 
 interface Supplier {
@@ -65,6 +66,7 @@ const CATEGORIES = [
 ];
 
 export default function InventarioPage() {
+  const t = useTranslations("admin.inventario");
   const [tab, setTab] = useState<"items" | "suppliers" | "equipment">("items");
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [suggestions, setSuggestions] = useState<ReorderSuggestion[]>([]);
@@ -74,6 +76,7 @@ export default function InventarioPage() {
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [poBusy, setPoBusy] = useState(false);
+  const [poError, setPoError] = useState("");
 
   const [itemForm, setItemForm] = useState({
     name: "", category: "chemical", unit: "L", currentStock: "", reorderThreshold: "",
@@ -181,11 +184,12 @@ export default function InventarioPage() {
 
   async function generatePO() {
     setPoBusy(true);
+    setPoError("");
     try {
       const res = await fetch("/api/admin/purchase-orders", { method: "POST", credentials: "include" });
       const d = await res.json();
       if (!res.ok) {
-        alert(d.error || "Could not generate the purchase order.");
+        setPoError(d.error || t("purchaseOrderFailed"));
         return;
       }
       await load();
@@ -284,6 +288,12 @@ export default function InventarioPage() {
             <Calendar className="w-4 h-4 inline mr-1" /> Equipment
           </button>
         </div>
+
+        {poError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-700">
+            {poError}
+          </div>
+        )}
 
         {suggestions.length > 0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-sm text-yellow-800">

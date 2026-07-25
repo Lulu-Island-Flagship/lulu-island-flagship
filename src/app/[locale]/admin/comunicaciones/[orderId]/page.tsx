@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import OrderCommunicationTimeline from "@/components/admin/OrderCommunicationTimeline";
 
 /**
@@ -12,12 +13,13 @@ import OrderCommunicationTimeline from "@/components/admin/OrderCommunicationTim
 export default function OrderCommunicationTimelinePage() {
   const params = useParams();
   const orderId = params?.orderId as string;
+  const t = useTranslations("admin.comunicacionesDetail");
 
   return (
     <div className="space-y-4 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold text-brand-ink">Communication Timeline</h1>
-        <p className="text-sm text-gray-500 mt-1">Order {orderId}</p>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t("orderLabel", { orderId })}</p>
       </div>
       <OrderCommunicationTimeline orderId={orderId} />
     </div>

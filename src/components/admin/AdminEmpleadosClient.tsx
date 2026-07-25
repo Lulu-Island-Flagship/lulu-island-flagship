@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Loader2,
   User,
@@ -49,6 +50,7 @@ const LEVEL_LABEL: Record<string, string> = {
 };
 
 export default function AdminEmpleadosClient() {
+  const t = useTranslations("admin.empleados");
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -129,7 +131,7 @@ export default function AdminEmpleadosClient() {
     });
     if (!res.ok) {
       const err = await res.json();
-      alert(err.error || "Failed to save career level");
+      setActivateError(err.error || t("saveCareerLevelFailed"));
       return;
     }
     const data = await res.json();

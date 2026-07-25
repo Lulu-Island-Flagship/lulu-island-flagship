@@ -342,6 +342,28 @@ export default function CotizadorPage() {
     );
   }, []);
 
+  // Fix (2026-07-25, auditoría UX): /api/quote devuelve `profileWarning`
+  // (el perfil de cliente no se pudo crear/actualizar del todo -- ver
+  // api/quote/route.ts) y `adminReviewRequired`, pero antes solo se hacía
+  // console.warn del segundo y el primero se ignoraba por completo -- el
+  // cliente nunca se enteraba de que algo necesitaba re-confirmarse o
+  // revisarse. En vez de redirigir de inmediato a /reserva/[quoteId] (donde
+  // adminReviewRequired ya bloquea la reserva con un error genérico, ver esa
+  // página), ahora se pausa aquí con un aviso no bloqueante y explícito
+  // antes de continuar, para que el mensaje realmente llegue al cliente.
+  const [postSubmitNotice, setPostSubmitNotice] = useState<{
+    quoteId: string;
+    profileWarning?: boolean;
+    adminReviewRequired?: boolean;
+  } | null>(null);
+
+  const goToReservation = (quoteId: string) => {
+    clearStateFromStorage();
+    const pathLocale = window.location.pathname.split("/")[1];
+    const locale = ["en", "zh", "fr"].includes(pathLocale) ? pathLocale : "en";
+    router.push(`/${locale}/reserva/${quoteId}`);
+  };
+
   const handleSubmit = async (forcedUserId?: string) => {
     if (!quote) return;
     if (!consents.tc) {
@@ -413,6 +435,7 @@ export default function CotizadorPage() {
         quoteId,
         adminReviewRequired,
         b2bReviewRequired,
+        profileWarning,
       } = await response.json();
 
       if (b2bReviewRequired) {
@@ -422,16 +445,18 @@ export default function CotizadorPage() {
         return;
       }
 
-      if (adminReviewRequired) {
-        // No bloqueamos la reserva, pero mostramos advertencia y loggeamos
-        console.warn("Quote requires admin review before scheduling.");
+      if (profileWarning || adminReviewRequired) {
+        // Fix (2026-07-25): antes profileWarning se ignoraba del todo y
+        // adminReviewRequired solo se logueaba -- el cliente pasaba directo
+        // a /reserva sin enterarse. Se pausa aquí con un aviso visible y no
+        // bloqueante (el cliente decide cuándo continuar) en vez de
+        // redirigir en silencio.
+        setPostSubmitNotice({ quoteId, profileWarning, adminReviewRequired });
+        setIsSubmitting(false);
+        return;
       }
 
-      // Clear saved state and redirect to reservation with locale
-      clearStateFromStorage();
-      const pathLocale = window.location.pathname.split("/")[1];
-      const locale = ["en", "zh", "fr"].includes(pathLocale) ? pathLocale : "en";
-      router.push(`/${locale}/reserva/${quoteId}`);
+      goToReservation(quoteId);
     } catch (err: Error | unknown) {
       setSubmitError(err instanceof Error ? err.message : t("errors.genericSubmit"));
     } finally {
@@ -631,9 +656,23 @@ export default function CotizadorPage() {
                 </div>
               )}
 
+              {/* Fix (2026-07-25, auditoría UX): antes este error solo mostraba
+                  el mensaje, sin ninguna forma de recuperarse salvo recargar
+                  toda la página (perdiendo todo el estado del formulario,
+                  guardado en localStorage solo por 1h y de todos modos una
+                  mala experiencia). fetchPreviewQuote ya es una función
+                  reutilizable (useCallback) -- basta con volver a invocarla
+                  con los mismos `input` ya en memoria, sin perder nada. */}
               {!previewLoading && previewError && (
-                <div className="p-4 bg-state-danger/10 text-state-danger rounded-lg text-sm text-center">
-                  {previewError}
+                <div className="p-4 bg-state-danger/10 text-state-danger rounded-lg text-sm text-center space-y-3">
+                  <p>{previewError}</p>
+                  <button
+                    type="button"
+                    onClick={() => fetchPreviewQuote()}
+                    className="inline-flex items-center gap-2 bg-state-danger text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
+                  >
+                    {t("summary.retryCalculation")}
+                  </button>
                 </div>
               )}
 
@@ -703,6 +742,36 @@ export default function CotizadorPage() {
                   {submitError}
                 </div>
               )}
+
+              {/* Fix (2026-07-25, auditoría UX): el estado postSubmitNotice ya
+                  existía (ver handleSubmit) pero nunca se renderizaba -- el
+                  cliente que disparaba profileWarning/adminReviewRequired se
+                  quedaba viendo el botón "Reserve Now" volver a su estado
+                  normal sin ninguna explicación de qué pasó ni cómo seguir.
+                  Este banner explica la situación y da un botón explícito
+                  para continuar a /reserva cuando el cliente esté listo. */}
+              {postSubmitNotice && (
+                <div className="p-4 bg-state-warning/10 border border-state-warning/20 rounded-lg space-y-2">
+                  <p className="text-sm font-medium text-state-warning">
+                    {postSubmitNotice.adminReviewRequired
+                      ? t("summary.adminReviewTitle")
+                      : t("summary.profileWarningTitle")}
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    {postSubmitNotice.adminReviewRequired
+                      ? t("summary.adminReviewDesc")
+                      : t("summary.profileWarningDesc")}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => goToReservation(postSubmitNotice.quoteId)}
+                    className="inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-brand-navy-light transition-colors"
+                  >
+                    {t("summary.continueToReservation")}
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -727,7 +796,7 @@ export default function CotizadorPage() {
               {t("nav.next")}
               <ChevronRight className="w-5 h-5" />
             </button>
-          ) : (
+          ) : !postSubmitNotice ? (
             <button
               onClick={() => handleSubmit()}
               disabled={!canProceed() || isSubmitting}
@@ -736,7 +805,7 @@ export default function CotizadorPage() {
               {isSubmitting ? t("nav.saving") : b2bReviewRequired ? t("nav.submitB2b") : t("nav.reserveNow")}
               <ChevronRight className="w-5 h-5" />
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 

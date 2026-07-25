@@ -174,7 +174,11 @@ export function ChemicalMatchModal({
               {submitting ? (
                 <Loader2 className="w-5 h-5 animate-spin mb-1" />
               ) : (
-                <div className="text-xl mb-1">{code.icon}</div>
+                // #17: ícono decorativo -- el nombre del producto ya está en
+                // texto visible justo debajo (textEs/product), se oculta de
+                // lectores de pantalla para no anunciar el emoji crudo sin
+                // contexto (ej. "toilet emoji") en cada una de las 6 opciones.
+                <div className="text-xl mb-1" aria-hidden="true">{code.icon}</div>
               )}
               <div className="text-xs font-bold leading-tight">{code.textEs}</div>
               <div className="text-[11px] opacity-80">{code.product}</div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, Users, Plus } from "lucide-react";
 
 interface Team {
@@ -22,6 +23,7 @@ interface Team {
  * principio de identidad mínima de la migración 099).
  */
 export default function AdminTeamsPage() {
+  const t = useTranslations("admin.teams");
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -40,13 +42,13 @@ export default function AdminTeamsPage() {
       const res = await fetch("/api/admin/teams?include_inactive=true", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load");
+        setError(err.error || t("errors.loadFailed"));
         return;
       }
       const data = await res.json();
       setTeams(data.teams || []);
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -65,13 +67,13 @@ export default function AdminTeamsPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to create team");
+        setError(err.error || t("errors.createFailed"));
         return;
       }
       setName("");
       load();
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setCreating(false);
     }
@@ -95,26 +97,23 @@ export default function AdminTeamsPage() {
     <div className="space-y-6 max-w-2xl">
       <div>
         <h1 className="text-2xl font-bold text-brand-ink flex items-center gap-2">
-          <Users className="w-5 h-5" /> Teams
+          <Users className="w-5 h-5" /> {t("title")}
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Identidad mínima de equipo (nombre + iniciales/color). Sin fotos, sin datos individuales -- alimenta el
-          ranking semanal Top-3.
-        </p>
+        <p className="text-sm text-gray-500 mt-1">{t("subtitle")}</p>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{error}</div>}
 
       <div className="bg-white rounded-xl border p-4 flex flex-col sm:flex-row gap-2">
         <input
-          aria-label="Nombre del equipo nuevo"
+          aria-label={t("newTeamNameAria")}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Nombre del equipo"
+          placeholder={t("newTeamNamePlaceholder")}
           className="flex-1 border rounded-lg px-3 py-2 text-sm"
         />
         <input
-          aria-label="Color del avatar del equipo"
+          aria-label={t("avatarColorAria")}
           type="color"
           value={color}
           onChange={(e) => setColor(e.target.value)}
@@ -122,11 +121,11 @@ export default function AdminTeamsPage() {
         />
         <button
           onClick={createTeam}
-          aria-label="Crear equipo nuevo"
+          aria-label={t("createTeamAria")}
           disabled={creating || !name.trim()}
           className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
         >
-          <Plus className="w-4 h-4" /> {creating ? "Creando..." : "Crear equipo"}
+          <Plus className="w-4 h-4" /> {creating ? t("creating") : t("createTeam")}
         </button>
       </div>
 
@@ -135,27 +134,27 @@ export default function AdminTeamsPage() {
           <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
         </div>
       ) : teams.length === 0 ? (
-        <div className="bg-white rounded-xl border p-8 text-center text-sm text-gray-500">No teams yet.</div>
+        <div className="bg-white rounded-xl border p-8 text-center text-sm text-gray-500">{t("emptyState")}</div>
       ) : (
         <div className="space-y-2">
-          {teams.map((t) => (
-            <div key={t.id} className="bg-white rounded-xl border p-4 flex items-center justify-between">
+          {teams.map((team) => (
+            <div key={team.id} className="bg-white rounded-xl border p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span
                   className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                  style={{ backgroundColor: t.avatar_color || "#94a3b8" }}
+                  style={{ backgroundColor: team.avatar_color || "#94a3b8" }}
                 >
-                  {t.avatar_initials}
+                  {team.avatar_initials}
                 </span>
-                <span className="text-sm font-medium text-brand-ink">{t.name}</span>
+                <span className="text-sm font-medium text-brand-ink">{team.name}</span>
               </div>
               <button
-                onClick={() => toggleActive(t)}
+                onClick={() => toggleActive(team)}
                 className={`text-xs font-medium px-2 py-1 rounded-full ${
-                  t.active ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"
+                  team.active ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"
                 }`}
               >
-                {t.active ? "Active" : "Inactive"}
+                {team.active ? t("active") : t("inactive")}
               </button>
             </div>
           ))}

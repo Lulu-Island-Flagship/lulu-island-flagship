@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
+import { useTranslations } from "next-intl";
 import {
   Loader2,
   AlertCircle,
@@ -33,6 +35,7 @@ interface QCReview {
 }
 
 export default function AdminQCClient() {
+  const t = useTranslations("admin.qc");
   const [reviews, setReviews] = useState<QCReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -55,14 +58,14 @@ export default function AdminQCClient() {
       const res = await fetch(`/api/admin/qc?status=${statusFilter}`, { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load QC reviews");
+        setError(err.error || t("errors.loadFailed"));
         setLoading(false);
         return;
       }
       const data = await res.json();
       setReviews(data.reviews || []);
     } catch {
-      setError("Network error");
+      setError(t("errors.networkError"));
     } finally {
       setLoading(false);
     }
@@ -70,7 +73,7 @@ export default function AdminQCClient() {
 
   async function submitReview(orderId: string) {
     if (!reviewNote.trim()) {
-      setError("Note is required");
+      setError(t("errors.noteRequired"));
       return;
     }
     setSubmitting(true);
@@ -84,7 +87,7 @@ export default function AdminQCClient() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to submit review");
+        setError(err.error || t("errors.submitFailed"));
         setSubmitting(false);
         return;
       }
@@ -92,7 +95,7 @@ export default function AdminQCClient() {
       setReviewNote("");
       loadReviews();
     } catch {
-      setError("Network error");
+      setError(t("errors.networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -113,14 +116,14 @@ export default function AdminQCClient() {
   };
 
   const formatStatus = (status: string) => {
-    if (status === "auto") return "Auto-Approved";
-    return status.charAt(0).toUpperCase() + status.slice(1);
+    if (status === "auto") return t("status.auto");
+    return t(`status.${status}` as "status.pending" | "status.approved" | "status.rejected");
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-brand-ink">QC Wall</h1>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
         <div className="flex gap-2">
           {["pending", "approved", "rejected", "auto"].map((s) => (
             <button
@@ -132,7 +135,7 @@ export default function AdminQCClient() {
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              {s === "auto" ? "Auto" : s.charAt(0).toUpperCase() + s.slice(1)}
+              {s === "auto" ? t("filters.auto") : t(`filters.${s}` as "filters.pending" | "filters.approved" | "filters.rejected")}
             </button>
           ))}
         </div>
@@ -150,7 +153,11 @@ export default function AdminQCClient() {
       ) : reviews.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
           <CheckCircle2 className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500">No QC reviews with status &quot;{statusFilter}&quot;.</p>
+          <p className="text-gray-500">
+            {t("emptyWithFilter", {
+              filter: statusFilter === "auto" ? t("filters.auto") : t(`filters.${statusFilter}` as "filters.pending" | "filters.approved" | "filters.rejected"),
+            })}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -171,9 +178,9 @@ export default function AdminQCClient() {
               <div className="space-y-2 mb-4">
                 <div className="flex items-center gap-2 text-sm text-brand-ink">
                   <User className="w-4 h-4 text-gray-400" />
-                  <span className="font-medium">{review.employees?.name || "Unknown"}</span>
+                  <span className="font-medium">{review.employees?.name || t("unknownEmployee")}</span>
                   <span className="text-xs text-gray-400 capitalize">
-                    ({review.employees?.trust_level || "standard"})
+                    ({review.employees?.trust_level || t("modal.standardTrustLevel")})
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -189,18 +196,30 @@ export default function AdminQCClient() {
                       key={`${photo.url}-${idx}`}
                       type="button"
                       onClick={() => setLightboxUrl(photo.url)}
-                      className="aspect-square rounded-md overflow-hidden border border-gray-200 hover:opacity-80 transition-opacity"
+                      className="relative aspect-square rounded-md overflow-hidden border border-gray-200 hover:opacity-80 transition-opacity"
                       title={photo.label}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photo.url} alt={photo.label || "Service evidence photo"} className="w-full h-full object-cover" />
+                      {/* Item 5 (auditoría 2026-07-25): las fotos vienen de
+                          Supabase Storage (dominio dinámico por proyecto, no
+                          configurado en next.config.mjs images.remotePatterns),
+                          así que se usa `unoptimized` en vez de agregar un
+                          remotePattern a ciegas -- sigue dando lazy-loading
+                          nativo del navegador y layout estable via `fill`. */}
+                      <Image
+                        src={photo.url}
+                        alt={photo.label || t("photos.altText")}
+                        fill
+                        unoptimized
+                        sizes="(max-width: 768px) 25vw, 150px"
+                        className="object-cover"
+                      />
                     </button>
                   ))}
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-xs text-gray-400 mb-3">
                   <Camera className="w-4 h-4" />
-                  <span>No photo evidence uploaded</span>
+                  <span>{t("photos.none")}</span>
                 </div>
               )}
 
@@ -220,13 +239,13 @@ export default function AdminQCClient() {
                   }}
                   className="w-full bg-brand-navy text-white py-2 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors"
                 >
-                  Review
+                  {t("reviewButton")}
                 </button>
               )}
 
               {review.status !== "pending" && review.reviewed_at && (
                 <p className="text-xs text-gray-400 text-center">
-                  Reviewed {new Date(review.reviewed_at).toLocaleDateString()}
+                  {t("reviewedOn", { date: new Date(review.reviewed_at).toLocaleDateString() })}
                 </p>
               )}
             </div>
@@ -239,7 +258,7 @@ export default function AdminQCClient() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-brand-ink">QC Review</h2>
+              <h2 className="text-lg font-bold text-brand-ink">{t("modal.title")}</h2>
               <button
                 onClick={() => setSelectedReview(null)}
                 className="text-gray-400 hover:text-gray-600"
@@ -249,25 +268,37 @@ export default function AdminQCClient() {
             </div>
 
             <div className="space-y-2 text-sm">
-              <p><strong>Employee:</strong> {selectedReview.employees?.name}</p>
-              <p><strong>Date:</strong> {selectedReview.orders?.service_date} at {selectedReview.orders?.service_time}</p>
-              <p><strong>Trust Level:</strong> <span className="capitalize">{selectedReview.employees?.trust_level || "standard"}</span></p>
+              <p><strong>{t("modal.employeeLabel")}:</strong> {selectedReview.employees?.name}</p>
+              <p><strong>{t("modal.dateLabel")}:</strong> {selectedReview.orders?.service_date} {t("modal.at")} {selectedReview.orders?.service_time}</p>
+              <p><strong>{t("modal.trustLevelLabel")}:</strong> <span className="capitalize">{selectedReview.employees?.trust_level || t("modal.standardTrustLevel")}</span></p>
             </div>
 
             {selectedReview.photos && selectedReview.photos.length > 0 ? (
               <div>
-                <p className="text-xs font-medium text-gray-500 mb-2">Photo evidence ({selectedReview.photos.length})</p>
+                <p className="text-xs font-medium text-gray-500 mb-2">{t("modal.photoEvidence", { count: selectedReview.photos.length })}</p>
                 <div className="grid grid-cols-4 gap-2">
                   {selectedReview.photos.map((photo, idx) => (
                     <button
                       key={`${photo.url}-${idx}`}
                       type="button"
                       onClick={() => setLightboxUrl(photo.url)}
-                      className="aspect-square rounded-md overflow-hidden border border-gray-200 hover:opacity-80 transition-opacity"
+                      className="relative aspect-square rounded-md overflow-hidden border border-gray-200 hover:opacity-80 transition-opacity"
                       title={photo.label}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photo.url} alt={photo.label || "Service evidence photo"} className="w-full h-full object-cover" />
+                      {/* Item 5 (auditoría 2026-07-25): las fotos vienen de
+                          Supabase Storage (dominio dinámico por proyecto, no
+                          configurado en next.config.mjs images.remotePatterns),
+                          así que se usa `unoptimized` en vez de agregar un
+                          remotePattern a ciegas -- sigue dando lazy-loading
+                          nativo del navegador y layout estable via `fill`. */}
+                      <Image
+                        src={photo.url}
+                        alt={photo.label || t("photos.altText")}
+                        fill
+                        unoptimized
+                        sizes="(max-width: 768px) 25vw, 150px"
+                        className="object-cover"
+                      />
                     </button>
                   ))}
                 </div>
@@ -275,7 +306,7 @@ export default function AdminQCClient() {
             ) : (
               <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
                 <Camera className="w-4 h-4" />
-                <span>No photo evidence uploaded for this service.</span>
+                <span>{t("modal.noPhotosForService")}</span>
               </div>
             )}
 
@@ -289,7 +320,7 @@ export default function AdminQCClient() {
                 }`}
               >
                 <ThumbsUp className="w-4 h-4" />
-                Approve
+                {t("modal.approveButton")}
               </button>
               <button
                 onClick={() => setReviewStatus("rejected")}
@@ -300,15 +331,15 @@ export default function AdminQCClient() {
                 }`}
               >
                 <ThumbsDown className="w-4 h-4" />
-                Reject
+                {t("modal.rejectButton")}
               </button>
             </div>
 
             <textarea
-              aria-label="Nota de revisión de control de calidad"
+              aria-label={t("modal.noteAriaLabel")}
               value={reviewNote}
               onChange={(e) => setReviewNote(e.target.value)}
-              placeholder="Review note (required)..."
+              placeholder={t("modal.notePlaceholder")}
               className="w-full border rounded-lg p-3 text-sm min-h-[100px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
             />
 
@@ -321,7 +352,7 @@ export default function AdminQCClient() {
               disabled={submitting}
               className="w-full bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
             >
-              {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Submit Review"}
+              {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : t("modal.submitButton")}
             </button>
           </div>
         </div>
@@ -337,22 +368,28 @@ export default function AdminQCClient() {
           }}
           role="button"
           tabIndex={0}
-          aria-label="Close photo lightbox"
+          aria-label={t("lightbox.closeAriaLabel")}
         >
           <button
             onClick={() => setLightboxUrl(null)}
             className="absolute top-4 right-4 text-white hover:text-gray-300"
-            aria-label="Close photo"
+            aria-label={t("lightbox.closeButtonAriaLabel")}
           >
             <X className="w-8 h-8" />
           </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={lightboxUrl}
-            alt="Service evidence photo, enlarged"
-            className="max-w-full max-h-full rounded-lg object-contain"
+          <div
+            className="relative w-full h-full max-w-3xl max-h-[85vh]"
             onClick={(e) => e.stopPropagation()}
-          />
+          >
+            <Image
+              src={lightboxUrl}
+              alt={t("lightbox.enlargedAltText")}
+              fill
+              unoptimized
+              sizes="90vw"
+              className="rounded-lg object-contain"
+            />
+          </div>
         </div>
       )}
     </div>

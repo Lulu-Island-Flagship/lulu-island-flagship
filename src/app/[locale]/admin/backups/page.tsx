@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, DatabaseBackup, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface JobStatus {
   jobType: string;
@@ -11,12 +12,12 @@ interface JobStatus {
   lastAttempt: { created_at: string; status: string; error_message: string | null; destination: string } | null;
 }
 
-const LABEL: Record<string, string> = {
-  transactions_daily: "Transactions (daily)",
-  payroll_per_cycle: "Payroll (per cycle)",
-  clients_weekly: "Clients (weekly)",
-  photos_monthly: "Photos manifest (monthly)",
-  pg_dump_monthly: "pg_dump (monthly reminder)",
+const LABEL_KEYS: Record<string, string> = {
+  transactions_daily: "transactionsDaily",
+  payroll_per_cycle: "payrollPerCycle",
+  clients_weekly: "clientsWeekly",
+  photos_monthly: "photosMonthly",
+  pg_dump_monthly: "pgDumpMonthly",
 };
 
 /**
@@ -27,6 +28,7 @@ const LABEL: Record<string, string> = {
  * automático (requiere acceso directo a Postgres).
  */
 export default function BackupsPage() {
+  const t = useTranslations("admin.backups");
   const [jobs, setJobs] = useState<JobStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -41,10 +43,10 @@ export default function BackupsPage() {
     try {
       const res = await fetch("/api/admin/backup-status", { credentials: "include" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load");
+      if (!res.ok) throw new Error(data.error || t("errors.loadFailed"));
       setJobs(data.jobs || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error");
+      setError(err instanceof Error ? err.message : t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -54,49 +56,47 @@ export default function BackupsPage() {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-2 mb-4">
         <DatabaseBackup className="w-6 h-6" />
-        <h1 className="text-2xl font-bold">Backup Status</h1>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
       </div>
-      <p className="text-sm text-gray-500 mb-6">
-        Transactions daily, payroll per cycle, clients weekly, photos manifest monthly. CSV+SHA-256
-        stored in Supabase Storage (offsite B2/Glacier replication not yet connected — no external
-        credentials configured). pg_dump requires direct Postgres access and is a manual monthly
-        reminder here, verified separately via DR Drills (E11.4).
-      </p>
+      <p className="text-sm text-gray-500 mb-6">{t("subtitle")}</p>
 
       {error && <div className="text-red-600 text-sm mb-4">{error}</div>}
 
       {loading ? (
         <div className="flex items-center gap-2 text-gray-500">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+          <Loader2 className="w-4 h-4 animate-spin" /> {t("loading")}
         </div>
       ) : (
         <div className="space-y-3">
           {jobs.map((j) => (
             <div key={j.jobType} className="bg-white rounded border border-gray-200 p-4">
               <div className="flex items-center justify-between mb-1">
-                <div className="font-medium">{LABEL[j.jobType] || j.jobType}</div>
+                <div className="font-medium">{LABEL_KEYS[j.jobType] ? t(`jobLabels.${LABEL_KEYS[j.jobType]}`) : j.jobType}</div>
                 {j.due ? (
                   <span className="inline-flex items-center gap-1 text-amber-700 text-xs">
-                    <AlertTriangle className="w-3 h-3" /> Due to run
+                    <AlertTriangle className="w-3 h-3" /> {t("dueToRun")}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-green-700 text-xs">
-                    <CheckCircle2 className="w-3 h-3" /> Up to date
+                    <CheckCircle2 className="w-3 h-3" /> {t("upToDate")}
                   </span>
                 )}
               </div>
               {j.lastSuccess ? (
                 <div className="text-xs text-gray-500">
-                  Last success: {new Date(j.lastSuccess.created_at).toLocaleString("en-CA")} ·{" "}
-                  {j.lastSuccess.row_count ?? "—"} rows · {j.lastSuccess.destination} ·{" "}
-                  {j.lastSuccess.sha256_hash ? j.lastSuccess.sha256_hash.slice(0, 12) : "—"}
+                  {t("lastSuccess", {
+                    date: new Date(j.lastSuccess.created_at).toLocaleString("en-CA"),
+                    rows: j.lastSuccess.row_count ?? "—",
+                    destination: j.lastSuccess.destination,
+                    hash: j.lastSuccess.sha256_hash ? j.lastSuccess.sha256_hash.slice(0, 12) : "—",
+                  })}
                 </div>
               ) : (
-                <div className="text-xs text-gray-400">Never run successfully.</div>
+                <div className="text-xs text-gray-400">{t("neverRun")}</div>
               )}
               {j.lastAttempt && j.lastAttempt.status !== "success" && (
                 <div className="text-xs text-red-600 mt-1">
-                  Last attempt failed: {j.lastAttempt.error_message}
+                  {t("lastAttemptFailed", { error: j.lastAttempt.error_message || "" })}
                 </div>
               )}
             </div>

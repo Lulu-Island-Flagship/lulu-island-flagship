@@ -394,9 +394,19 @@ export default function ReservaPage() {
       return;
     }
 
-    if (paymentOption === "paypal_first_time" && !paypalTransactionId.trim()) {
-      setConfirmError(t("confirm.enterPaypalTransactionId"));
-      return;
+    if (paymentOption === "paypal_first_time") {
+      if (!paypalTransactionId.trim()) {
+        setConfirmError(t("confirm.enterPaypalTransactionId"));
+        return;
+      }
+      if (paypalTransactionId.length !== 17) {
+        setConfirmError(t("confirm.invalidPaypalTransactionId"));
+        return;
+      }
+      if (paypalPayerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(paypalPayerEmail)) {
+        setConfirmError(t("confirm.invalidPaypalPayerEmail"));
+        return;
+      }
     }
 
     if ((paymentOption === "alipay" || paymentOption === "wechat_pay") && !walletPaymentIntentId) {
@@ -649,22 +659,67 @@ export default function ReservaPage() {
                     <p className="text-sm text-gray-600">
                       {t("payment.paypalDesc")}
                     </p>
-                    <input
-                      aria-label={t("payment.paypalTransactionIdAriaLabel")}
-                      type="text"
-                      value={paypalTransactionId}
-                      onChange={(e) => setPaypalTransactionId(e.target.value)}
-                      placeholder={t("payment.paypalTransactionIdPlaceholder")}
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold"
-                    />
-                    <input
-                      aria-label={t("payment.paypalPayerEmailAriaLabel")}
-                      type="email"
-                      value={paypalPayerEmail}
-                      onChange={(e) => setPaypalPayerEmail(e.target.value)}
-                      placeholder={t("payment.paypalPayerEmailPlaceholder")}
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold"
-                    />
+                    {/* Fix (2026-07-25, auditoría UX/seguridad): la entrada manual de
+                        Transaction ID/email es alto riesgo de fricción y fraude (nada
+                        impide que el cliente escriba un ID inventado o de otra
+                        transacción -- /api/stripe/confirm hoy solo guarda estos campos,
+                        no los valida contra la API de PayPal). Reescribir el flujo para
+                        verificar contra PayPal en tiempo real requeriría integración de
+                        backend fuera de alcance de este pase; en su lugar se agrega:
+                        formato/longitud esperados, advertencia explícita de escribir el
+                        ID EXACTO (17 caracteres alfanuméricos, como aparece en el email
+                        de confirmación de PayPal), validación inline con mensajes de
+                        error claros antes de habilitar "Confirm", y normalización a
+                        mayúsculas (el ID de PayPal siempre es mayúsculas). */}
+                    <div className="bg-state-warning/10 border border-state-warning/30 rounded-lg p-3 text-xs text-state-warning">
+                      {t("payment.paypalManualEntryWarning")}
+                    </div>
+                    <div>
+                      <input
+                        aria-label={t("payment.paypalTransactionIdAriaLabel")}
+                        type="text"
+                        value={paypalTransactionId}
+                        onChange={(e) =>
+                          setPaypalTransactionId(e.target.value.toUpperCase().replace(/\s/g, "").slice(0, 17))
+                        }
+                        placeholder={t("payment.paypalTransactionIdPlaceholder")}
+                        maxLength={17}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold font-mono tracking-wide ${
+                          paypalTransactionId && paypalTransactionId.length !== 17
+                            ? "border-state-danger"
+                            : ""
+                        }`}
+                      />
+                      <p
+                        className={`text-xs mt-1 ${
+                          paypalTransactionId && paypalTransactionId.length !== 17
+                            ? "text-state-danger"
+                            : "text-gray-400"
+                        }`}
+                      >
+                        {paypalTransactionId && paypalTransactionId.length !== 17
+                          ? t("payment.paypalTransactionIdInvalidLength", { count: paypalTransactionId.length })
+                          : t("payment.paypalTransactionIdHint")}
+                      </p>
+                    </div>
+                    <div>
+                      <input
+                        aria-label={t("payment.paypalPayerEmailAriaLabel")}
+                        type="email"
+                        autoComplete="email"
+                        value={paypalPayerEmail}
+                        onChange={(e) => setPaypalPayerEmail(e.target.value)}
+                        placeholder={t("payment.paypalPayerEmailPlaceholder")}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold ${
+                          paypalPayerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(paypalPayerEmail)
+                            ? "border-state-danger"
+                            : ""
+                        }`}
+                      />
+                      {paypalPayerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(paypalPayerEmail) && (
+                        <p className="text-xs mt-1 text-state-danger">{t("payment.paypalPayerEmailInvalid")}</p>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -758,48 +813,57 @@ export default function ReservaPage() {
 
             <CheckoutBenefitsPanel />
 
-            {/* Confirm button */}
+            {/* Confirm button
+                Fix (2026-07-25, auditoría UX): en móvil, este botón (el CTA
+                principal del flujo) se desplazaba fuera de pantalla al final
+                de una columna larga -- el cliente tenía que hacer scroll de
+                vuelta para confirmar. sticky bottom-0 lo mantiene visible
+                mientras se hace scroll por debajo del breakpoint lg; en
+                desktop (lg+) vuelve a su posición estática normal dentro de
+                la columna, donde ya hay suficiente espacio visible. */}
             {paymentMethodId && (
-              <div className="bg-white rounded-lg shadow-elevation-1 p-6">
-                {confirmError && (
-                  <div className="p-3 bg-state-danger/10 text-state-danger rounded-lg text-sm mb-4">
-                    {confirmError}
-                  </div>
-                )}
-                <button
-                  aria-label={t("confirm.confirmAriaLabel")}
-                  onClick={handleConfirm}
-                  disabled={isConfirming || needsPhoneVerification}
-                  className="w-full inline-flex items-center justify-center gap-2 bg-brand-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isConfirming ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      {t("confirm.confirming")}
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-5 h-5" />
-                      {t("confirm.button")}
-                    </>
+              <div className="sticky bottom-0 z-40 -mx-4 px-4 pb-[env(safe-area-inset-bottom)] lg:static lg:z-auto lg:mx-0 lg:px-0 lg:pb-0">
+                <div className="bg-white rounded-lg shadow-[0_-6px_16px_rgba(15,23,42,0.12)] lg:shadow-elevation-1 p-6">
+                  {confirmError && (
+                    <div className="p-3 bg-state-danger/10 text-state-danger rounded-lg text-sm mb-4">
+                      {confirmError}
+                    </div>
                   )}
-                </button>
-                {needsPhoneVerification && (
-                  <p className="text-xs text-state-danger mt-2 text-center">
-                    {t("confirm.phoneVerificationRequired")}
-                  </p>
-                )}
-                <p className="text-xs text-gray-500 mt-3 text-center">
-                  {t("confirm.termsNote")}{" "}
-                  <a
-                    href={`/${safeLocale}/cancelacion`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:text-brand-navy"
+                  <button
+                    aria-label={t("confirm.confirmAriaLabel")}
+                    onClick={handleConfirm}
+                    disabled={isConfirming || needsPhoneVerification}
+                    className="w-full inline-flex items-center justify-center gap-2 bg-brand-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {t("confirm.viewCancellationPolicy")}
-                  </a>
-                </p>
+                    {isConfirming ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        {t("confirm.confirming")}
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-5 h-5" />
+                        {t("confirm.button")}
+                      </>
+                    )}
+                  </button>
+                  {needsPhoneVerification && (
+                    <p className="text-xs text-state-danger mt-2 text-center">
+                      {t("confirm.phoneVerificationRequired")}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-3 text-center">
+                    {t("confirm.termsNote")}{" "}
+                    <a
+                      href={`/${safeLocale}/cancelacion`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-brand-navy"
+                    >
+                      {t("confirm.viewCancellationPolicy")}
+                    </a>
+                  </p>
+                </div>
               </div>
             )}
           </div>

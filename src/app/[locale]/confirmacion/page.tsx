@@ -33,10 +33,23 @@ function ConfirmacionContent() {
   const [order, setOrder] = useState<Order | null>(null);
   const [quote, setQuote] = useState<QuoteData | null>(null);
   const [loading, setLoading] = useState(true);
+  // Fix (2026-07-25, auditoría UX): antes un solo "Reservation Not Found"
+  // cubría tres situaciones muy distintas -- (a) se llegó a esta página sin
+  // ?orderId en absoluto (link roto / bookmark viejo), y (b) hay un orderId
+  // pero orders_client_view no devolvió fila. La vista aplica RLS por
+  // user_id (migración 056): una orden que EXISTE pero pertenece a otro
+  // cliente devuelve el mismo "sin filas" que una orden que directamente no
+  // existe -- por diseño, para no filtrar si un ID es válido o no a quien no
+  // es su dueño. Por eso (b) se muestra como un único mensaje "no
+  // encontrada o sin acceso" (no se puede ni se debe distinguir de forma
+  // segura entre "no existe" y "no autorizado" en el cliente), pero SÍ se
+  // distingue de (a), que es un error de navegación completamente distinto.
+  const [notFoundReason, setNotFoundReason] = useState<"missingOrderId" | "orderNotFound" | null>(null);
 
   useEffect(() => {
     async function loadOrder() {
       if (!orderId) {
+        setNotFoundReason("missingOrderId");
         setLoading(false);
         return;
       }
@@ -49,6 +62,7 @@ function ConfirmacionContent() {
         .single();
 
       if (orderError || !orderData) {
+        setNotFoundReason("orderNotFound");
         setLoading(false);
         return;
       }
@@ -90,14 +104,15 @@ function ConfirmacionContent() {
   }
 
   if (!order || !quote) {
+    const isMissingOrderId = notFoundReason === "missingOrderId";
     return (
       <main className="min-h-screen bg-brand-ice flex items-center justify-center px-4">
         <div className="bg-white rounded-lg shadow-elevation-1 p-8 max-w-md w-full text-center">
           <h2 className="text-xl font-bold text-brand-ink mb-2">
-            {t("notFoundTitle")}
+            {isMissingOrderId ? t("missingOrderIdTitle") : t("notFoundTitle")}
           </h2>
           <p className="text-gray-600 mb-6">
-            {t("notFoundDesc")}
+            {isMissingOrderId ? t("missingOrderIdDesc") : t("notFoundDesc")}
           </p>
           <button
             onClick={() => router.push(`/${safeLocale}/cotizador`)}
@@ -207,29 +222,32 @@ function ConfirmacionContent() {
           {/* 2026-07-24: la confirmación era un callejón sin salida — el
               cliente solo tenía "Back to Home" y tenía que adivinar la URL
               de /cuenta para ver o rastrear su reserva. Se añade "View My
-              Reservation", que enlaza al detalle de ESTA orden (tracking de
-              equipo, orders_client_view confirma status "confirmed" recién
-              pagada) si tenemos orderId, con fallback al historial genérico
-              en /cuenta/servicios. No se añade link de "instrucciones
-              especiales para el equipo": no existe ese campo/feature en el
-              backend (sin columna en orders/quotes ni endpoint) — pendiente
-              de decisión de producto antes de exponer un formulario que no
-              tiene adónde escribir. Tampoco se crea una página nueva de
-              "política de cancelación": las condiciones ya se explican
-              arriba en "What happens next?". Existe /api/orders/[orderId]/
-              cancel en el backend, pero ninguna pantalla de /cuenta expone
-              hoy un botón de cancelar para una orden individual, así que un
-              link a la orden no añadiría una acción de cancelar que hoy no
-              esté ya disponible ahí. */}
+              Reservation". No se añade link de "instrucciones especiales
+              para el equipo": no existe ese campo/feature en el backend (sin
+              columna en orders/quotes ni endpoint) — pendiente de decisión
+              de producto antes de exponer un formulario que no tiene adónde
+              escribir. Tampoco se crea una página nueva de "política de
+              cancelación": las condiciones ya se explican arriba en "What
+              happens next?". Existe /api/orders/[orderId]/cancel en el
+              backend, pero ninguna pantalla de /cuenta expone hoy un botón
+              de cancelar para una orden individual, así que un link a la
+              orden no añadiría una acción de cancelar que hoy no esté ya
+              disponible ahí.
+
+              Fix (2026-07-25, auditoría UX): antes este botón enlazaba
+              directo a .../tracking -- esa pantalla solo muestra la
+              ubicación del vehículo dentro de los 30 min previos al
+              servicio (ver vehicle-tracking route), así que para una
+              reserva RECIÉN confirmada (a menudo días u horas antes del
+              servicio) tracking está casi siempre vacío ("not_trackable" /
+              "too_early"), un callejón sin salida disfrazado de link útil.
+              Se cambia a /cuenta/servicios (con fallback igual si no hay
+              orderId), que sí muestra la reserva recién creada de inmediato
+              y desde ahí el cliente puede navegar a tracking cuando
+              corresponda. */}
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
-              onClick={() =>
-                router.push(
-                  orderId
-                    ? `/${safeLocale}/cuenta/servicios/${orderId}/tracking`
-                    : `/${safeLocale}/cuenta/servicios`
-                )
-              }
+              onClick={() => router.push(`/${safeLocale}/cuenta/servicios`)}
               className="inline-flex items-center gap-2 bg-brand-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors"
             >
               {t("viewReservation")}

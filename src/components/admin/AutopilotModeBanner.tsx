@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Bot, HandMetal } from "lucide-react";
 import { AUTOPILOT_MODE_FLAG_NAME, describeOperatingMode } from "@/lib/autopilot-mode";
 
@@ -11,6 +12,7 @@ import { AUTOPILOT_MODE_FLAG_NAME, describeOperatingMode } from "@/lib/autopilot
  * sea una señal visible en el dashboard, no solo un valor de base de datos.
  */
 export default function AutopilotModeBanner({ locale }: { locale: string }) {
+  const t = useTranslations("admin.autopilotBanner");
   const [activo, setActivo] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -42,7 +44,7 @@ export default function AutopilotModeBanner({ locale }: { locale: string }) {
     >
       <Icon className="w-5 h-5 shrink-0" />
       <div>
-        <span className="font-semibold">Mode: {description.label}</span>
+        <span className="font-semibold">{t("modePrefix")} {description.label}</span>
         <span className="text-xs opacity-80 ml-2">{description.explanation}</span>
       </div>
     </a>

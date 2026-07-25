@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, ShieldCheck, AlertTriangle, XCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 interface Certification {
@@ -35,6 +36,7 @@ const STATUS_STYLE: Record<string, string> = {
  * un empleado sin ningún registro aún no se bloquea retroactivamente).
  */
 export default function CertificacionesPage() {
+  const t = useTranslations("admin.certificaciones");
   const [rows, setRows] = useState<EmployeeRow[]>([]);
   const [blockedCount, setBlockedCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -55,11 +57,11 @@ export default function CertificacionesPage() {
     try {
       const res = await fetch("/api/admin/certifications", { credentials: "include" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load");
+      if (!res.ok) throw new Error(data.error || t("errors.loadFailed"));
       setRows(data.employees || []);
       setBlockedCount(data.blockedCount || 0);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error");
+      setError(err instanceof Error ? err.message : t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -80,11 +82,11 @@ export default function CertificacionesPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed");
+      if (!res.ok) throw new Error(data.error || t("errors.genericFailed"));
       setForm({ employeeId: "", level: "1", expiresAt: "" });
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error");
+      setError(err instanceof Error ? err.message : t("errors.network"));
     }
   }
 
@@ -96,7 +98,7 @@ export default function CertificacionesPage() {
       body: JSON.stringify({ reason }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Failed");
+    if (!res.ok) throw new Error(data.error || t("errors.genericFailed"));
     await load();
   }
 
@@ -104,31 +106,28 @@ export default function CertificacionesPage() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-2 mb-4">
         <ShieldCheck className="w-6 h-6" />
-        <h1 className="text-2xl font-bold">Employee Certifications</h1>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
       </div>
-      <p className="text-sm text-gray-500 mb-6">
-        Chemical handling certification, 3 progressive levels (D.9 Doc 3). An employee with all
-        certifications expired or revoked is excluded from tomorrow&apos;s dispatch automatically.
-      </p>
+      <p className="text-sm text-gray-500 mb-6">{t("subtitle")}</p>
 
       {blockedCount > 0 && (
         <div className="mb-4 flex items-center gap-2 rounded p-3 text-sm border bg-red-50 border-red-200 text-red-700">
           <AlertTriangle className="w-4 h-4" />
-          {blockedCount} active employee(s) currently blocked from dispatch — no valid certification.
+          {t("blockedBanner", { count: blockedCount })}
         </div>
       )}
       {error && <div className="text-red-600 text-sm mb-4">{error}</div>}
 
       <div className="bg-white rounded border border-gray-200 p-4 mb-6">
-        <h2 className="font-semibold mb-3 text-sm">Register a certification</h2>
+        <h2 className="font-semibold mb-3 text-sm">{t("registerForm.title")}</h2>
         <div className="flex flex-wrap gap-2 items-end">
           <select
-            aria-label="Seleccionar empleado"
+            aria-label={t("registerForm.employeeAria")}
             value={form.employeeId}
             onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
             className="border rounded px-2 py-1.5 text-sm"
           >
-            <option value="">Select employee…</option>
+            <option value="">{t("registerForm.selectEmployee")}</option>
             {rows.map((r) => (
               <option key={r.employee.id} value={r.employee.id}>
                 {r.employee.name}
@@ -136,18 +135,18 @@ export default function CertificacionesPage() {
             ))}
           </select>
           <select
-            aria-label="Seleccionar nivel de certificación"
+            aria-label={t("registerForm.levelAria")}
             value={form.level}
             onChange={(e) => setForm({ ...form, level: e.target.value })}
             className="border rounded px-2 py-1.5 text-sm"
           >
-            <option value="1">Level 1</option>
-            <option value="2">Level 2</option>
-            <option value="3">Level 3</option>
+            <option value="1">{t("registerForm.level", { level: 1 })}</option>
+            <option value="2">{t("registerForm.level", { level: 2 })}</option>
+            <option value="3">{t("registerForm.level", { level: 3 })}</option>
           </select>
           <input
             type="date"
-            aria-label="Fecha de expiración de la certificación"
+            aria-label={t("registerForm.expiresAria")}
             value={form.expiresAt}
             onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
             className="border rounded px-2 py-1.5 text-sm"
@@ -156,14 +155,14 @@ export default function CertificacionesPage() {
             onClick={addCertification}
             className="bg-brand-navy text-white text-sm px-3 py-1.5 rounded"
           >
-            Add
+            {t("registerForm.add")}
           </button>
         </div>
       </div>
 
       {loading ? (
         <div className="flex items-center gap-2 text-gray-500">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+          <Loader2 className="w-4 h-4 animate-spin" /> {t("loading")}
         </div>
       ) : (
         <div className="space-y-3">
@@ -173,15 +172,15 @@ export default function CertificacionesPage() {
                 <div className="font-medium">
                   {r.employee.name}{" "}
                   <span className="text-xs text-gray-400">
-                    ({r.employee.role}, {r.employee.is_active ? "active" : "inactive"})
+                    ({r.employee.role}, {r.employee.is_active ? t("active") : t("inactive")})
                   </span>
                 </div>
                 {r.employee.is_active && !r.assignable && r.certifications.length > 0 && (
-                  <span className="text-xs text-red-600 font-medium">Blocked from dispatch</span>
+                  <span className="text-xs text-red-600 font-medium">{t("blockedFromDispatch")}</span>
                 )}
               </div>
               {r.certifications.length === 0 ? (
-                <div className="text-xs text-gray-400">No certification registered yet.</div>
+                <div className="text-xs text-gray-400">{t("noCertification")}</div>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {r.certifications.map((c) => (
@@ -189,8 +188,11 @@ export default function CertificacionesPage() {
                       key={c.id}
                       className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${STATUS_STYLE[c.status] || ""}`}
                     >
-                      Level {c.level} · expires {new Date(c.expires_at).toLocaleDateString("en-CA")} ·{" "}
-                      {c.status}
+                      {t("certBadge", {
+                        level: c.level,
+                        date: new Date(c.expires_at).toLocaleDateString("en-CA"),
+                        status: t(`statusLabels.${c.status}`),
+                      })}
                       {!c.revoked_at && (
                         <button onClick={() => setRevokingId(c.id)} className="ml-1 hover:opacity-70">
                           <XCircle className="w-3 h-3" />
@@ -207,11 +209,11 @@ export default function CertificacionesPage() {
 
       {revokingId && (
         <ConfirmActionModal
-          title="Revoke certification"
-          message="This certification will be marked as revoked and can no longer be used to make the employee assignable to dispatch."
-          confirmLabel="Revoke"
+          title={t("revokeModal.title")}
+          message={t("revokeModal.message")}
+          confirmLabel={t("revokeModal.confirm")}
           danger
-          fields={[{ key: "reason", label: "Revocation reason", autoFocus: true }]}
+          fields={[{ key: "reason", label: t("revokeModal.reasonLabel"), autoFocus: true }]}
           onCancel={() => setRevokingId(null)}
           onConfirm={async (values) => {
             await revoke(revokingId, values.reason);

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { AlertTriangle, Loader2, ShieldAlert } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 // v8.3 E7 (D.7.8) — Dashboard semanal de near-misses (casi-accidentes).
 // Reporte sin penalización, anonimato opcional: esta pantalla NUNCA muestra
@@ -14,15 +15,15 @@ interface WeeklyPattern {
   suggestedAction: string;
 }
 
-const CATEGORY_LABELS: Record<WeeklyPattern["category"], string> = {
-  near_fall: "Near-fall",
-  near_chemical_mix: "Near chemical mix",
-  near_bite: "Near-bite",
-  near_burn: "Near-burn",
-  other: "Other",
-};
-
 export default function NearMissesPage() {
+  const t = useTranslations("admin.nearMisses");
+  const CATEGORY_LABELS: Record<WeeklyPattern["category"], string> = {
+    near_fall: t("category.nearFall"),
+    near_chemical_mix: t("category.nearChemicalMix"),
+    near_bite: t("category.nearBite"),
+    near_burn: t("category.nearBurn"),
+    other: t("category.other"),
+  };
   const [weekStart, setWeekStart] = useState<string>("");
   const [weekEndExclusive, setWeekEndExclusive] = useState<string>("");
   const [totalReports, setTotalReports] = useState(0);
@@ -44,7 +45,7 @@ export default function NearMissesPage() {
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Could not load the near-misses dashboard.");
+        setError(err.error || t("errorLoading"));
         return;
       }
       const data = await res.json();
@@ -53,7 +54,7 @@ export default function NearMissesPage() {
       setTotalReports(data.totalReports || 0);
       setPatterns(data.patterns || []);
     } catch {
-      setError("Network error.");
+      setError(t("errorNetwork"));
     } finally {
       setLoading(false);
     }
@@ -71,12 +72,9 @@ export default function NearMissesPage() {
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="flex items-center gap-2 mb-1">
           <ShieldAlert className="w-5 h-5 text-brand-navy" />
-          <h1 className="text-xl font-bold text-brand-ink">Near-Misses</h1>
+          <h1 className="text-xl font-bold text-brand-ink">{t("title")}</h1>
         </div>
-        <p className="text-sm text-gray-600 mb-6">
-          No-penalty reporting, optional anonymity. Who reported is never shown here —
-          only the aggregated weekly pattern and the suggested action per category.
-        </p>
+        <p className="text-sm text-gray-600 mb-6">{t("subtitle")}</p>
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700 mb-4">
@@ -90,7 +88,7 @@ export default function NearMissesPage() {
             disabled={loading || !weekStart}
             className="text-sm text-brand-navy font-medium disabled:opacity-40"
           >
-            ← Previous week
+            {t("previousWeek")}
           </button>
           <span className="text-sm text-gray-600">
             {weekStart && weekEndExclusive
@@ -102,7 +100,7 @@ export default function NearMissesPage() {
             disabled={loading || !weekStart}
             className="text-sm text-brand-navy font-medium disabled:opacity-40"
           >
-            Next week →
+            {t("nextWeek")}
           </button>
         </div>
 
@@ -111,13 +109,13 @@ export default function NearMissesPage() {
         ) : (
           <>
             <div className="bg-white rounded-xl shadow-elevation-1 p-4 mb-4">
-              <p className="text-sm text-gray-500">Total reported this week</p>
+              <p className="text-sm text-gray-500">{t("totalReportedThisWeek")}</p>
               <p className="text-2xl font-bold text-brand-ink">{totalReports}</p>
             </div>
 
             <div className="bg-white rounded-xl shadow-elevation-1 divide-y">
               {patterns.length === 0 && (
-                <p className="p-4 text-sm text-gray-500">No reports this week.</p>
+                <p className="p-4 text-sm text-gray-500">{t("noReports")}</p>
               )}
               {patterns.map((p) => (
                 <div key={p.category} className="p-3 text-sm">
@@ -126,7 +124,7 @@ export default function NearMissesPage() {
                       <AlertTriangle className="w-4 h-4 text-state-warning" />
                       {CATEGORY_LABELS[p.category]}
                     </span>
-                    <span className="text-gray-500">{p.count} report(s)</span>
+                    <span className="text-gray-500">{t("reportCount", { count: p.count })}</span>
                   </div>
                   <p className="text-xs text-gray-600 mt-1">{p.suggestedAction}</p>
                 </div>

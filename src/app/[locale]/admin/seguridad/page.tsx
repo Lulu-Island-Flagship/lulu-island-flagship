@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, ShieldAlert, KeyRound, Copy, Check, AlertTriangle } from "lucide-react";
 
 interface Status {
@@ -23,6 +24,7 @@ interface Status {
 }
 
 export default function SeguridadPage() {
+  const t = useTranslations("admin.seguridad");
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -42,10 +44,10 @@ export default function SeguridadPage() {
     try {
       const res = await fetch("/api/admin/backup-codes");
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error loading backup code status");
+      if (!res.ok) throw new Error(json.error || t("errors.loadFailed"));
       setStatus(json);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      setError(e instanceof Error ? e.message : t("errors.generic"));
     } finally {
       setLoading(false);
     }
@@ -59,12 +61,12 @@ export default function SeguridadPage() {
     try {
       const res = await fetch("/api/admin/backup-codes", { method: "POST" });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error generating codes");
+      if (!res.ok) throw new Error(json.error || t("errors.generateFailed"));
       setNewCodes(json.codes);
       setConfirmOpen(false);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      setError(e instanceof Error ? e.message : t("errors.generic"));
     } finally {
       setGenerating(false);
     }
@@ -94,15 +96,10 @@ export default function SeguridadPage() {
     <div className="max-w-2xl mx-auto p-6">
       <div className="flex items-center gap-2 mb-6">
         <ShieldAlert className="h-6 w-6 text-brand-navy" />
-        <h1 className="text-2xl font-semibold text-brand-navy">Backup Codes</h1>
+        <h1 className="text-2xl font-semibold text-brand-navy">{t("title")}</h1>
       </div>
 
-      <p className="text-sm text-gray-600 mb-4">
-        Códigos de un solo uso para entrar al panel de admin si pierdes acceso
-        a tu cuenta de Google. Guárdalos fuera de este dispositivo (impresos o
-        en un gestor de contraseñas) -- solo se muestran una vez, al
-        generarlos.
-      </p>
+      <p className="text-sm text-gray-600 mb-4">{t("intro")}</p>
 
       {error && (
         <div className="mb-4 rounded-md border border-state-danger bg-red-50 p-3 text-sm text-state-danger">
@@ -115,7 +112,7 @@ export default function SeguridadPage() {
           {status.hasCodes ? (
             <div className="text-sm text-brand-ink space-y-1">
               <p>
-                Set actual generado el{" "}
+                {t("currentSetGeneratedOn")}{" "}
                 <strong>
                   {status.generatedAt ? new Date(status.generatedAt).toLocaleString() : "—"}
                 </strong>
@@ -124,20 +121,18 @@ export default function SeguridadPage() {
                 <strong className={status.unusedCount === 0 ? "text-state-danger" : "text-state-success"}>
                   {status.unusedCount}
                 </strong>{" "}
-                códigos sin usar de {status.totalInSet}
-                {status.usedCount > 0 && ` (${status.usedCount} ya usados)`}
+                {t("unusedOfTotal", { total: status.totalInSet })}
+                {status.usedCount > 0 && ` (${t("usedCount", { count: status.usedCount })})`}
               </p>
               {status.unusedCount === 0 && (
                 <p className="flex items-center gap-1 text-state-danger">
                   <AlertTriangle className="h-4 w-4" />
-                  No te quedan códigos sin usar. Genera un set nuevo.
+                  {t("noUnusedCodesLeft")}
                 </p>
               )}
             </div>
           ) : (
-            <p className="text-sm text-gray-500">
-              Todavía no has generado códigos de respaldo.
-            </p>
+            <p className="text-sm text-gray-500">{t("noCodesGeneratedYet")}</p>
           )}
         </div>
       )}
@@ -149,7 +144,7 @@ export default function SeguridadPage() {
           className="flex items-center gap-2 rounded-md bg-brand-navy px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           <KeyRound className="h-4 w-4" />
-          {status?.hasCodes ? "Regenerate backup codes" : "Generate backup codes"}
+          {status?.hasCodes ? t("regenerateButton") : t("generateButton")}
         </button>
       )}
 
@@ -157,27 +152,27 @@ export default function SeguridadPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-elevation-3">
             <h2 className="mb-2 font-semibold text-brand-navy">
-              {status?.hasCodes ? "Generate a new set?" : "Generate backup codes?"}
+              {status?.hasCodes ? t("confirmModal.titleRegenerate") : t("confirmModal.titleGenerate")}
             </h2>
             <p className="mb-4 text-sm text-gray-600">
               {status?.hasCodes && status.unusedCount > 0
-                ? `This invalidates the ${status.unusedCount} unused code(s) from your current set immediately.`
-                : "You'll get 10 single-use codes, shown only once."}
+                ? t("confirmModal.invalidatesWarning", { count: status.unusedCount })
+                : t("confirmModal.tenCodesNotice")}
             </p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setConfirmOpen(false)}
                 className="rounded-md border border-brand-ice px-4 py-2 text-sm"
               >
-                Cancel
+                {t("confirmModal.cancel")}
               </button>
               <button
                 onClick={generate}
                 disabled={generating}
-                aria-label={generating ? "Generating backup codes" : "Confirm backup code generation"}
+                aria-label={generating ? t("confirmModal.generatingAria") : t("confirmModal.confirmAria")}
                 className="rounded-md bg-brand-navy px-4 py-2 text-sm text-white disabled:opacity-50"
               >
-                {generating ? "Generating…" : "Confirm"}
+                {generating ? t("confirmModal.generating") : t("confirmModal.confirm")}
               </button>
             </div>
           </div>
@@ -188,10 +183,7 @@ export default function SeguridadPage() {
         <div className="rounded-lg border-2 border-state-warning bg-amber-50 p-4">
           <div className="mb-3 flex items-start gap-2">
             <AlertTriangle className="h-5 w-5 shrink-0 text-state-warning" />
-            <p className="text-sm font-semibold text-brand-ink">
-              Save these codes now. They will not be shown again -- if you lose
-              them, you&apos;ll need to generate a new set (which invalidates these).
-            </p>
+            <p className="text-sm font-semibold text-brand-ink">{t("saveCodesWarning")}</p>
           </div>
           <div className="mb-3 grid grid-cols-1 gap-1 rounded-md bg-white p-3 font-mono text-sm sm:grid-cols-2">
             {newCodes.map((code) => (
@@ -201,11 +193,11 @@ export default function SeguridadPage() {
           <div className="mb-3 flex items-center gap-2">
             <button
               onClick={copyAll}
-              aria-label={copied ? "Backup codes copied to clipboard" : "Copy all backup codes"}
+              aria-label={copied ? t("copiedAria") : t("copyAllAria")}
               className="flex items-center gap-1 rounded-md border border-brand-ice px-3 py-1.5 text-xs font-medium hover:bg-gray-50"
             >
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              {copied ? "Copied" : "Copy all"}
+              {copied ? t("copied") : t("copyAll")}
             </button>
           </div>
           <label htmlFor="backup-codes-ack-saved" className="flex items-start gap-2 text-sm text-brand-ink">
@@ -214,17 +206,17 @@ export default function SeguridadPage() {
               type="checkbox"
               checked={ackSaved}
               onChange={(e) => setAckSaved(e.target.checked)}
-              aria-label="I've saved these codes somewhere safe"
+              aria-label={t("ackSavedAria")}
               className="mt-0.5"
             />
-            I&apos;ve saved these codes somewhere safe.
+            {t("ackSavedLabel")}
           </label>
           {ackSaved && (
             <button
               onClick={() => setNewCodes(null)}
               className="mt-3 rounded-md bg-brand-navy px-4 py-2 text-sm text-white"
             >
-              Done
+              {t("done")}
             </button>
           )}
         </div>

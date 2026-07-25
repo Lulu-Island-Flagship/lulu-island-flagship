@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { Loader2, Users, CloudSun, Trophy, DollarSign, Award, AlertTriangle, ShieldAlert } from "lucide-react";
+import { EmpleadoBackHeader } from "@/components/empleado/EmpleadoBackHeader";
+import { supabase } from "@/lib/supabase";
 
 type ReadinessRequestType = "illness" | "family_emergency" | "no_transport";
 type Mood = "happy" | "neutral" | "sad";
@@ -20,10 +23,18 @@ interface CierreData {
 }
 
 export default function ShiftRitualPage() {
+  const params = useParams();
+  const locale = (params?.locale as string) || "en";
   const [inicio, setInicio] = useState<InicioData | null>(null);
   const [cierre, setCierre] = useState<CierreData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Auditoría UX/seguridad 2026-07-25 (#14): "Fin de jornada" (ganancias del
+  // día) se mostraba siempre, incluso al empezar el turno -- confuso para
+  // un empleado que recién llega. Se gatea con el mismo evento
+  // jornada_end/jornada_start que ya usa el dashboard (page.tsx,
+  // checkJornadaStatus) para saber si el turno terminó hoy.
+  const [jornadaEnded, setJornadaEnded] = useState(false);
 
   // v8.3 E8 — checklist previo al turno: "No estoy listo" (readiness) y
   // auto-reporte de ánimo/sueño que dispara la alerta de riesgo químico si
@@ -119,16 +130,48 @@ export default function ShiftRitualPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    async function checkJornadaEnded() {
+      try {
+        // Mismo patrón que checkJornadaStatus() en empleado/page.tsx --
+        // timestamp Vancouver con offset explícito para comparar contra TIMESTAMPTZ.
+        const vancouverDate = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", timeZoneName: "short" });
+        const today = vancouverDate.split(",")[0];
+        const isPDT = vancouverDate.includes("PDT");
+        const offset = isPDT ? "-07:00" : "-08:00";
+        const { data: logs } = await supabase
+          .from("service_logs")
+          .select("event_type")
+          .eq("event_type", "jornada_end")
+          .is("order_id", null)
+          .gte("timestamp", `${today}T00:00:00${offset}`)
+          .order("timestamp", { ascending: false })
+          .limit(1);
+        if (logs && logs.length > 0) setJornadaEnded(true);
+      } catch (e) {
+        console.error("Check jornada_end error:", e);
+      }
+    }
+    checkJornadaEnded();
+  }, []);
+
+  const backHref = `/${locale}/empleado`;
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
-      </div>
+      <main className="min-h-screen bg-brand-ice">
+        <EmpleadoBackHeader title="Ritual de turno" backHref={backHref} />
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        </div>
+      </main>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-md mx-auto">
+    <main className="min-h-screen bg-brand-ice">
+      <EmpleadoBackHeader title="Ritual de turno" backHref={backHref} />
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-6 max-w-md mx-auto">
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">{error}</div>}
 
       <div>
@@ -287,25 +330,31 @@ export default function ShiftRitualPage() {
         </div>
       </div>
 
-      <div>
-        <h1 className="text-lg font-bold text-brand-ink mb-3">Fin de jornada</h1>
-        <div className="bg-white rounded-xl border p-4 space-y-3">
-          <div className="flex items-start gap-2">
-            <DollarSign className="w-4 h-4 text-state-success shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-brand-ink">Ganancias de hoy</p>
-              <p className="text-xs text-gray-500">{cierre?.earnings.summaryText ?? "—"}</p>
+      {/* #14: solo se muestra una vez que la jornada realmente terminó hoy
+          (jornada_end registrado) -- antes se mostraba siempre, confundiendo
+          a un empleado que recién está empezando su turno. */}
+      {jornadaEnded && (
+        <div>
+          <h1 className="text-lg font-bold text-brand-ink mb-3">Fin de jornada</h1>
+          <div className="bg-white rounded-xl border p-4 space-y-3">
+            <div className="flex items-start gap-2">
+              <DollarSign className="w-4 h-4 text-state-success shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-brand-ink">Ganancias de hoy</p>
+                <p className="text-xs text-gray-500">{cierre?.earnings.summaryText ?? "—"}</p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-start gap-2">
-            <Award className="w-4 h-4 text-brand-gold shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-brand-ink">Insignias</p>
-              <p className="text-xs text-gray-500">{cierre?.badgeCount ?? 0} insignia(s) obtenidas</p>
+            <div className="flex items-start gap-2">
+              <Award className="w-4 h-4 text-brand-gold shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-brand-ink">Insignias</p>
+                <p className="text-xs text-gray-500">{cierre?.badgeCount ?? 0} insignia(s) obtenidas</p>
+              </div>
             </div>
           </div>
         </div>
+      )}
       </div>
-    </div>
+    </main>
   );
 }

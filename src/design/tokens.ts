@@ -34,7 +34,15 @@ export const BRAND = {
 
 export const STATE = {
   success: "#1E7A6E",
-  warning: "#B8863F",
+  // Fix (auditoría transversal 2026-07-25, item 8): #B8863F daba solo
+  // 3.22:1 sobre blanco -- falla WCAG AA para texto normal (4.5:1). Se usa
+  // como text-state-warning en decenas de sitios con texto text-xs/text-sm
+  // (ver p.ej. src/components/cotizador/PriceBreakdown.tsx,
+  // src/app/[locale]/reserva/[quoteId]/page.tsx), no solo como decoración
+  // grande, así que necesita el umbral de texto normal, no el de 3:1 de
+  // texto grande. #946A2C se queda en la misma familia ámbar/dorada y da
+  // 4.82:1 (verificado con la fórmula WCAG de src/lib/a11y-audit.ts).
+  warning: "#946A2C",
   danger: "#C0392B",
   info: BRAND.waveBlue,
 } as const;

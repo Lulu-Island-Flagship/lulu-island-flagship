@@ -9,6 +9,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, Undo2, History } from "lucide-react";
+import { useTranslations } from "next-intl";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 interface Snapshot {
@@ -38,6 +39,7 @@ export default function ConfigHistoryPage() {
 }
 
 function ConfigHistoryContent() {
+  const t = useTranslations("admin.configHistory");
   const searchParams = useSearchParams();
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,10 +65,10 @@ function ConfigHistoryContent() {
         : "/api/admin/config-history";
       const res = await fetch(url);
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error loading history");
+      if (!res.ok) throw new Error(json.error || t("errors.loadFailed"));
       setSnapshots(json.snapshots);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      setError(e instanceof Error ? e.message : t("errors.generic"));
     } finally {
       setLoading(false);
     }
@@ -82,7 +84,7 @@ function ConfigHistoryContent() {
         body: JSON.stringify({ snapshot_id: id }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error undoing");
+      if (!res.ok) throw new Error(json.error || t("errors.undoFailed"));
       await load();
     } finally {
       setUndoing(null);
@@ -95,16 +97,16 @@ function ConfigHistoryContent() {
     <div className="max-w-4xl mx-auto p-6">
       <div className="mb-6 flex items-center gap-3">
         <History className="h-6 w-6 text-brand-navy" />
-        <h1 className="text-2xl font-semibold text-brand-navy">Configuration History</h1>
+        <h1 className="text-2xl font-semibold text-brand-navy">{t("title")}</h1>
         <select
-          aria-label="Filtrar por tabla"
+          aria-label={t("filterByTableAria")}
           value={tableFilter}
           onChange={(e) => setTableFilter(e.target.value)}
           className="ml-auto rounded-md border border-brand-ice px-3 py-1.5 text-sm"
         >
-          <option value="">All tables</option>
-          {tables.map((t) => (
-            <option key={t} value={t}>{t}</option>
+          <option value="">{t("allTables")}</option>
+          {tables.map((tbl) => (
+            <option key={tbl} value={tbl}>{tbl}</option>
           ))}
         </select>
       </div>
@@ -121,7 +123,7 @@ function ConfigHistoryContent() {
         </div>
       ) : snapshots.length === 0 ? (
         <p className="py-16 text-center text-sm text-gray-500">
-          No configuration changes recorded yet.
+          {t("emptyState")}
         </p>
       ) : (
         <div className="space-y-3">
@@ -140,7 +142,7 @@ function ConfigHistoryContent() {
                     {new Date(s.created_at).toLocaleString("en-CA", { timeZone: "America/Vancouver" })}
                   </span>
                   {s.undone_at && (
-                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">UNDONE</span>
+                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">{t("undone")}</span>
                   )}
                   {!s.undone_at && (
                     <button
@@ -153,7 +155,7 @@ function ConfigHistoryContent() {
                       ) : (
                         <Undo2 className="h-3 w-3" />
                       )}
-                      Undo
+                      {t("undo")}
                     </button>
                   )}
                 </div>
@@ -177,9 +179,9 @@ function ConfigHistoryContent() {
 
       {undoTargetId && (
         <ConfirmActionModal
-          title="Undo this change?"
-          message="The previous values will be restored (the undo is also logged)."
-          confirmLabel="Undo"
+          title={t("undoModal.title")}
+          message={t("undoModal.message")}
+          confirmLabel={t("undo")}
           danger
           onCancel={() => setUndoTargetId(null)}
           onConfirm={async () => {

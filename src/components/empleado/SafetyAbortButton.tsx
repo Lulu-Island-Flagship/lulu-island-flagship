@@ -35,6 +35,14 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
   // reset() y para pasar el id recién creado a startGpsUpdates) -- se
   // conserva el estado por si una futura UI necesita mostrarlo/enlazarlo.
   const [_safetyAbortId, setSafetyAbortId] = useState<string | null>(null);
+  // Fix (auditoría UX/seguridad 2026-07-25, bug #3): cerrar el diálogo de
+  // "SOS activado" NO significa que la emergencia terminó -- solo que el
+  // empleado quiere guardar el teléfono. `minimized` separa "ocultar la UI
+  // del diálogo" de "cancelar el SOS y detener el GPS" (reset()). Mientras
+  // stage === "sent", el intervalo de GPS sigue vivo sin importar
+  // `minimized`; solo reset() (disponible antes de enviar, o tras un error)
+  // detiene startGpsUpdates.
+  const [minimized, setMinimized] = useState(false);
   const gpsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function stopGpsUpdates() {
@@ -50,6 +58,13 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
     setStage("idle");
     setReason("");
     setErrorMsg("");
+    setMinimized(false);
+  }
+
+  // Oculta el diálogo "SOS activado" sin tocar stage/safetyAbortId/GPS -- el
+  // intervalo de startGpsUpdates sigue corriendo en segundo plano.
+  function minimizeDialog() {
+    setMinimized(true);
   }
 
   useEffect(() => {
@@ -138,12 +153,30 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
     );
   }
 
+  // SOS activo pero el empleado minimizó el diálogo -- el GPS sigue
+  // reportando en segundo plano (ver startGpsUpdates). Este indicador
+  // flotante NO permite disparar un nuevo SOS: solo reabre el diálogo
+  // informativo de "SOS activado".
+  if (stage === "sent" && minimized) {
+    return (
+      <button
+        type="button"
+        onClick={() => setMinimized(false)}
+        aria-label="SOS activo — toca para ver el estado"
+        className="fixed bottom-5 right-5 z-50 flex items-center gap-2 bg-state-danger text-white px-4 py-3 rounded-full shadow-elevation-3 font-semibold text-sm animate-pulse"
+      >
+        <Siren className="w-5 h-5" />
+        SOS Activo
+      </button>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl max-w-sm w-full p-6 relative">
         <button
           type="button"
-          onClick={reset}
+          onClick={stage === "sent" ? minimizeDialog : reset}
           aria-label="Cerrar"
           className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
         >
@@ -208,7 +241,7 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
               Un admin fue notificado. Si no recibes respuesta en 2 minutos, el sistema escala
               automáticamente. Mantente en un lugar seguro.
             </p>
-            <button type="button" onClick={reset} className="w-full border border-gray-300 py-2.5 rounded-lg text-sm">
+            <button type="button" onClick={minimizeDialog} className="w-full border border-gray-300 py-2.5 rounded-lg text-sm">
               Cerrar
             </button>
           </>

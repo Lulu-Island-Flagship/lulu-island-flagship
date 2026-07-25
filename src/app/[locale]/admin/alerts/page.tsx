@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, Siren, Clock, CheckCircle2, Inbox } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 type Tier = "respond_10min" | "can_wait";
 type Severity = "p0_safety" | "p1_urgent" | "p2_automatic";
@@ -18,13 +19,14 @@ interface UnifiedAlert {
   created_at: string;
 }
 
-const SEVERITY_STYLE: Record<Severity, { label: string; className: string }> = {
-  p0_safety: { label: "P0 — Safety", className: "bg-red-50 text-red-700 border-red-200" },
-  p1_urgent: { label: "P1 — Urgent", className: "bg-amber-50 text-amber-700 border-amber-200" },
-  p2_automatic: { label: "P2 — Automatic", className: "bg-gray-50 text-gray-600 border-gray-200" },
+const SEVERITY_STYLE: Record<Severity, { className: string }> = {
+  p0_safety: { className: "bg-red-50 text-red-700 border-red-200" },
+  p1_urgent: { className: "bg-amber-50 text-amber-700 border-amber-200" },
+  p2_automatic: { className: "bg-gray-50 text-gray-600 border-gray-200" },
 };
 
 export default function UnifiedAlertsInboxPage() {
+  const t = useTranslations("admin.alerts");
   const [alerts, setAlerts] = useState<UnifiedAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -41,13 +43,13 @@ export default function UnifiedAlertsInboxPage() {
       const res = await fetch("/api/admin/alerts", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load");
+        setError(err.error || t("errors.loadFailed"));
         return;
       }
       const data = await res.json();
       setAlerts(data.alerts || []);
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -65,12 +67,12 @@ export default function UnifiedAlertsInboxPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed");
+        setError(err.error || t("errors.actionFailed"));
         return;
       }
       await load();
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setActing(null);
     }
@@ -89,10 +91,11 @@ export default function UnifiedAlertsInboxPage() {
 
   function AlertCard({ alert }: { alert: UnifiedAlert }) {
     const style = SEVERITY_STYLE[alert.severity];
+    const severityLabel = t(`severity.${alert.severity}`);
     return (
       <div className={`rounded-xl border p-4 space-y-2 ${style.className}`}>
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold">{style.label}</span>
+          <span className="text-xs font-semibold">{severityLabel}</span>
           <span className="text-xs opacity-70">{alert.source_module}</span>
         </div>
         <p className="font-medium text-sm text-brand-ink">{alert.title}</p>
@@ -107,7 +110,7 @@ export default function UnifiedAlertsInboxPage() {
               disabled={acting === alert.id}
               className="text-xs bg-white border px-3 py-1 rounded-lg disabled:opacity-50"
             >
-              Acknowledge
+              {t("actions.acknowledge")}
             </button>
           )}
           {alert.status !== "resolved" && (
@@ -116,11 +119,11 @@ export default function UnifiedAlertsInboxPage() {
               disabled={acting === alert.id}
               className="text-xs bg-brand-navy text-white px-3 py-1 rounded-lg disabled:opacity-50"
             >
-              Resolve
+              {t("actions.resolve")}
             </button>
           )}
           {alert.status === "acknowledged" && (
-            <span className="text-xs text-gray-500 self-center">Acknowledged</span>
+            <span className="text-xs text-gray-500 self-center">{t("status.acknowledged")}</span>
           )}
         </div>
       </div>
@@ -130,21 +133,19 @@ export default function UnifiedAlertsInboxPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-brand-ink">Unified Alert Inbox</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          E0.6 — one queue, two tiers. &quot;Respond in 10 min&quot; alerts trigger Fallback if untouched; &quot;can wait&quot; don&apos;t.
-        </p>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t("subtitle")}</p>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{error}</div>}
 
       <div>
         <h2 className="font-semibold text-brand-ink mb-2 flex items-center gap-2">
-          <Siren className="w-4 h-4 text-state-danger" /> Respond in 10 min ({respondNow.length})
+          <Siren className="w-4 h-4 text-state-danger" /> {t("sections.respondNow", { count: respondNow.length })}
         </h2>
         {respondNow.length === 0 ? (
           <div className="bg-white rounded-xl border p-6 text-center text-sm text-gray-500">
-            <Inbox className="w-6 h-6 text-gray-300 mx-auto mb-1" /> Nothing urgent.
+            <Inbox className="w-6 h-6 text-gray-300 mx-auto mb-1" /> {t("emptyStates.nothingUrgent")}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -157,11 +158,11 @@ export default function UnifiedAlertsInboxPage() {
 
       <div>
         <h2 className="font-semibold text-brand-ink mb-2 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-gray-400" /> Can wait ({canWait.length})
+          <Clock className="w-4 h-4 text-gray-400" /> {t("sections.canWait", { count: canWait.length })}
         </h2>
         {canWait.length === 0 ? (
           <div className="bg-white rounded-xl border p-6 text-center text-sm text-gray-500">
-            <CheckCircle2 className="w-6 h-6 text-gray-300 mx-auto mb-1" /> Nothing pending.
+            <CheckCircle2 className="w-6 h-6 text-gray-300 mx-auto mb-1" /> {t("emptyStates.nothingPending")}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

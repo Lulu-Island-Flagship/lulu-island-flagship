@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Wallet, Search, User, CheckCircle2, X } from "lucide-react";
 
 interface WalletTransaction {
@@ -23,14 +24,22 @@ function formatDollars(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-function describeClient(c: ClientSearchResult | null): string {
+function describeClient(c: ClientSearchResult | null, noNameLabel: string): string {
   if (!c) return "";
-  const namePart = c.fullName || "(no name on file)";
+  const namePart = c.fullName || noNameLabel;
   const emailPart = c.email ? ` <${c.email}>` : "";
   return `${namePart}${emailPart}`;
 }
 
 export default function AdminWalletClient() {
+  const t = useTranslations("admin.wallet");
+  const TRANSACTION_TYPE_LABEL: Record<string, string> = {
+    credit: t("transactionTypeLabels.credit"),
+    debit: t("transactionTypeLabels.debit"),
+    payout: t("transactionTypeLabels.payout"),
+    refund: t("transactionTypeLabels.refund"),
+    promo: t("transactionTypeLabels.promo"),
+  };
   const [selectedClient, setSelectedClient] = useState<ClientSearchResult | null>(null);
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ClientSearchResult[]>([]);
@@ -82,7 +91,7 @@ export default function AdminWalletClient() {
 
   function selectClient(c: ClientSearchResult) {
     setSelectedClient(c);
-    setQuery(describeClient(c));
+    setQuery(describeClient(c, t("noNameOnFile")));
     setShowResults(false);
     setWallet(null);
     setTransactions([]);
@@ -110,7 +119,7 @@ export default function AdminWalletClient() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load");
+        setError(err.error || t("loadError"));
         return;
       }
       const data = await res.json();
@@ -118,7 +127,7 @@ export default function AdminWalletClient() {
       setAvailableBalance(data.availableBalance || 0);
       setTransactions(data.transactions || []);
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setLoading(false);
     }
@@ -150,19 +159,23 @@ export default function AdminWalletClient() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to grant");
+        setError(err.error || t("grantErrorFallback"));
         setShowConfirm(false);
         return;
       }
       const grantedAmount = grantForm.amountDollars;
       setSuccessMessage(
-        `Granted $${Number(grantedAmount).toFixed(2)} (${grantForm.type}) to ${describeClient(selectedClient)}.`
+        t("successMessage", {
+          amount: `$${Number(grantedAmount).toFixed(2)}`,
+          type: TRANSACTION_TYPE_LABEL[grantForm.type] || grantForm.type,
+          client: describeClient(selectedClient, t("noNameOnFile")),
+        })
       );
       setGrantForm({ type: "credit", amountDollars: "", description: "" });
       setShowConfirm(false);
       await lookup(selectedClient.userId);
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
       setShowConfirm(false);
     } finally {
       setGranting(false);
@@ -172,9 +185,9 @@ export default function AdminWalletClient() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold text-brand-ink">Lulu Wallet — Admin</h1>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("heading")}</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Grant referral/resolution/promo credit to a client. Credit and promo expire 12 months; refunds do not.
+          {t("subtitle")}
         </p>
       </div>
 
@@ -188,19 +201,19 @@ export default function AdminWalletClient() {
       )}
 
       <div className="bg-white rounded-xl border p-4 space-y-3 relative">
-        <label className="text-xs text-gray-500 block">Find client (name, email, or phone)</label>
+        <label className="text-xs text-gray-500 block">{t("findClientLabel")}</label>
         <div className="flex gap-2">
           <div className="relative flex-1">
             <input
               type="text"
-              aria-label="Buscar cliente por nombre, email o teléfono"
+              aria-label={t("searchAriaLabel")}
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
                 setSelectedClient(null);
               }}
               onFocus={() => searchResults.length > 0 && setShowResults(true)}
-              placeholder="Start typing a name, email, or phone number..."
+              placeholder={t("searchPlaceholder")}
               className="border rounded-lg px-3 py-2 text-sm w-full"
               autoComplete="off"
             />
@@ -215,8 +228,8 @@ export default function AdminWalletClient() {
                   >
                     <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     <div>
-                      <p className="text-brand-ink">{c.fullName || "(no name on file)"}</p>
-                      <p className="text-xs text-gray-500">{c.email || "no email"}{c.phone ? ` · ${c.phone}` : ""}</p>
+                      <p className="text-brand-ink">{c.fullName || t("noNameOnFile")}</p>
+                      <p className="text-xs text-gray-500">{c.email || t("noEmail")}{c.phone ? ` · ${c.phone}` : ""}</p>
                     </div>
                   </button>
                 ))}
@@ -226,19 +239,19 @@ export default function AdminWalletClient() {
           {selectedClient && (
             <button
               type="button"
-              aria-label="Limpiar cliente seleccionado"
+              aria-label={t("clearAriaLabel")}
               onClick={clearSelection}
               className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-sm hover:bg-gray-200"
             >
-              <X className="w-4 h-4" /> Clear
+              <X className="w-4 h-4" /> {t("clear")}
             </button>
           )}
         </div>
-        {searching && <p className="text-xs text-gray-400">Searching…</p>}
+        {searching && <p className="text-xs text-gray-400">{t("searching")}</p>}
         {selectedClient && (
           <p className="text-xs text-gray-500 flex items-center gap-1">
-            <Search className="w-3 h-3" /> Selected: {describeClient(selectedClient)}
-            {loading ? " — loading wallet…" : ""}
+            <Search className="w-3 h-3" /> {t("selectedPrefix")} {describeClient(selectedClient, t("noNameOnFile"))}
+            {loading ? t("loadingWalletSuffix") : ""}
           </p>
         )}
       </div>
@@ -250,72 +263,72 @@ export default function AdminWalletClient() {
           </div>
           <div>
             <p className="text-2xl font-bold text-brand-ink">{formatDollars(availableBalance)}</p>
-            <p className="text-xs text-gray-500">Available (raw balance: {formatDollars(wallet.balance)})</p>
+            <p className="text-xs text-gray-500">{t("availableBalanceLabel", { balance: formatDollars(wallet.balance) })}</p>
           </div>
         </div>
       )}
 
       <form onSubmit={requestGrant} className="bg-white rounded-xl border p-4 space-y-3">
-        <h2 className="font-semibold text-brand-ink">Grant Credit</h2>
+        <h2 className="font-semibold text-brand-ink">{t("grantCreditHeading")}</h2>
         {!selectedClient && (
           <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
-            Search and select a client above before granting credit.
+            {t("selectClientWarning")}
           </p>
         )}
         <div className="grid grid-cols-2 gap-3">
           <select
-            aria-label="Tipo de crédito a otorgar"
+            aria-label={t("typeSelectAriaLabel")}
             value={grantForm.type}
             onChange={(e) => setGrantForm((f) => ({ ...f, type: e.target.value }))}
             className="border rounded-lg px-3 py-2 text-sm"
           >
-            <option value="credit">Credit (referral/incentive, expires 12mo)</option>
-            <option value="promo">Promo (expires 12mo)</option>
-            <option value="refund">Refund (dispute resolution, no expiry)</option>
+            <option value="credit">{t("typeOptions.credit")}</option>
+            <option value="promo">{t("typeOptions.promo")}</option>
+            <option value="refund">{t("typeOptions.refund")}</option>
           </select>
           <input
             type="number"
-            aria-label="Monto a otorgar en dólares"
+            aria-label={t("amountAriaLabel")}
             min={0.01}
             step="0.01"
             value={grantForm.amountDollars}
             onChange={(e) => setGrantForm((f) => ({ ...f, amountDollars: e.target.value }))}
-            placeholder="Amount ($)"
+            placeholder={t("amountPlaceholder")}
             className="border rounded-lg px-3 py-2 text-sm"
             required
           />
         </div>
         <input
           type="text"
-          aria-label="Descripción del crédito otorgado"
+          aria-label={t("descriptionAriaLabel")}
           value={grantForm.description}
           onChange={(e) => setGrantForm((f) => ({ ...f, description: e.target.value }))}
-          placeholder="Description (e.g. 'Referral bonus — Jane Doe')"
+          placeholder={t("descriptionPlaceholder")}
           className="w-full border rounded-lg px-3 py-2 text-sm"
         />
         <button
           type="submit"
-          aria-label="Otorgar crédito al cliente"
+          aria-label={t("grantButtonAriaLabel")}
           disabled={granting || !selectedClient || !grantForm.amountDollars}
           className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
         >
-          {granting ? "Granting..." : "Grant Credit"}
+          {granting ? t("granting") : t("grantButton")}
         </button>
       </form>
 
       {transactions.length > 0 && (
         <div>
-          <h2 className="font-semibold text-brand-ink mb-2">History</h2>
+          <h2 className="font-semibold text-brand-ink mb-2">{t("historyHeading")}</h2>
           <div className="bg-white rounded-xl border divide-y">
-            {transactions.map((t) => (
-              <div key={t.id} className="p-3 flex items-center justify-between text-sm">
+            {transactions.map((tx) => (
+              <div key={tx.id} className="p-3 flex items-center justify-between text-sm">
                 <div>
-                  <p className="text-brand-ink">{t.description || t.type}</p>
-                  <p className="text-xs text-gray-400">{new Date(t.created_at).toLocaleDateString("en-CA")}</p>
+                  <p className="text-brand-ink">{tx.description || TRANSACTION_TYPE_LABEL[tx.type] || tx.type}</p>
+                  <p className="text-xs text-gray-400">{new Date(tx.created_at).toLocaleDateString("en-CA")}</p>
                 </div>
-                <span className={t.type === "debit" || t.type === "payout" ? "text-state-danger" : "text-state-success"}>
-                  {t.type === "debit" || t.type === "payout" ? "-" : "+"}
-                  {formatDollars(t.amount)}
+                <span className={tx.type === "debit" || tx.type === "payout" ? "text-state-danger" : "text-state-success"}>
+                  {tx.type === "debit" || tx.type === "payout" ? "-" : "+"}
+                  {formatDollars(tx.amount)}
                 </span>
               </div>
             ))}
@@ -327,15 +340,15 @@ export default function AdminWalletClient() {
       {showConfirm && selectedClient && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6 space-y-4">
-            <h2 className="text-lg font-bold text-brand-ink">Confirm Credit Grant</h2>
+            <h2 className="text-lg font-bold text-brand-ink">{t("confirmModal.title")}</h2>
             <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
-              <p><strong>Client:</strong> {describeClient(selectedClient)}</p>
-              <p><strong>Type:</strong> <span className="capitalize">{grantForm.type}</span></p>
-              <p><strong>Amount:</strong> ${Number(grantForm.amountDollars || 0).toFixed(2)}</p>
-              {grantForm.description && <p><strong>Description:</strong> {grantForm.description}</p>}
+              <p><strong>{t("confirmModal.clientLabel")}</strong> {describeClient(selectedClient, t("noNameOnFile"))}</p>
+              <p><strong>{t("confirmModal.typeLabel")}</strong> <span className="capitalize">{TRANSACTION_TYPE_LABEL[grantForm.type] || grantForm.type}</span></p>
+              <p><strong>{t("confirmModal.amountLabel")}</strong> ${Number(grantForm.amountDollars || 0).toFixed(2)}</p>
+              {grantForm.description && <p><strong>{t("confirmModal.descriptionLabel")}</strong> {grantForm.description}</p>}
             </div>
             <p className="text-xs text-gray-500">
-              This will immediately add funds to the client&apos;s wallet. Double-check the client and amount before confirming.
+              {t("confirmModal.warning")}
             </p>
             <div className="flex gap-2">
               <button
@@ -344,16 +357,16 @@ export default function AdminWalletClient() {
                 disabled={granting}
                 className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 disabled:opacity-50"
               >
-                Cancel
+                {t("confirmModal.cancel")}
               </button>
               <button
                 type="button"
-                aria-label="Confirmar otorgamiento de crédito"
+                aria-label={t("confirmModal.confirmAriaLabel")}
                 onClick={confirmGrant}
                 disabled={granting}
                 className="flex-1 bg-brand-navy text-white py-2 rounded-lg text-sm font-medium hover:bg-brand-navy-light disabled:opacity-50"
               >
-                {granting ? "Granting..." : "Confirm & Grant"}
+                {granting ? t("confirmModal.granting") : t("confirmModal.confirmButton")}
               </button>
             </div>
           </div>

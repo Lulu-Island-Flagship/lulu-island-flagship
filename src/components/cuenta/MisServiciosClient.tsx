@@ -20,6 +20,25 @@ import { supabase } from "@/lib/supabase";
 import { StatusBanner } from "./StatusBanner";
 import { Skeleton, SkeletonServiceList } from "@/components/ui/Skeleton";
 import { AuthModal } from "@/components/cotizador/AuthModal";
+import { formatServiceDateDisplay } from "@/lib/date-utils";
+
+// Fix (2026-07-25, auditoría UX, item 11): antes se mostraba
+// `order.service_date` crudo ("2026-08-03") concatenado con
+// `order.service_time` crudo ("14:00:00") -- ni la fecha ni la hora
+// pasaban por ningún formato legible/localizado. formatServiceDateDisplay
+// (src/lib/date-utils.ts) ya existe y se usa en ReservationSummary.tsx /
+// confirmacion/page.tsx para el mismo problema (parsea "YYYY-MM-DD" sin
+// conversión de huso horario, evitando el bug de "un día antes" documentado
+// ahí). Para la hora, service_time viene como "HH:MM:SS" (columna `time` de
+// Postgres) -- se formatea con Intl.DateTimeFormat en un Date neutro, sin
+// tocar zona horaria (la hora ya es la hora local del servicio tal como se
+// reservó, no requiere conversión).
+function formatServiceTimeDisplay(timeStr: string): string {
+  const [hh, mm] = timeStr.split(":").map(Number);
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return timeStr;
+  const d = new Date(2000, 0, 1, hh, mm);
+  return new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit" }).format(d);
+}
 
 interface ClaimableZone {
   zone: string;
@@ -208,7 +227,13 @@ export default function MisServiciosClient() {
                     </div>
                     <div className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5" />
-                      {order.service_date} · {order.service_time}
+                      {formatServiceDateDisplay(order.service_date, {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}{" "}
+                      · {formatServiceTimeDisplay(order.service_time)}
                     </div>
                     {order.quotes?.address && (
                       <div className="text-xs text-gray-400 mt-1 flex items-center gap-1.5">
@@ -676,16 +701,44 @@ function LivePortfolioNotice() {
 
   if (entries.length === 0) return null;
 
+  // Fix (2026-07-25, auditoría UX, item 12): "Live Portfolio" no se
+  // explicaba en ningún lado -- un cliente que veía "One of your services
+  // was selected for our Live Portfolio" no tenía forma de saber qué es
+  // eso (¿fotos suyas en el sitio web? ¿con su nombre?) sin ya haber leído
+  // el consentimiento de fotos de marketing en /cotizador (ConsentCheck,
+  // días o semanas antes). Se agrega una línea explicando que son fotos
+  // ANTES/DESPUÉS anonimizadas (anonymous_label ya lo confirma -- el
+  // backend nunca expone datos identificables aquí) usadas en marketing, y
+  // un link a la política de privacidad para el detalle completo del PIPA.
+  const locale = typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en";
+  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+
   return (
     <div className="space-y-2">
       {entries.map((e) => (
         <div
           key={e.id}
-          className="bg-brand-ice border border-brand-gold/30 rounded-xl p-4 flex items-center justify-between gap-4"
+          className="bg-brand-ice border border-brand-gold/30 rounded-xl p-4 flex items-start justify-between gap-4"
         >
-          <div className="flex items-center gap-2 text-sm text-brand-ink">
-            <Images className="w-4 h-4 text-brand-gold-dark shrink-0" />
-            <span>{t("selectedNotice", { label: e.anonymous_label })}</span>
+          <div className="flex items-start gap-2 text-sm text-brand-ink">
+            <Images className="w-4 h-4 text-brand-gold-dark shrink-0 mt-0.5" />
+            <div>
+              <span>{t("selectedNotice", { label: e.anonymous_label })}</span>
+              <p className="text-xs text-gray-500 mt-1">
+                {t.rich("explanation", {
+                  link: (chunks) => (
+                    <a
+                      href={`/${safeLocale}/privacidad`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-brand-navy"
+                    >
+                      {chunks}
+                    </a>
+                  ),
+                })}
+              </p>
+            </div>
           </div>
           {e.canWithdraw && (
             <button

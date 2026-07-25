@@ -109,7 +109,14 @@ export default function EmployeeMarketingConsentPage() {
               onClick={() => toggle(type, consented)}
               disabled={busyType === type}
               className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
-                consented ? "bg-gray-100 text-gray-600 hover:bg-gray-200" : "bg-brand-navy text-white hover:bg-brand-navy-light"
+                // Auditoría UX/seguridad 2026-07-25 (#13): el estilo gris
+                // apagado hacía que "Withdraw" pareciera un botón
+                // deshabilitado en vez de una acción disponible -- ahora
+                // usa un color de acción real (borde/texto rojo, con hover
+                // sólido) para que se lea como clickeable.
+                consented
+                  ? "bg-white border border-state-danger text-state-danger hover:bg-state-danger hover:text-white"
+                  : "bg-brand-navy text-white hover:bg-brand-navy-light"
               }`}
             >
               {busyType === type ? "..." : consented ? "Withdraw" : "I consent"}

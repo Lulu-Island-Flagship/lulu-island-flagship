@@ -8,6 +8,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Gauge, Loader2, CheckCircle2, Zap } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface Suggestion {
   serviceType: string;
@@ -37,6 +38,7 @@ interface Response {
 }
 
 export default function AjustesHhePage() {
+  const t = useTranslations("admin.ajustesHhe");
   const [data, setData] = useState<Response | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -48,14 +50,14 @@ export default function AjustesHhePage() {
     try {
       const res = await fetch("/api/admin/hhe-adjustments");
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error loading suggestions");
+      if (!res.ok) throw new Error(json.error || t("errorLoading"));
       setData(json);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      setError(e instanceof Error ? e.message : t("error"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -78,10 +80,10 @@ export default function AjustesHhePage() {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error applying adjustment");
+      if (!res.ok) throw new Error(json.error || t("errorApplying"));
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      setError(e instanceof Error ? e.message : t("error"));
     } finally {
       setApplying(null);
     }
@@ -91,14 +93,9 @@ export default function AjustesHhePage() {
     <div className="max-w-4xl mx-auto p-6">
       <div className="mb-2 flex items-center gap-3">
         <Gauge className="h-6 w-6 text-brand-navy" />
-        <h1 className="text-2xl font-semibold text-brand-navy">Suggested HHE Adjustments</h1>
+        <h1 className="text-2xl font-semibold text-brand-navy">{t("title")}</h1>
       </div>
-      <p className="mb-6 text-sm text-gray-500">
-        Sustained deviation ≥30 days between estimated HHE and actual person-hours (approximated
-        from completed checklist range × assigned team — there&apos;s no dedicated clock-in/out in the
-        schema yet). Applying here closes the current cell and opens a new one in the HHE table;
-        it is logged and reversible from Configuration History.
-      </p>
+      <p className="mb-6 text-sm text-gray-500">{t("intro")}</p>
 
       {error && <div className="mb-4 rounded-md border border-state-danger bg-red-50 p-3 text-sm text-state-danger">{error}</div>}
 
@@ -108,7 +105,7 @@ export default function AjustesHhePage() {
         </div>
       ) : !data || data.suggestions.length === 0 ? (
         <p className="py-16 text-center text-sm text-gray-500">
-          No sustained deviations detected ({data?.observationsUsed ?? 0} observations analyzed).
+          {t("noDeviations", { count: data?.observationsUsed ?? 0 })}
         </p>
       ) : (
         <div className="space-y-3">
@@ -118,7 +115,10 @@ export default function AjustesHhePage() {
               <div key={key} className="rounded-lg border border-brand-ice bg-white p-4 shadow-elevation-1">
                 <p className="text-sm text-brand-ink">{s.message}</p>
                 <p className="mt-1 text-xs text-gray-500">
-                  {s.observationDays.toFixed(0)} days of observation, {(s.consistentFraction * 100).toFixed(0)}% consistent
+                  {t("observationSummary", {
+                    days: s.observationDays.toFixed(0),
+                    percent: (s.consistentFraction * 100).toFixed(0),
+                  })}
                 </p>
                 <button
                   onClick={() => apply(s)}
@@ -126,7 +126,7 @@ export default function AjustesHhePage() {
                   className="mt-3 flex items-center gap-1.5 rounded-md bg-brand-navy px-3 py-1.5 text-xs text-white hover:opacity-90 disabled:opacity-50"
                 >
                   {applying === key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                  Apply
+                  {t("apply")}
                 </button>
               </div>
             );
@@ -138,20 +138,18 @@ export default function AjustesHhePage() {
         <div className="mt-10">
           <div className="mb-2 flex items-center gap-2">
             <Zap className="h-5 w-5 text-brand-gold-dark" />
-            <h2 className="text-lg font-semibold text-brand-navy">Consistently Faster Teams</h2>
+            <h2 className="text-lg font-semibold text-brand-navy">{t("fasterTeamsTitle")}</h2>
           </div>
-          <p className="mb-4 text-sm text-gray-500">
-            D.9.2: a team completing services ≥20% faster than estimated, sustained over 30 days, suggests
-            assigning more complex services or reducing N — this is a staffing/dispatch decision, not an HHE
-            table change, so there is no one-click apply here; review it in Team Ranking / Dispatch.
-          </p>
+          <p className="mb-4 text-sm text-gray-500">{t("fasterTeamsIntro")}</p>
           <div className="space-y-3">
             {data.teamSpeedSuggestions.map((s) => (
               <div key={s.teamLabel} className="rounded-lg border border-amber-200 bg-amber-50 p-4">
                 <p className="text-sm text-brand-ink">{s.message}</p>
                 <p className="mt-1 text-xs text-gray-500">
-                  {s.observationDays.toFixed(0)} days of observation, {(s.consistentFraction * 100).toFixed(0)}%
-                  consistent
+                  {t("observationSummary", {
+                    days: s.observationDays.toFixed(0),
+                    percent: (s.consistentFraction * 100).toFixed(0),
+                  })}
                 </p>
               </div>
             ))}

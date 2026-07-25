@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, FlaskConical, Plus, X, PlayCircle, UserPlus, Trophy } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 type ExperimentType = "price" | "copy" | "ui_ux" | "batch_schedule";
 
@@ -16,6 +17,7 @@ interface Experiment {
 }
 
 export default function ExperimentsPage() {
+  const t = useTranslations("admin.experiments");
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -49,12 +51,12 @@ export default function ExperimentsPage() {
       const res = await fetch("/api/admin/experiments", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load");
+        setError(err.error || t("errorLoading"));
         return;
       }
       setExperiments((await res.json()).experiments || []);
     } catch {
-      setError("Network error");
+      setError(t("errorNetwork"));
     } finally {
       setLoading(false);
     }
@@ -83,14 +85,14 @@ export default function ExperimentsPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed");
+        setError(err.error || t("errorGeneric"));
         return;
       }
       setShowForm(false);
       setForm({ name: "", experimentType: "price", controlWeight: "90", variantWeight: "10" });
       await load();
     } catch {
-      setError("Network error");
+      setError(t("errorNetwork"));
     } finally {
       setSaving(false);
     }
@@ -120,13 +122,13 @@ export default function ExperimentsPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed");
+        setError(err.error || t("errorGeneric"));
         return;
       }
       setAssignTarget(null);
       setAssignClientId("");
     } catch {
-      setError("Network error");
+      setError(t("errorNetwork"));
     } finally {
       setSaving(false);
     }
@@ -164,7 +166,7 @@ export default function ExperimentsPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setEvaluateError(data.error || "Failed to evaluate experiment");
+        setEvaluateError(data.error || t("errorEvaluating"));
         return;
       }
       setEvaluateResult(data.result);
@@ -172,7 +174,7 @@ export default function ExperimentsPage() {
         await load();
       }
     } catch {
-      setEvaluateError("Network error");
+      setEvaluateError(t("errorNetwork"));
     } finally {
       setEvaluating(false);
     }
@@ -190,16 +192,14 @@ export default function ExperimentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-brand-ink">A/B Experiments</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Recurring clients are always excluded. Winner is calculated, never picked by hand.
-          </p>
+          <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t("subtitle")}</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
           className="inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium"
         >
-          <Plus className="w-4 h-4" /> New Experiment
+          <Plus className="w-4 h-4" /> {t("newExperiment")}
         </button>
       </div>
 
@@ -208,23 +208,23 @@ export default function ExperimentsPage() {
       {showForm && (
         <form onSubmit={submitCreate} className="bg-white rounded-xl border p-4 space-y-3 max-w-md">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-brand-ink">New Experiment</h2>
-            <button type="button" onClick={() => setShowForm(false)} aria-label="Close form"><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
+            <h2 className="font-semibold text-brand-ink">{t("newExperiment")}</h2>
+            <button type="button" onClick={() => setShowForm(false)} aria-label={t("closeForm")}><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
           </div>
-          <input type="text" aria-label="Nombre del experimento" placeholder="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
-          <select aria-label="Tipo de experimento" value={form.experimentType} onChange={(e) => setForm((f) => ({ ...f, experimentType: e.target.value as ExperimentType }))} className="w-full border rounded-lg px-3 py-2 text-sm">
-            <option value="price">Price</option>
-            <option value="copy">Copy</option>
-            <option value="ui_ux">UI/UX</option>
-            <option value="batch_schedule">Batch schedule</option>
+          <input type="text" aria-label={t("experimentName")} placeholder={t("name")} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
+          <select aria-label={t("experimentType")} value={form.experimentType} onChange={(e) => setForm((f) => ({ ...f, experimentType: e.target.value as ExperimentType }))} className="w-full border rounded-lg px-3 py-2 text-sm">
+            <option value="price">{t("types.price")}</option>
+            <option value="copy">{t("types.copy")}</option>
+            <option value="ui_ux">{t("types.uiUx")}</option>
+            <option value="batch_schedule">{t("types.batchSchedule")}</option>
           </select>
           <div className="grid grid-cols-2 gap-3">
-            <input type="number" aria-label="Porcentaje de control" min={80} max={99} placeholder="Control %" value={form.controlWeight} onChange={(e) => setForm((f) => ({ ...f, controlWeight: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm" required />
-            <input type="number" aria-label="Porcentaje de variante" min={1} max={20} placeholder="Variant %" value={form.variantWeight} onChange={(e) => setForm((f) => ({ ...f, variantWeight: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm" required />
+            <input type="number" aria-label={t("controlPercent")} min={80} max={99} placeholder={t("controlPercentShort")} value={form.controlWeight} onChange={(e) => setForm((f) => ({ ...f, controlWeight: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm" required />
+            <input type="number" aria-label={t("variantPercent")} min={1} max={20} placeholder={t("variantPercentShort")} value={form.variantWeight} onChange={(e) => setForm((f) => ({ ...f, variantWeight: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm" required />
           </div>
-          <p className="text-xs text-gray-400">Variant must stay under 20% of traffic; percentages must add to 100.</p>
-          <button type="submit" aria-label="Crear experimento" disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
-            {saving ? "Saving..." : "Create"}
+          <p className="text-xs text-gray-400">{t("variantHint")}</p>
+          <button type="submit" aria-label={t("createExperiment")} disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+            {saving ? t("saving") : t("create")}
           </button>
         </form>
       )}
@@ -232,12 +232,12 @@ export default function ExperimentsPage() {
       {assignTarget && (
         <form onSubmit={submitAssign} className="bg-white rounded-xl border p-4 space-y-3 max-w-md">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-brand-ink">Assign Client</h2>
-            <button type="button" onClick={() => setAssignTarget(null)} aria-label="Close form"><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
+            <h2 className="font-semibold text-brand-ink">{t("assignClient")}</h2>
+            <button type="button" onClick={() => setAssignTarget(null)} aria-label={t("closeForm")}><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
           </div>
-          <input type="text" aria-label="ID de usuario del cliente" placeholder="Client user ID" value={assignClientId} onChange={(e) => setAssignClientId(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" required />
-          <button type="submit" aria-label="Asignar cliente al experimento" disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
-            {saving ? "Assigning..." : "Assign"}
+          <input type="text" aria-label={t("clientUserId")} placeholder={t("clientUserId")} value={assignClientId} onChange={(e) => setAssignClientId(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" required />
+          <button type="submit" aria-label={t("assignClientToExperiment")} disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+            {saving ? t("assigning") : t("assign")}
           </button>
         </form>
       )}
@@ -245,19 +245,17 @@ export default function ExperimentsPage() {
       {evaluateTarget && (
         <form onSubmit={submitEvaluate} className="bg-white rounded-xl border p-4 space-y-3 max-w-lg">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-brand-ink">Mark winner — {evaluateTarget.name}</h2>
-            <button type="button" onClick={() => setEvaluateTarget(null)} aria-label="Close form"><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
+            <h2 className="font-semibold text-brand-ink">{t("markWinner")} — {evaluateTarget.name}</h2>
+            <button type="button" onClick={() => setEvaluateTarget(null)} aria-label={t("closeForm")}><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
           </div>
-          <p className="text-xs text-gray-500">
-            Enter observed results per variant. Confidence must be pre-computed (z-test or equivalent) outside this form.
-          </p>
+          <p className="text-xs text-gray-500">{t("evaluateHint")}</p>
           {evaluateForm.map((f, idx) => (
             <div key={f.variant} className="grid grid-cols-4 gap-2 items-center">
               <span className="text-xs font-medium text-brand-ink truncate">{f.variant}</span>
               <input
                 type="number"
-                aria-label={`Sample size for ${f.variant}`}
-                placeholder="Sample size"
+                aria-label={t("sampleSizeFor", { variant: f.variant })}
+                placeholder={t("sampleSize")}
                 value={f.sampleSize}
                 onChange={(e) => {
                   const v = e.target.value;
@@ -268,8 +266,8 @@ export default function ExperimentsPage() {
               />
               <input
                 type="number"
-                aria-label={`Conversion rate % for ${f.variant}`}
-                placeholder="Conv. %"
+                aria-label={t("conversionRateFor", { variant: f.variant })}
+                placeholder={t("conversionPercent")}
                 value={f.conversionRate}
                 onChange={(e) => {
                   const v = e.target.value;
@@ -280,8 +278,8 @@ export default function ExperimentsPage() {
               />
               <input
                 type="number"
-                aria-label={`Margin ratio % for ${f.variant}`}
-                placeholder="Margin %"
+                aria-label={t("marginRatioFor", { variant: f.variant })}
+                placeholder={t("marginPercent")}
                 value={f.marginRatio}
                 onChange={(e) => {
                   const v = e.target.value;
@@ -293,10 +291,10 @@ export default function ExperimentsPage() {
             </div>
           ))}
           <div className="flex items-center gap-2">
-            <label className="text-xs text-gray-500 shrink-0">Confidence %</label>
+            <label className="text-xs text-gray-500 shrink-0">{t("confidencePercent")}</label>
             <input
               type="number"
-              aria-label="Statistical confidence percentage"
+              aria-label={t("statisticalConfidence")}
               value={confidenceInput}
               onChange={(e) => setConfidenceInput(e.target.value)}
               className="border rounded-lg px-2 py-1.5 text-sm w-24"
@@ -309,8 +307,8 @@ export default function ExperimentsPage() {
               {evaluateResult.reason}
             </div>
           )}
-          <button type="submit" aria-label="Evaluar experimento y marcar ganador" disabled={evaluating} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
-            {evaluating ? "Evaluating..." : "Evaluate"}
+          <button type="submit" aria-label={t("evaluateAndMarkWinner")} disabled={evaluating} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+            {evaluating ? t("evaluating") : t("evaluate")}
           </button>
         </form>
       )}
@@ -318,32 +316,32 @@ export default function ExperimentsPage() {
       <div className="bg-white rounded-xl border divide-y">
         {experiments.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-500">
-            <FlaskConical className="w-8 h-8 text-gray-300 mx-auto mb-2" /> No experiments yet.
+            <FlaskConical className="w-8 h-8 text-gray-300 mx-auto mb-2" /> {t("noExperiments")}
           </div>
         ) : (
           experiments.map((exp) => (
             <div key={exp.id} className="p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <p className="font-medium text-brand-ink text-sm">{exp.name}</p>
-                <span className="text-xs text-gray-400">{exp.status}</span>
+                <span className="text-xs text-gray-400">{t(`status.${exp.status}`)}</span>
               </div>
               <p className="text-xs text-gray-500">
-                {exp.variants.map((v) => `${v.name} (${(v.weight * 100).toFixed(0)}%)`).join(" vs. ")}
+                {exp.variants.map((v) => `${v.name} (${(v.weight * 100).toFixed(0)}%)`).join(` ${t("vs")} `)}
               </p>
-              {exp.winner && <p className="text-xs text-state-success">Winner: {exp.winner} — {exp.winner_reason}</p>}
+              {exp.winner && <p className="text-xs text-state-success">{t("winnerLabel", { winner: exp.winner, reason: exp.winner_reason ?? "" })}</p>}
               <div className="flex gap-3">
                 {exp.status === "draft" && (
                   <button onClick={() => startExperiment(exp.id)} className="inline-flex items-center gap-1 text-xs text-brand-navy hover:underline">
-                    <PlayCircle className="w-3.5 h-3.5" /> Start
+                    <PlayCircle className="w-3.5 h-3.5" /> {t("start")}
                   </button>
                 )}
                 {exp.status === "running" && (
                   <>
                     <button onClick={() => setAssignTarget(exp.id)} className="inline-flex items-center gap-1 text-xs text-brand-navy hover:underline">
-                      <UserPlus className="w-3.5 h-3.5" /> Assign client
+                      <UserPlus className="w-3.5 h-3.5" /> {t("assignClient")}
                     </button>
                     <button onClick={() => openEvaluate(exp)} className="inline-flex items-center gap-1 text-xs text-brand-navy hover:underline">
-                      <Trophy className="w-3.5 h-3.5" /> Mark winner
+                      <Trophy className="w-3.5 h-3.5" /> {t("markWinner")}
                     </button>
                   </>
                 )}

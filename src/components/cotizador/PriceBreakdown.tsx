@@ -95,18 +95,42 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
         </div>
       )}
 
-      {/* Rule adjustments */}
-      {quote.ruleAdjustment !== 0 && (
-        <div className="flex justify-between items-center py-2 border-b border-gray-200">
-          <span className="text-gray-600 flex items-center gap-1">
-            <Tag className="w-4 h-4" />
-            {t("ruleAdjustment")}
-          </span>
-          <span className={`font-medium ${quote.ruleAdjustment > 0 ? "text-state-warning" : "text-state-success"}`}>
-            {quote.ruleAdjustment > 0 ? "+" : "-"}${Math.abs(quote.ruleAdjustment).toFixed(2)}
-          </span>
-        </div>
-      )}
+      {/* Rule adjustments
+          Fix (2026-07-25, auditoría UX): antes esto mostraba una sola línea
+          agregada "Pricing rule adjustment" con la suma de TODAS las reglas
+          aplicadas, sin decir cuáles -- mientras que ReservationSummary
+          (pantalla de /reserva, un paso después con la MISMA quote) ya
+          itemizaba cada regla de quote.appliedRules por nombre. Un cliente
+          podía ver un desglose distinto en /cotizador vs /reserva para el
+          mismo total. Se itemiza aquí igual que en ReservationSummary, con
+          fallback a la línea agregada solo si por alguna razón hay un
+          ruleAdjustment distinto de cero sin reglas nombradas (no debería
+          pasar en operación normal, pero evita perder el monto si ocurre). */}
+      {quote.appliedRules.length > 0
+        ? quote.appliedRules
+            .filter((rule) => rule.adjustment)
+            .map((rule, i) => (
+              <div key={i} className="flex justify-between items-center py-2 border-b border-gray-200">
+                <span className="text-gray-600 flex items-center gap-1">
+                  <Tag className="w-4 h-4" />
+                  {rule.name}
+                </span>
+                <span className={`font-medium ${rule.adjustment > 0 ? "text-state-warning" : "text-state-success"}`}>
+                  {rule.adjustment > 0 ? "+" : "-"}${Math.abs(rule.adjustment).toFixed(2)}
+                </span>
+              </div>
+            ))
+        : quote.ruleAdjustment !== 0 && (
+            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+              <span className="text-gray-600 flex items-center gap-1">
+                <Tag className="w-4 h-4" />
+                {t("ruleAdjustment")}
+              </span>
+              <span className={`font-medium ${quote.ruleAdjustment > 0 ? "text-state-warning" : "text-state-success"}`}>
+                {quote.ruleAdjustment > 0 ? "+" : "-"}${Math.abs(quote.ruleAdjustment).toFixed(2)}
+              </span>
+            </div>
+          )}
 
       {/* Rule note */}
       {quote.appliedRules.length === 0 && (

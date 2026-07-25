@@ -6,7 +6,9 @@
     "keywords": "清洁服务, 家庭清洁, 里士满清洁, 温哥华清洁, 深度清洁, 搬家清洁"
   },
   "nav": {
-    "location": "里士满，卑诗省"
+    "location": "里士满，卑诗省",
+    "login": "登录",
+    "teamPortal": "员工门户"
   },
   "hero": {
     "badge": "服务里士满、温哥华、北温及西温、UBC地区",
@@ -85,14 +87,26 @@
       "b2bTitle": "企业 / 团体报价",
       "b2bDesc": "此报价需要人工开户、采购单（PO）流程及月结30天设置后方可预订。提交后我们的销售团队将收到通知。",
       "poLabel": "采购单（PO）编号 *",
-      "poHint": "企业 / 政府预订在开户前需提供采购单编号。"
+      "poHint": "企业 / 政府预订在开户前需提供采购单编号。",
+      "retryCalculation": "重试",
+      "profileWarningTitle": "您的资料未能完全更新",
+      "profileWarningDesc": "您的报价已保存，但部分账户资料未能完全更新。这不会影响您预订，但请稍后在“我的账户”中核实您的联系信息。",
+      "adminReviewTitle": "您的报价需要人工快速审核",
+      "adminReviewDesc": "您的报价已保存，但我们的团队需要在最终确认前人工核实部分细节。您现在可以继续预订，如有需要我们会主动联系您。",
+      "continueToReservation": "继续预订"
     },
     "category": {
       "title": "您需要清洁哪种类型的空间？",
       "subtitle": "请选择最符合您空间的类别。",
       "items": {
-        "home": { "label": "住宅", "description": "住宅清洁服务" },
-        "commercial": { "label": "商业", "description": "办公室、Airbnb及施工后清洁" }
+        "home": {
+          "label": "住宅",
+          "description": "住宅清洁服务"
+        },
+        "commercial": {
+          "label": "商业",
+          "description": "办公室、Airbnb及施工后清洁"
+        }
       }
     },
     "purpose": {
@@ -115,7 +129,11 @@
       "bathroomsTitle": "浴室数量",
       "bathroomsSubtitle": "全浴室和半浴室",
       "squareFeetTitle": "大约建筑面积",
-      "squareFeetSubtitle": "大致估算即可"
+      "squareFeetSubtitle": "大致估算即可",
+      "decreaseBedroomsAriaLabel": "减少卧室数量",
+      "increaseBedroomsAriaLabel": "增加卧室数量",
+      "decreaseBathroomsAriaLabel": "减少浴室数量",
+      "increaseBathroomsAriaLabel": "增加浴室数量"
     },
     "addonZones": {
       "title": "还需要其他附加服务吗？",
@@ -139,10 +157,22 @@
       "title": "您上次请专业人员清洁是什么时候？",
       "subtitle": "距离上次深度清洁的时间越久，需要处理的积垢就越多。",
       "presets": {
-        "lessThan30": { "label": "少于30天", "hint": "近期维护" },
-        "oneToTwoMonths": { "label": "1-2个月", "hint": "预计有一定积垢" },
-        "twoToThreeMonths": { "label": "2-3个月", "hint": "中等程度积垢" },
-        "moreThanThree": { "label": "超过3个月", "hint": "建议深度清洁" }
+        "lessThan30": {
+          "label": "少于30天",
+          "hint": "近期维护"
+        },
+        "oneToTwoMonths": {
+          "label": "1-2个月",
+          "hint": "预计有一定积垢"
+        },
+        "twoToThreeMonths": {
+          "label": "2-3个月",
+          "hint": "中等程度积垢"
+        },
+        "moreThanThree": {
+          "label": "超过3个月",
+          "hint": "建议深度清洁"
+        }
       }
     },
     "address": {
@@ -314,6 +344,10 @@
       "paypalTransactionIdAriaLabel": "PayPal交易编号",
       "paypalPayerEmailPlaceholder": "PayPal付款人邮箱（可选）",
       "paypalPayerEmailAriaLabel": "PayPal付款人邮箱（可选）",
+      "paypalManualEntryWarning": "请准确填写PayPal确认邮件中显示的17位交易编号。请仔细核对每一个字符——编号错误可能会延迟或阻止您的预订确认。",
+      "paypalTransactionIdHint": "17位字符，仅限字母和数字（例如 1AB2345CD6789012E）。可在您的PayPal确认邮件中找到。",
+      "paypalTransactionIdInvalidLength": "PayPal交易编号应为17位字符——您输入了{count}位。",
+      "paypalPayerEmailInvalid": "请填写有效的邮箱地址，或将此栏留空。",
       "walletPayNowAlipay": "立即使用支付宝支付全款。",
       "walletPayNowWechat": "立即使用微信支付全款。",
       "walletBackupCardNote": "之后仍需登记一张备用卡，用于覆盖任何额外费用（损坏、超时、临时取消）——我们绝不会再次通过{method}向您扣款。",
@@ -341,6 +375,8 @@
       "priceHoldExpired": "您的价格保留已过期，请刷新页面以获取新报价后再确认。",
       "priceNotConfirmed": "我们无法确认该日期的价格，请刷新页面后重试。",
       "enterPaypalTransactionId": "请填写您的PayPal交易编号。",
+      "invalidPaypalTransactionId": "PayPal交易编号应为17位字符。请查看您的PayPal确认邮件并重新填写。",
+      "invalidPaypalPayerEmail": "请填写有效的PayPal付款人邮箱，或将此栏留空。",
       "completePaymentFirst": "请先完成{method}付款。",
       "genericError": "预订确认失败。"
     },
@@ -406,7 +442,9 @@
   "confirmacion": {
     "brand": "Lulu Island Flagship",
     "notFoundTitle": "未找到预订信息",
-    "notFoundDesc": "我们未能找到您的预订详情。",
+    "notFoundDesc": "我们未能找到此预订，或该预订与您的账户无关联。如果您刚完成预订，请尝试刷新页面；否则请前往「我的服务」查看，或重新获取报价。",
+    "missingOrderIdTitle": "未指定预订信息",
+    "missingOrderIdDesc": "此链接缺少预订编号。如果您使用的是收藏夹或旧链接，请重新预订，或前往「我的服务」查看您的预订。",
     "getQuote": "获取报价",
     "title": "预订已确认",
     "subtitle": "您的清洁服务已安排就绪，我们到时候见！",
@@ -515,6 +553,8 @@
     "cancellation": {
       "title": "取消政策",
       "intro": "以下是当您取消已确认的预订，或未到场时所适用的确切政策。它规定了您的付款 Hold 将如何被释放、扣款或退款，且无论您在结账时使用何种付款方式，均适用相同规则。",
+      "howToCancel": "如需取消即将进行的服务，请前往「我的账户 → 我的服务」。",
+      "howToCancelCta": "前往我的服务",
       "sections": [
         {
           "heading": "服务前超过72小时",
@@ -622,6 +662,7 @@
         "removed": "已从Live Portfolio中移除。",
         "networkError": "网络错误",
         "selectedNotice": "您的一项服务（{label}）已被选入我们的Live Portfolio展示项目。",
+        "explanation": "经过匿名处理的清洁前后对比照片（不显示姓名或地址）可能会用于我们的网站和社交媒体。<link>在隐私政策中了解更多</link>。",
         "removing": "移除中...",
         "removeIt": "移除"
       },
@@ -632,7 +673,8 @@
         "title": "您的团队正在赶来",
         "subtitle": "服务车辆的实时位置 — 自动更新。",
         "lastUpdated": "最后更新于 {time}",
-        "openInMaps": "在地图中打开"
+        "openInMaps": "在地图中打开",
+        "mapFrameTitle": "显示服务车辆实时位置的地图"
       },
       "galeria": {
         "loadFailed": "加载失败",
@@ -641,6 +683,9 @@
         "completedIn": "用时 {minutes} 分钟完成",
         "photos": "照片",
         "servicePhotoAlt": "服务照片 {index}",
+        "enlargePhotoAriaLabel": "查看照片 {index} 的完整尺寸",
+        "photoLightboxAriaLabel": "全屏照片查看器",
+        "closeAriaLabel": "关闭",
         "checklist": "核对清单",
         "rebook": {
           "loadOptionsFailed": "无法加载重新预订选项",
@@ -720,6 +765,7 @@
       "copied": "已复制",
       "copy": "复制",
       "shareCode": "分享此码。当您的朋友完成首次服务后，双方都将获得 {amount}。",
+      "shareCodeGeneric": "分享此码。当您的朋友完成首次服务后，双方都将获得推荐信用额度。",
       "notEligible": "推荐码仅对VIP客户开放（完成超过5次服务且账户信誉良好）。继续与我们预订服务，很快即可解锁此功能。",
       "haveCode": "有朋友给您的推荐码吗？",
       "redeemInputAriaLabel": "朋友的推荐码",
@@ -792,6 +838,2623 @@
       "iArrived": "我已到达",
       "startCleaning": "开始清洁",
       "finishService": "完成服务"
+    },
+    "dashboard": {
+      "redirecting": "正在跳转至团队门户…",
+      "logout": "退出登录",
+      "date": "{date}",
+      "startShiftError": "无法开始您的班次，请检查网络连接后重试。",
+      "startShiftConnectionError": "开始班次时发生连接错误，请重试。",
+      "downloadingRoute": "正在下载今日路线以供离线使用…",
+      "routeReady": "今日路线已保存，可离线使用。",
+      "routeFailed": "无法保存今日路线以供离线使用——请保持网络连接直至恢复。",
+      "loadError": "无法加载今日服务，请检查网络连接后重试。",
+      "clientLabel": "客户：{name}",
+      "more": "更多",
+      "myScore": "我的评分",
+      "peerVoting": "同事互评",
+      "checkin": "签到",
+      "cloths": "抹布",
+      "shiftRitual": "班次仪式",
+      "marketing": "市场推广",
+      "sickDay": "病假",
+      "myBreaks": "我的休息",
+      "safety": "安全",
+      "unsyncedWarning": "您有 {count} 项未同步的数据，恢复网络后将自动完成同步——仍要退出登录吗？",
+      "unsyncedSyncing": "退出登录前正在同步您的离线数据…",
+      "atTime": "{date} {time}",
+      "defaultServiceLabel": "清洁服务"
+    }
+  },
+  "survey": {
+    "unavailableTitle": "问卷不可用",
+    "invalidOrExpired": "此问卷链接无效或已过期。",
+    "somethingWrong": "出现了一些问题。",
+    "goHome": "返回首页",
+    "thankYouTitle": "谢谢！",
+    "creditGranted": "已为您的 Lulu 钱包充值 {amount}",
+    "thankYouBody": "感谢您抽出时间填写。",
+    "checkInTitle": "快速 30 秒问卷",
+    "checkInSubtitle": "本次服务您是否满意？",
+    "yes": "满意",
+    "somethingOff": "有点问题",
+    "complaintPlaceholder": "发生了什么？我们会尽快跟进。",
+    "submit": "提交",
+    "submitFailed": "提交失败。",
+    "networkError": "网络错误，请重试。",
+    "privacyNote": "这是一次私密的意见反馈，并非公开评价。回答后您将获得 10 加元的 Lulu 钱包信用额度。"
+  },
+  "nps": {
+    "unavailableTitle": "问卷不可用",
+    "invalidOrExpired": "此问卷链接无效或已过期。",
+    "somethingWrong": "出现了一些问题。",
+    "goHome": "返回首页",
+    "thankYouTitle": "谢谢！",
+    "thankYouBody": "您的反馈将帮助我们不断改进。",
+    "questionTitle": "一个简短的问题",
+    "questionSubtitle": "以 0 到 10 分评分，您向朋友或同事推荐我们的可能性有多大？",
+    "notLikely": "不太可能",
+    "veryLikely": "非常可能",
+    "commentPlaceholder": "还有什么想补充的吗？（选填）",
+    "submit": "提交",
+    "submitFailed": "提交失败。",
+    "networkError": "网络错误，请重试。"
+  },
+  "admin": {
+    "common": {
+      "save": "保存",
+      "cancel": "取消",
+      "delete": "删除",
+      "edit": "编辑",
+      "confirm": "确认",
+      "loading": "加载中...",
+      "error": "错误",
+      "retry": "重试",
+      "search": "搜索",
+      "filter": "筛选",
+      "export": "导出",
+      "add": "添加",
+      "close": "关闭",
+      "submit": "提交",
+      "back": "返回",
+      "next": "下一步",
+      "yes": "是",
+      "no": "否",
+      "actions": "操作",
+      "status": "状态",
+      "active": "启用",
+      "inactive": "停用",
+      "pending": "待处理",
+      "approved": "已批准",
+      "rejected": "已拒绝",
+      "unknown": "未知",
+      "viewDetails": "查看详情",
+      "download": "下载",
+      "refresh": "刷新",
+      "noResults": "未找到结果",
+      "errorGeneric": "出现错误，请重试。",
+      "tryAgain": "重试",
+      "required": "必填",
+      "optional": "（可选）",
+      "working": "处理中...",
+      "dismiss": "关闭提示"
+    },
+    "nav": {
+      "brand": "管理后台",
+      "signOut": "退出登录",
+      "openMenu": "打开菜单",
+      "closeMenu": "关闭菜单",
+      "groups": {
+        "operations": "运营",
+        "qualityRisk": "质量与风险",
+        "salesCustomer": "销售与客户",
+        "financeSettings": "财务与设置"
+      },
+      "links": {
+        "services": "服务",
+        "employees": "员工",
+        "vehicles": "车辆",
+        "checklists": "检查清单",
+        "inventario": "库存",
+        "qc": "质检",
+        "audits": "审计",
+        "nearMisses": "未遂事件",
+        "riesgo": "风险评估",
+        "sos": "紧急求助",
+        "drDrills": "灾难恢复演练",
+        "contingencia": "应急预案",
+        "tickets": "工单",
+        "quoteReviews": "报价审核",
+        "upsells": "加售项目",
+        "marketing": "营销",
+        "competencia": "竞争对手",
+        "warrantyClaims": "保修索赔",
+        "phoneBooking": "电话预约",
+        "pricingRules": "定价规则",
+        "pricingRulesSandbox": "定价规则沙盒",
+        "pricingSettings": "定价设置",
+        "contabilidad": "财务核算",
+        "teamRanking": "团队排名",
+        "ajustesHhe": "HHE 设置",
+        "seguridad": "安全设置",
+        "wallet": "钱包",
+        "comunicaciones": "沟通模板",
+        "configHistory": "配置变更记录",
+        "roles": "角色管理"
+      }
+    },
+    "layout": {
+      "skipToContent": "跳转到主要内容",
+      "accessTitle": "管理员访问权限",
+      "accessStatus": "状态：",
+      "accessNotAuthorized": "未授权",
+      "accessUserEmail": "用户邮箱：",
+      "accessNoEmail": "无邮箱",
+      "accessDenied": "您的账户尚未分配管理员角色。",
+      "goHome": "返回首页"
+    },
+    "dashboard": {
+      "title": "管理后台首页",
+      "cards": {
+        "alertInbox": {
+          "title": "警报收件箱",
+          "description": "统一队列——10分钟内响应 vs 可以等待 (E0.6)"
+        },
+        "todaysServices": {
+          "title": "今日服务",
+          "description": "查看今天所有已排期的服务及检查清单进度"
+        },
+        "dispatchReview": {
+          "title": "调度审核",
+          "description": "每日派工矩阵——覆盖调整、语言匹配、工时警报 (D.4)"
+        },
+        "employees": {
+          "title": "员工",
+          "description": "查看所有在职和离职员工"
+        },
+        "upsellsReview": {
+          "title": "加售审核",
+          "description": "审核员工提出的加售项目"
+        },
+        "checklists": {
+          "title": "检查清单",
+          "description": "按区域和服务类型管理 SOP 检查清单模板"
+        },
+        "qcWall": {
+          "title": "质检墙",
+          "description": "根据证据批准或驳回已完成的服务"
+        },
+        "fieldAudits": {
+          "title": "现场审计",
+          "description": "登记现场评估并查看同行投票汇总"
+        },
+        "tickets": {
+          "title": "工单",
+          "description": "争议、差异及咨询请求队列"
+        },
+        "quoteReviews": {
+          "title": "报价审核",
+          "description": "批准或驳回低于15%利润率下限的报价"
+        },
+        "pricingRules": {
+          "title": "定价规则",
+          "description": "无头规则引擎——当前生效规则与审计日志"
+        },
+        "pricingSettings": {
+          "title": "定价设置",
+          "description": "目标时薪与 HHE 表预览"
+        },
+        "businessInsurance": {
+          "title": "企业保险",
+          "description": "车辆险、一般责任险及 E&O 保单登记"
+        },
+        "seasonalCampaigns": {
+          "title": "季节性营销活动",
+          "description": "5个预设活动，根据真实需求信号动态调整"
+        },
+        "succession": {
+          "title": "继任模式",
+          "description": "可信继任人及职业倦怠/继任状态"
+        },
+        "drDrills": {
+          "title": "灾难恢复演练",
+          "description": "灾难恢复演练日志——恢复、继任、应急包、备用方案 (E11.4)"
+        },
+        "weatherExceptions": {
+          "title": "恶劣天气例外",
+          "description": "恶劣天气日志——改期 vs 安全终止 + 日费率 (D.10#10)"
+        },
+        "workplaceIncidents": {
+          "title": "工伤事件",
+          "description": "伤害事件——WorkSafeBC 72小时预填报告倒计时 (D.10#6)"
+        },
+        "churnSignals": {
+          "title": "流失信号",
+          "description": "高风险客户——调查、召回折扣、专人跟进 (D.10.9)"
+        },
+        "attribution": {
+          "title": "归因分析",
+          "description": "各渠道 CAC/LTV + 建议预算分配 (D.10.2)"
+        },
+        "partners": {
+          "title": "合作伙伴与佣金",
+          "description": "房地产、物业管理、兽医、建筑商推荐——全部 T4A (D.10.6)"
+        },
+        "neighborhood": {
+          "title": "社区关系",
+          "description": "礼宾通知、噪音规定、投诉及邻里线索 (E11.5)"
+        },
+        "experiments": {
+          "title": "A/B 测试",
+          "description": "价格/文案/界面测试——始终保护复购客户 (D.10.11)"
+        },
+        "clientSegments": {
+          "title": "客户分层",
+          "description": "VIP / 常规 / 偶尔 / 高风险 / 新客户 (E5.14)"
+        },
+        "wellbeing": {
+          "title": "团队健康状况",
+          "description": "睡眠/情绪汇总数据——绝不显示个人数据 (E8.1/E8.3)"
+        },
+        "teams": {
+          "title": "团队",
+          "description": "基础团队信息（名称+头像），用于每周 Top 3 排名 (E8.9/E8.10)"
+        },
+        "routeShortcuts": {
+          "title": "路线捷径",
+          "description": "员工上报的待验证捷径——验证可获10美元奖励（E8学习路径）"
+        },
+        "coworkerRotation": {
+          "title": "同事轮换",
+          "description": "每月至少3位不同同事 + “从不同组”例外情况 (E8.14)"
+        },
+        "livePortfolio": {
+          "title": "实时作品集",
+          "description": "自动推荐候选照片——一键批准，客户保留24小时撤回权 (E5.15)"
+        },
+        "seoLocal": {
+          "title": "本地 SEO 与 GBP",
+          "description": "Google 商家资料检查清单 + 季度 NAP 信息核实 (E10.3)"
+        },
+        "employeeMarketing": {
+          "title": "员工营销",
+          "description": "日常工作短视频与徽章展示——需员工同意 + 一键批准 (E10.8)"
+        },
+        "payrollExport": {
+          "title": "薪资导出",
+          "description": "按员工导出 CPP/EI/WorkSafeBC/假期工资，支持 CSV/JSON (E9.3)"
+        },
+        "economicParameters": {
+          "title": "经济参数",
+          "description": "最低工资 / 日费率——模拟影响，一键应用 (E9.6)"
+        },
+        "legalMonitoring": {
+          "title": "法规监测",
+          "description": "7个监管信息源、静默源警报、未处理变更提醒 (E9.7)"
+        },
+        "pipeda": {
+          "title": "PIPEDA 合规",
+          "description": "数据主体请求（48小时）+ 数据泄露应对流程（72小时）(E9.9)"
+        },
+        "giftProgram": {
+          "title": "礼品计划",
+          "description": "住宅客户留存礼品 + 物业管理楼宇专属福利 (E9.11)"
+        },
+        "growthMetrics": {
+          "title": "增长指标",
+          "description": "转化漏斗、推荐、流失率、NPS 得分与目标对比 (E10.13)"
+        },
+        "entityNotes": {
+          "title": "运营备注",
+          "description": "关联员工/房产的备注，按情境展示 (E11.2)"
+        },
+        "stressScenario": {
+          "title": "财务压力测试",
+          "description": "收入下降30% x 3个月的模拟，按顺序的应对措施，复核阈值 (E11.7)"
+        },
+        "legacyMigration": {
+          "title": "旧系统迁移收尾",
+          "description": "www 重定向 + Godaddy 归档/取消检查清单 (E11.8)"
+        },
+        "certifications": {
+          "title": "认证管理",
+          "description": "化学品操作等级及真实到期日——过期后阻止派工 (E9.4)"
+        },
+        "craRemittances": {
+          "title": "CRA 税款申报",
+          "description": "CPP/EI 按月、GST/PST 按季、T4 按年——提醒日历 (E9.4)"
+        },
+        "backupStatus": {
+          "title": "备份状态",
+          "description": "交易/薪资/客户/照片 CSV+哈希 + pg_dump 提醒 (E9.10)"
+        },
+        "contractReviews": {
+          "title": "合同续签审核",
+          "description": "周年日前60天——法律条款对比、审批、电子签名 (E9.8)"
+        },
+        "laborCompliance": {
+          "title": "BC省劳动合规",
+          "description": "休息记录、病假、每周32小时休息、法定假日工资"
+        }
+      }
+    },
+    "checklists": {
+      "cannotDelete": "无法删除：该检查清单正被一项或多项进行中的服务使用。"
+    },
+    "empleados": {
+      "saveCareerLevelFailed": "保存职级失败，请重试。"
+    },
+    "inventario": {
+      "purchaseOrderFailed": "无法生成采购订单。"
+    },
+    "upsells": {
+      "reviewError": "审核该加售项目时出现错误，请重试。"
+    },
+    "monitoreoLegal": {
+      "invalidImpact": "请输入有效的影响数值。"
+    },
+    "ajustesHhe": {
+      "title": "建议的 HHE 调整",
+      "intro": "预估 HHE 与实际人工工时之间持续偏差 ≥30 天（根据已完成的清单区间 × 分配团队估算——目前系统中尚无专门的打卡记录）。在此处应用调整会关闭当前区间并在 HHE 表中新建一个区间；该操作会被记录，并可在配置历史中撤销。",
+      "error": "错误",
+      "errorLoading": "加载建议时出错",
+      "errorApplying": "应用调整时出错",
+      "noDeviations": "未检测到持续偏差（已分析 {count} 条观测数据）。",
+      "apply": "应用",
+      "fasterTeamsTitle": "持续更快的团队",
+      "fasterTeamsIntro": "D.9.2：如果某团队完成服务的速度持续比预估快 ≥20%，并持续 30 天以上，说明可以为其分配更复杂的服务或减少人数——这是人员调度决策，而非 HHE 表的调整，因此此处没有一键应用；请在团队排名/调度中查看。",
+      "observationSummary": "已观察 {days} 天，{percent}% 保持一致"
+    },
+    "contingencia": {
+      "title": "应急处理手册",
+      "subtitle": "仅一页。如果情况未在下方列出：先执行10分钟应急预案 → 上报紧急管理员。",
+      "items": {
+        "noOnlinePayment": {
+          "situation": "客户无法在线支付",
+          "action": "标记为\"待付款\"，改用电子转账/现金并提供收据。"
+        },
+        "pwaDown": {
+          "situation": "PWA 无法加载",
+          "action": "改用电话+纸质记录+手机拍照。"
+        },
+        "qboNotSynced": {
+          "situation": "QBO 超过48小时未同步",
+          "action": "致电处理。"
+        },
+        "noAccess": {
+          "situation": "无法进入（钥匙问题）",
+          "action": "启动钥匙协议 → 记为客户未到场。"
+        },
+        "stripeBlocked": {
+          "situation": "Stripe 被封锁",
+          "action": "全局标记为\"待付款\"。"
+        },
+        "supabaseDown": {
+          "situation": "Supabase 宕机",
+          "action": "转为离线模式，不要取消服务。"
+        },
+        "dispute": {
+          "situation": "争议纠纷",
+          "action": "未审查证据前绝不退款。"
+        },
+        "injury": {
+          "situation": "工伤事故",
+          "action": "72小时内上报 WorkSafeBC，不要承认过错。"
+        },
+        "damageAccusation": {
+          "situation": "损坏指控",
+          "action": "调取服务前拍摄的照片。"
+        }
+      },
+      "goldenRule": {
+        "title": "黄金准则",
+        "text": "如果情况不在此列表中 → 先执行10分钟应急预案 → 上报紧急管理员。切勿临时创造新的例外处理，事后务必记录该案例以便补充到此列表。"
+      }
+    },
+    "legacyMigration": {
+      "title": "旧站点迁移收尾",
+      "subtitle": "D.11.8 — 关闭旧站点（www → app 重定向、Godaddy 存档与取消）。",
+      "done": "完成于 {date}",
+      "markDone": "标记为完成"
+    },
+    "comunicacionesDetail": {
+      "title": "沟通时间线",
+      "orderLabel": "订单 {orderId}"
+    },
+    "alerts": {
+      "title": "统一警报收件箱",
+      "subtitle": "E0.6 — 一个队列，两个等级。“10 分钟内响应”的警报如未处理会触发后备机制；“可以等待”的不会。",
+      "severity": {
+        "p0_safety": "P0 — 安全",
+        "p1_urgent": "P1 — 紧急",
+        "p2_automatic": "P2 — 自动"
+      },
+      "actions": {
+        "acknowledge": "确认",
+        "resolve": "解决"
+      },
+      "status": {
+        "acknowledged": "已确认"
+      },
+      "sections": {
+        "respondNow": "10 分钟内响应 ({count})",
+        "canWait": "可以等待 ({count})"
+      },
+      "emptyStates": {
+        "nothingUrgent": "暂无紧急事项。",
+        "nothingPending": "暂无待处理事项。"
+      },
+      "errors": {
+        "loadFailed": "加载失败",
+        "actionFailed": "操作失败",
+        "network": "网络错误"
+      }
+    },
+    "employeeMarketing": {
+      "title": "员工营销",
+      "subtitle": "“日常生活”短片和公开徽章展示（D.10.8）。仅当员工已同意且管理员已批准时才可见——撤回同意会立即取消发布。",
+      "empty": "尚无员工申请营销展示。",
+      "errorLoading": "加载失败",
+      "errorNetwork": "网络错误",
+      "errorApproving": "批准失败",
+      "consentedOn": "同意于 {date}",
+      "noConsentYet": "尚未同意",
+      "approve": "批准",
+      "approving": "……",
+      "featureType": {
+        "day_in_life_reel": "“日常生活”短片",
+        "public_badge_showcase": "公开徽章展示"
+      },
+      "visibility": {
+        "not_visible_awaiting_consent": "等待员工同意",
+        "not_visible_awaiting_admin_approval": "等待管理员批准",
+        "not_visible_consent_withdrawn": "同意已撤回",
+        "visible": "已上线 / 可见"
+      }
+    },
+    "quotesReview": {
+      "title": "报价审核",
+      "pendingCount": "{count} 项待审核",
+      "reviewRequired": "需要审核",
+      "bedBathSqft": "{bed} 卧 · {bath} 卫 · {sqft} 平方英尺",
+      "clientScore": "客户评分：{score}",
+      "hold": "预留金额：{amount}",
+      "margin": "利润率：{pct}%",
+      "reject": "拒绝",
+      "approve": "批准",
+      "approvedReason": "管理员已批准",
+      "rejectedReason": "管理员已拒绝",
+      "emptyState": "当前没有待管理员审核的报价。",
+      "errors": {
+        "loadFailed": "加载报价失败",
+        "network": "网络错误",
+        "reviewFailed": "审核失败",
+        "networkReview": "审核过程中发生网络错误"
+      }
+    },
+    "entityNotes": {
+      "title": "运营知识备注",
+      "subtitle": "与实体关联并按情境显示的备注（D.11.2）——例如员工上的“不要与 Pedro 搭档”，或房产上的“楼梯陡峭”。即使了解该信息的人离职，记录也不会丢失。",
+      "entityTypeLabel": "实体类型",
+      "selectEntity": "选择实体",
+      "selectPlaceholder": "请选择……",
+      "newNote": "新备注",
+      "newNotePlaceholder": "新备注……",
+      "surfaceIn": "显示于：",
+      "addNote": "添加备注",
+      "noNotes": "该实体尚无备注。",
+      "shownIn": "显示于：{contexts}",
+      "deleteNote": "删除备注",
+      "errorLoading": "加载失败",
+      "errorNetwork": "网络错误",
+      "entityType": {
+        "employee": "员工",
+        "clientProperty": "客户房产",
+        "clientProfile": "客户",
+        "vehicle": "车辆"
+      }
+    },
+    "attribution": {
+      "title": "归因分析 — CAC / LTV",
+      "subtitle": "没有真正的广告平台集成 — 支出为手动记录，与手动竞争对手清单相同。",
+      "recordSpend": "记录支出（{month}）",
+      "ltv": {
+        "label": "LTV（全局，D.3 公式 — 缺失时绝不显示）",
+        "inputsLine": "平均客单价 {avgTicket} × 每月 {frequency} 次 × {margin}% 利润率 × {retentionMonths} 个月留存（保守假设，等待真实的同期群数据）",
+        "suggestedBudgetLine": "本月建议营销预算：{min} – {max}（上月收入 {revenue} 的 8-10%）"
+      },
+      "form": {
+        "title": "记录支出 — {month}",
+        "closeAria": "关闭表单",
+        "channelAria": "营销渠道（例如 google_search）",
+        "channelPlaceholder": "渠道（例如 google_search）",
+        "spendAria": "本月支出金额（美元）",
+        "spendPlaceholder": "本月支出（$）",
+        "notesAria": "关于归因支出的备注",
+        "notesPlaceholder": "备注（可选）",
+        "saveAria": "保存归因支出",
+        "saving": "保存中...",
+        "save": "保存"
+      },
+      "emptyState": "暂无渠道数据 — 请记录支出，并等待报价单填写“您是如何了解我们的”。",
+      "channelRow": {
+        "newCustomers": "{count} 位新客户（90 天）· 本月支出 {spend}",
+        "suggestedBudget": "建议预算：{amount}",
+        "cac": "CAC {amount}",
+        "cacHealthy": "CAC < LTV/3",
+        "cacUnhealthy": "CAC 过高"
+      },
+      "errors": {
+        "loadFailed": "加载失败",
+        "saveFailed": "保存失败",
+        "network": "网络错误"
+      }
+    },
+    "regalos": {
+      "title": "礼品计划",
+      "subtitle": "面向住宅客户的12个月以上留存礼品，以及物业经理的楼宇福利（绝不是隐藏的个人礼物——已申报的合作佣金记录在“合作伙伴与佣金”下）。",
+      "errors": {
+        "failed": "失败",
+        "network": "网络错误"
+      },
+      "residentialGifts": {
+        "heading": "住宅礼品",
+        "clientUserIdAria": "客户用户ID",
+        "clientUserIdPlaceholder": "客户用户ID",
+        "monthsActiveAria": "活跃月数",
+        "monthsActivePlaceholder": "活跃月数",
+        "firstYearValueAria": "首年价值（美元）",
+        "firstYearValuePlaceholder": "首年价值 $",
+        "ltvAria": "客户终身价值（LTV），美元，可选",
+        "ltvPlaceholder": "LTV $（可选）",
+        "evaluate": "评估",
+        "emptyState": "尚无礼品记录。",
+        "monthsActiveCount": "活跃 {count} 个月",
+        "needsApproval": "需要批准",
+        "approvedLabel": "已批准",
+        "deliveredLabel": "已送达",
+        "approve": "批准",
+        "markDelivered": "标记为已送达"
+      },
+      "buildingBenefits": {
+        "heading": "物业经理楼宇福利",
+        "selectPartnerAria": "选择物业管理合作伙伴",
+        "selectPartnerOption": "选择物业管理合作伙伴……",
+        "descriptionAria": "福利说明",
+        "descriptionPlaceholder": "例如：免费公共区域清洁服务",
+        "logBenefit": "记录福利",
+        "emptyState": "尚无福利记录。",
+        "unknownPartner": "（合作伙伴）",
+        "markDelivered": "标记为已送达"
+      }
+    },
+    "experiments": {
+      "title": "A/B 实验",
+      "subtitle": "始终排除回头客。获胜者由计算得出，绝不手动挑选。",
+      "newExperiment": "新建实验",
+      "closeForm": "关闭表单",
+      "experimentName": "实验名称",
+      "name": "名称",
+      "experimentType": "实验类型",
+      "types": {
+        "price": "价格",
+        "copy": "文案",
+        "uiUx": "界面/体验",
+        "batchSchedule": "批次排程"
+      },
+      "controlPercent": "对照组百分比",
+      "controlPercentShort": "对照组 %",
+      "variantPercent": "变体百分比",
+      "variantPercentShort": "变体 %",
+      "variantHint": "变体流量必须低于 20%；百分比总和必须为 100。",
+      "createExperiment": "创建实验",
+      "saving": "保存中……",
+      "create": "创建",
+      "assignClient": "分配客户",
+      "clientUserId": "客户用户 ID",
+      "assignClientToExperiment": "将客户分配到实验",
+      "assigning": "分配中……",
+      "assign": "分配",
+      "markWinner": "标记获胜者",
+      "evaluateHint": "请输入每个变体的观察结果。置信度必须在此表单之外预先计算（z 检验或等效方法）。",
+      "sampleSizeFor": "{variant} 的样本量",
+      "sampleSize": "样本量",
+      "conversionRateFor": "{variant} 的转化率 %",
+      "conversionPercent": "转化率 %",
+      "marginRatioFor": "{variant} 的利润率 %",
+      "marginPercent": "利润率 %",
+      "confidencePercent": "置信度 %",
+      "statisticalConfidence": "统计置信度百分比",
+      "evaluateAndMarkWinner": "评估实验并标记获胜者",
+      "evaluating": "评估中……",
+      "evaluate": "评估",
+      "noExperiments": "尚无实验。",
+      "vs": "对比",
+      "winnerLabel": "获胜者：{winner} — {reason}",
+      "start": "开始",
+      "errorLoading": "加载失败",
+      "errorNetwork": "网络错误",
+      "errorGeneric": "失败",
+      "errorEvaluating": "评估实验失败",
+      "status": {
+        "draft": "草稿",
+        "running": "进行中",
+        "completed": "已完成"
+      }
+    },
+    "audits": {
+      "title": "现场审核",
+      "sections": {
+        "pendingAudits": "待审核项目（今日已完成）",
+        "auditHistory": "审核历史",
+        "peerVotes": "同事互评汇总（本周）"
+      },
+      "emptyStates": {
+        "noPending": "今日暂无已完成且待审核的服务。",
+        "noAudits": "尚无审核记录。",
+        "noPeerVotes": "本周暂无同事互评记录。"
+      },
+      "mandatoryAudit": "强制审核：{reasons}",
+      "actions": {
+        "audit": "审核"
+      },
+      "unknownEmployee": "未知",
+      "appealed": "已申诉",
+      "fiveWeekAvg": "5 周平均分",
+      "voteCount": "{count} 票",
+      "scoreLabels": {
+        "poor": "差",
+        "fair": "一般",
+        "acceptable": "可接受",
+        "good": "良好",
+        "excellent": "优秀"
+      },
+      "criteria": {
+        "punctuality": "准时性",
+        "thoroughness": "细致程度",
+        "professionalism": "专业性",
+        "clientSatisfaction": "客户满意度",
+        "sopCompliance": "标准操作流程符合度"
+      },
+      "modal": {
+        "title": "现场审核",
+        "address": "地址",
+        "date": "日期",
+        "at": "于",
+        "overallScore": "总体评分（1-5）",
+        "overallScoreAria": "总体审核评分（1 至 5）",
+        "criteria": "评分项（1-5）",
+        "notesAria": "现场审核备注",
+        "notesPlaceholder": "备注（可选）...",
+        "dispatchProbability": "派工概率",
+        "announceAria": "向客户公布审核结果",
+        "announceLabel": "向客户公布审核结果",
+        "autoAnnounceNote": "当概率 ≥ 80% 时将自动启用公布。",
+        "submitAria": "提交现场审核",
+        "submit": "提交审核"
+      },
+      "errors": {
+        "loadFailed": "加载审核失败",
+        "network": "网络错误",
+        "noEmployeeAssigned": "该订单未分配员工",
+        "submitFailed": "提交审核失败"
+      }
+    },
+    "riesgo": {
+      "title": "按地址评估风险",
+      "subtitle": "仅管理员和组长可见——客户绝不可见。0-2项标记=标准 · 3-4项=需审核员 · 5项以上=需预检查。",
+      "recordAssessment": "记录评估",
+      "propertyIdAria": "客户房产ID（UUID）",
+      "propertyIdPlaceholder": "client_property_id（UUID）",
+      "filterAria": "按客户房产ID筛选",
+      "filterPlaceholder": "按 client_property_id 筛选（可选）",
+      "search": "搜索",
+      "emptyState": "尚无已记录的评估。",
+      "blockedNotice": "已阻止——非Lulu服务范围",
+      "errors": {
+        "missingPropertyId": "缺少房产ID（client_property_id）。",
+        "saveFailed": "无法保存评估。"
+      },
+      "flags": {
+        "steep_stairs": "陡峭楼梯（+防护装备 +15分钟）",
+        "aggressive_dog": "有攻击性的狗（业主必须在场）",
+        "mold_over_1sqm": "霉菌超过1平方米（非Lulu服务范围——直接阻止）",
+        "confined_space": "密闭空间（需2人 + 每15分钟签到一次）",
+        "defective_lockbox": "钥匙盒故障（需上报钥匙问题）"
+      },
+      "tiers": {
+        "standard": "标准（0-2项标记）",
+        "auditor_required": "需审核员（3-4项标记）",
+        "pre_inspection_required": "需预检查（5项以上标记）"
+      }
+    },
+    "featureFlags": {
+      "title": "功能开关",
+      "searchFlags": "搜索功能开关",
+      "searchPlaceholder": "搜索……",
+      "staleCriticalWarning": "有 {count} 个关键开关已关闭超过 7 天：",
+      "noModule": "无模块",
+      "activeCount": "{active}/{total} 已启用",
+      "descriptionOf": "{name} 的说明",
+      "noDescription": "暂无说明。",
+      "turnOff": "关闭",
+      "turnOn": "开启",
+      "switchDescriptionFallback": "此开关用于启用或禁用某项系统功能。",
+      "criticalFlagWarning": "⚠ 关键开关（P0）：关闭它会禁用核心业务功能。",
+      "cancel": "取消",
+      "confirm": "确认",
+      "saving": "保存中……",
+      "errorLoading": "加载开关时出错",
+      "errorSaving": "保存时出错",
+      "error": "错误"
+    },
+    "routeShortcuts": {
+      "title": "路线捷径",
+      "subtitle": "由员工上报的路线捷径。每条捷径验证后一次性支付10美元。",
+      "pendingOnlyAria": "仅显示待验证的捷径",
+      "pendingOnlyLabel": "仅待验证",
+      "emptyState": "尚无上报的捷径。",
+      "validated": "已验证",
+      "validateAction": "验证（+$10）",
+      "errors": {
+        "loadFailed": "加载失败",
+        "network": "网络错误"
+      }
+    },
+    "backups": {
+      "title": "备份状态",
+      "subtitle": "交易每日、工资单每周期、客户每周、照片清单每月。CSV+SHA-256 存储在 Supabase Storage 中（异地 B2/Glacier 复制尚未连接 — 未配置外部凭证）。pg_dump 需要直接访问 Postgres，此处仅作为每月人工提醒，另通过灾难恢复演练（E11.4）单独验证。",
+      "loading": "加载中…",
+      "dueToRun": "待执行",
+      "upToDate": "已是最新",
+      "lastSuccess": "上次成功：{date} · {rows} 行 · {destination} · {hash}",
+      "neverRun": "从未成功执行过。",
+      "lastAttemptFailed": "上次尝试失败：{error}",
+      "jobLabels": {
+        "transactionsDaily": "交易（每日）",
+        "payrollPerCycle": "工资单（每周期）",
+        "clientsWeekly": "客户（每周）",
+        "photosMonthly": "照片清单（每月）",
+        "pgDumpMonthly": "pg_dump（每月提醒）"
+      },
+      "errors": {
+        "loadFailed": "加载失败",
+        "network": "网络错误"
+      }
+    },
+    "growthMetrics": {
+      "title": "增长指标记分卡",
+      "subtitle": "最近 {days} 天（D.10.13）。目标：转化漏斗 >15%/25%，CAC<LTV/3，流失率<10%，NPS>50，推荐率>20%。",
+      "noData": "暂无数据",
+      "meetsTarget": "达到目标",
+      "belowTarget": "未达目标",
+      "funnelConversion": "漏斗转化率",
+      "referralRate": "推荐率（新客户）",
+      "churnRate": "流失率",
+      "churnDetail": "{signals} 个信号 / {active} 个活跃客户",
+      "nps": "净推荐值 (NPS)",
+      "npsDetail": "{promoters} 位推荐者 · {passives} 位被动者 · {detractors} 位贬损者（{responses} 份回复）",
+      "errorLoading": "加载失败",
+      "errorNetwork": "网络错误",
+      "funnelStage": {
+        "below_target": "未达目标（需 >15%）",
+        "acceptable": "可接受（>15%）",
+        "excellent": "优秀（>25%）"
+      }
+    },
+    "seasonalCampaigns": {
+      "title": "季节性活动",
+      "subtitle": "5个预设活动（D.10.4）。建议月份仅供参考——实际触发由需求信号调节。目前尚无实时天气数据，请手动输入今日信号。",
+      "suggestedMonth": "建议月份：{month}",
+      "signalsHeading": "今日需求信号",
+      "evaluateAll": "评估全部5个活动",
+      "evaluationsHeading": "评估记录",
+      "noEvaluations": "尚无评估记录。",
+      "recommendsTrigger": "{multiplier}倍——建议触发",
+      "approve": "批准",
+      "reject": "拒绝",
+      "markDispatched": "标记为已发布",
+      "errors": {
+        "loadFailed": "加载失败",
+        "network": "网络错误",
+        "evaluateFailed": "评估失败",
+        "actionFailed": "操作失败"
+      },
+      "signals": {
+        "rainyAria": "下雨天",
+        "rainy": "下雨（+30%）",
+        "localEventAria": "本地活动",
+        "localEvent": "本地活动（−20%）",
+        "schoolVacationAria": "学校假期",
+        "schoolVacation": "学校假期（−30%）",
+        "highPollenAria": "高花粉浓度",
+        "highPollen": "高花粉（+25%）",
+        "holidayAria": "适用节日",
+        "noHoliday": "无节日",
+        "mothersDay": "母亲节（+40%）",
+        "christmas": "圣诞节（+50%）"
+      },
+      "statuses": {
+        "suggested": "已建议",
+        "approved": "已批准",
+        "rejected": "已拒绝",
+        "dispatched": "已发布"
+      },
+      "months": {
+        "january": "一月",
+        "february": "二月",
+        "march": "三月",
+        "april": "四月",
+        "may": "五月",
+        "june": "六月",
+        "july": "七月",
+        "august": "八月",
+        "september": "九月",
+        "october": "十月",
+        "november": "十一月",
+        "december": "十二月"
+      },
+      "dispatchModal": {
+        "title": "将活动标记为已发布",
+        "message": "此操作会立即为所有新预订激活季节性定价倍率，且无法撤销。"
+      }
+    },
+    "businessInsurance": {
+      "title": "商业保险",
+      "subtitle": "车辆责任险、一般责任险和errors & omissions（专业责任）保单。此登记本身并不能使网站上出现任何“已投保/担保”的声明 — 那需要您另外的书面确认（B.4）。",
+      "addRenewPolicy": "添加/续保保单",
+      "missingPolicies": "缺失的保单：{types}。",
+      "emptyState": "尚未登记任何保单。",
+      "belowMinimum": "低于规范最低要求",
+      "coverageAmount": "保额 ${amount}",
+      "expires": "到期日 {date}",
+      "policyTypes": {
+        "vehicular": "车辆责任险",
+        "generalLiability": "一般责任险",
+        "errorsOmissions": "专业责任险（Errors & Omissions）"
+      },
+      "status": {
+        "active": "有效",
+        "expiringSoon": "即将到期",
+        "expired": "已过期"
+      },
+      "form": {
+        "title": "新增/续保保单",
+        "closeAria": "关闭表单",
+        "policyType": "保单类型",
+        "policyTypeAria": "保单类型",
+        "minCoverage": "最低 ${amount}",
+        "providerAria": "保险公司或经纪人",
+        "providerPlaceholder": "保险公司/经纪人",
+        "policyNumberAria": "保单号码",
+        "policyNumberPlaceholder": "保单号码（可选）",
+        "coverageAria": "保额（美元）",
+        "coveragePlaceholder": "保额（$）",
+        "effectiveFrom": "生效日期",
+        "effectiveFromAria": "保单生效开始日期",
+        "expiryDate": "到期日期",
+        "expiryDateAria": "保单到期日期",
+        "saveAria": "保存保险单",
+        "saving": "保存中...",
+        "save": "保存保单"
+      },
+      "errors": {
+        "loadFailed": "加载失败",
+        "saveFailed": "保存失败",
+        "network": "网络错误"
+      }
+    },
+    "livePortfolio": {
+      "title": "实时作品集",
+      "subtitle": "已通过客观资格筛选的候选项。请判断前后对比的视觉差异，一键批准。批准后将启动客户 24 小时的撤回窗口期。",
+      "empty": "暂无待审核的候选项。",
+      "checklistScore": "清单完成度 {checklist}% · 员工评分 {score}",
+      "approve": "批准",
+      "reject": "拒绝",
+      "rejectModalTitle": "拒绝候选项",
+      "rejectModalMessage": "此候选项将从审核队列中移除，且不会再次提交批准。此操作无法撤销。",
+      "errorLoading": "加载失败",
+      "errorNetwork": "网络错误",
+      "errorUpdating": "更新失败"
+    },
+    "marketing": {
+      "title": "营销——教育内容（博客）",
+      "intro": "每篇文章在获批前都必须通过 PIPA 验证器（B.2.20）和定位一致性验证器（B.2.24/B.2.25）。只要",
+      "introFlagSuffix": "开关处于关闭状态，“已投保/已担保”字样就会被自动屏蔽。",
+      "loading": "加载中……",
+      "untitled": "（无标题）",
+      "sourceSample": "来源：{source} · 样本量={sample}",
+      "noContent": "（无内容）",
+      "evaluateAction": "评估（PIPA + 定位）",
+      "approve": "批准",
+      "reject": "拒绝",
+      "publish": "发布",
+      "noPosts": "暂无记录的文章。",
+      "errorLoading": "加载营销内容时出错",
+      "errorRunningAction": "执行操作时出错",
+      "errorUnknown": "未知错误",
+      "validationPassed": "PIPA + 定位验证：通过。文章已移至待批准状态。",
+      "validationFailed": "验证失败：{reasons}",
+      "status": {
+        "draft": "草稿",
+        "pendingApproval": "待批准",
+        "approved": "已批准",
+        "published": "已发布",
+        "rejected": "已拒绝"
+      }
+    },
+    "certificaciones": {
+      "title": "员工认证",
+      "subtitle": "化学品处理认证，共 3 个递进级别（D.9 文件 3）。所有认证均已过期或被撤销的员工将自动从次日派工中排除。",
+      "blockedBanner": "目前有 {count} 名在职员工因无有效认证而被禁止派工。",
+      "loading": "加载中…",
+      "active": "在职",
+      "inactive": "非在职",
+      "blockedFromDispatch": "已禁止派工",
+      "noCertification": "尚未登记任何认证。",
+      "certBadge": "{level} 级 · 到期于 {date} · {status}",
+      "statusLabels": {
+        "valid": "有效",
+        "expiring_soon": "即将到期",
+        "expired": "已过期",
+        "revoked": "已撤销",
+        "none": "无"
+      },
+      "registerForm": {
+        "title": "登记认证",
+        "employeeAria": "选择员工",
+        "selectEmployee": "选择员工…",
+        "levelAria": "选择认证级别",
+        "level": "{level} 级",
+        "expiresAria": "认证到期日期",
+        "add": "添加"
+      },
+      "revokeModal": {
+        "title": "撤销认证",
+        "message": "此认证将被标记为已撤销，且不能再用于使该员工可被派工。",
+        "confirm": "撤销",
+        "reasonLabel": "撤销原因"
+      },
+      "errors": {
+        "loadFailed": "加载失败",
+        "genericFailed": "失败",
+        "network": "网络错误"
+      }
+    },
+    "seguridad": {
+      "title": "备用代码",
+      "intro": "一次性代码，用于在您无法访问Google账户时登录管理面板。请将其保存在此设备之外（打印出来或存入密码管理器）——生成时仅显示一次。",
+      "currentSetGeneratedOn": "当前代码组生成于",
+      "unusedOfTotal": "未使用，共 {total} 个",
+      "usedCount": "{count} 个已使用",
+      "noUnusedCodesLeft": "您已没有未使用的代码。请生成一组新代码。",
+      "noCodesGeneratedYet": "您尚未生成备用代码。",
+      "regenerateButton": "重新生成备用代码",
+      "generateButton": "生成备用代码",
+      "confirmModal": {
+        "titleRegenerate": "生成一组新代码？",
+        "titleGenerate": "生成备用代码？",
+        "invalidatesWarning": "此操作将立即使当前代码组中未使用的 {count} 个代码失效。",
+        "tenCodesNotice": "您将获得10个一次性代码，仅显示一次。",
+        "cancel": "取消",
+        "generatingAria": "正在生成备用代码",
+        "confirmAria": "确认生成备用代码",
+        "generating": "生成中……",
+        "confirm": "确认"
+      },
+      "saveCodesWarning": "请立即保存这些代码。它们不会再次显示——如果丢失，您需要生成一组新代码（这将使这些代码失效）。",
+      "copiedAria": "备用代码已复制到剪贴板",
+      "copyAllAria": "复制所有备用代码",
+      "copied": "已复制",
+      "copyAll": "全部复制",
+      "ackSavedAria": "我已将这些代码保存在安全的地方",
+      "ackSavedLabel": "我已将这些代码保存在安全的地方。",
+      "done": "完成",
+      "errors": {
+        "loadFailed": "加载备用代码状态时出错",
+        "generateFailed": "生成代码时出错",
+        "generic": "错误"
+      }
+    },
+    "nearMisses": {
+      "title": "险情报告",
+      "subtitle": "无处罚上报，可选择匿名。此处从不显示上报人身份——仅显示每周按类别汇总的情况及建议措施。",
+      "previousWeek": "← 上一周",
+      "nextWeek": "下一周 →",
+      "totalReportedThisWeek": "本周上报总数",
+      "noReports": "本周无上报。",
+      "reportCount": "{count} 次上报",
+      "errorLoading": "无法加载险情仪表板。",
+      "errorNetwork": "网络错误。",
+      "category": {
+        "nearFall": "险些跌倒",
+        "nearChemicalMix": "险些化学品混合",
+        "nearBite": "险些被咬",
+        "nearBurn": "险些烧伤",
+        "other": "其他"
+      }
+    },
+    "seoLocal": {
+      "title": "本地SEO与Google商家资料",
+      "subtitle": "运营检查清单（D.10.3）。系统内没有真实商家的OAuth凭证，因此未接入GBP API集成——每个项目完成后需手动标记。",
+      "markDone": "标记为完成",
+      "lastDoneOn": "上次完成于 {date}",
+      "napHeading": "NAP一致性（名称/地址/电话）",
+      "napSubtitle": "每季度在各目录（GBP、Yelp、Bing Places）中手动核查一次。",
+      "lastCheck": "上次核查：{date}",
+      "consistent": "一致",
+      "inconsistenciesFound": "发现不一致",
+      "overdueNotice": "已逾期——距上次核查已超过91天。",
+      "recordConsistent": "记录：一致",
+      "recordInconsistent": "记录：发现不一致",
+      "frequencies": {
+        "once": "一次性",
+        "weekly": "每周",
+        "quarterly": "每季度"
+      },
+      "statuses": {
+        "never_done": "从未完成",
+        "ok": "正常",
+        "due_soon": "即将到期",
+        "overdue": "已逾期"
+      },
+      "errors": {
+        "loadFailed": "加载失败",
+        "network": "网络错误"
+      }
+    },
+    "churnSignals": {
+      "title": "客户流失信号",
+      "subtitle": "D.10.9 — 60 天以上不活跃的常规客户将收到调查问卷，90 天以上不活跃的偶发客户将收到重新激活优惠。竞争对手提及和团队评分下降需在下方手动标记。",
+      "flagManually": "手动标记",
+      "markActioned": "标记为已处理",
+      "dismiss": "忽略",
+      "actions": {
+        "survey_20": "发送调查问卷（20 美元抵用金）",
+        "discount_30_percent": "发送重新激活优惠（8 折）",
+        "personal_intervention": "需要专人致电",
+        "flag_unreported_dispute": "调查 — 可能存在未上报的纠纷"
+      },
+      "sources": {
+        "cron": "自动",
+        "manual": "手动"
+      },
+      "statusLabels": {
+        "pending": "待处理",
+        "actioned": "已处理",
+        "dismissed": "已忽略"
+      },
+      "sections": {
+        "pending": "待处理（{count}）",
+        "resolved": "已解决"
+      },
+      "emptyStates": {
+        "noPending": "暂无待处理的流失信号。"
+      },
+      "form": {
+        "title": "手动信号",
+        "closeAria": "关闭表单",
+        "clientIdAria": "客户用户 ID",
+        "clientIdPlaceholder": "客户用户 ID",
+        "competitorMentionAria": "取消并提及了竞争对手",
+        "competitorMentionLabel": "取消并提及了竞争对手",
+        "teamScorePreviousAria": "此前的团队评分",
+        "teamScorePreviousPlaceholder": "此前团队评分",
+        "teamScoreCurrentAria": "当前的团队评分",
+        "teamScoreCurrentPlaceholder": "当前团队评分",
+        "saveAria": "保存流失信号",
+        "saving": "保存中...",
+        "save": "保存信号"
+      },
+      "errors": {
+        "loadFailed": "加载失败",
+        "genericFailed": "失败",
+        "network": "网络错误"
+      }
+    },
+    "neighborhood": {
+      "title": "邻里关系",
+      "logComplaint": "记录投诉",
+      "logNeighborLead": "记录邻居线索",
+      "logNeighborComplaint": "记录邻居投诉",
+      "closeForm": "关闭表单",
+      "propertyId": "房产 ID",
+      "complaintDescription": "投诉描述",
+      "description": "描述",
+      "saveNeighborComplaint": "保存邻居投诉",
+      "saving": "保存中……",
+      "save": "保存",
+      "neighborName": "邻居姓名",
+      "name": "姓名",
+      "contactPhoneOptional": "联系电话（可选）",
+      "phoneOptional": "电话（可选）",
+      "contactEmailOptional": "联系邮箱（可选）",
+      "emailOptional": "邮箱（可选）",
+      "leadNotes": "线索备注",
+      "notes": "备注",
+      "saveNeighborLead": "保存邻居线索",
+      "neighborComplaints": "邻居投诉",
+      "neighborLeads": "邻居线索",
+      "noneLogged": "暂无记录。",
+      "unknownAddress": "（地址未知）",
+      "errorLoading": "加载失败",
+      "errorNetwork": "网络错误",
+      "errorGeneric": "失败"
+    },
+    "clientSegments": {
+      "title": "客户分群",
+      "subtitle": "VIP（>$500/月 或 >10 次服务）· 常规客户（$200-500/月）· 偶发客户（<$200/月）· 高风险（距上次服务 60 天以上）· 新客户（1-2 次服务）。",
+      "emptyState": "该分群暂无客户。",
+      "segments": {
+        "vip": "VIP",
+        "regular": "常规",
+        "sporadic": "偶发",
+        "atRisk": "高风险",
+        "new": "新客户"
+      },
+      "clientRow": {
+        "services": "{count} 次服务 · 每月 ${spend}",
+        "daysSinceLastService": "距上次服务 {days} 天"
+      },
+      "errors": {
+        "loadFailed": "加载失败",
+        "network": "网络错误"
+      }
+    },
+    "sos": {
+      "title": "安全中止（SOS）",
+      "subtitle": "系统出于安全考虑会先行批准。事后审核始终为强制性要求（B.3.5）；若证据支持组长，则禁止处分。",
+      "emptyState": "尚无安全中止记录。",
+      "gps": "GPS：{lat}，{lng}",
+      "acknowledgeAction": "确认（停止升级）",
+      "reviewedSummary": "已完成事后审核。证据{supports}组长——处分{sanction}。",
+      "supports": "支持",
+      "doesNotSupport": "不支持",
+      "sanctionProhibited": "被禁止",
+      "sanctionNotProhibited": "未被禁止（需人工审核）",
+      "reviewPending": "事后审核待处理（强制要求——B.3.5）",
+      "evidenceSupportsAria": "证据支持组长",
+      "evidenceSupportsLabel": "证据支持组长",
+      "evidenceDoesNotSupportAria": "证据不支持组长",
+      "evidenceDoesNotSupportLabel": "证据不支持",
+      "reviewNotesAria": "审核备注（可选）",
+      "reviewNotesPlaceholder": "审核备注（可选）",
+      "recordReview": "记录事后审核",
+      "stages": {
+        "sos_active": "SOS激活中（0-2分钟）",
+        "escalated_admin_call": "已升级：管理员来电（2-4分钟）",
+        "escalated_emergency_admin": "已升级：紧急管理员介入（4-10分钟）",
+        "auto_approved": "已因安全自动批准（10分钟以上）",
+        "acknowledged": "管理员已确认"
+      },
+      "errors": {
+        "loadFailed": "无法加载SOS收件箱。",
+        "network": "网络错误。"
+      }
+    },
+    "parametrosEconomicos": {
+      "title": "经济参数",
+      "subtitle": "BC 省最低工资 / 最低日薪。先模拟，再一键应用——绝不自动应用。",
+      "appliedSuccessfully": "已成功应用。",
+      "currentMinWage": "当前 BC 省最低工资",
+      "perHour": "${amount}/小时",
+      "currentMinDayRate": "当前最低日薪",
+      "standardDayHours": "标准工作日小时数",
+      "effectiveFrom": "生效日期",
+      "simulateNewWage": "模拟新的最低工资",
+      "newWageToSimulate": "要模拟的新最低工资",
+      "wageExample": "例如 18.65",
+      "simulateImpact": "模拟新最低工资的影响",
+      "simulating": "模拟中……",
+      "simulate": "模拟",
+      "deltaPerHour": "每小时 {sign}{percent}%（{amountSign}${amount}）",
+      "suggestedNewDayRate": "建议的新最低日薪：",
+      "affectedContracts": "有 {count} 份低于新底线的活跃合同需要调整。",
+      "reasonForChange": "最低工资变更原因",
+      "reasonPlaceholder": "本次变更的原因（必填，至少 3 个字符）",
+      "applyWageChange": "应用最低工资变更",
+      "applying": "应用中……",
+      "applyButton": "应用此变更（一键操作，无法悄悄撤销）",
+      "errorLoading": "加载失败",
+      "errorNetwork": "网络错误",
+      "errorSimulating": "模拟失败",
+      "errorApplying": "应用失败"
+    },
+    "competencia": {
+      "title": "竞争情报",
+      "subtitle": "最多 10 家活跃竞争对手（D.10.10）。当前数据来源：E1 的每月人工清单。自动抓取 ⏸️ 暂缓（需在自动化前审查各网站的服务条款）— 一旦启用，将通过 <code>source = 'scraping'</code> 向同一表格供数，不影响此面板。",
+      "loading": "加载中…",
+      "activeCount": "{count} / 10 家活跃竞争对手",
+      "noData": "无数据",
+      "noCompetitors": "暂无竞争对手记录。",
+      "table": {
+        "competitor": "竞争对手",
+        "zone": "区域",
+        "price": "价格",
+        "rating": "评分",
+        "reviews": "评论数",
+        "lastCapture": "最近采集"
+      },
+      "errors": {
+        "loadFailed": "加载竞争情报出错",
+        "unknown": "未知错误"
+      }
+    },
+    "stressScenario": {
+      "title": "财务压力情景",
+      "subtitle": "模拟连续3个月收入下降30%（D.11.7）。运行时必须有业主在场，并记录适用的应对杠杆——固定顺序（按区块计日薪 → 唤醒沉睡客户 → 暂停新礼品 → 削减无利润区域）不得跳过或调整。",
+      "fields": {
+        "revenue": "当前月收入（$）",
+        "fixedCosts": "当前月固定成本（$）",
+        "variableCosts": "当前月可变成本（$）",
+        "cashOnHand": "现有现金（$，可选——用于储备规则）",
+        "biweeklyPayroll": "双周工资（$，可选）"
+      },
+      "ownerPresentLabel": "业主在场参与本次运行",
+      "leversIntro": "计划中记录的应对杠杆（按顺序，不得跳过）：",
+      "levers": {
+        "dayRatePorBloque": "1. 按区块计日薪",
+        "reactivacionDormidos": "2. 唤醒沉睡客户",
+        "pausarRegalosNuevos": "3. 暂停新礼品",
+        "cortarZonasNoRentables": "4. 削减无利润区域"
+      },
+      "notesAria": "备注，可选",
+      "notesPlaceholder": "备注（可选）",
+      "runScenario": "运行情景",
+      "resultsHeading": "结果",
+      "monthLabel": "第{index}个月",
+      "revenueAmount": "收入 {amount}",
+      "netMarginAmount": "净利润 {amount}",
+      "crossesThreshold": "已超过强制审查阈值（连续2个月以上为负）——需要与业主进行审查。",
+      "doesNotCrossThreshold": "未超过强制审查阈值。",
+      "reserveRule": "扩张储备规则（3个月固定成本 + 1次双周工资）：需要 {amount}。",
+      "reserveMet": "已满足。",
+      "reserveShortBy": "缺口 {amount}。",
+      "errors": {
+        "runFailed": "运行情景失败",
+        "network": "网络错误"
+      }
+    },
+    "partners": {
+      "title": "合作伙伴与佣金",
+      "calculateCommission": "计算佣金",
+      "registerPartner": "注册合作伙伴",
+      "closeForm": "关闭表单",
+      "newPartner": "新合作伙伴",
+      "partnerType": "合作伙伴类型",
+      "partnerName": "合作伙伴姓名",
+      "name": "姓名",
+      "partnerContactEmailOptional": "合作伙伴联系邮箱（可选）",
+      "contactEmailOptional": "联系邮箱（可选）",
+      "savePartner": "保存合作伙伴",
+      "saving": "保存中……",
+      "save": "保存",
+      "selectPartner": "选择合作伙伴",
+      "selectPartnerOption": "选择合作伙伴",
+      "orderId": "订单 ID",
+      "orderValueDollars": "订单金额（美元）",
+      "orderValuePlaceholder": "订单金额（$）",
+      "calculateAndLog": "计算并记录佣金",
+      "calculating": "计算中……",
+      "calculateAndLogShort": "计算并记录",
+      "partnersCount": "合作伙伴（{count}）",
+      "noPartners": "尚未注册合作伙伴。",
+      "commissions": "佣金",
+      "noCommissions": "尚无佣金记录。",
+      "markPaid": "标记为已付款",
+      "errorNetwork": "网络错误",
+      "errorGeneric": "失败",
+      "type": {
+        "realEstateAgent": "房地产经纪人（首次预订 10%）",
+        "propertyManager": "物业经理（每月 5%）",
+        "veterinarian": "兽医（固定 20 美元）",
+        "builder": "建筑商（15%）"
+      },
+      "commissionStatus": {
+        "pending": "待处理",
+        "paid": "已付款",
+        "void": "已作废"
+      }
+    },
+    "comunicaciones": {
+      "title": "沟通模板",
+      "searchAria": "按事件搜索模板",
+      "searchPlaceholder": "搜索事件…",
+      "viewHistory": "查看历史 / 撤销",
+      "categoryTransactional": "事务性",
+      "categoryMarketing": "营销性",
+      "urgent": "紧急",
+      "noTemplate": "尚无模板。",
+      "editTemplateAria": "编辑模板 {eventKey}（{language}）",
+      "form": {
+        "subjectAria": "模板主题（可选，仅限邮件）",
+        "subjectPlaceholder": "主题（可选，仅限邮件）",
+        "bodyAria": "沟通模板文本",
+        "bodyPlaceholder": "模板文本 — 使用 {variable} 表示动态值",
+        "reasonAria": "模板修改原因",
+        "reasonPlaceholder": "修改原因（必填）",
+        "cancel": "取消",
+        "save": "保存"
+      },
+      "errors": {
+        "loadFailed": "加载模板出错",
+        "saveFailed": "保存模板出错",
+        "generic": "出错",
+        "emptyBody": "模板正文不能为空",
+        "reasonRequired": "编辑现有模板需要填写修改原因"
+      }
+    },
+    "weatherExceptions": {
+      "title": "恶劣天气例外",
+      "description": "D.10 第10项例外情况。目前尚未接入加拿大环境部的实时数据源——申报仍为人工方式。处理方式(改期或安全中止)始终由系统自动计算,绝不人为选择。",
+      "declareException": "申报例外情况",
+      "empty": "目前没有已申报的天气例外情况。",
+      "leadTime": "提前 {hours} 小时通知",
+      "errors": {
+        "loadFailed": "加载失败",
+        "saveFailed": "保存失败",
+        "network": "网络错误"
+      },
+      "resolutions": {
+        "rescheduleNoPenalty": "已改期——无罚款",
+        "safeAbortDayRateDiscount": "安全中止——按日费率结算,并享9折优惠"
+      },
+      "form": {
+        "title": "新增天气例外情况",
+        "closeAria": "关闭表单",
+        "affectedDateLabel": "受影响的服务日期",
+        "conditionAria": "天气状况",
+        "conditionPlaceholder": "天气状况(例如:大雪、风速超过70公里/小时)",
+        "hasAlertLabel": "我们在派遣团队前收到了提前预警",
+        "hasAlertAria": "在派遣团队前已收到提前预警",
+        "leadTimeAria": "服务前提前预警的小时数",
+        "leadTimePlaceholder": "服务前的提前预警小时数",
+        "affectedOrdersAria": "受影响的订单或区域",
+        "affectedOrdersPlaceholder": "受影响的订单/区域(自由文本——实际改期另行处理)",
+        "notesAria": "补充说明(可选)",
+        "notesPlaceholder": "备注(可选)",
+        "saving": "保存中...",
+        "submitAria": "申报天气例外情况",
+        "resolutionPrefix": "处理方式:"
+      }
+    },
+    "wellbeing": {
+      "title": "团队健康状况",
+      "description": "仅显示汇总数据——任何个人打卡记录都不可查看,即使是 owner_admin 也不例外(由行级安全策略强制执行,底层数据表不存在任何 SELECT 策略)。",
+      "dateAria": "健康报告日期",
+      "noCheckins": "{date} 没有记录到任何打卡。",
+      "errors": {
+        "loadFailed": "加载失败",
+        "network": "网络错误"
+      },
+      "stats": {
+        "totalCheckins": "打卡总数",
+        "sleptLessThan6h": "睡眠不足6小时",
+        "happy": "开心",
+        "neutral": "一般",
+        "sad": "低落"
+      }
+    },
+    "workplaceIncidents": {
+      "title": "工作场所事故——WorkSafeBC",
+      "description": "需要在72小时内提交 WorkSafeBC 报告的工伤(D.10 第6项)。目前没有公开的提交接口——本页面仅根据系统已知信息预先填写数据,请将其复制到正式的 WorkSafeBC 表格中。",
+      "empty": "暂无工作场所事故报告。",
+      "deadline": "截止时间",
+      "ref": "编号",
+      "hidePrefilled": "隐藏预填数据",
+      "viewPrefilled": "查看预填数据",
+      "referenceAria": "WorkSafeBC 参考编号(可选)",
+      "referencePlaceholder": "参考编号(可选)",
+      "saving": "保存中...",
+      "markFiled": "标记为已提交",
+      "copyToClipboard": "复制到剪贴板",
+      "errors": {
+        "loadFailed": "加载失败",
+        "network": "网络错误",
+        "generic": "操作失败"
+      },
+      "status": {
+        "pending": "待处理",
+        "due_soon": "即将到期",
+        "overdue": "已逾期",
+        "filed_on_time": "按时提交",
+        "filed_late": "逾期提交"
+      },
+      "fields": {
+        "worker": "员工",
+        "date": "日期",
+        "location": "地点",
+        "bodyPart": "受伤部位",
+        "natureOfInjury": "伤情性质",
+        "medicalAttention": "医疗处理",
+        "witnesses": "目击者",
+        "immediateAction": "即时处理措施"
+      }
+    },
+    "autopilotBanner": {
+      "modePrefix": "模式:"
+    },
+    "confirmActionModal": {
+      "confirmDefault": "确认",
+      "cancelDefault": "取消",
+      "closeAria": "关闭",
+      "actionFailed": "操作失败",
+      "optional": "可选",
+      "working": "处理中..."
+    },
+    "contabilidad": {
+      "title": "运营会计",
+      "intro": "已收款 = 实际向客户收取的金额。已支付 = 工资总额。边际贡献 = 已收款 − 已支付。实际净利润 = 已收款 − 已支付 − 雇主负担（CPP/EI/WorkSafeBC）− 按比例分摊的每月固定成本（租金、保险、软件、业主薪酬）。在相应周期存在工资快照之前，雇主负担显示为0。固定成本按所选范围内实际存在的日历月按比例分摊，并按订单平均分配。",
+      "filters": {
+        "from": "开始日期",
+        "to": "结束日期",
+        "filter": "筛选"
+      },
+      "export": {
+        "label": "通用导出（月份）",
+        "csv": "CSV",
+        "json": "JSON",
+        "note": "不依赖 QBO — 当月的收入、工资、佣金、礼品和税务储备（D.9.5）。"
+      },
+      "loading": "加载中…",
+      "retry": "重试",
+      "fixedCostsWarning": {
+        "text": "尚未设置每月固定成本（租金、保险、软件、业主薪酬）— 下方实际净利润暂未扣除这些费用，目前等于边际贡献。",
+        "setNow": "立即设置"
+      },
+      "fixedCostsForm": {
+        "amountLabel": "每月固定成本（$）",
+        "reasonLabel": "原因（必填）",
+        "reasonPlaceholder": "例如：使用实际租金和保险的初始设置",
+        "saveAriaLabel": "保存固定成本",
+        "saving": "保存中...",
+        "save": "保存",
+        "invalidInput": "请输入有效金额（0或以上）并填写原因后再保存。",
+        "saveError": "无法保存固定成本，请检查数值后重试。",
+        "connectionError": "连接出现问题，请检查网络后重试。"
+      },
+      "fixedCostsSuccess": "固定成本已保存。",
+      "dismissAriaLabel": "关闭",
+      "loadError": "无法加载会计数据。",
+      "loadErrorFull": "无法加载会计数据，请检查网络连接后重试。",
+      "summary": {
+        "totalCollected": "总收款",
+        "netMargin": "实际净利润"
+      },
+      "tables": {
+        "byZone": "按区域",
+        "byServiceType": "按服务类型",
+        "byTeam": "按团队"
+      },
+      "table": {
+        "group": "分组",
+        "orders": "订单数",
+        "collected": "已收款",
+        "paid": "已支付（工资）",
+        "employerBurden": "雇主负担",
+        "contributionMargin": "边际贡献",
+        "netMargin": "实际净利润",
+        "noData": "所选范围内暂无数据。",
+        "lowMarginWarning": "高亮显示的服务类型低于{threshold}%的边际贡献底线（D.9.2）— 请考虑调整定价规则或重新审查该服务的标准作业时长。"
+      }
+    },
+    "dispatch": {
+      "title": "调度审核",
+      "dateAriaLabel": "要审核的调度日期",
+      "transitNotice": "通勤时间尚未接入实时交通数据 — 工作日总时长使用固定的每单30分钟占位值（与调度器内部使用的相同），并非真实预计到达时间。您在此处手动分配的安排将被锁定，不会被下午5:30的自动发布覆盖。",
+      "loadError": "加载调度数据失败",
+      "networkError": "网络错误",
+      "emptyForDate": "{date} 没有安排服务。",
+      "noAssignmentsYet": "此日期尚无分配 — 调度器将在下午4:30提出建议，并于前一天下午5:30发布。您现在可以手动分配；分配后将被锁定且不会被覆盖。",
+      "zoneNA": "区域未知",
+      "edit": "编辑",
+      "noOneAssigned": "尚未分配任何人",
+      "lead": "组长",
+      "locked": "已锁定",
+      "workdaySummary": "工作日汇总",
+      "noOneAssignedYet": "尚未分配任何人。",
+      "ordersTotal": "{count} 单 · 共 {hours}",
+      "languageBadge": {
+        "match": "语言匹配",
+        "no_match": "语言不匹配",
+        "unassigned": "未分配"
+      },
+      "workdayBadge": {
+        "ok": "正常",
+        "overtime_needs_approval": ">8小时 — 需审批",
+        "blocked": ">10小时 — 已阻止"
+      },
+      "modal": {
+        "requires": "需要 {min}-{max} 名团队成员。客户语言：{languages}",
+        "assignToAriaLabel": "分配给 {name}",
+        "notesAriaLabel": "分配备注（可选）",
+        "notesPlaceholder": "备注（可选）",
+        "selectAtLeastOne": "请至少选择一名员工",
+        "saveError": "保存失败",
+        "cancel": "取消",
+        "savingAriaLabel": "正在保存分配",
+        "saveAriaLabel": "保存并锁定分配",
+        "saving": "保存中...",
+        "saveAndLock": "保存并锁定"
+      }
+    },
+    "nomina": {
+      "title": "工资单导出",
+      "subtitle": "按员工计算的 CPP/EI/WorkSafeBC/假期工资。不包含联邦/省所得税代扣。",
+      "cycleSelectAriaLabel": "选择薪资周期",
+      "cycleOptions": {
+        "previous": "上一周期（待支付）",
+        "current": "本周期"
+      },
+      "csvButton": "CSV",
+      "loadError": "加载失败",
+      "networkError": "网络错误",
+      "empty": "此周期暂无工资记录。",
+      "totals": {
+        "gross": "总毛额",
+        "net": "预计净额合计"
+      },
+      "table": {
+        "employee": "员工",
+        "services": "服务次数",
+        "gross": "毛额",
+        "cpp": "CPP（加拿大退休金）",
+        "eiEmployee": "EI（员工）",
+        "workSafeBc": "WorkSafeBC",
+        "vacationPay": "假期工资",
+        "estNet": "预计净额"
+      }
+    },
+    "dashboardMetrics": {
+      "title": "业务健康状况 — 过去30天",
+      "loadError": "加载指标失败",
+      "networkError": "网络错误",
+      "noData": "暂无数据",
+      "thresholdsTooltip": "4个运营阈值由规范固定；净利润率阈值是可重新校准的起点，并非规范中的固定数字。",
+      "target": "目标：>{threshold}%",
+      "targetPlain": "目标：>{threshold}",
+      "cards": {
+        "disputeFreeRate": {
+          "title": "无争议服务",
+          "subtitle": "已完成 {completed} 项，争议 {disputed} 项"
+        },
+        "batchCapture": {
+          "title": "批量扣款成功率",
+          "subtitle": "成功 {captured} 项，失败 {failed} 项"
+        },
+        "teamScore": {
+          "title": "团队平均评分",
+          "weekOf": "{week} 那一周",
+          "noScores": "暂无团队评分"
+        },
+        "contributionMargin": {
+          "title": "边际贡献率"
+        },
+        "netMargin": {
+          "title": "净利润率（实际）",
+          "notConfigured": "尚未设置每月固定成本",
+          "fixedCostPerService": "本月每单固定成本：${amount}"
+        }
+      },
+      "fixedCosts": {
+        "label": "每月固定成本（$）",
+        "placeholder": "例如 3500",
+        "invalidAmount": "请输入有效的非负金额",
+        "saveError": "保存失败",
+        "saving": "保存中...",
+        "save": "保存",
+        "cancel": "取消",
+        "update": "更新固定成本",
+        "set": "设置每月固定成本",
+        "savingAriaLabel": "正在保存每月固定成本",
+        "saveAriaLabel": "保存每月固定成本"
+      }
+    },
+    "orderCommunicationTimeline": {
+      "loadError": "加载失败",
+      "networkError": "网络错误",
+      "empty": "此订单暂无沟通记录。",
+      "status": {
+        "queued": "排队中",
+        "postponed": "已延后",
+        "sent": "已发送",
+        "delivered": "已送达",
+        "read": "已读",
+        "failed": "失败"
+      }
+    },
+    "pricingRules": {
+      "title": "定价规则",
+      "activeOfTotal": "共 {total} 条,{active} 条已启用",
+      "newRule": "新建规则",
+      "errors": {
+        "loadFailed": "加载定价规则失败",
+        "network": "网络错误",
+        "saveFailed": "保存规则失败",
+        "toggleFailed": "更新规则失败",
+        "deleteFailed": "删除规则失败"
+      },
+      "conflicts": {
+        "title": "检测到活动规则之间存在冲突"
+      },
+      "form": {
+        "editTitle": "编辑定价规则",
+        "createTitle": "创建定价规则",
+        "closeAria": "关闭表单",
+        "nameLabel": "规则名称",
+        "namePlaceholder": "例如:周末附加费",
+        "descriptionLabel": "描述",
+        "descriptionPlaceholder": "供审计日志使用的简要说明",
+        "conditionsLabel": "条件",
+        "matchLabel": "匹配方式",
+        "matchAll": "全部满足(AND)",
+        "matchAny": "任一满足(OR)",
+        "matchModeAria": "条件匹配模式(全部或任一)",
+        "conditionFieldAria": "条件 {index} 的字段",
+        "conditionOperatorAria": "条件 {index} 的运算符",
+        "conditionValueAria": "条件「{field}」的值",
+        "conditionValuesAria": "条件「{field}」的多个值",
+        "multiSelectHint": "按住 Ctrl/Cmd 键可选择多个值。",
+        "removeConditionAria": "移除条件 {index}",
+        "addCondition": "添加条件",
+        "actionLabel": "操作",
+        "valueLabel": "数值",
+        "multiplierHint": "0.90 表示 10% 折扣,1.20 表示 20% 附加费。",
+        "priorityLabel": "优先级",
+        "maxApplicableLabel": "允许在此规则之后继续应用其他规则",
+        "auditReasonLabel": "审计原因",
+        "auditReasonPlaceholder": "创建/编辑此规则的原因是什么?",
+        "cancel": "取消",
+        "saveChanges": "保存更改",
+        "createRule": "创建规则",
+        "saveChangesAria": "保存规则更改",
+        "createRuleAria": "创建定价规则"
+      },
+      "validation": {
+        "nameRequired": "规则名称为必填项",
+        "conditionsRequired": "至少需要一个条件",
+        "invalidOperator": "字段 {field} 的运算符无效",
+        "listRequired": "运算符 {op} 需要一个值列表",
+        "actionValueNumber": "操作数值必须是数字",
+        "multiplierPositive": "乘数必须大于 0",
+        "priorityInteger": "优先级必须是非负整数",
+        "reasonRequired": "审计日志需要填写原因"
+      },
+      "empty": {
+        "noRules": "未找到定价规则。"
+      },
+      "table": {
+        "rule": "规则",
+        "conditions": "条件",
+        "action": "操作",
+        "priority": "优先级",
+        "status": "状态",
+        "actions": "操作"
+      },
+      "stopChain": "停止后续规则",
+      "status": {
+        "active": "已启用",
+        "inactive": "已停用"
+      },
+      "conditionsGroup": {
+        "and": "且",
+        "or": "或"
+      },
+      "rowActions": {
+        "disableTitle": "停用",
+        "enableTitle": "启用",
+        "disableAria": "停用规则 {name}",
+        "enableAria": "启用规则 {name}",
+        "editTitle": "编辑",
+        "editAria": "编辑规则 {name}",
+        "deleteTitle": "删除",
+        "deleteAria": "删除规则 {name}",
+        "auditTitle": "审计历史",
+        "auditAria": "查看规则 {name} 的审计历史"
+      },
+      "audit": {
+        "title": "审计历史",
+        "empty": "未找到审计记录。"
+      },
+      "toggleModal": {
+        "disableTitle": "停用规则“{name}”",
+        "enableTitle": "启用规则“{name}”",
+        "disableConfirm": "停用",
+        "enableConfirm": "启用",
+        "disableReasonLabel": "停用此规则的原因",
+        "enableReasonLabel": "启用此规则的原因"
+      },
+      "deleteModal": {
+        "title": "删除规则“{name}”",
+        "message": "此定价规则将被永久删除。",
+        "confirm": "删除",
+        "reasonLabel": "删除此规则的原因"
+      },
+      "ruleFields": {
+        "zone": "区域",
+        "dayOfWeek": "星期几",
+        "isPreferredDay": "偏好日期",
+        "serviceType": "服务类型",
+        "serviceSubtype": "服务子类型",
+        "squareFeet": "面积(平方英尺)",
+        "clientScore": "客户评分",
+        "servicesCount": "服务次数",
+        "disputesLostCount": "败诉纠纷数",
+        "accountType": "账户类型",
+        "clientType": "客户类型",
+        "zoneDemand": "区域需求(0-100)",
+        "organicLoad": "自然订单负荷",
+        "daysSinceCleaning": "距上次清洁天数",
+        "advanceNoticeDays": "提前通知天数"
+      },
+      "ruleFieldOptions": {
+        "dayOfWeek": {
+          "0": "星期日",
+          "1": "星期一",
+          "2": "星期二",
+          "3": "星期三",
+          "4": "星期四",
+          "5": "星期五",
+          "6": "星期六"
+        },
+        "isPreferredDay": {
+          "true": "是",
+          "false": "否"
+        },
+        "accountType": {
+          "b2c": "个人客户(B2C)",
+          "b2b": "企业客户(B2B)",
+          "government": "政府机构"
+        },
+        "clientType": {
+          "new": "新客户",
+          "returning": "回头客",
+          "elite": "尊享客户"
+        },
+        "organicLoad": {
+          "low": "低",
+          "medium": "中",
+          "high": "高"
+        }
+      },
+      "actionOptions": {
+        "priceMultiplier": "按倍数调整价格",
+        "priceAdd": "增加价格($)",
+        "priceSet": "设定价格为($)",
+        "block": "阻止报价",
+        "flagForReview": "标记待审核"
+      }
+    },
+    "pricingRulesSandbox": {
+      "title": "定价规则沙盒",
+      "subtitle": "在正式上线前,对历史报价模拟规则变更的影响。",
+      "backToRules": "返回规则列表",
+      "errors": {
+        "loadFailed": "加载定价规则失败",
+        "network": "网络错误",
+        "simulationFailed": "模拟运行失败"
+      },
+      "candidateRules": {
+        "title": "候选规则",
+        "selectActive": "选择已启用",
+        "clear": "清除",
+        "empty": "暂无可用规则,请先创建一条。",
+        "selectRuleAria": "选择规则 {name}",
+        "priorityLine": "— 优先级 {priority}"
+      },
+      "options": {
+        "shadowMode": "影子模式(与当前启用的规则进行对比)",
+        "shadowModeAria": "影子模式(与当前启用的规则进行对比)",
+        "includeSynthetic": "包含合成测试场景",
+        "includeSyntheticAria": "包含合成测试场景"
+      },
+      "runSimulation": "运行模拟",
+      "stats": {
+        "mode": "模式",
+        "cases": "案例数",
+        "casesValue": "{quotes} 条报价 + {synthetic} 条合成场景",
+        "affectedCases": "受影响案例",
+        "avgDiff": "平均差额",
+        "blocksFlags": "阻止 / 标记数"
+      },
+      "table": {
+        "case": "案例",
+        "subtotal": "小计",
+        "adjustment": "调整额",
+        "final": "最终金额",
+        "baselineDiff": "基准 / 差额",
+        "appliedRules": "已应用规则",
+        "status": "状态",
+        "none": "无",
+        "blocked": "已阻止",
+        "flagged": "已标记",
+        "ok": "正常"
+      }
+    },
+    "pricingSettings": {
+      "title": "定价设置",
+      "currentRateLabel": "当前目标费率：",
+      "errors": {
+        "networkError": "网络错误",
+        "loadFailed": "加载定价设置失败",
+        "hheLoadFailed": "加载 HHE 设置失败",
+        "hheNetworkError": "加载 HHE 表格时发生网络错误",
+        "rateMustBePositive": "目标时薪必须为正数",
+        "reasonRequired": "审计日志需要填写原因",
+        "updateFailed": "更新定价设置失败",
+        "hheUpdateFailed": "更新 HHE 设置失败"
+      },
+      "targetRate": {
+        "title": "目标时薪",
+        "description": "更改此费率将重新计算 HHE 价目表的全部 20 个单元格。",
+        "newRateLabel": "新费率（美元/小时）",
+        "effectiveFromLabel": "生效日期（可选）",
+        "effectiveFromHint": "默认为今天",
+        "reasonLabel": "原因（审计日志）",
+        "reasonPlaceholder": "例如：2026年度费率审查",
+        "updateButton": "更新费率"
+      },
+      "hheTable": {
+        "title": "HHE 表格（可编辑）",
+        "description": "直接编辑20个预估工时单元格。显示的价格根据当前目标费率计算得出。",
+        "serviceTypeHeader": "服务类型",
+        "cellAriaLabel": "预估工时：{serviceType}，{range}",
+        "reasonPlaceholder": "例如：根据现场数据调整深度清洁预估",
+        "saveButton": "保存 HHE 表格"
+      },
+      "serviceTypes": {
+        "regular": "常规清洁",
+        "deep": "深度清洁",
+        "moveInOut": "搬入/搬出清洁",
+        "postConstruction": "装修后清洁"
+      },
+      "preview": {
+        "title": "HHE 价目表预览"
+      },
+      "history": {
+        "title": "费率变更历史",
+        "empty": "尚无费率变更记录。",
+        "dateHeader": "日期",
+        "previousHeader": "之前",
+        "newHeader": "新",
+        "reasonHeader": "原因"
+      }
+    },
+    "qc": {
+      "title": "质量控制墙",
+      "unknownEmployee": "未知",
+      "errors": {
+        "networkError": "网络错误",
+        "loadFailed": "加载质检记录失败",
+        "noteRequired": "备注为必填项",
+        "submitFailed": "提交评审失败"
+      },
+      "filters": {
+        "pending": "待审核",
+        "approved": "已批准",
+        "rejected": "已拒绝",
+        "auto": "自动"
+      },
+      "status": {
+        "pending": "待审核",
+        "approved": "已批准",
+        "rejected": "已拒绝",
+        "auto": "自动批准"
+      },
+      "emptyWithFilter": "没有状态为“{filter}”的质检记录。",
+      "photos": {
+        "none": "未上传照片证据",
+        "altText": "服务证据照片"
+      },
+      "reviewButton": "审核",
+      "reviewedOn": "审核于 {date}",
+      "modal": {
+        "title": "质量控制审核",
+        "employeeLabel": "员工",
+        "dateLabel": "日期",
+        "at": "时间",
+        "trustLevelLabel": "信任等级",
+        "standardTrustLevel": "标准",
+        "photoEvidence": "照片证据（{count}张）",
+        "noPhotosForService": "此服务未上传照片证据。",
+        "approveButton": "批准",
+        "rejectButton": "拒绝",
+        "noteAriaLabel": "质量控制审核备注",
+        "notePlaceholder": "审核备注（必填）...",
+        "submitButton": "提交审核"
+      },
+      "lightbox": {
+        "closeAriaLabel": "关闭照片放大预览",
+        "closeButtonAriaLabel": "关闭照片",
+        "enlargedAltText": "服务证据照片，放大视图"
+      }
+    },
+    "servicioDetail": {
+      "title": "服务检查清单",
+      "backToServices": "返回服务列表",
+      "evidenceAltText": "证据照片",
+      "noChecklistTemplate": "未找到此服务类型的检查清单模板。",
+      "errors": {
+        "networkError": "网络错误",
+        "loadFailed": "加载检查清单失败"
+      },
+      "progress": {
+        "title": "检查清单进度",
+        "itemsCount": "已完成 {completed} / {total} 项",
+        "requiredCount": "必填项已完成 {completed} / {total}"
+      }
+    },
+    "servicios": {
+      "title": "今日服务",
+      "serviceCount": "{count, plural, other {# 项服务}}",
+      "noServicesToday": "今天没有安排服务。",
+      "viewDetails": "查看详情",
+      "assignTeam": "分配团队",
+      "assign": "分配",
+      "errors": {
+        "networkError": "网络错误",
+        "loadFailed": "加载服务失败"
+      },
+      "statusLabels": {
+        "pending": "待处理",
+        "en_route": "途中",
+        "arrived": "已到达",
+        "in_progress": "进行中",
+        "completed": "已完成",
+        "cancelled": "已取消",
+        "no_show": "客户未到场"
+      },
+      "dispatch": {
+        "title": "分配团队",
+        "closeDialog": "关闭对话框",
+        "selectEmployeesFor": "为该订单选择员工",
+        "noEmployeesAvailable": "没有可用的在职员工。",
+        "assignToEmployee": "分配给 {name}",
+        "cancel": "取消",
+        "selectEmployeeError": "请至少选择一名员工",
+        "dispatchFailed": "调度失败"
+      }
+    },
+    "roles": {
+      "heading": "管理员角色",
+      "subtitle": "经理、协调员和质检审核员(admin_roles)——与现场员工分开管理。",
+      "roleCount": "{count, plural, other {# 个角色}}",
+      "grantRole": "授予角色",
+      "loadError": "加载管理员角色失败",
+      "networkError": "网络错误",
+      "emptyState": "尚未分配任何管理员角色。",
+      "table": {
+        "email": "邮箱",
+        "role": "角色",
+        "granted": "授予时间",
+        "actions": "操作"
+      },
+      "revoke": "撤销",
+      "revoking": "正在撤销...",
+      "revokeAriaLabel": "撤销 {target} 的 {role} 角色",
+      "revokeErrorFallback": "撤销角色失败",
+      "roleLabels": {
+        "ownerAdmin": "所有者管理员",
+        "opsCoordinator": "运营协调员",
+        "qcOnly": "仅质检"
+      },
+      "confirmRevoke": {
+        "title": "确定要撤销此管理员角色吗？",
+        "message": "该用户将失去此角色所赋予的访问权限。",
+        "confirmLabel": "撤销"
+      },
+      "addModal": {
+        "title": "授予管理员角色",
+        "subtitle": "如果该邮箱尚无账户，系统将发送邀请(与员工入职流程相同)。",
+        "emailLabel": "邮箱",
+        "emailPlaceholder": "name@example.com",
+        "roleLabel": "角色",
+        "roleOptions": {
+          "ownerAdmin": "所有者管理员——完全访问权限",
+          "opsCoordinator": "运营协调员——调度/质检/服务，不含财务/薪资",
+          "qcOnly": "仅质检——仅可查看照片证据墙"
+        },
+        "cancel": "取消",
+        "grant": "授予并邀请",
+        "granting": "正在授予...",
+        "grantingAriaLabel": "正在授予角色",
+        "grantAriaLabel": "授予角色并发送邀请",
+        "grantErrorFallback": "授予角色失败"
+      }
+    },
+    "tickets": {
+      "heading": "工单与争议",
+      "statusLabels": {
+        "open": "待处理",
+        "inReview": "审核中",
+        "resolved": "已解决",
+        "escalated": "已升级"
+      },
+      "priorityLabels": {
+        "high": "高",
+        "medium": "中",
+        "low": "低"
+      },
+      "loadError": "加载工单失败",
+      "networkError": "网络错误",
+      "resolutionNoteRequired": "需要填写解决备注",
+      "resolveHoursDisputeError": "处理工时争议失败",
+      "resolveUpsellError": "处理增值服务审批失败",
+      "missingUpsellId": "工单上下文缺少 upsell_id——无法在此处理",
+      "resolveTicketError": "处理工单失败",
+      "emptyState": "没有状态为「{status}」的工单。",
+      "employeeFallback": "系统",
+      "resolveButton": "处理",
+      "resolutionLabel": "处理结果：",
+      "resolvedOn": "已于 {date} 解决",
+      "modal": {
+        "title": "处理工单",
+        "typeLabel": "类型：",
+        "priorityLabel": "优先级：",
+        "employeeLabel": "员工：",
+        "hoursDispute": {
+          "explanation": "使用修正后的时间批准会更新实际服务记录——员工的薪酬将反映此修正，而不仅仅是一条备注。技术故障不会算在员工头上。",
+          "correctedTimeLabel": "修正时间(可选——留空表示拒绝，或在不修改记录的情况下批准)",
+          "notePlaceholder": "解决备注(必填)...",
+          "noteAriaLabel": "工时争议解决备注",
+          "reject": "拒绝",
+          "approve": "批准"
+        },
+        "upsellApproval": {
+          "explanation": "此项增值服务超过了 50% 的上限，需要您批准后才能计入提成或批量采集(Batch Capture)。",
+          "notePlaceholder": "备注(可选)...",
+          "noteAriaLabel": "增值服务审批备注",
+          "reject": "拒绝",
+          "approve": "批准"
+        },
+        "generic": {
+          "resolveTab": "处理",
+          "escalateTab": "升级",
+          "notePlaceholder": "解决备注(必填)...",
+          "noteAriaLabel": "工单解决备注",
+          "submit": "提交处理结果"
+        }
+      }
+    },
+    "wallet": {
+      "heading": "Lulu 钱包——管理",
+      "subtitle": "为客户授予推荐/纠纷解决/促销积分。积分和促销额度 12 个月后到期；退款额度不会到期。",
+      "loadError": "加载失败",
+      "networkError": "网络错误",
+      "findClientLabel": "查找客户(姓名、邮箱或电话)",
+      "searchAriaLabel": "按姓名、邮箱或电话搜索客户",
+      "searchPlaceholder": "开始输入姓名、邮箱或电话号码...",
+      "noNameOnFile": "(暂无姓名记录)",
+      "noEmail": "无邮箱",
+      "clear": "清除",
+      "clearAriaLabel": "清除已选客户",
+      "searching": "搜索中…",
+      "selectedPrefix": "已选择：",
+      "loadingWalletSuffix": " ——正在加载钱包…",
+      "availableBalanceLabel": "可用余额(原始余额：{balance})",
+      "grantCreditHeading": "授予积分",
+      "selectClientWarning": "请先在上方搜索并选择客户，然后再授予积分。",
+      "typeSelectAriaLabel": "要授予的积分类型",
+      "typeOptions": {
+        "credit": "积分(推荐/激励，12 个月后到期)",
+        "promo": "促销额度(12 个月后到期)",
+        "refund": "退款(纠纷解决，无到期日)"
+      },
+      "amountAriaLabel": "要授予的金额(美元)",
+      "amountPlaceholder": "金额($)",
+      "descriptionAriaLabel": "所授予积分的说明",
+      "descriptionPlaceholder": "说明(例如「推荐奖励——Jane Doe」)",
+      "grantButtonAriaLabel": "向客户授予积分",
+      "granting": "正在授予...",
+      "grantButton": "授予积分",
+      "grantErrorFallback": "授予失败",
+      "successMessage": "已向 {client} 授予 {amount}({type})。",
+      "historyHeading": "历史记录",
+      "transactionTypeLabels": {
+        "credit": "积分",
+        "debit": "扣款",
+        "payout": "支付",
+        "refund": "退款",
+        "promo": "促销"
+      },
+      "confirmModal": {
+        "title": "确认授予积分",
+        "clientLabel": "客户：",
+        "typeLabel": "类型：",
+        "amountLabel": "金额：",
+        "descriptionLabel": "说明：",
+        "warning": "此操作将立即向客户钱包中添加资金。请在确认前仔细核对客户与金额。",
+        "cancel": "取消",
+        "confirmAriaLabel": "确认授予积分",
+        "confirmButton": "确认并授予",
+        "granting": "正在授予..."
+      }
+    },
+    "succession": {
+      "title": "继任模式",
+      "subtitle": "每日根据真实运营参与情况（写入操作）进行评估，绝不仅凭登录判断（D.11.1）。10天无活动→轻度倦怠预警。14天→继任预警。21天→自动激活。",
+      "lastEvaluated": "上次评估：{datetime}",
+      "trustedSuccessors": "可信继任人",
+      "add": "添加",
+      "form": {
+        "nameAria": "可信继任人全名",
+        "namePlaceholder": "全名",
+        "relationshipAria": "与继任人的关系（如配偶、合伙人）",
+        "relationshipPlaceholder": "关系（如配偶、生意合伙人）",
+        "phoneAria": "继任人联系电话",
+        "phonePlaceholder": "电话",
+        "emailAria": "继任人联系邮箱",
+        "emailPlaceholder": "邮箱",
+        "saveAria": "保存可信继任人",
+        "saving": "保存中……",
+        "save": "保存",
+        "cancelAria": "取消并关闭继任人表单",
+        "cancel": "取消"
+      },
+      "emptyState": "尚未登记可信继任人。此名单应包含1-3名拥有完整权限、但无权出售企业或撤换业主的真实人员。",
+      "removeSuccessorAria": "移除可信继任人 {name}",
+      "removeModal": {
+        "title": "确定移除此可信继任人？",
+        "confirmLabel": "移除"
+      },
+      "statuses": {
+        "normal": "正常",
+        "burnout_alert": "倦怠预警（轻度）",
+        "succession_alert": "继任预警",
+        "auto_activate": "已自动激活",
+        "manually_activated": "已手动激活"
+      },
+      "errors": {
+        "loadFailed": "加载失败",
+        "network": "网络错误",
+        "saveFailed": "保存失败",
+        "generic": "失败"
+      }
+    },
+    "configHistory": {
+      "title": "配置历史",
+      "filterByTableAria": "按表筛选",
+      "allTables": "所有表",
+      "emptyState": "尚无配置更改记录。",
+      "undone": "已撤销",
+      "undo": "撤销",
+      "undoModal": {
+        "title": "撤销此更改？",
+        "message": "将恢复之前的值（此撤销操作也会被记录）。"
+      },
+      "errors": {
+        "loadFailed": "加载历史记录出错",
+        "undoFailed": "撤销出错",
+        "generic": "出错"
+      }
+    },
+    "phoneBooking": {
+      "title": "电话预订",
+      "subtitle": "通话时输入与网页报价器相同的信息。价格由完全相同的服务器端定价引擎计算——绝不手动重新输入或估算。此处绝不收取付款（PCI 合规）——提交后请查看安全链接说明。",
+      "client": "客户",
+      "clientEmail": "客户邮箱",
+      "clientFullName": "客户全名",
+      "clientPhone": "客户电话",
+      "clientPhonePlaceholder": "客户电话（当前通话号码）",
+      "service": "服务",
+      "category": "类别",
+      "serviceCategory": "服务类别",
+      "subtype": "子类型",
+      "serviceSubtype": "服务子类型",
+      "bedrooms": "卧室数",
+      "bathrooms": "浴室数",
+      "squareFeet": "平方英尺",
+      "residents": "居住人数",
+      "petsCount": "宠物数量",
+      "petsType": "宠物类型",
+      "daysSinceCleaning": "距上次专业清洁的天数",
+      "daysSinceCleaningAria": "距上次清洁的天数",
+      "address": "地址",
+      "fullAddress": "完整地址",
+      "zone": "区域",
+      "postalCode": "邮政编码",
+      "purchaseOrderNumber": "采购订单号",
+      "poPlaceholder": "采购订单号（B2B/政府客户必填）",
+      "inclusion": "包容性选项（E6.6）",
+      "noSmartphoneAria": "客户没有智能手机",
+      "noSmartphoneLabel": "客户没有智能手机（服务后 2 小时回电代替照片图库；可使用电子转账/支票/现金并签收）",
+      "printedInvoiceAria": "客户要求纸质发票",
+      "printedInvoiceLabel": "客户要求邮寄纸质发票（+2 美元；B2B/政府客户始终免费提供）",
+      "consentAria": "协调员确认口头同意",
+      "consentLabel": "我已向客户宣读条款细则及 PIPA 通知，客户已口头同意。",
+      "createQuote": "创建电话报价",
+      "quoteCreated": "报价已创建——请向客户朗读以下明细",
+      "basePrice": "基础价格",
+      "printedInvoice": "纸质发票",
+      "subtotal": "小计",
+      "gst": "联邦消费税 (GST)",
+      "pst": "省销售税 (PST)",
+      "total": "总计",
+      "reservationHold": "预订预留金",
+      "needsAdminReview": "此报价需要管理员人工审核后才能安排。",
+      "quoteId": "报价编号：{id}",
+      "errorCreating": "无法创建电话报价。",
+      "errorNetwork": "网络错误。"
+    },
+    "teamRanking": {
+      "title": "每周团队排名",
+      "subtitle": "仅显示前3名，仅限团队（B.2.21）。效率40% + 质量30% + 准时率20% + 商业表现10%。绝不会展示更低名次或个人明细——接口仅返回这3行数据。",
+      "weekLabel": "周（周一）",
+      "viewWeek": "查看该周",
+      "loading": "加载中……",
+      "weekOf": "周期：{date}",
+      "noScores": "本周尚无记录的分数。",
+      "score": "得分：{value}",
+      "errors": {
+        "loadFailed": "加载排名时出错",
+        "unknown": "未知错误"
+      }
+    },
+    "contractReviews": {
+      "title": "合同续签审核",
+      "subtitle": "在每份定期合同年度周年日前 60 天触发。批准建议条款后，再采集客户签名（打字姓名 — 与原始报价同意书相同的电子签署方式）以替代之前的版本。",
+      "loading": "加载中…",
+      "contractLabel": "合同 {id}… · 周年日 {date}",
+      "noLegalChanges": "自上次审核以来未检测到法律变更。",
+      "proposedTerms": "建议：{frequency} · {subtype} · {total}",
+      "approve": "批准",
+      "dismiss": "驳回",
+      "captureSignature": "采集签名",
+      "dismissedReason": "已驳回：{reason}",
+      "noReviews": "尚未触发任何审核。",
+      "statusLabels": {
+        "pending": "待处理",
+        "approved": "已批准",
+        "signed": "已签署",
+        "dismissed": "已驳回"
+      },
+      "dismissModal": {
+        "title": "驳回此审核",
+        "message": "此续签审核将被标记为已驳回，建议条款将不会被应用。",
+        "reasonLabel": "驳回此审核的原因"
+      },
+      "signModal": {
+        "title": "采集客户签名",
+        "message": "在通话中向客户朗读建议条款，并按照客户所说完整输入姓名。",
+        "notice": "在此输入客户全名即构成电子签名（点击签署：记录打字姓名 + IP + 时间戳），与原始报价同意书相同。提交后将替代之前的合同版本。",
+        "nameLabel": "客户输入的全名（电子签名）",
+        "namePlaceholder": "法定全名"
+      },
+      "errors": {
+        "loadFailed": "加载失败",
+        "genericFailed": "失败",
+        "network": "网络错误"
+      }
+    },
+    "teams": {
+      "title": "团队",
+      "subtitle": "最简团队身份信息（名称 + 首字母/颜色）。不含照片，不含个人数据——用于每周前3名排名。",
+      "newTeamNameAria": "新团队名称",
+      "newTeamNamePlaceholder": "团队名称",
+      "avatarColorAria": "团队头像颜色",
+      "createTeamAria": "创建新团队",
+      "creating": "创建中……",
+      "createTeam": "创建团队",
+      "emptyState": "尚无团队。",
+      "active": "已启用",
+      "inactive": "未启用",
+      "errors": {
+        "loadFailed": "加载失败",
+        "network": "网络错误",
+        "createFailed": "创建团队失败"
+      }
+    },
+    "pipeda": {
+      "title": "PIPEDA 合规",
+      "subtitle": "数据主体请求（48 小时）与数据泄露协议（72 小时）。",
+      "dataSubjectRequests": "数据主体请求",
+      "clientUserId": "客户用户 ID",
+      "requestTypeAria": "数据请求类型",
+      "access": "访问",
+      "correction": "更正",
+      "deletion": "删除",
+      "logRequest": "记录请求",
+      "correctionDetailsAria": "所请求更正的详情",
+      "whatNeedsCorrecting": "需要更正什么？",
+      "noRequestsLogged": "暂无记录的请求。",
+      "dueStatus": "截止日期 {date} · 状态 {status}",
+      "startProcessing": "开始处理",
+      "complete": "完成",
+      "breachIncidents": "数据泄露事件",
+      "incidentDescriptionAria": "安全事件描述",
+      "whatHappened": "发生了什么？",
+      "incidentSeverityAria": "事件严重程度",
+      "logIncident": "记录事件（启动 72 小时计时）",
+      "noIncidentsLogged": "暂无记录的事件。",
+      "severityDueStatus": "严重程度 {severity} · 截止 {due} · 状态 {status}",
+      "markOipcNotified": "标记已通知 OIPC",
+      "markAffectedNotified": "标记已通知受影响者",
+      "close": "关闭",
+      "completeAccessRequestTitle": "完成数据访问请求",
+      "completeAccessRequestMessage": "在将此请求标记为完成之前，客户的数据导出文件必须已准备好并存放于可检索的位置。",
+      "exportReferenceLabel": "导出参考（文件存放位置）",
+      "errorLoading": "加载失败",
+      "errorNetwork": "网络错误",
+      "errorCreating": "创建失败",
+      "errorUpdating": "更新失败",
+      "requestType": {
+        "access": "访问",
+        "correction": "更正",
+        "deletion": "删除"
+      },
+      "requestStatus": {
+        "pending": "待处理",
+        "processing": "处理中",
+        "completed": "已完成",
+        "denied": "已拒绝"
+      },
+      "severity": {
+        "unknown": "未知",
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      }
+    },
+    "coworkerRotation": {
+      "title": "同事轮换",
+      "subtitle": "每月至少与 3 名不同同事搭档（E8.14）。这是对派工记录的只读分析 — 不涉及派工引擎本身。",
+      "monthAria": "轮换分析月份",
+      "violationsTitle": "本月违反的“绝不同组”例外规则",
+      "violationLine": "{a} + {b} — {reason}（{count} 个订单）",
+      "rotationStatusTitle": "轮换状态（{count} 人低于最低要求）",
+      "noAssignments": "{month} 暂无派工记录。",
+      "distinctCoworkers": "{count} 名不同同事",
+      "exceptionsTitle": "“绝不同组”例外",
+      "add": "添加",
+      "noExceptions": "尚无记录的例外。",
+      "form": {
+        "employeeAAria": "员工 A ID",
+        "employeeAPlaceholder": "员工 A ID",
+        "employeeBAria": "员工 B ID",
+        "employeeBPlaceholder": "员工 B ID",
+        "reasonAria": "例外原因",
+        "reasonPlaceholder": "原因",
+        "saveAria": "保存轮换例外",
+        "saving": "保存中...",
+        "save": "保存",
+        "cancel": "取消"
+      },
+      "errors": {
+        "loadFailed": "加载失败",
+        "saveFailed": "保存失败",
+        "network": "网络错误"
+      }
+    },
+    "vehicles": {
+      "title": "车辆",
+      "addVehicle": "添加车辆",
+      "newVehicle": "新车辆",
+      "closeFormAria": "关闭新车辆表单",
+      "vehicleNameAria": "车辆名称",
+      "vehicleNamePlaceholder": "车辆名称",
+      "plateAria": "车牌号（可选）",
+      "platePlaceholder": "车牌号（可选）",
+      "insuranceExpiryLabel": "保险到期日期（可选）",
+      "saveVehicleAria": "保存车辆",
+      "saving": "保存中……",
+      "saveVehicle": "保存车辆",
+      "emptyState": "尚无登记车辆。",
+      "active": "启用",
+      "inactive": "停用",
+      "noLocationData": "无位置数据",
+      "lastSeen": "最后出现：{datetime}",
+      "insuranceExpiryDateAria": "保险到期日期",
+      "save": "保存",
+      "cancel": "取消",
+      "insuranceExpired": "保险已过期（{date}）——无法分配",
+      "insuranceExpiringSoon": "保险即将到期（{date}）",
+      "insuranceLabel": "保险：{date}",
+      "notOnFile": "未登记",
+      "edit": "编辑",
+      "errors": {
+        "loadFailed": "加载车辆失败",
+        "network": "网络错误",
+        "createFailed": "创建车辆失败",
+        "updateInsuranceFailed": "更新保险日期失败"
+      }
+    },
+    "craRemittances": {
+      "title": "CRA 汇款日历",
+      "subtitle": "仅为提醒日历 — CPP/EI 每月、GST/PST 季度 NETFILE、T4 年度。实际金额和申报在 QBO / 与会计师处完成；此处只是确保不遗漏（E9.4）。",
+      "yearAria": "选择年份",
+      "overdueBanner": "有 {count} 个期间已逾期且仍待处理。",
+      "loading": "加载中…",
+      "filed": "已申报",
+      "pending": "待处理",
+      "markFiled": "标记为已申报",
+      "types": {
+        "cppEiMonthly": "CPP/EI（每月）",
+        "gstPstQuarterly": "GST/PST NETFILE（每季度）",
+        "t4Annual": "T4（每年）"
+      },
+      "table": {
+        "type": "类型",
+        "period": "期间",
+        "due": "截止日期",
+        "amount": "金额",
+        "status": "状态",
+        "actions": "操作"
+      },
+      "modal": {
+        "title": "标记汇款为已申报",
+        "referenceLabel": "确认参考号/收据号",
+        "amountLabel": "已汇款金额（加元）",
+        "optional": "可选"
+      },
+      "errors": {
+        "loadFailed": "加载失败",
+        "genericFailed": "失败",
+        "network": "网络错误"
+      }
+    },
+    "warrantyClaims": {
+      "title": "保修索赔",
+      "review": "审核",
+      "zoneLabel": "区域：{zone}",
+      "clientPhotoCount": "{count} 张客户照片",
+      "emptyState": "没有状态为“{status}”的索赔。",
+      "statusFilters": {
+        "open": "待处理",
+        "escalated": "已升级",
+        "resolved_client": "已按客户方解决",
+        "resolved_lulu": "已按Lulu方解决",
+        "dismissed": "已驳回"
+      },
+      "resolveModal": {
+        "title": "解决索赔",
+        "claimedZone": "申报区域：",
+        "noZoneAssigned": "（未指定区域）",
+        "reason": "原因：",
+        "closurePhotoHeading": "收尾照片（团队）——{zone}",
+        "closurePhotoAlt": "收尾照片",
+        "noClosurePhoto": "该区域没有收尾照片",
+        "clientEvidenceHeading": "客户证据",
+        "clientEvidenceAlt": "客户证据",
+        "noClientEvidence": "客户未提供自己的证据",
+        "actions": {
+          "freeRecleaning": "免费重新清洁",
+          "explainNoAction": "说明情况，不采取行动",
+          "dismiss": "驳回"
+        }
+      },
+      "outcomes": {
+        "autoFavorClientMissingClosureEvidence": "缺少收尾证据——自动倾向客户",
+        "autoFavorTeamUnsubstantiatedClaim": "客户未能证实——已说明（自动）",
+        "requiresHumanReviewContradictoryEvidence": "双方均有证据——需要人工审核"
+      },
+      "forceCapture": {
+        "heading": "强制全额扣款（覆盖此订单的暂扣/部分扣款）",
+        "reasonAria": "强制全额扣款的原因",
+        "reasonPlaceholder": "原因（审计记录必填）……",
+        "buttonAria": "强制全额扣款该订单",
+        "capturing": "扣款中……",
+        "button": "强制全额扣款",
+        "result": "已扣款 ${amount}（PaymentIntent {paymentIntentId}）。",
+        "notApplicable": "无"
+      },
+      "resolutionNotesAria": "解决备注（可选）",
+      "resolutionNotesPlaceholder": "解决备注（可选——留空则使用系统生成的说明）……",
+      "applyDecisionAria": "应用保修索赔解决方案",
+      "applyDecision": "应用决定",
+      "applyAutomaticDecision": "应用自动决定",
+      "errors": {
+        "loadFailed": "加载保修索赔失败",
+        "network": "网络错误",
+        "loadDetailFailed": "加载索赔详情失败",
+        "resolveFailed": "解决索赔失败",
+        "reasonRequired": "审计记录需要填写原因。",
+        "forceCaptureFailed": "强制全额扣款失败"
+      }
+    },
+    "cumplimientoLaboral": {
+      "title": "BC 省劳工合规",
+      "subtitle": "通过通勤时间记录休息（司机不计入 — 因为仍在工作）、病假申报、每周 32 小时连续休息以及法定假日工资资格。",
+      "loading": "加载中…",
+      "noData": "暂无数据。",
+      "noViolations": "暂无违规记录。",
+      "noRecordsThisYear": "本年度尚无记录。",
+      "noQualifyingBreak": "连续工作 5 小时以上但无合格休息",
+      "view": "查看",
+      "yes": "是",
+      "no": "否",
+      "wageDataUnavailable": "工资数据不可用",
+      "tabs": {
+        "rest": "休息（通勤）",
+        "sick": "病假",
+        "weekly": "每周休息（32小时）",
+        "holidays": "法定假日"
+      },
+      "table": {
+        "employee": "员工",
+        "date": "日期",
+        "segments": "分段数",
+        "qualifyingBreaks": "合格休息",
+        "risk": "风险",
+        "reason": "原因",
+        "payType": "薪资类型",
+        "note": "备注",
+        "week": "周次",
+        "longestGap": "最长间隔（小时）",
+        "holiday": "假日",
+        "eligible": "是否符合资格",
+        "avgDayPay": "日均工资"
+      },
+      "errors": {
+        "network": "网络错误"
+      }
+    },
+    "drDrill": {
+      "title": "灾难恢复演练",
+      "subtitle": "灾难恢复演练的可审计记录（E11.4）。不能替代 Supabase 托管备份或每月的冷存储 pg_dump — 此处仅记录每种演练类型的执行时间及可验证结果。",
+      "requiredEvery": "每 {days} 天需执行一次",
+      "lastRun": "上次执行：{date}（{days} 天前）",
+      "neverRun": "从未执行",
+      "overdue": "已逾期",
+      "onSchedule": "按计划进行",
+      "runRestoreVerificationAria": "执行恢复验证",
+      "running": "运行中...",
+      "runNow": "立即执行",
+      "logDrill": "记录演练",
+      "logFormTitle": "记录：{type}",
+      "rtoTargetsTitle": "RTO 目标",
+      "declaredNotConfirmed": "计划中声明，尚未通过演练确认",
+      "confirmed": "已确认",
+      "historyTitle": "历史记录",
+      "noDrillsLogged": "尚未记录任何演练。",
+      "durationSeconds": "{seconds} 秒",
+      "integrityCheckScope": "针对当前已连接数据库的完整性检查",
+      "drillTypes": {
+        "restoreVerification": "恢复验证（自动）",
+        "successionSimulation": "继任模拟",
+        "emergencyKitCheck": "应急工具包检查",
+        "fallbackNoAdmin": "无管理员后备方案"
+      },
+      "resultLabels": {
+        "pass": "通过",
+        "partial": "部分通过",
+        "fail": "未通过"
+      },
+      "rto": {
+        "immediate": "立即",
+        "minutes": "{count} 分钟",
+        "hours": "{count} 小时",
+        "days": "{count} 天"
+      },
+      "form": {
+        "testedScopeAria": "演练测试范围",
+        "testedScopePlaceholder": "测试内容（例如：“检查了实体工具包，封条完好，凭证为最新”）",
+        "resultAria": "演练结果",
+        "notesAria": "演练的其他备注（可选）",
+        "notesPlaceholder": "备注（可选）",
+        "saveAria": "保存演练记录",
+        "saving": "保存中...",
+        "save": "保存",
+        "cancel": "取消"
+      },
+      "errors": {
+        "loadFailed": "加载失败",
+        "runFailed": "执行失败",
+        "saveFailed": "保存失败",
+        "network": "网络错误"
+      }
+    }
+  },
+  "errorPages": {
+    "notFound": {
+      "title": "页面未找到",
+      "description": "您要查找的页面不存在，或可能已被移动。",
+      "cta": "返回首页"
+    },
+    "error": {
+      "title": "出现问题",
+      "description": "发生意外错误，请重试。",
+      "retry": "重试",
+      "cta": "返回首页"
     }
   }
 }

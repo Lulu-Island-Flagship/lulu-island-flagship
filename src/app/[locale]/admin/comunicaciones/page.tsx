@@ -12,6 +12,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Loader2, Pencil, History, Save, X, Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface TemplateRow {
   id: string;
@@ -47,6 +48,7 @@ export default function ComunicacionesPage() {
   // rutas no-en (ej. /zh/admin/comunicaciones). Se obtiene el locale actual
   // vía useParams(), mismo patrón que
   // src/app/[locale]/admin/comunicaciones/[orderId]/page.tsx.
+  const t = useTranslations("admin.comunicaciones");
   const params = useParams();
   const locale = (params?.locale as string) || "en";
   const [events, setEvents] = useState<EventRow[]>([]);
@@ -69,10 +71,10 @@ export default function ComunicacionesPage() {
     try {
       const res = await fetch("/api/admin/communication-templates");
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error loading templates");
+      if (!res.ok) throw new Error(json.error || t("errors.loadFailed"));
       setEvents(json.events);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      setError(e instanceof Error ? e.message : t("errors.generic"));
     } finally {
       setLoading(false);
     }
@@ -95,11 +97,11 @@ export default function ComunicacionesPage() {
   async function save(existing?: TemplateRow) {
     if (!editing) return;
     if (!draftBody.trim()) {
-      setError("The template body cannot be empty");
+      setError(t("errors.emptyBody"));
       return;
     }
     if (existing && !draftReason.trim()) {
-      setError("A reason for the change is required to edit an existing template");
+      setError(t("errors.reasonRequired"));
       return;
     }
     setSaving(true);
@@ -117,11 +119,11 @@ export default function ComunicacionesPage() {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error saving template");
+      if (!res.ok) throw new Error(json.error || t("errors.saveFailed"));
       await load();
       cancelEdit();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      setError(e instanceof Error ? e.message : t("errors.generic"));
     } finally {
       setSaving(false);
     }
@@ -149,12 +151,12 @@ export default function ComunicacionesPage() {
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-brand-navy">Communication Templates</h1>
+        <h1 className="text-2xl font-semibold text-brand-navy">{t("title")}</h1>
         <div className="flex items-center gap-3">
           <input
-            aria-label="Buscar plantilla por evento"
+            aria-label={t("searchAria")}
             type="text"
-            placeholder="Search event…"
+            placeholder={t("searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="rounded-md border border-brand-ice px-3 py-1.5 text-sm"
@@ -164,7 +166,7 @@ export default function ComunicacionesPage() {
             className="flex items-center gap-1 rounded-md border border-brand-navy px-3 py-1.5 text-sm text-brand-navy hover:bg-brand-ice"
           >
             <History className="h-4 w-4" />
-            View history / Undo
+            {t("viewHistory")}
           </Link>
         </div>
       </div>
@@ -185,11 +187,11 @@ export default function ComunicacionesPage() {
                   ev.category === "transactional" ? "bg-brand-navy text-white" : "bg-brand-navy-light text-white"
                 }`}
               >
-                {ev.category === "transactional" ? "TRANSACTIONAL" : "MARKETING"}
+                {ev.category === "transactional" ? t("categoryTransactional") : t("categoryMarketing")}
               </span>
               {ev.priority === "urgent" && (
                 <span className="rounded bg-state-danger px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                  URGENT
+                  {t("urgent")}
                 </span>
               )}
               <span className="ml-auto text-xs text-gray-400">{ev.description}</span>
@@ -209,7 +211,7 @@ export default function ComunicacionesPage() {
                         <button
                           onClick={() => startEdit(ev.event_key, code, existing)}
                           className="ml-auto text-gray-400 hover:text-brand-wave-blue"
-                          aria-label={`Edit template ${ev.event_key} (${label})`}
+                          aria-label={t("editTemplateAria", { eventKey: ev.event_key, language: label })}
                         >
                           {existing ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
                         </button>
@@ -219,16 +221,16 @@ export default function ComunicacionesPage() {
                     {isEditingThis ? (
                       <div className="space-y-2">
                         <input
-                          aria-label="Asunto de la plantilla (opcional, solo email)"
+                          aria-label={t("form.subjectAria")}
                           type="text"
-                          placeholder="Subject (optional, email only)"
+                          placeholder={t("form.subjectPlaceholder")}
                           value={draftSubject}
                           onChange={(e) => setDraftSubject(e.target.value)}
                           className="w-full rounded border border-brand-ice px-2 py-1 text-xs"
                         />
                         <textarea
-                          aria-label="Texto de la plantilla de comunicación"
-                          placeholder="Template text — use {variable} for dynamic values"
+                          aria-label={t("form.bodyAria")}
+                          placeholder={t("form.bodyPlaceholder")}
                           value={draftBody}
                           onChange={(e) => setDraftBody(e.target.value)}
                           rows={4}
@@ -236,9 +238,9 @@ export default function ComunicacionesPage() {
                         />
                         {existing && (
                           <input
-                            aria-label="Motivo del cambio de plantilla"
+                            aria-label={t("form.reasonAria")}
                             type="text"
-                            placeholder="Reason for change (required)"
+                            placeholder={t("form.reasonPlaceholder")}
                             value={draftReason}
                             onChange={(e) => setDraftReason(e.target.value)}
                             className="w-full rounded border border-brand-ice px-2 py-1 text-xs"
@@ -251,7 +253,7 @@ export default function ComunicacionesPage() {
                             className="flex items-center gap-1 rounded border border-brand-ice px-2 py-1 text-xs"
                           >
                             <X className="h-3 w-3" />
-                            Cancel
+                            {t("form.cancel")}
                           </button>
                           <button
                             onClick={() => save(existing)}
@@ -259,14 +261,14 @@ export default function ComunicacionesPage() {
                             className="flex items-center gap-1 rounded bg-brand-navy px-2 py-1 text-xs text-white"
                           >
                             {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                            Save
+                            {t("form.save")}
                           </button>
                         </div>
                       </div>
                     ) : existing ? (
                       <p className="whitespace-pre-wrap text-xs text-brand-ink">{existing.body}</p>
                     ) : (
-                      <p className="text-xs text-gray-400">No template yet.</p>
+                      <p className="text-xs text-gray-400">{t("noTemplate")}</p>
                     )}
                   </div>
                 );

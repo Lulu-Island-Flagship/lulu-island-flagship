@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ChevronLeft, Ship } from "lucide-react";
+import { ChevronLeft, Ship, Info } from "lucide-react";
 
 interface LegalSection {
   heading: string;
@@ -65,6 +65,21 @@ export function LegalPageLayout({ namespace }: LegalPageLayoutProps) {
           <h1 className="text-2xl sm:text-3xl font-bold text-brand-ink mb-1">{tPage("title")}</h1>
           <p className="text-xs text-gray-400 mb-6">{t("lastUpdated")}</p>
           <p className="text-gray-600 mb-8 leading-relaxed">{tPage("intro")}</p>
+
+          {namespace === "cancellation" && (
+            <div className="flex items-start gap-3 bg-brand-ice border border-brand-navy/10 rounded-lg p-4 mb-8">
+              <Info className="w-5 h-5 text-brand-navy flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm text-brand-ink mb-2">{tPage("howToCancel")}</p>
+                <Link
+                  href={`/${safeLocale}/cuenta/servicios`}
+                  className="text-sm font-medium text-brand-navy hover:text-brand-wave-blue transition-colors underline"
+                >
+                  {tPage("howToCancelCta")}
+                </Link>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-6">
             {sections.map((section, i) => (

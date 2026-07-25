@@ -117,7 +117,7 @@ export default function HomePage() {
               className="flex items-center gap-1 text-brand-navy hover:text-brand-wave-blue transition-colors"
             >
               <LogIn className="w-4 h-4" />
-              Iniciar sesión
+              {t('nav.login')}
             </a>
             <LanguageSelector />
           </nav>
@@ -130,11 +130,11 @@ export default function HomePage() {
               mobile existente en otras partes del header. */}
           <a
             href={`/${locale}/cuenta/servicios`}
-            aria-label="Iniciar sesión"
+            aria-label={t('nav.login')}
             className="md:hidden flex items-center gap-1 text-brand-navy hover:text-brand-wave-blue transition-colors text-sm"
           >
             <LogIn className="w-5 h-5" />
-            <span className="sr-only">Iniciar sesión</span>
+            <span className="sr-only">{t('nav.login')}</span>
           </a>
         </div>
       </header>
@@ -151,7 +151,19 @@ export default function HomePage() {
               {t('hero.title')}{" "}
               <span className="text-brand-navy">{t('hero.titleHighlight')}</span>
             </h2>
-            <p className="text-lg md:text-xl text-gray-600 mb-8 leading-relaxed">
+            {/* Fix (auditoría transversal 2026-07-25, item 7): insuredClaimReady
+                arranca en `false` (fail-closed, ver arriba) y puede pasar a `true`
+                después del mount cuando /api/public/insured-status responde --
+                hero.description vs hero.descriptionInsured difieren en longitud
+                en los 3 locales (p.ej. fr agrega ", assurée" ~6 caracteres; zh
+                agrega "认证、投保并" ~4 caracteres), lo suficiente para cambiar el
+                número de líneas cerca de un punto de wrap y producir un salto de
+                layout real cuando el fetch resuelve después del primer pintado.
+                Se reserva min-h-[4.9em] (~3 líneas a leading-relaxed, en unidades
+                em que escalan con text-lg/md:text-xl) para el peor caso de las 6
+                variantes (3 locales x 2 estados) sin tocar la lógica fail-closed
+                de insuredClaimReady. */}
+            <p className="text-lg md:text-xl text-gray-600 mb-8 leading-relaxed min-h-[4.9em]">
               {t(insuredClaimReady ? 'hero.descriptionInsured' : 'hero.description')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
@@ -238,7 +250,7 @@ export default function HomePage() {
             href={`/${locale}/portal`}
             className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
           >
-            Portal de equipo
+            {t('nav.teamPortal')}
           </a>
         </div>
       </footer>

@@ -2,7 +2,9 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import AdminNav from "@/components/admin/AdminNav";
 import AdminBreadcrumbs from "@/components/admin/AdminBreadcrumbs";
 import type { AdminRole } from "@/lib/admin-rbac";
@@ -68,6 +70,8 @@ export default async function AdminLayout({
   const pathname = headersList.get("x-invoke-path") || headersList.get("x-pathname") || "/en/admin";
   const locale = pathname.split("/")[1] || "en";
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+  const t = await getTranslations({ locale: safeLocale, namespace: "admin.layout" });
+  const tNav = await getTranslations({ locale: safeLocale, namespace: "admin.nav" });
 
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -134,20 +138,20 @@ export default async function AdminLayout({
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="bg-white rounded-xl shadow-elevation-1 p-8 max-w-md w-full text-center space-y-4">
-          <h1 className="text-xl font-bold text-brand-ink">Admin Access</h1>
+          <h1 className="text-xl font-bold text-brand-ink">{t("accessTitle")}</h1>
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-left text-sm space-y-2">
-            <p><strong>Status:</strong> Not authorized</p>
-            <p><strong>User email:</strong> {user.email || "no email"}</p>
+            <p><strong>{t("accessStatus")}</strong> {t("accessNotAuthorized")}</p>
+            <p><strong>{t("accessUserEmail")}</strong> {user.email || t("accessNoEmail")}</p>
           </div>
           <p className="text-sm text-gray-500">
-            Your account does not have an admin role assigned.
+            {t("accessDenied")}
           </p>
-          <a
+          <Link
             href={`/${safeLocale}`}
             className="inline-block bg-brand-navy text-white px-4 py-2 rounded-lg font-medium"
           >
-            Go to Home
-          </a>
+            {t("goHome")}
+          </Link>
         </div>
       </div>
     );
@@ -165,7 +169,7 @@ export default async function AdminLayout({
         href="#admin-main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:bg-white focus:text-brand-ink focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-elevation-2 focus:outline focus:outline-2 focus:outline-brand-navy"
       >
-        Skip to main content
+        {t("skipToContent")}
       </a>
       {/* Admin Nav — v8.3 E0: reemplazado el 2026-07-11 por feedback directo
           (notas a mano): la fila plana de 19 links era "muy desordenada".
@@ -174,7 +178,7 @@ export default async function AdminLayout({
       <nav className="bg-brand-navy text-white relative">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <a href={adminPath} className="font-bold text-lg shrink-0">Admin</a>
+            <Link href={adminPath} className="font-bold text-lg shrink-0">{tNav("brand")}</Link>
             <AdminNav adminPath={adminPath} roles={adminRoles} />
           </div>
           {/* v8.3 fix M-8: se pasa el locale actual como query param para que
@@ -182,7 +186,7 @@ export default async function AdminLayout({
               vez de caer siempre a "/" (ver src/app/auth/signout/route.ts). */}
           <form action={`/auth/signout?locale=${safeLocale}`} method="post">
             <button type="submit" className="text-sm text-white/70 hover:text-white transition-colors shrink-0">
-              Sign Out
+              {tNav("signOut")}
             </button>
           </form>
         </div>

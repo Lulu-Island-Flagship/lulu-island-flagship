@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, StickyNote, Plus, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 type EntityType = "employee" | "client_property" | "client_profile" | "vehicle";
 
@@ -19,16 +20,16 @@ interface SimpleOption {
   label: string;
 }
 
-const ENTITY_TYPE_LABEL: Record<EntityType, string> = {
-  employee: "Employee",
-  client_property: "Client Property",
-  client_profile: "Client",
-  vehicle: "Vehicle",
-};
-
 const CONTEXT_OPTIONS = ["dispatch", "quote", "checkin", "servicio"];
 
 export default function EntityNotesPage() {
+  const t = useTranslations("admin.entityNotes");
+  const ENTITY_TYPE_LABEL: Record<EntityType, string> = {
+    employee: t("entityType.employee"),
+    client_property: t("entityType.clientProperty"),
+    client_profile: t("entityType.clientProfile"),
+    vehicle: t("entityType.vehicle"),
+  };
   const [entityType, setEntityType] = useState<EntityType>("employee");
   const [options, setOptions] = useState<SimpleOption[]>([]);
   const [entityId, setEntityId] = useState("");
@@ -73,7 +74,7 @@ export default function EntityNotesPage() {
       const res = await fetch(`/api/admin/entity-notes?entityType=${entityType}&entityId=${entityId}`, { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load");
+        setError(err.error || t("errorLoading"));
         return;
       }
       const data = await res.json();
@@ -88,7 +89,7 @@ export default function EntityNotesPage() {
         }))
       );
     } catch {
-      setError("Network error");
+      setError(t("errorNetwork"));
     } finally {
       setLoadingNotes(false);
     }
@@ -126,19 +127,16 @@ export default function EntityNotesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-brand-ink">Operational Knowledge Notes</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Notes tied to an entity, surfaced by context (D.11.2) — e.g. &quot;don&apos;t pair with Pedro&quot; on an
-          employee, or &quot;steep stairs&quot; on a property. Survives even if the person who knows it leaves.
-        </p>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t("subtitle")}</p>
       </div>
 
       <div className="bg-white rounded-xl border p-5 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="text-xs text-gray-500 block mb-1">Entity type</label>
+            <label className="text-xs text-gray-500 block mb-1">{t("entityTypeLabel")}</label>
             <select
-              aria-label="Tipo de entidad"
+              aria-label={t("entityTypeLabel")}
               value={entityType}
               onChange={(e) => setEntityType(e.target.value as EntityType)}
               className="border rounded-lg px-3 py-2 text-sm w-full"
@@ -153,13 +151,13 @@ export default function EntityNotesPage() {
           <div>
             <label className="text-xs text-gray-500 block mb-1">{ENTITY_TYPE_LABEL[entityType]}</label>
             <select
-              aria-label="Seleccionar entidad"
+              aria-label={t("selectEntity")}
               value={entityId}
               onChange={(e) => setEntityId(e.target.value)}
               disabled={loadingOptions}
               className="border rounded-lg px-3 py-2 text-sm w-full"
             >
-              <option value="">Select…</option>
+              <option value="">{t("selectPlaceholder")}</option>
               {options.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.label}
@@ -175,15 +173,15 @@ export default function EntityNotesPage() {
           <>
             <div className="space-y-2 border-t pt-4">
               <textarea
-                aria-label="Nueva nota"
+                aria-label={t("newNote")}
                 value={newNote}
                 onChange={(e) => setNewNote(e.target.value)}
-                placeholder="New note…"
+                placeholder={t("newNotePlaceholder")}
                 className="w-full border rounded-lg px-3 py-2 text-sm"
                 rows={2}
               />
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-gray-400">Surface in:</span>
+                <span className="text-xs text-gray-400">{t("surfaceIn")}</span>
                 {CONTEXT_OPTIONS.map((ctx) => (
                   <button
                     key={ctx}
@@ -202,7 +200,7 @@ export default function EntityNotesPage() {
                 disabled={saving || !newNote.trim()}
                 className="inline-flex items-center gap-2 bg-brand-navy text-white px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
               >
-                <Plus className="w-3.5 h-3.5" /> Add note
+                <Plus className="w-3.5 h-3.5" /> {t("addNote")}
               </button>
             </div>
 
@@ -211,7 +209,7 @@ export default function EntityNotesPage() {
                 <Loader2 className="w-5 h-5 animate-spin text-brand-gold" />
               ) : notes.length === 0 ? (
                 <p className="text-sm text-gray-400 flex items-center gap-2">
-                  <StickyNote className="w-4 h-4" /> No notes yet for this entity.
+                  <StickyNote className="w-4 h-4" /> {t("noNotes")}
                 </p>
               ) : (
                 <div className="space-y-2">
@@ -220,10 +218,10 @@ export default function EntityNotesPage() {
                       <div>
                         <p className="text-sm text-brand-ink">{n.note}</p>
                         {n.suggest_context.length > 0 && (
-                          <p className="text-xs text-gray-400 mt-1">Shown in: {n.suggest_context.join(", ")}</p>
+                          <p className="text-xs text-gray-400 mt-1">{t("shownIn", { contexts: n.suggest_context.join(", ") })}</p>
                         )}
                       </div>
-                      <button onClick={() => deleteNote(n.id)} aria-label="Delete note" className="text-gray-300 hover:text-state-danger shrink-0">
+                      <button onClick={() => deleteNote(n.id)} aria-label={t("deleteNote")} className="text-gray-300 hover:text-state-danger shrink-0">
                         <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </button>
                     </div>

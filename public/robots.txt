@@ -6,6 +6,21 @@ Disallow: /fr/admin
 Disallow: /en/empleado
 Disallow: /zh/empleado
 Disallow: /fr/empleado
+Disallow: /en/portal
+Disallow: /zh/portal
+Disallow: /fr/portal
+Disallow: /en/cuenta
+Disallow: /zh/cuenta
+Disallow: /fr/cuenta
+Disallow: /en/encuesta
+Disallow: /zh/encuesta
+Disallow: /fr/encuesta
+Disallow: /en/evaluar
+Disallow: /zh/evaluar
+Disallow: /fr/evaluar
+Disallow: /en/nps
+Disallow: /zh/nps
+Disallow: /fr/nps
 Disallow: /api/
 
 Sitemap: https://luluislandflagship.ca/sitemap.xml

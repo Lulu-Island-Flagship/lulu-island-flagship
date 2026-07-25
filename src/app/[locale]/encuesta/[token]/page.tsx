@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import { AuthModal } from "@/components/cotizador/AuthModal";
 import { ThumbsUp, ThumbsDown, Loader2, CheckCircle2, Home, Gift } from "lucide-react";
@@ -10,6 +11,7 @@ export default function PreReviewSurveyPage() {
   const router = useRouter();
   const params = useParams();
   const token = params?.token as string;
+  const t = useTranslations("survey");
 
   const locale = (typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en") as string;
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
@@ -59,7 +61,7 @@ export default function PreReviewSurveyPage() {
         .single();
 
       if (orderError || !order) {
-        setError("This survey link is invalid or expired.");
+        setError(t("invalidOrExpired"));
         setLoading(false);
         return;
       }
@@ -74,7 +76,7 @@ export default function PreReviewSurveyPage() {
         setSubmitted(true);
       }
     } catch {
-      setError("Something went wrong.");
+      setError(t("somethingWrong"));
     } finally {
       setLoading(false);
     }
@@ -95,10 +97,10 @@ export default function PreReviewSurveyPage() {
         setCreditGranted(data.walletCreditCents || 0);
         setSubmitted(true);
       } else {
-        setError(data.error || "Failed to submit.");
+        setError(data.error || t("submitFailed"));
       }
     } catch {
-      setError("Network error. Please try again.");
+      setError(t("networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -130,13 +132,13 @@ export default function PreReviewSurveyPage() {
     return (
       <main className="min-h-screen bg-brand-ice flex items-center justify-center px-4">
         <div className="bg-white rounded-xl shadow-elevation-1 p-8 max-w-sm w-full text-center">
-          <h2 className="text-lg font-bold text-brand-ink mb-2">Survey Unavailable</h2>
+          <h2 className="text-lg font-bold text-brand-ink mb-2">{t("unavailableTitle")}</h2>
           <p className="text-sm text-gray-500">{error}</p>
           <button
             onClick={() => router.push(`/${safeLocale}`)}
             className="mt-4 inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg font-medium"
           >
-            <Home className="w-4 h-4" /> Go Home
+            <Home className="w-4 h-4" /> {t("goHome")}
           </button>
         </div>
       </main>
@@ -148,19 +150,19 @@ export default function PreReviewSurveyPage() {
       <main className="min-h-screen bg-brand-ice flex items-center justify-center px-4">
         <div className="bg-white rounded-xl shadow-elevation-1 p-8 max-w-sm w-full text-center">
           <CheckCircle2 className="w-10 h-10 text-state-success mx-auto mb-3" />
-          <h2 className="text-lg font-bold text-brand-ink mb-2">Thank you!</h2>
+          <h2 className="text-lg font-bold text-brand-ink mb-2">{t("thankYouTitle")}</h2>
           {creditGranted > 0 && (
             <p className="text-sm text-gray-600 flex items-center justify-center gap-1.5 mb-2">
-              <Gift className="w-4 h-4 text-brand-gold-dark" /> ${(creditGranted / 100).toFixed(2)} added to your
-              Lulu Wallet
+              <Gift className="w-4 h-4 text-brand-gold-dark" />{" "}
+              {t("creditGranted", { amount: `$${(creditGranted / 100).toFixed(2)}` })}
             </p>
           )}
-          <p className="text-sm text-gray-500">We appreciate you taking the time.</p>
+          <p className="text-sm text-gray-500">{t("thankYouBody")}</p>
           <button
             onClick={() => router.push(`/${safeLocale}`)}
             className="mt-4 inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg font-medium"
           >
-            <Home className="w-4 h-4" /> Go Home
+            <Home className="w-4 h-4" /> {t("goHome")}
           </button>
         </div>
       </main>
@@ -172,8 +174,8 @@ export default function PreReviewSurveyPage() {
       <div className="max-w-lg mx-auto px-4 py-12">
         <div className="bg-white rounded-xl shadow-elevation-1 p-6 space-y-6">
           <div className="text-center">
-            <h1 className="text-xl font-bold text-brand-ink">Quick 30-second check-in</h1>
-            <p className="text-sm text-gray-500 mt-1">Was everything to your satisfaction?</p>
+            <h1 className="text-xl font-bold text-brand-ink">{t("checkInTitle")}</h1>
+            <p className="text-sm text-gray-500 mt-1">{t("checkInSubtitle")}</p>
           </div>
 
           <div className="flex justify-center gap-4">
@@ -182,14 +184,14 @@ export default function PreReviewSurveyPage() {
               className={`flex-1 flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-colors ${satisfied === true ? "border-state-success bg-green-50" : "border-gray-200"}`}
             >
               <ThumbsUp className={`w-8 h-8 ${satisfied === true ? "text-state-success" : "text-gray-400"}`} />
-              <span className="text-sm font-medium">Yes</span>
+              <span className="text-sm font-medium">{t("yes")}</span>
             </button>
             <button
               onClick={() => setSatisfied(false)}
               className={`flex-1 flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-colors ${satisfied === false ? "border-state-danger bg-red-50" : "border-gray-200"}`}
             >
               <ThumbsDown className={`w-8 h-8 ${satisfied === false ? "text-state-danger" : "text-gray-400"}`} />
-              <span className="text-sm font-medium">Something&apos;s off</span>
+              <span className="text-sm font-medium">{t("somethingOff")}</span>
             </button>
           </div>
 
@@ -197,7 +199,7 @@ export default function PreReviewSurveyPage() {
             <textarea
               value={complaintText}
               onChange={(e) => setComplaintText(e.target.value)}
-              placeholder="What happened? We'll follow up quickly."
+              placeholder={t("complaintPlaceholder")}
               className="w-full border rounded-lg px-3 py-2 text-sm"
               rows={3}
             />
@@ -210,11 +212,11 @@ export default function PreReviewSurveyPage() {
             disabled={submitting || satisfied === null}
             className="w-full bg-brand-navy text-white py-3 rounded-xl font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Submit"}
+            {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : t("submit")}
           </button>
 
           <p className="text-xs text-gray-400 text-center">
-            This is a private check-in, not a public review. You&apos;ll get $10 Lulu Wallet credit for answering.
+            {t("privacyNote")}
           </p>
         </div>
       </div>

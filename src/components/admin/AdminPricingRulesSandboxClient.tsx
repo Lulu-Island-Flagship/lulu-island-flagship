@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Loader2,
   AlertCircle,
@@ -59,6 +60,7 @@ function normalizeRule(raw: PricingRule): PricingRule {
 }
 
 export default function AdminPricingRulesSandboxClient() {
+  const t = useTranslations("admin.pricingRulesSandbox");
   const [rules, setRules] = useState<PricingRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -70,6 +72,7 @@ export default function AdminPricingRulesSandboxClient() {
 
   useEffect(() => {
     loadRules();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadRules() {
@@ -79,7 +82,7 @@ export default function AdminPricingRulesSandboxClient() {
       const res = await fetch("/api/admin/pricing-rules", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load pricing rules");
+        setError(err.error || t("errors.loadFailed"));
         return;
       }
       const data = await res.json();
@@ -87,7 +90,7 @@ export default function AdminPricingRulesSandboxClient() {
       setRules(normalized);
       setSelectedRuleIds(new Set(normalized.filter((r) => r.isActive).map((r) => r.id)));
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -113,14 +116,14 @@ export default function AdminPricingRulesSandboxClient() {
 
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Simulation failed");
+        setError(err.error || t("errors.simulationFailed"));
         return;
       }
 
       const data = (await res.json()) as SimulationResponse;
       setResult(data);
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setRunning(false);
     }
@@ -149,15 +152,15 @@ export default function AdminPricingRulesSandboxClient() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-brand-ink">Pricing Rules Sandbox</h1>
-          <p className="text-sm text-gray-500">Simulate rule changes against historical quotes before going live.</p>
+          <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
+          <p className="text-sm text-gray-500">{t("subtitle")}</p>
         </div>
         <a
           href="../pricing-rules"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-navy hover:text-brand-navy/80"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to rules
+          {t("backToRules")}
         </a>
       </div>
 
@@ -170,25 +173,25 @@ export default function AdminPricingRulesSandboxClient() {
 
       <div className="bg-white rounded-xl border p-6 space-y-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-brand-ink">Candidate rules</h2>
+          <h2 className="text-lg font-semibold text-brand-ink">{t("candidateRules.title")}</h2>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSelectedRuleIds(new Set(rules.filter((r) => r.isActive).map((r) => r.id)))}
               className="text-xs font-medium text-brand-navy hover:underline"
             >
-              Select active
+              {t("candidateRules.selectActive")}
             </button>
             <button
               onClick={() => setSelectedRuleIds(new Set())}
               className="text-xs font-medium text-gray-500 hover:underline"
             >
-              Clear
+              {t("candidateRules.clear")}
             </button>
           </div>
         </div>
 
         {rules.length === 0 ? (
-          <p className="text-sm text-gray-500">No rules available. Create one first.</p>
+          <p className="text-sm text-gray-500">{t("candidateRules.empty")}</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-2">
             {rules.map((rule) => (
@@ -198,7 +201,7 @@ export default function AdminPricingRulesSandboxClient() {
               >
                 <input
                   type="checkbox"
-                  aria-label={`Seleccionar regla ${rule.name}`}
+                  aria-label={t("candidateRules.selectRuleAria", { name: rule.name })}
                   checked={selectedRuleIds.has(rule.id)}
                   onChange={(e) => {
                     const next = new Set(selectedRuleIds);
@@ -212,8 +215,8 @@ export default function AdminPricingRulesSandboxClient() {
                   <div className="font-medium text-brand-ink">{rule.name}</div>
                   <div className="text-xs text-gray-500">
                     {rule.actionType}
-                    {rule.actionValue !== undefined && rule.actionValue !== null ? ` ${rule.actionValue}` : ""} — priority{" "}
-                    {rule.priority}
+                    {rule.actionValue !== undefined && rule.actionValue !== null ? ` ${rule.actionValue}` : ""}{" "}
+                    {t("candidateRules.priorityLine", { priority: rule.priority })}
                   </div>
                 </div>
               </label>
@@ -225,22 +228,22 @@ export default function AdminPricingRulesSandboxClient() {
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input
               type="checkbox"
-              aria-label="Modo sombra (comparar con las reglas actualmente activas)"
+              aria-label={t("options.shadowModeAria")}
               checked={shadowMode}
               onChange={(e) => setShadowMode(e.target.checked)}
               className="h-4 w-4 rounded border-gray-300 text-brand-navy focus:ring-brand-gold"
             />
-            Shadow mode (compare against currently active rules)
+            {t("options.shadowMode")}
           </label>
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input
               type="checkbox"
-              aria-label="Incluir escenarios sintéticos"
+              aria-label={t("options.includeSyntheticAria")}
               checked={includeSynthetic}
               onChange={(e) => setIncludeSynthetic(e.target.checked)}
               className="h-4 w-4 rounded border-gray-300 text-brand-navy focus:ring-brand-gold"
             />
-            Include synthetic scenarios
+            {t("options.includeSynthetic")}
           </label>
         </div>
 
@@ -251,7 +254,7 @@ export default function AdminPricingRulesSandboxClient() {
             className="inline-flex items-center gap-2 rounded-lg bg-brand-navy px-4 py-2 text-sm font-medium text-white hover:bg-brand-navy/90 disabled:opacity-60"
           >
             {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-            Run simulation
+            {t("runSimulation")}
           </button>
         </div>
       </div>
@@ -260,21 +263,21 @@ export default function AdminPricingRulesSandboxClient() {
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="bg-white rounded-xl border p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide">Mode</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wide">{t("stats.mode")}</div>
               <div className="text-sm font-semibold text-brand-ink capitalize">{result.mode}</div>
             </div>
             <div className="bg-white rounded-xl border p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide">Cases</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wide">{t("stats.cases")}</div>
               <div className="text-sm font-semibold text-brand-ink">
-                {result.quoteCasesCount} quotes + {result.syntheticCasesCount} synthetic
+                {t("stats.casesValue", { quotes: result.quoteCasesCount, synthetic: result.syntheticCasesCount })}
               </div>
             </div>
             <div className="bg-white rounded-xl border p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide">Affected cases</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wide">{t("stats.affectedCases")}</div>
               <div className="text-sm font-semibold text-brand-ink">{stats?.affectedCount ?? 0}</div>
             </div>
             <div className="bg-white rounded-xl border p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide">Avg diff</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wide">{t("stats.avgDiff")}</div>
               <div
                 className={`text-sm font-semibold ${
                   (stats?.avgDiff ?? 0) > 0 ? "text-green-600" : (stats?.avgDiff ?? 0) < 0 ? "text-red-600" : "text-brand-ink"
@@ -284,7 +287,7 @@ export default function AdminPricingRulesSandboxClient() {
               </div>
             </div>
             <div className="bg-white rounded-xl border p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide">Blocks / Flags</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wide">{t("stats.blocksFlags")}</div>
               <div className="text-sm font-semibold text-brand-ink">
                 {stats?.blockedCount ?? 0} / {stats?.flaggedCount ?? 0}
               </div>
@@ -296,15 +299,15 @@ export default function AdminPricingRulesSandboxClient() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b sticky top-0">
                   <tr>
-                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Case</th>
-                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Subtotal</th>
-                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Adjustment</th>
-                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Final</th>
+                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("table.case")}</th>
+                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("table.subtotal")}</th>
+                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("table.adjustment")}</th>
+                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("table.final")}</th>
                     {shadowMode && result.mode === "shadow" && (
-                      <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Baseline / Diff</th>
+                      <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("table.baselineDiff")}</th>
                     )}
-                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Applied rules</th>
-                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("table.appliedRules")}</th>
+                    <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("table.status")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -345,7 +348,7 @@ export default function AdminPricingRulesSandboxClient() {
                       )}
                       <td className="px-4 py-3 align-top">
                         {r.appliedRules.length === 0 ? (
-                          <span className="text-xs text-gray-400">None</span>
+                          <span className="text-xs text-gray-400">{t("table.none")}</span>
                         ) : (
                           <div className="flex flex-wrap gap-1">
                             {r.appliedRules.map((ar, i) => (
@@ -365,17 +368,17 @@ export default function AdminPricingRulesSandboxClient() {
                           {r.blocked ? (
                             <>
                               <XCircle className="w-4 h-4 text-red-500" />
-                              <span className="text-xs text-red-600">Blocked</span>
+                              <span className="text-xs text-red-600">{t("table.blocked")}</span>
                             </>
                           ) : r.flagged ? (
                             <>
                               <Flag className="w-4 h-4 text-amber-500" />
-                              <span className="text-xs text-amber-600">Flagged</span>
+                              <span className="text-xs text-amber-600">{t("table.flagged")}</span>
                             </>
                           ) : (
                             <>
                               <CheckCircle2 className="w-4 h-4 text-green-500" />
-                              <span className="text-xs text-gray-500">OK</span>
+                              <span className="text-xs text-gray-500">{t("table.ok")}</span>
                             </>
                           )}
                         </div>

@@ -1,13 +1,13 @@
 {
-  "name": "Lulu Island Flagship — Equipo",
-  "short_name": "Lulu Equipo",
-  "description": "App de campo para equipos de Lulu Island Flagship",
-  "start_url": "/en/empleado",
+  "name": "Lulu Island Flagship",
+  "short_name": "Lulu Island",
+  "description": "Book trusted residential cleaning in Richmond & Vancouver, BC",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0B1F3A",
-  "theme_color": "#0B1F3A",
+  "background_color": "#2E5C8A",
+  "theme_color": "#2E5C8A",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }

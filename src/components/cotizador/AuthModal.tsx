@@ -301,7 +301,13 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div ref={modalRef} className="bg-white rounded-lg shadow-elevation-3 max-w-md w-full p-6 relative">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auth-modal-title"
+        className="bg-white rounded-lg shadow-elevation-3 max-w-md w-full p-6 relative"
+      >
         {!forcePhoneVerification && (
           <button
             aria-label={t("closeAriaLabel")}
@@ -312,7 +318,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
           </button>
         )}
 
-        <h2 className="text-xl font-bold text-brand-ink mb-2">
+        <h2 id="auth-modal-title" className="text-xl font-bold text-brand-ink mb-2">
           {forcePhoneVerification ? t("verifyPhoneTitle") : t("signInTitle")}
         </h2>
         <p className="text-gray-600 text-sm mb-6">
@@ -357,6 +363,8 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                   <input
                     id="auth-link-phone-input"
                     type="tel"
+                    autoComplete="tel"
+                    inputMode="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
                     placeholder="6041234567"
@@ -383,6 +391,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                     id="auth-otp-link-phone-input"
                     type="text"
                     autoComplete="one-time-code"
+                    inputMode="numeric"
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="123456"
@@ -471,6 +480,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                   <input
                     id="auth-email-input"
                     type="email"
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
@@ -496,6 +506,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                     id="auth-otp-email-input"
                     type="text"
                     autoComplete="one-time-code"
+                    inputMode="numeric"
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="123456"
@@ -541,6 +552,8 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                   <input
                     id="auth-phone-input"
                     type="tel"
+                    autoComplete="tel"
+                    inputMode="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
                     placeholder="6041234567"
@@ -567,6 +580,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                     id="auth-otp-phone-input"
                     type="text"
                     autoComplete="one-time-code"
+                    inputMode="numeric"
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="123456"

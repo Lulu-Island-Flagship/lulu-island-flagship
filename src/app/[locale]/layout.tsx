@@ -1,9 +1,29 @@
 import { NextIntlClientProvider } from 'next-intl';
-import { getMessages, getTranslations } from 'next-intl/server';
-import type { Metadata } from "next";
+import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server';
+import type { Metadata, Viewport } from "next";
 import { Inter, Noto_Sans_SC } from "next/font/google";
 import { isPublicInsuredClaimReady } from "@/lib/business-insurance";
+import { locales } from "@/i18n/config";
 import "../globals.css";
+
+// Dominio canónico del sitio -- mismo valor que ya se usa en el JSON-LD
+// LocalBusiness de src/app/[locale]/page.tsx ("url": "https://
+// luluislandflagship.ca") y en public/robots.txt (Sitemap:). Se centraliza
+// aquí porque generateMetadata también lo necesita para alternates.languages.
+const SITE_URL = "https://luluislandflagship.ca";
+
+// Fix (auditoría transversal 2026-07-25, item 2): themeColor/viewport ya no
+// van dentro del objeto `metadata` en Next.js 14 -- generan un warning de
+// build ("Unsupported metadata viewport/themeColor") y se mueven a su propio
+// export `viewport` (API estable desde Next 14.0, confirmado por la versión
+// "next": "14.2.35" en package.json). #2E5C8A es BRAND.navy en
+// src/design/tokens.ts (el mismo azul ya usado como color primario en toda
+// la marca "Powder Sky").
+export const viewport: Viewport = {
+  themeColor: "#2E5C8A",
+  width: "device-width",
+  initialScale: 1,
+};
 
 const inter = Inter({
   subsets: ["latin"],
@@ -26,8 +46,20 @@ export async function generateMetadata({ params }: { params: { locale: string } 
   // servidor, así que el check se hace directo aquí (fail-closed a false).
   const insuredClaimReady = await isPublicInsuredClaimReady();
   const description = t(insuredClaimReady ? 'descriptionInsured' : 'description');
+  const title = t('title');
+
+  // Fix (auditoría transversal 2026-07-25, item 2): alternates.languages
+  // (hreflang) para los 3 locales + x-default, mismo patrón que
+  // src/app/sitemap.ts (fix item 4) -- ambos apuntan a SITE_URL/{locale}/,
+  // la home de cada idioma, porque este layout es compartido por TODAS las
+  // páginas bajo [locale] y no conoce la sub-ruta actual aquí.
+  const languageAlternates: Record<string, string> = {};
+  for (const l of locales) {
+    languageAlternates[l] = `${SITE_URL}/${l}`;
+  }
+
   return {
-    title: t('title'),
+    title,
     description,
     keywords: t('keywords')
       .split(',')
@@ -36,10 +68,29 @@ export async function generateMetadata({ params }: { params: { locale: string } 
       icon: "/favicon.ico",
     },
     manifest: "/manifest.json",
+    alternates: {
+      canonical: `${SITE_URL}/${params.locale}`,
+      languages: languageAlternates,
+    },
     openGraph: {
-      title: t('title'),
+      title,
       description,
       type: "website",
+      url: `${SITE_URL}/${params.locale}`,
+      // NOTA: no existe todavía un archivo de imagen OG en /public (se
+      // verificó el directorio -- solo hay favicon.ico, icon-192.png,
+      // icon-512.png). Se referencia esta ruta por convención para que el
+      // metadata quede completo apenas el equipo suba el archivo real
+      // (1200x630px recomendado); hasta entonces, este campo no romperá
+      // nada -- los crawlers simplemente no encontrarán la imagen (404) y
+      // mostrarán la tarjeta sin imagen, igual que hoy.
+      images: ["/og-image.jpg"],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/og-image.jpg"],
     },
   };
 }
@@ -55,6 +106,14 @@ export default async function LocaleLayout({
   children: React.ReactNode;
   params: { locale: string };
 }>) {
+  // Fix (auditoría transversal 2026-07-25, item 3): next-intl requiere
+  // llamar setRequestLocale(locale) temprano en cada layout/página estática
+  // para que su optimización de renderizado estático (generateStaticParams
+  // ya presente arriba) funcione -- sin esto, next-intl cae a comportamiento
+  // dinámico incluso en rutas que podrían prerenderizarse. Debe llamarse
+  // ANTES de cualquier hook de next-intl (getMessages incluido).
+  setRequestLocale(locale);
+
   const messages = await getMessages();
 
   return (

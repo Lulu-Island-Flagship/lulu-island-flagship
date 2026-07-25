@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import { AuthModal } from "@/components/cotizador/AuthModal";
 import { Loader2, CheckCircle2, Home } from "lucide-react";
@@ -10,6 +11,7 @@ export default function NpsSurveyPage() {
   const router = useRouter();
   const params = useParams();
   const token = params?.token as string;
+  const t = useTranslations("nps");
 
   const locale = (typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en") as string;
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
@@ -55,7 +57,7 @@ export default function NpsSurveyPage() {
         .single();
 
       if (surveyError || !survey) {
-        setError("This survey link is invalid or expired.");
+        setError(t("invalidOrExpired"));
         setLoading(false);
         return;
       }
@@ -63,7 +65,7 @@ export default function NpsSurveyPage() {
         setSubmitted(true);
       }
     } catch {
-      setError("Something went wrong.");
+      setError(t("somethingWrong"));
     } finally {
       setLoading(false);
     }
@@ -83,10 +85,10 @@ export default function NpsSurveyPage() {
       if (res.ok) {
         setSubmitted(true);
       } else {
-        setError(data.error || "Failed to submit.");
+        setError(data.error || t("submitFailed"));
       }
     } catch {
-      setError("Network error. Please try again.");
+      setError(t("networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -118,13 +120,13 @@ export default function NpsSurveyPage() {
     return (
       <main className="min-h-screen bg-brand-ice flex items-center justify-center px-4">
         <div className="bg-white rounded-xl shadow-elevation-1 p-8 max-w-sm w-full text-center">
-          <h2 className="text-lg font-bold text-brand-ink mb-2">Survey Unavailable</h2>
+          <h2 className="text-lg font-bold text-brand-ink mb-2">{t("unavailableTitle")}</h2>
           <p className="text-sm text-gray-500">{error}</p>
           <button
             onClick={() => router.push(`/${safeLocale}`)}
             className="mt-4 inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg font-medium"
           >
-            <Home className="w-4 h-4" /> Go Home
+            <Home className="w-4 h-4" /> {t("goHome")}
           </button>
         </div>
       </main>
@@ -136,13 +138,13 @@ export default function NpsSurveyPage() {
       <main className="min-h-screen bg-brand-ice flex items-center justify-center px-4">
         <div className="bg-white rounded-xl shadow-elevation-1 p-8 max-w-sm w-full text-center">
           <CheckCircle2 className="w-10 h-10 text-state-success mx-auto mb-3" />
-          <h2 className="text-lg font-bold text-brand-ink mb-2">Thank you!</h2>
-          <p className="text-sm text-gray-500">Your feedback helps us improve.</p>
+          <h2 className="text-lg font-bold text-brand-ink mb-2">{t("thankYouTitle")}</h2>
+          <p className="text-sm text-gray-500">{t("thankYouBody")}</p>
           <button
             onClick={() => router.push(`/${safeLocale}`)}
             className="mt-4 inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg font-medium"
           >
-            <Home className="w-4 h-4" /> Go Home
+            <Home className="w-4 h-4" /> {t("goHome")}
           </button>
         </div>
       </main>
@@ -154,9 +156,9 @@ export default function NpsSurveyPage() {
       <div className="max-w-lg mx-auto px-4 py-12">
         <div className="bg-white rounded-xl shadow-elevation-1 p-6 space-y-6">
           <div className="text-center">
-            <h1 className="text-xl font-bold text-brand-ink">One quick question</h1>
+            <h1 className="text-xl font-bold text-brand-ink">{t("questionTitle")}</h1>
             <p className="text-sm text-gray-500 mt-1">
-              On a scale of 0-10, how likely are you to recommend us to a friend or colleague?
+              {t("questionSubtitle")}
             </p>
           </div>
 
@@ -174,14 +176,14 @@ export default function NpsSurveyPage() {
             ))}
           </div>
           <div className="flex justify-between text-xs text-gray-400 px-1">
-            <span>Not likely</span>
-            <span>Very likely</span>
+            <span>{t("notLikely")}</span>
+            <span>{t("veryLikely")}</span>
           </div>
 
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="Anything you'd like to add? (optional)"
+            placeholder={t("commentPlaceholder")}
             className="w-full border rounded-lg px-3 py-2 text-sm"
             rows={3}
           />
@@ -193,7 +195,7 @@ export default function NpsSurveyPage() {
             disabled={submitting || score === null}
             className="w-full bg-brand-navy text-white py-3 rounded-xl font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Submit"}
+            {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : t("submit")}
           </button>
         </div>
       </div>

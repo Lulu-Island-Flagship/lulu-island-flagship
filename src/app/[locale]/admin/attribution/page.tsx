@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, TrendingUp, Plus, X, CheckCircle2, AlertTriangle } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface ChannelRow {
   channel: string;
@@ -26,6 +27,7 @@ function money(cents: number) {
 }
 
 export default function AttributionPage() {
+  const t = useTranslations("admin.attribution");
   const [data, setData] = useState<AttributionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -44,12 +46,12 @@ export default function AttributionPage() {
       const res = await fetch("/api/admin/attribution", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load");
+        setError(err.error || t("errors.loadFailed"));
         return;
       }
       setData(await res.json());
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -75,14 +77,14 @@ export default function AttributionPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to save");
+        setError(err.error || t("errors.saveFailed"));
         return;
       }
       setShowForm(false);
       setForm({ channel: "", spendDollars: "", notes: "" });
       await load();
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setSaving(false);
     }
@@ -100,79 +102,83 @@ export default function AttributionPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-brand-ink">Attribution — CAC / LTV</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            No real ad-platform integration — spend is recorded by hand, same as the manual competitor checklist.
-          </p>
+          <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t("subtitle")}</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
           className="inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors"
         >
-          <Plus className="w-4 h-4" /> Record Spend ({data.month})
+          <Plus className="w-4 h-4" /> {t("recordSpend", { month: data.month })}
         </button>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{error}</div>}
 
       <div className="bg-white rounded-xl border p-4">
-        <p className="text-sm text-gray-500">LTV (global, D.3 formula — never shown without it)</p>
+        <p className="text-sm text-gray-500">{t("ltv.label")}</p>
         <p className="text-2xl font-bold text-brand-ink mt-1">{money(data.ltv.valueCents)}</p>
         <p className="text-xs text-gray-400 mt-1">{data.ltv.formula}</p>
         <p className="text-xs text-gray-400">
-          avg ticket {money(data.ltv.inputs.avgTicketCents)} × {data.ltv.inputs.monthlyFrequency.toFixed(2)}/mo ×{" "}
-          {(data.ltv.inputs.contributionMarginRatio * 100).toFixed(0)}% margin ×{" "}
-          {data.ltv.inputs.observedRetentionMonths}mo retention (conservative assumption pending real cohort data)
+          {t("ltv.inputsLine", {
+            avgTicket: money(data.ltv.inputs.avgTicketCents),
+            frequency: data.ltv.inputs.monthlyFrequency.toFixed(2),
+            margin: (data.ltv.inputs.contributionMarginRatio * 100).toFixed(0),
+            retentionMonths: data.ltv.inputs.observedRetentionMonths,
+          })}
         </p>
         <p className="text-xs text-gray-500 mt-2">
-          Suggested marketing budget this month: {money(data.budgetRange.minCents)} – {money(data.budgetRange.maxCents)}{" "}
-          (8-10% of last month&apos;s revenue {money(data.previousMonthRevenueCents)})
+          {t("ltv.suggestedBudgetLine", {
+            min: money(data.budgetRange.minCents),
+            max: money(data.budgetRange.maxCents),
+            revenue: money(data.previousMonthRevenueCents),
+          })}
         </p>
       </div>
 
       {showForm && (
         <form onSubmit={submitSpend} className="bg-white rounded-xl border p-4 space-y-3 max-w-md">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-brand-ink">Record spend — {data.month}</h2>
-            <button type="button" onClick={() => setShowForm(false)} aria-label="Close form" className="text-gray-400 hover:text-gray-600">
+            <h2 className="font-semibold text-brand-ink">{t("form.title", { month: data.month })}</h2>
+            <button type="button" onClick={() => setShowForm(false)} aria-label={t("form.closeAria")} className="text-gray-400 hover:text-gray-600">
               <X className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
           <input
-            aria-label="Canal de marketing (ej. google_search)"
+            aria-label={t("form.channelAria")}
             type="text"
-            placeholder="Channel (e.g. google_search)"
+            placeholder={t("form.channelPlaceholder")}
             value={form.channel}
             onChange={(e) => setForm((f) => ({ ...f, channel: e.target.value }))}
             className="w-full border rounded-lg px-3 py-2 text-sm"
             required
           />
           <input
-            aria-label="Gasto de este mes en dólares"
+            aria-label={t("form.spendAria")}
             type="number"
             min={0}
             step="0.01"
-            placeholder="Spend this month ($)"
+            placeholder={t("form.spendPlaceholder")}
             value={form.spendDollars}
             onChange={(e) => setForm((f) => ({ ...f, spendDollars: e.target.value }))}
             className="w-full border rounded-lg px-3 py-2 text-sm"
             required
           />
           <textarea
-            aria-label="Notas sobre el gasto de atribución"
-            placeholder="Notes (optional)"
+            aria-label={t("form.notesAria")}
+            placeholder={t("form.notesPlaceholder")}
             value={form.notes}
             onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
             className="w-full border rounded-lg px-3 py-2 text-sm"
             rows={2}
           />
           <button
-            aria-label="Guardar gasto de atribución"
+            aria-label={t("form.saveAria")}
             type="submit"
             disabled={saving}
             className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
           >
-            {saving ? "Saving..." : "Save"}
+            {saving ? t("form.saving") : t("form.save")}
           </button>
         </form>
       )}
@@ -181,7 +187,7 @@ export default function AttributionPage() {
         {data.channels.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-500">
             <TrendingUp className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            No channel data yet — record spend and wait for quotes with &quot;how did you hear about us&quot; answered.
+            {t("emptyState")}
           </div>
         ) : (
           data.channels.map((c) => (
@@ -189,19 +195,19 @@ export default function AttributionPage() {
               <div>
                 <p className="font-medium text-brand-ink text-sm">{c.channel}</p>
                 <p className="text-xs text-gray-500">
-                  {c.newCustomers} new customers (90d) · spend {money(c.spendCents)} this month
+                  {t("channelRow.newCustomers", { count: c.newCustomers, spend: money(c.spendCents) })}
                 </p>
-                <p className="text-xs text-gray-400">Suggested budget: {money(c.suggestedBudgetCents)}</p>
+                <p className="text-xs text-gray-400">{t("channelRow.suggestedBudget", { amount: money(c.suggestedBudgetCents) })}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm font-medium text-brand-ink">CAC {money(c.cacCents)}</p>
+                <p className="text-sm font-medium text-brand-ink">{t("channelRow.cac", { amount: money(c.cacCents) })}</p>
                 <span
                   className={`inline-flex items-center gap-1 text-xs font-medium ${
                     c.cacHealthy ? "text-state-success" : "text-state-danger"
                   }`}
                 >
                   {c.cacHealthy ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
-                  {c.cacHealthy ? "CAC < LTV/3" : "CAC too high"}
+                  {c.cacHealthy ? t("channelRow.cacHealthy") : t("channelRow.cacUnhealthy")}
                 </span>
               </div>
             </div>

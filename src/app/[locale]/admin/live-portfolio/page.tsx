@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Image from "next/image";
 import { Loader2, CheckCircle2, XCircle, Images } from "lucide-react";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
+import { useTranslations } from "next-intl";
 
 interface Candidate {
   id: string;
@@ -21,11 +24,17 @@ interface Candidate {
  * El admin juzga la diferencia visual antes/después y aprueba de UN toque.
  */
 export default function LivePortfolioAdminPage() {
+  const t = useTranslations("admin.livePortfolio");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [acting, setActing] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<Record<string, string>>({});
+  // Item 12 (auditoría 2026-07-25): "Reject" descartaba un candidato
+  // permanentemente sin ninguna confirmación -- un solo clic accidental
+  // perdía el candidato. Se agrega ConfirmActionModal (mismo patrón ya usado
+  // en AdminRolesClient.tsx y otros) antes de ejecutar el reject.
+  const [pendingRejectId, setPendingRejectId] = useState<string | null>(null);
 
   useEffect(() => {
     load();
@@ -38,13 +47,13 @@ export default function LivePortfolioAdminPage() {
       const res = await fetch("/api/admin/live-portfolio?status=candidate", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load");
+        setError(err.error || t("errorLoading"));
         return;
       }
       const data = await res.json();
       setCandidates(data.candidates || []);
     } catch {
-      setError("Network error");
+      setError(t("errorNetwork"));
     } finally {
       setLoading(false);
     }
@@ -62,12 +71,12 @@ export default function LivePortfolioAdminPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to update");
+        setError(err.error || t("errorUpdating"));
         return;
       }
       await load();
     } catch {
-      setError("Network error");
+      setError(t("errorNetwork"));
     } finally {
       setActing(null);
     }
@@ -85,19 +94,16 @@ export default function LivePortfolioAdminPage() {
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-brand-ink flex items-center gap-2">
-          <Images className="w-6 h-6" /> Live Portfolio
+          <Images className="w-6 h-6" /> {t("title")}
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Objectively-qualified candidates. Judge the before/after visual difference and approve with one tap.
-          Approving starts the client&apos;s 24-hour withdrawal window.
-        </p>
+        <p className="text-sm text-gray-500 mt-1">{t("subtitle")}</p>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{error}</div>}
 
       {candidates.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center text-sm text-gray-500">
-          No candidates waiting for review.
+          {t("empty")}
         </div>
       ) : (
         <div className="space-y-4">
@@ -107,7 +113,10 @@ export default function LivePortfolioAdminPage() {
                 <div>
                   <p className="font-medium text-brand-ink">{c.anonymous_label}</p>
                   <p className="text-xs text-gray-500">
-                    Checklist {c.checklist_completion_percent}% · Employee score {c.employee_score_at_selection}
+                    {t("checklistScore", {
+                      checklist: c.checklist_completion_percent,
+                      score: c.employee_score_at_selection,
+                    })}
                   </p>
                 </div>
               </div>
@@ -124,8 +133,9 @@ export default function LivePortfolioAdminPage() {
                           : "border-transparent"
                       }`}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={url} alt="Candidate" className="aspect-square object-cover" />
+                      <div className="relative aspect-square">
+                        <Image src={url} alt="Candidate" fill unoptimized sizes="150px" className="object-cover" />
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -137,19 +147,33 @@ export default function LivePortfolioAdminPage() {
                   disabled={acting === c.id}
                   className="inline-flex items-center gap-1.5 text-sm font-medium bg-brand-navy text-white px-4 py-2 rounded-lg disabled:opacity-50"
                 >
-                  <CheckCircle2 className="w-4 h-4" /> Approve
+                  <CheckCircle2 className="w-4 h-4" /> {t("approve")}
                 </button>
                 <button
-                  onClick={() => act(c.id, "reject")}
+                  onClick={() => setPendingRejectId(c.id)}
                   disabled={acting === c.id}
                   className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 border border-gray-200 px-4 py-2 rounded-lg disabled:opacity-50"
                 >
-                  <XCircle className="w-4 h-4" /> Reject
+                  <XCircle className="w-4 h-4" /> {t("reject")}
                 </button>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {pendingRejectId && (
+        <ConfirmActionModal
+          title={t("rejectModalTitle")}
+          message={t("rejectModalMessage")}
+          confirmLabel={t("reject")}
+          danger
+          onCancel={() => setPendingRejectId(null)}
+          onConfirm={async () => {
+            await act(pendingRejectId, "reject");
+            setPendingRejectId(null);
+          }}
+        />
       )}
     </div>
   );

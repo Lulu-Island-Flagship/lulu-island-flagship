@@ -21,6 +21,7 @@ import {
   Tag,
   AlertOctagon,
   Palette,
+  ChevronRight,
 } from "lucide-react";
 import type { EmployeeService, AssignmentStatus } from "@/types";
 import { haversineDistance, ARRIVAL_GEOFENCE_RADIUS_METERS } from "@/lib/geocode";
@@ -54,10 +55,11 @@ export default function ServicioPage() {
   const params = useParams();
   const orderId = params?.orderId as string;
 
-  // Detect locale from pathname for navigation
-  const locale = (typeof window !== "undefined"
-    ? window.location.pathname.split("/")[1]
-    : "en") as string;
+  // Detect locale from route params for navigation -- antes leía
+  // window.location.pathname, lo que causaba un hydration mismatch (SSR
+  // asumía "en", cliente calculaba el locale real). useParams() da el
+  // mismo valor en servidor y cliente porque viene del router de Next.
+  const locale = (params?.locale as string) || "en";
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
   const empleadoPath = `/${safeLocale}/empleado`;
 
@@ -68,6 +70,14 @@ export default function ServicioPage() {
   const [noteText, setNoteText] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  // Auditoría UX/seguridad 2026-07-25 (#10): fotos tomadas sin conexión se
+  // encolaban (submitPhotoOrQueue) pero desaparecían del timeline visible
+  // hasta sincronizar -- el empleado no tenía forma de saber si "ya se
+  // guardó" y podía retomar la foto innecesariamente. Ahora se muestra de
+  // inmediato una vista previa local (object URL del blob) con badge
+  // "pending sync", que se limpia sola cuando refreshQueueStatus() ya no
+  // ve eventos de tipo "photo" pendientes para esta orden.
+  const [pendingLocalPhotos, setPendingLocalPhotos] = useState<{ id: string; url: string }[]>([]);
   // Feedback visible tras el intento de cada acción -- antes estos fallos
   // (t_in/t_start/t_out, foto, nota) solo se registraban en console.error y
   // el empleado no veía ningún mensaje, quedando sin saber si su toque
@@ -92,6 +102,14 @@ export default function ServicioPage() {
   const [bypassPhotoUrl, setBypassPhotoUrl] = useState<string | null>(null);
   const [bypassPhotoUploading, setBypassPhotoUploading] = useState(false);
   const [bypassPhotoError, setBypassPhotoError] = useState("");
+  // Auditoría UX/seguridad 2026-07-25 (#4): si el empleado genuinamente no
+  // puede tomar la foto de evidencia (cámara rota, cliente pide no
+  // fotografiar el interior, etc.), no debe quedar bloqueado sin ninguna
+  // salida -- ofrece una justificación escrita en su lugar, que el
+  // servidor guarda igual marcada para revisión de supervisor (ver
+  // notesWithBypassContext en /api/empleado/servicio).
+  const [bypassCannotPhoto, setBypassCannotPhoto] = useState(false);
+  const [bypassNoPhotoJustification, setBypassNoPhotoJustification] = useState("");
   // Candado químico (E4, B.2.8): colores confirmados explícitamente en esta
   // sesión de servicio. Vive en el padre porque tanto el tab "Colors" como
   // el checklist lo necesitan.
@@ -119,6 +137,22 @@ export default function ServicioPage() {
       const plan = planSync(forThisOrder, new Date().toISOString());
       setPendingSyncEvents([...plan.toSync, ...plan.waiting]);
       setManualReviewEvents(plan.needsManualReview);
+
+      // #10: una vez que ya no hay ningún evento "photo" pendiente para esta
+      // orden, asumimos que las fotos locales en preview ya sincronizaron
+      // (loadLogs() las trae con su URL real) -- se limpian las previews
+      // locales y se liberan sus object URLs.
+      const stillHasPendingPhoto = forThisOrder.some((e) => e.eventType === "photo");
+      if (!stillHasPendingPhoto) {
+        let hadPending = false;
+        setPendingLocalPhotos((prev) => {
+          if (prev.length === 0) return prev;
+          hadPending = true;
+          prev.forEach((p) => URL.revokeObjectURL(p.url));
+          return [];
+        });
+        if (hadPending) await loadLogs();
+      }
     } catch (e) {
       console.error("Queue status check error:", e);
     }
@@ -300,7 +334,10 @@ export default function ServicioPage() {
   };
 
   const bypassSafeguardsReady =
-    bypassCountdown === 0 && !!bypassPhotoUrl && !!bypassCategory && bypassReason.trim().length > 0;
+    bypassCountdown === 0 &&
+    !!bypassCategory &&
+    bypassReason.trim().length > 0 &&
+    (bypassCannotPhoto ? bypassNoPhotoJustification.trim().length >= 10 : !!bypassPhotoUrl);
 
   const confirmBypass = () => {
     if (!bypassSafeguardsReady) return;
@@ -343,7 +380,12 @@ export default function ServicioPage() {
               geofenceBypass: true,
               geofenceBypassCategory: bypassCategory,
               geofenceBypassReason: bypassReason.trim(),
-              photoUrl: bypassPhotoUrl,
+              ...(bypassCannotPhoto
+                ? {
+                    geofenceBypassNoPhoto: true,
+                    geofenceBypassNoPhotoReason: bypassNoPhotoJustification.trim(),
+                  }
+                : { photoUrl: bypassPhotoUrl }),
             }
           : {}),
       });
@@ -403,6 +445,13 @@ export default function ServicioPage() {
 
     setUploadingPhoto(true);
     setPhotoError("");
+
+    // #10: vista previa local inmediata, antes de saber si hay red -- así
+    // la foto nunca "desaparece" mientras se sube/encola.
+    const localId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const localPreviewUrl = URL.createObjectURL(file);
+    setPendingLocalPhotos((prev) => [...prev, { id: localId, url: localPreviewUrl }]);
+
     try {
       const loc = await getCurrentLocation();
       // Comprime a WebP (E4.12) y sube; si no hay señal, queda encolada
@@ -415,15 +464,22 @@ export default function ServicioPage() {
       if (!result.ok) {
         console.error("Photo upload error:", result.error);
         setPhotoError(result.error || "Couldn't upload the photo. Please try again.");
+        setPendingLocalPhotos((prev) => prev.filter((p) => p.id !== localId));
+        URL.revokeObjectURL(localPreviewUrl);
         return;
       }
 
-      if (result.photoUrl) {
+      if (result.photoUrl && !result.queued) {
+        // Subida real inmediata: pasa de "preview local" a foto confirmada
+        // y se descarta el object URL local.
         setPhotos((prev) => [...prev, result.photoUrl as string]);
-      }
-      if (!result.queued) {
+        setPendingLocalPhotos((prev) => prev.filter((p) => p.id !== localId));
+        URL.revokeObjectURL(localPreviewUrl);
         await loadLogs();
       }
+      // Si result.queued es true (sin red), la preview local se queda
+      // marcada "pending sync" hasta que refreshQueueStatus() confirme que
+      // ya no quedan eventos "photo" pendientes para esta orden.
     } catch (e) {
       console.error("Photo upload error:", e);
       setPhotoError("Connection error uploading the photo. Please try again.");
@@ -712,31 +768,71 @@ export default function ServicioPage() {
                   className="w-full text-sm border border-yellow-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 />
 
-                {/* Salvaguarda 3: foto obligatoria de evidencia */}
-                <div>
-                  {bypassPhotoUrl ? (
-                    <img src={bypassPhotoUrl} alt="Bypass evidence" className="w-20 h-20 rounded-lg object-cover" />
-                  ) : (
-                    <label className="inline-flex items-center gap-2 text-xs font-medium bg-white border border-yellow-300 rounded-lg px-3 py-2 cursor-pointer hover:bg-yellow-100">
-                      {bypassPhotoUploading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Camera className="w-4 h-4" />
-                      )}
-                      <span>Add evidence photo (required)</span>
-                      <input
-                        type="file"
-                        aria-label="Foto de evidencia obligatoria para el bypass de geocerca"
-                        accept="image/*"
-                        capture="environment"
-                        className="hidden"
-                        onChange={handleBypassPhotoUpload}
-                        disabled={bypassPhotoUploading}
-                      />
+                {/* Salvaguarda 3: foto obligatoria de evidencia -- o, si
+                    genuinamente no se puede tomar, una justificación escrita
+                    en su lugar (#4, auditoría 2026-07-25). Nunca se omite
+                    ambas cosas a la vez. */}
+                {!bypassCannotPhoto && (
+                  <div>
+                    {bypassPhotoUrl ? (
+                      <img src={bypassPhotoUrl} alt="Bypass evidence" className="w-20 h-20 rounded-lg object-cover" />
+                    ) : (
+                      <label className="inline-flex items-center gap-2 text-xs font-medium bg-white border border-yellow-300 rounded-lg px-3 py-2 cursor-pointer hover:bg-yellow-100">
+                        {bypassPhotoUploading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Camera className="w-4 h-4" />
+                        )}
+                        <span>Add evidence photo (required)</span>
+                        <input
+                          type="file"
+                          aria-label="Foto de evidencia obligatoria para el bypass de geocerca"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={handleBypassPhotoUpload}
+                          disabled={bypassPhotoUploading}
+                        />
+                      </label>
+                    )}
+                    {bypassPhotoError && <p className="text-xs text-red-600 mt-1">{bypassPhotoError}</p>}
+                    {!bypassPhotoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setBypassCannotPhoto(true)}
+                        className="mt-2 block text-xs underline text-yellow-800"
+                      >
+                        I can&apos;t take a photo
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {bypassCannotPhoto && (
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-yellow-800">
+                      Explain why you can&apos;t take a photo (required, flagged for supervisor review)
                     </label>
-                  )}
-                  {bypassPhotoError && <p className="text-xs text-red-600 mt-1">{bypassPhotoError}</p>}
-                </div>
+                    <textarea
+                      aria-label="Justificación por no poder tomar foto de evidencia"
+                      value={bypassNoPhotoJustification}
+                      onChange={(e) => setBypassNoPhotoJustification(e.target.value)}
+                      placeholder="e.g. camera not working, client asked not to photograph the interior..."
+                      rows={2}
+                      className="w-full text-sm border border-yellow-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBypassCannotPhoto(false);
+                        setBypassNoPhotoJustification("");
+                      }}
+                      className="text-xs underline text-yellow-800"
+                    >
+                      Actually, let me take a photo
+                    </button>
+                  </div>
+                )}
 
                 <button
                   onClick={confirmBypass}
@@ -786,25 +882,39 @@ export default function ServicioPage() {
 
         {/* Tabs */}
         <div className="bg-white rounded-xl shadow-elevation-1 overflow-hidden">
-          {/* Tab bar */}
-          <div className="flex overflow-x-auto border-b scrollbar-hide">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-1 px-3 py-3 text-xs font-medium whitespace-nowrap transition-colors ${
-                    activeTab === tab.key
-                      ? "text-brand-navy border-b-2 border-brand-navy bg-brand-navy/5"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {tab.label}
-                </button>
-              );
-            })}
+          {/* Tab bar -- #18: scrollbar-hide oculta el scrollbar nativo pero
+              nada indicaba que hubiera más pestañas fuera de pantalla. Se
+              agrega un degradado a la derecha (siempre visible salvo que la
+              última pestaña ya esté activa/visible) como affordance visual
+              de "hay más contenido", sin restructurar la navegación. */}
+          <div className="relative">
+            <div className="flex overflow-x-auto border-b scrollbar-hide">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`flex items-center gap-1 px-3 py-3 text-xs font-medium whitespace-nowrap transition-colors ${
+                      activeTab === tab.key
+                        ? "text-brand-navy border-b-2 border-brand-navy bg-brand-navy/5"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+            {activeTab !== tabs[tabs.length - 1].key && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent flex items-center justify-end"
+              >
+                <ChevronRight className="w-3.5 h-3.5 text-gray-400 mr-0.5" />
+              </div>
+            )}
           </div>
 
           {/* Tab content */}
@@ -812,10 +922,26 @@ export default function ServicioPage() {
             {activeTab === "timeline" && (
               <div className="space-y-4">
                 {/* Photos */}
-                {photos.length > 0 && (
+                {(photos.length > 0 || pendingLocalPhotos.length > 0) && (
                   <div className="grid grid-cols-3 gap-2">
                     {photos.map((url, i) => (
                       <img key={i} src={url} alt={`Photo ${i + 1}`} className="rounded-lg aspect-square object-cover" />
+                    ))}
+                    {/* #10: previas locales de fotos aún sin sincronizar --
+                        visibles de inmediato con badge, para que el
+                        empleado no crea que se perdieron y las retome. */}
+                    {pendingLocalPhotos.map((p) => (
+                      <div key={p.id} className="relative">
+                        <img
+                          src={p.url}
+                          alt="Photo pending sync"
+                          className="rounded-lg aspect-square object-cover opacity-80"
+                        />
+                        <span className="absolute bottom-1 left-1 right-1 bg-black/70 text-white text-[10px] font-medium text-center rounded px-1 py-0.5 flex items-center justify-center gap-1">
+                          <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                          Pending sync
+                        </span>
+                      </div>
                     ))}
                   </div>
                 )}

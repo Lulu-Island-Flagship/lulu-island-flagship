@@ -48,7 +48,11 @@ export function CodigoCromatico({ compact = false, confirmedColors }: CodigoCrom
             key={cc.color}
             className={`rounded-lg border p-2 text-center ${BG_CLASS[cc.color]}`}
           >
-            <div className="text-xl mb-0.5">{cc.icon}</div>
+            {/* #17: ícono decorativo -- el nombre del producto ya está en
+                texto visible al lado (textEs), así que se oculta de
+                lectores de pantalla en vez de anunciar el emoji crudo
+                (ej. "toilet emoji") sin contexto útil. */}
+            <div className="text-xl mb-0.5" aria-hidden="true">{cc.icon}</div>
             <div className="text-xs font-bold leading-tight">{cc.textEs}</div>
           </div>
         ))}
@@ -65,7 +69,7 @@ export function CodigoCromatico({ compact = false, confirmedColors }: CodigoCrom
             key={cc.color}
             className={`rounded-lg border p-3 flex items-center gap-3 ${BG_CLASS[cc.color]}`}
           >
-            <div className="text-2xl">{cc.icon}</div>
+            <div className="text-2xl" aria-hidden="true">{cc.icon}</div>
             <div className="flex-1 min-w-0">
               <div className="font-bold text-sm">{cc.textEs}</div>
               <div className="text-xs opacity-80">{cc.textEn}</div>

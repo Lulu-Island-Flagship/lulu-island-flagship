@@ -28,7 +28,11 @@ export default function LlavesPage() {
   const params = useParams();
   const orderId = params?.orderId as string;
 
-  const locale = (typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en") as string;
+  // 2026-07-25: antes leía window.location.pathname, lo que causaba un
+  // hydration mismatch (SSR asumía "en", cliente calculaba el locale real).
+  // useParams() da el mismo valor en servidor y cliente porque viene del
+  // router de Next, no de window.
+  const locale = (params?.locale as string) || "en";
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
 
   const [logs, setLogs] = useState<KeyLog[]>([]);

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Loader2,
   AlertCircle,
@@ -33,111 +34,115 @@ interface RuleFieldDef {
   options?: { value: string; label: string }[];
 }
 
-const RULE_FIELDS: RuleFieldDef[] = [
-  { key: "zone", label: "Zone", type: "enum", options: ZONES.map((z) => ({ value: z.name, label: z.name })) },
-  {
-    key: "dayOfWeek",
-    label: "Day of week",
-    type: "enum",
-    options: [
-      { value: "0", label: "Sunday" },
-      { value: "1", label: "Monday" },
-      { value: "2", label: "Tuesday" },
-      { value: "3", label: "Wednesday" },
-      { value: "4", label: "Thursday" },
-      { value: "5", label: "Friday" },
-      { value: "6", label: "Saturday" },
-    ],
-  },
-  {
-    key: "isPreferredDay",
-    label: "Preferred day",
-    type: "boolean",
-    options: [
-      { value: "true", label: "Yes" },
-      { value: "false", label: "No" },
-    ],
-  },
-  {
-    key: "serviceType",
-    label: "Service type",
-    type: "enum",
-    options: SERVICE_TYPES.map((t) => ({ value: t.key, label: t.label })),
-  },
-  {
-    key: "serviceSubtype",
-    label: "Service subtype",
-    type: "enum",
-    options: [
-      ...SERVICE_SUBTYPES.home.map((s) => ({ value: s.key, label: s.label })),
-      ...SERVICE_SUBTYPES.commercial.map((s) => ({ value: s.key, label: s.label })),
-    ],
-  },
-  { key: "squareFeet", label: "Square feet", type: "number" },
-  { key: "clientScore", label: "Client score", type: "number" },
-  { key: "servicesCount", label: "Services count", type: "number" },
-  { key: "disputesLostCount", label: "Lost disputes", type: "number" },
-  {
-    key: "accountType",
-    label: "Account type",
-    type: "enum",
-    options: [
-      { value: "b2c", label: "B2C" },
-      { value: "b2b", label: "B2B" },
-      { value: "government", label: "Government" },
-    ],
-  },
-  {
-    key: "clientType",
-    label: "Client type",
-    type: "enum",
-    options: [
-      { value: "new", label: "New" },
-      { value: "returning", label: "Returning" },
-      { value: "elite", label: "Elite" },
-    ],
-  },
-  { key: "zoneDemand", label: "Zone demand (0-100)", type: "number" },
-  {
-    key: "organicLoad",
-    label: "Organic load",
-    type: "enum",
-    options: [
-      { value: "low", label: "Low" },
-      { value: "medium", label: "Medium" },
-      { value: "high", label: "High" },
-    ],
-  },
-  { key: "daysSinceCleaning", label: "Days since cleaning", type: "number" },
-  { key: "advanceNoticeDays", label: "Advance notice (days)", type: "number" },
-];
+type TFunc = ReturnType<typeof useTranslations>;
+
+function buildRuleFields(t: TFunc): RuleFieldDef[] {
+  return [
+    { key: "zone", label: t("ruleFields.zone"), type: "enum", options: ZONES.map((z) => ({ value: z.name, label: z.name })) },
+    {
+      key: "dayOfWeek",
+      label: t("ruleFields.dayOfWeek"),
+      type: "enum",
+      options: [
+        { value: "0", label: t("ruleFieldOptions.dayOfWeek.0") },
+        { value: "1", label: t("ruleFieldOptions.dayOfWeek.1") },
+        { value: "2", label: t("ruleFieldOptions.dayOfWeek.2") },
+        { value: "3", label: t("ruleFieldOptions.dayOfWeek.3") },
+        { value: "4", label: t("ruleFieldOptions.dayOfWeek.4") },
+        { value: "5", label: t("ruleFieldOptions.dayOfWeek.5") },
+        { value: "6", label: t("ruleFieldOptions.dayOfWeek.6") },
+      ],
+    },
+    {
+      key: "isPreferredDay",
+      label: t("ruleFields.isPreferredDay"),
+      type: "boolean",
+      options: [
+        { value: "true", label: t("ruleFieldOptions.isPreferredDay.true") },
+        { value: "false", label: t("ruleFieldOptions.isPreferredDay.false") },
+      ],
+    },
+    {
+      key: "serviceType",
+      label: t("ruleFields.serviceType"),
+      type: "enum",
+      options: SERVICE_TYPES.map((s) => ({ value: s.key, label: s.label })),
+    },
+    {
+      key: "serviceSubtype",
+      label: t("ruleFields.serviceSubtype"),
+      type: "enum",
+      options: [
+        ...SERVICE_SUBTYPES.home.map((s) => ({ value: s.key, label: s.label })),
+        ...SERVICE_SUBTYPES.commercial.map((s) => ({ value: s.key, label: s.label })),
+      ],
+    },
+    { key: "squareFeet", label: t("ruleFields.squareFeet"), type: "number" },
+    { key: "clientScore", label: t("ruleFields.clientScore"), type: "number" },
+    { key: "servicesCount", label: t("ruleFields.servicesCount"), type: "number" },
+    { key: "disputesLostCount", label: t("ruleFields.disputesLostCount"), type: "number" },
+    {
+      key: "accountType",
+      label: t("ruleFields.accountType"),
+      type: "enum",
+      options: [
+        { value: "b2c", label: t("ruleFieldOptions.accountType.b2c") },
+        { value: "b2b", label: t("ruleFieldOptions.accountType.b2b") },
+        { value: "government", label: t("ruleFieldOptions.accountType.government") },
+      ],
+    },
+    {
+      key: "clientType",
+      label: t("ruleFields.clientType"),
+      type: "enum",
+      options: [
+        { value: "new", label: t("ruleFieldOptions.clientType.new") },
+        { value: "returning", label: t("ruleFieldOptions.clientType.returning") },
+        { value: "elite", label: t("ruleFieldOptions.clientType.elite") },
+      ],
+    },
+    { key: "zoneDemand", label: t("ruleFields.zoneDemand"), type: "number" },
+    {
+      key: "organicLoad",
+      label: t("ruleFields.organicLoad"),
+      type: "enum",
+      options: [
+        { value: "low", label: t("ruleFieldOptions.organicLoad.low") },
+        { value: "medium", label: t("ruleFieldOptions.organicLoad.medium") },
+        { value: "high", label: t("ruleFieldOptions.organicLoad.high") },
+      ],
+    },
+    { key: "daysSinceCleaning", label: t("ruleFields.daysSinceCleaning"), type: "number" },
+    { key: "advanceNoticeDays", label: t("ruleFields.advanceNoticeDays"), type: "number" },
+  ];
+}
 
 const STRING_OPS: RuleCondition["op"][] = ["==", "!=", "in", "not_in", "contains"];
 const NUMBER_OPS: RuleCondition["op"][] = ["==", "!=", ">", ">=", "<", "<="];
 const BOOLEAN_OPS: RuleCondition["op"][] = ["==", "!="];
 
-const ACTION_OPTIONS: { value: PricingRule["actionType"]; label: string; needsValue: boolean }[] = [
-  { value: "price_multiplier", label: "Multiply price by", needsValue: true },
-  { value: "price_add", label: "Add $ to price", needsValue: true },
-  { value: "price_set", label: "Set price to $", needsValue: true },
-  { value: "block", label: "Block quote", needsValue: false },
-  { value: "flag_for_review", label: "Flag for review", needsValue: false },
-];
-
-function fieldDefFor(key: string): RuleFieldDef | undefined {
-  return RULE_FIELDS.find((f) => f.key === key);
+function buildActionOptions(
+  t: TFunc
+): { value: PricingRule["actionType"]; label: string; needsValue: boolean }[] {
+  return [
+    { value: "price_multiplier", label: t("actionOptions.priceMultiplier"), needsValue: true },
+    { value: "price_add", label: t("actionOptions.priceAdd"), needsValue: true },
+    { value: "price_set", label: t("actionOptions.priceSet"), needsValue: true },
+    { value: "block", label: t("actionOptions.block"), needsValue: false },
+    { value: "flag_for_review", label: t("actionOptions.flagForReview"), needsValue: false },
+  ];
 }
 
-function operatorsForField(fieldKey: string): RuleCondition["op"][] {
-  const field = fieldDefFor(fieldKey);
+function operatorsForField(fieldKey: string, fields: RuleFieldDef[]): RuleCondition["op"][] {
+  const field = fields.find((f) => f.key === fieldKey);
   if (!field) return STRING_OPS;
   if (field.type === "number") return NUMBER_OPS;
   if (field.type === "boolean") return BOOLEAN_OPS;
   return STRING_OPS;
 }
 
-function defaultValueForField(fieldKey: string): unknown {
-  const field = fieldDefFor(fieldKey);
+function defaultValueForField(fieldKey: string, fields: RuleFieldDef[]): unknown {
+  const field = fields.find((f) => f.key === fieldKey);
   if (!field) return "";
   if (field.type === "boolean") return true;
   if (field.type === "number") return 0;
@@ -145,8 +150,8 @@ function defaultValueForField(fieldKey: string): unknown {
   return "";
 }
 
-function parseValueInput(raw: string, fieldKey: string): unknown {
-  const field = fieldDefFor(fieldKey);
+function parseValueInput(raw: string, fieldKey: string, fields: RuleFieldDef[]): unknown {
+  const field = fields.find((f) => f.key === fieldKey);
   if (!field) return raw;
   if (field.type === "number") {
     const n = Number(raw);
@@ -164,8 +169,8 @@ function valueToString(value: unknown): string {
   return String(value);
 }
 
-function formatConditionValue(cond: RuleCondition): string {
-  const field = fieldDefFor(cond.field);
+function formatConditionValue(cond: RuleCondition, fields: RuleFieldDef[]): string {
+  const field = fields.find((f) => f.key === cond.field);
   if (Array.isArray(cond.value)) {
     return cond.value
       .map((v) => {
@@ -198,6 +203,14 @@ function normalizeRule(raw: PricingRule): PricingRule {
 }
 
 export default function AdminPricingRulesClient() {
+  const t = useTranslations("admin.pricingRules");
+  const ruleFields = useMemo(() => buildRuleFields(t), [t]);
+  const actionOptions = useMemo(() => buildActionOptions(t), [t]);
+
+  function fieldDefFor(key: string): RuleFieldDef | undefined {
+    return ruleFields.find((f) => f.key === key);
+  }
+
   const [rules, setRules] = useState<PricingRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -229,6 +242,7 @@ export default function AdminPricingRulesClient() {
 
   useEffect(() => {
     loadRules();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadRules() {
@@ -238,13 +252,13 @@ export default function AdminPricingRulesClient() {
       const res = await fetch("/api/admin/pricing-rules", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load pricing rules");
+        setError(err.error || t("errors.loadFailed"));
         return;
       }
       const data = await res.json();
       setRules(((data.rules || []) as PricingRule[]).map(normalizeRule));
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -328,8 +342,8 @@ export default function AdminPricingRulesClient() {
       const current = next[index];
       let value: unknown = patch.value !== undefined ? patch.value : current.value;
       if (patch.field && patch.field !== current.field) {
-        const ops = operatorsForField(patch.field);
-        value = defaultValueForField(patch.field);
+        const ops = operatorsForField(patch.field, ruleFields);
+        value = defaultValueForField(patch.field, ruleFields);
         next[index] = { ...current, field: patch.field, op: ops[0], value };
         return next;
       }
@@ -339,25 +353,25 @@ export default function AdminPricingRulesClient() {
   }
 
   function validateForm(): string | null {
-    if (!name.trim()) return "Rule name is required";
-    if (conditions.length === 0) return "At least one condition is required";
+    if (!name.trim()) return t("validation.nameRequired");
+    if (conditions.length === 0) return t("validation.conditionsRequired");
     for (const c of conditions) {
-      if (!c.field || !operatorsForField(c.field).includes(c.op)) {
-        return `Invalid operator for field ${c.field}`;
+      if (!c.field || !operatorsForField(c.field, ruleFields).includes(c.op)) {
+        return t("validation.invalidOperator", { field: c.field });
       }
       if (["in", "not_in"].includes(c.op) && !Array.isArray(c.value)) {
-        return `Operator ${c.op} requires a list of values`;
+        return t("validation.listRequired", { op: c.op });
       }
     }
     const needsValue = actionType !== "block" && actionType !== "flag_for_review";
     if (needsValue) {
       const n = Number(actionValue);
-      if (actionValue === "" || Number.isNaN(n)) return "Action value must be a number";
-      if (actionType === "price_multiplier" && n <= 0) return "Multiplier must be greater than 0";
+      if (actionValue === "" || Number.isNaN(n)) return t("validation.actionValueNumber");
+      if (actionType === "price_multiplier" && n <= 0) return t("validation.multiplierPositive");
     }
     const p = Number(priority);
-    if (Number.isNaN(p) || p < 0 || !Number.isInteger(p)) return "Priority must be a non-negative integer";
-    if (!reason.trim()) return "Reason is required for audit log";
+    if (Number.isNaN(p) || p < 0 || !Number.isInteger(p)) return t("validation.priorityInteger");
+    if (!reason.trim()) return t("validation.reasonRequired");
     return null;
   }
 
@@ -404,7 +418,7 @@ export default function AdminPricingRulesClient() {
 
       if (!res.ok) {
         const err = await res.json();
-        setFormError(err.error || "Failed to save rule");
+        setFormError(err.error || t("errors.saveFailed"));
         return;
       }
 
@@ -412,7 +426,7 @@ export default function AdminPricingRulesClient() {
       setIsFormOpen(false);
       await loadRules();
     } catch {
-      setFormError("Network error");
+      setFormError(t("errors.network"));
     } finally {
       setSaving(false);
     }
@@ -434,7 +448,7 @@ export default function AdminPricingRulesClient() {
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to update rule");
+        throw new Error(err.error || t("errors.toggleFailed"));
       }
 
       await loadRules();
@@ -452,7 +466,7 @@ export default function AdminPricingRulesClient() {
       );
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to delete rule");
+        throw new Error(err.error || t("errors.deleteFailed"));
       }
       await loadRules();
     } finally {
@@ -463,6 +477,7 @@ export default function AdminPricingRulesClient() {
   function renderConditionValueInput(condition: RuleCondition, index: number) {
     const field = fieldDefFor(condition.field);
     const opAllowsList = ["in", "not_in"].includes(condition.op);
+    const fieldLabel = field?.label || condition.field;
 
     if (opAllowsList) {
       const options = field?.options || [];
@@ -472,11 +487,11 @@ export default function AdminPricingRulesClient() {
       return (
         <select
           multiple
-          aria-label={`Valores para la condición ${field?.label || condition.field}`}
+          aria-label={t("form.conditionValuesAria", { field: fieldLabel })}
           value={selected}
           onChange={(e) => {
             const values = Array.from(e.target.selectedOptions).map((o) =>
-              parseValueInput(o.value, condition.field)
+              parseValueInput(o.value, condition.field, ruleFields)
             );
             updateCondition(index, { value: values });
           }}
@@ -494,9 +509,9 @@ export default function AdminPricingRulesClient() {
     if (field?.options && field.options.length > 0) {
       return (
         <select
-          aria-label={`Valor para la condición ${field?.label || condition.field}`}
+          aria-label={t("form.conditionValueAria", { field: fieldLabel })}
           value={valueToString(condition.value)}
-          onChange={(e) => updateCondition(index, { value: parseValueInput(e.target.value, condition.field) })}
+          onChange={(e) => updateCondition(index, { value: parseValueInput(e.target.value, condition.field, ruleFields) })}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
         >
           {field.options.map((opt) => (
@@ -511,9 +526,9 @@ export default function AdminPricingRulesClient() {
     return (
       <input
         type={field?.type === "number" ? "number" : "text"}
-        aria-label={`Valor para la condición ${field?.label || condition.field}`}
+        aria-label={t("form.conditionValueAria", { field: fieldLabel })}
         value={valueToString(condition.value)}
-        onChange={(e) => updateCondition(index, { value: parseValueInput(e.target.value, condition.field) })}
+        onChange={(e) => updateCondition(index, { value: parseValueInput(e.target.value, condition.field, ruleFields) })}
         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
       />
     );
@@ -531,9 +546,9 @@ export default function AdminPricingRulesClient() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-brand-ink">Pricing Rules</h1>
+          <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
           <p className="text-sm text-gray-500">
-            {rules.filter((r) => r.isActive).length} active of {rules.length}
+            {t("activeOfTotal", { active: rules.filter((r) => r.isActive).length, total: rules.length })}
           </p>
         </div>
         <button
@@ -541,7 +556,7 @@ export default function AdminPricingRulesClient() {
           className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-navy px-4 py-2 text-sm font-medium text-white hover:bg-brand-navy/90"
         >
           <Plus className="w-4 h-4" />
-          New rule
+          {t("newRule")}
         </button>
       </div>
 
@@ -556,7 +571,7 @@ export default function AdminPricingRulesClient() {
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-5 h-5 text-amber-600" />
-            <h3 className="text-sm font-semibold text-amber-800">Detected conflicts between active rules</h3>
+            <h3 className="text-sm font-semibold text-amber-800">{t("conflicts.title")}</h3>
           </div>
           <ul className="list-disc list-inside text-xs text-amber-800 space-y-1">
             {conflicts.map((c, i) => (
@@ -570,14 +585,14 @@ export default function AdminPricingRulesClient() {
         <div className="bg-white rounded-xl border shadow-sm p-6 space-y-5">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-brand-ink">
-              {editingRuleId ? "Edit pricing rule" : "Create pricing rule"}
+              {editingRuleId ? t("form.editTitle") : t("form.createTitle")}
             </h2>
             <button
               onClick={() => {
                 setIsFormOpen(false);
                 resetForm();
               }}
-              aria-label="Close form"
+              aria-label={t("form.closeAria")}
               className="text-gray-400 hover:text-gray-600"
             >
               <X className="w-5 h-5" aria-hidden="true" />
@@ -594,24 +609,24 @@ export default function AdminPricingRulesClient() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label htmlFor="pricing-rule-name" className="text-sm font-medium text-gray-700">Rule name</label>
+                <label htmlFor="pricing-rule-name" className="text-sm font-medium text-gray-700">{t("form.nameLabel")}</label>
                 <input
                   id="pricing-rule-name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Weekend surcharge"
+                  placeholder={t("form.namePlaceholder")}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
                 />
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="pricing-rule-description" className="text-sm font-medium text-gray-700">Description</label>
+                <label htmlFor="pricing-rule-description" className="text-sm font-medium text-gray-700">{t("form.descriptionLabel")}</label>
                 <input
                   id="pricing-rule-description"
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Brief explanation for audit log"
+                  placeholder={t("form.descriptionPlaceholder")}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
                 />
               </div>
@@ -619,18 +634,18 @@ export default function AdminPricingRulesClient() {
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-gray-700">Conditions</label>
+                <label className="text-sm font-medium text-gray-700">{t("form.conditionsLabel")}</label>
                 {conditions.length > 1 && (
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="text-gray-500">Match</span>
+                    <span className="text-gray-500">{t("form.matchLabel")}</span>
                     <select
-                      aria-label="Modo de coincidencia de condiciones (todas o cualquiera)"
+                      aria-label={t("form.matchModeAria")}
                       value={conditionGroup}
                       onChange={(e) => setConditionGroup(e.target.value as "and" | "or")}
                       className="rounded-lg border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
                     >
-                      <option value="and">All (AND)</option>
-                      <option value="or">Any (OR)</option>
+                      <option value="and">{t("form.matchAll")}</option>
+                      <option value="or">{t("form.matchAny")}</option>
                     </select>
                   </div>
                 )}
@@ -644,12 +659,12 @@ export default function AdminPricingRulesClient() {
                   >
                     <div className="sm:col-span-3">
                       <select
-                        aria-label={`Campo de la condición ${index + 1}`}
+                        aria-label={t("form.conditionFieldAria", { index: index + 1 })}
                         value={condition.field}
                         onChange={(e) => updateCondition(index, { field: e.target.value })}
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
                       >
-                        {RULE_FIELDS.map((f) => (
+                        {ruleFields.map((f) => (
                           <option key={f.key} value={f.key}>
                             {f.label}
                           </option>
@@ -658,12 +673,12 @@ export default function AdminPricingRulesClient() {
                     </div>
                     <div className="sm:col-span-2">
                       <select
-                        aria-label={`Operador de la condición ${index + 1}`}
+                        aria-label={t("form.conditionOperatorAria", { index: index + 1 })}
                         value={condition.op}
                         onChange={(e) => updateCondition(index, { op: e.target.value as RuleCondition["op"] })}
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
                       >
-                        {operatorsForField(condition.field).map((op) => (
+                        {operatorsForField(condition.field, ruleFields).map((op) => (
                           <option key={op} value={op}>
                             {op}
                           </option>
@@ -674,7 +689,7 @@ export default function AdminPricingRulesClient() {
                       <div className="text-sm">
                         {renderConditionValueInput(condition, index)}
                         {["in", "not_in"].includes(condition.op) && (
-                          <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple values.</p>
+                          <p className="text-xs text-gray-500 mt-1">{t("form.multiSelectHint")}</p>
                         )}
                       </div>
                     </div>
@@ -683,7 +698,7 @@ export default function AdminPricingRulesClient() {
                         type="button"
                         onClick={() => removeCondition(index)}
                         disabled={conditions.length === 1}
-                        aria-label={`Remove condition ${index + 1}`}
+                        aria-label={t("form.removeConditionAria", { index: index + 1 })}
                         className="text-gray-400 hover:text-red-500 disabled:opacity-30"
                       >
                         <Trash2 className="w-4 h-4" aria-hidden="true" />
@@ -699,20 +714,20 @@ export default function AdminPricingRulesClient() {
                 className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-navy hover:text-brand-navy/80"
               >
                 <Plus className="w-4 h-4" />
-                Add condition
+                {t("form.addCondition")}
               </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <label htmlFor="pricing-rule-action" className="text-sm font-medium text-gray-700">Action</label>
+                <label htmlFor="pricing-rule-action" className="text-sm font-medium text-gray-700">{t("form.actionLabel")}</label>
                 <select
                   id="pricing-rule-action"
                   value={actionType}
                   onChange={(e) => setActionType(e.target.value as PricingRule["actionType"])}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
                 >
-                  {ACTION_OPTIONS.map((a) => (
+                  {actionOptions.map((a) => (
                     <option key={a.value} value={a.value}>
                       {a.label}
                     </option>
@@ -721,7 +736,7 @@ export default function AdminPricingRulesClient() {
               </div>
               {actionType !== "block" && actionType !== "flag_for_review" && (
                 <div className="space-y-1.5">
-                  <label htmlFor="pricing-rule-value" className="text-sm font-medium text-gray-700">Value</label>
+                  <label htmlFor="pricing-rule-value" className="text-sm font-medium text-gray-700">{t("form.valueLabel")}</label>
                   <input
                     id="pricing-rule-value"
                     type="number"
@@ -731,12 +746,12 @@ export default function AdminPricingRulesClient() {
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
                   />
                   {actionType === "price_multiplier" && (
-                    <p className="text-xs text-gray-500">Use 0.90 for 10% discount, 1.20 for 20% surcharge.</p>
+                    <p className="text-xs text-gray-500">{t("form.multiplierHint")}</p>
                   )}
                 </div>
               )}
               <div className="space-y-1.5">
-                <label htmlFor="pricing-rule-priority" className="text-sm font-medium text-gray-700">Priority</label>
+                <label htmlFor="pricing-rule-priority" className="text-sm font-medium text-gray-700">{t("form.priorityLabel")}</label>
                 <input
                   id="pricing-rule-priority"
                   type="number"
@@ -758,18 +773,18 @@ export default function AdminPricingRulesClient() {
                 className="h-4 w-4 rounded border-gray-300 text-brand-navy focus:ring-brand-gold"
               />
               <label htmlFor="maxApplicable" className="text-sm text-gray-700">
-                Allow additional rules to apply after this one
+                {t("form.maxApplicableLabel")}
               </label>
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="pricing-rule-audit-reason" className="text-sm font-medium text-gray-700">Audit reason</label>
+              <label htmlFor="pricing-rule-audit-reason" className="text-sm font-medium text-gray-700">{t("form.auditReasonLabel")}</label>
               <input
                 id="pricing-rule-audit-reason"
                 type="text"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Why are you creating/editing this rule?"
+                placeholder={t("form.auditReasonPlaceholder")}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
               />
             </div>
@@ -783,17 +798,17 @@ export default function AdminPricingRulesClient() {
                 }}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
-                Cancel
+                {t("form.cancel")}
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                aria-label={editingRuleId ? "Guardar cambios de la regla" : "Crear regla de precio"}
+                aria-label={editingRuleId ? t("form.saveChangesAria") : t("form.createRuleAria")}
                 className="inline-flex items-center gap-2 rounded-lg bg-brand-navy px-4 py-2 text-sm font-medium text-white hover:bg-brand-navy/90 disabled:opacity-60"
               >
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                 <Save className="w-4 h-4" />
-                {editingRuleId ? "Save changes" : "Create rule"}
+                {editingRuleId ? t("form.saveChanges") : t("form.createRule")}
               </button>
             </div>
           </form>
@@ -803,7 +818,7 @@ export default function AdminPricingRulesClient() {
       {rules.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
           <Tag className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500">No pricing rules found.</p>
+          <p className="text-gray-500">{t("empty.noRules")}</p>
         </div>
       ) : (
         <div className="bg-white rounded-xl border overflow-hidden">
@@ -811,12 +826,12 @@ export default function AdminPricingRulesClient() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Rule</th>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Conditions</th>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Action</th>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Priority</th>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Actions</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("table.rule")}</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("table.conditions")}</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("table.action")}</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("table.priority")}</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("table.status")}</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("table.actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -831,8 +846,8 @@ export default function AdminPricingRulesClient() {
                     "field" in rule.conditionJson
                       ? ""
                       : (rule.conditionJson as { and?: RuleCondition[]; or?: RuleCondition[] }).or
-                        ? "OR"
-                        : "AND";
+                        ? t("conditionsGroup.or")
+                        : t("conditionsGroup.and");
 
                   return (
                     <React.Fragment key={rule.id}>
@@ -842,7 +857,7 @@ export default function AdminPricingRulesClient() {
                           <div className="text-xs text-gray-500">{rule.description}</div>
                           {!rule.maxApplicable && (
                             <span className="inline-flex mt-1 px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-[10px]">
-                              Stop chain
+                              {t("stopChain")}
                             </span>
                           )}
                         </td>
@@ -850,9 +865,9 @@ export default function AdminPricingRulesClient() {
                           <div className="text-xs text-gray-700 space-y-1">
                             {conditionList.map((c, i) => (
                               <div key={i}>
-                                <span className="font-medium">{RULE_FIELDS.find((f) => f.key === c.field)?.label || c.field}</span>{" "}
+                                <span className="font-medium">{fieldDefFor(c.field)?.label || c.field}</span>{" "}
                                 <span className="text-gray-500">{c.op}</span>{" "}
-                                <span>{formatConditionValue(c)}</span>
+                                <span>{formatConditionValue(c, ruleFields)}</span>
                                 {i < conditionList.length - 1 && (
                                   <span className="ml-1 text-[10px] uppercase text-gray-400 font-semibold">
                                     {groupOperator}
@@ -864,16 +879,16 @@ export default function AdminPricingRulesClient() {
                         </td>
                         <td className="px-4 py-3 align-top">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs">
-                            {ACTION_OPTIONS.find((a) => a.value === rule.actionType)?.label || rule.actionType}
+                            {actionOptions.find((a) => a.value === rule.actionType)?.label || rule.actionType}
                             {rule.actionValue !== undefined && rule.actionValue !== null && `: ${rule.actionValue}`}
                           </span>
                         </td>
                         <td className="px-4 py-3 align-top text-gray-600">{rule.priority}</td>
                         <td className="px-4 py-3 align-top">
                           {rule.isActive ? (
-                            <span className="text-green-600 text-xs font-medium">Active</span>
+                            <span className="text-green-600 text-xs font-medium">{t("status.active")}</span>
                           ) : (
-                            <span className="text-gray-400 text-xs font-medium">Inactive</span>
+                            <span className="text-gray-400 text-xs font-medium">{t("status.inactive")}</span>
                           )}
                         </td>
                         <td className="px-4 py-3 align-top">
@@ -882,8 +897,12 @@ export default function AdminPricingRulesClient() {
                               onClick={() => setToggleTargetRule(rule)}
                               disabled={updatingId === rule.id}
                               className="text-gray-500 hover:text-brand-navy disabled:opacity-50"
-                              title={rule.isActive ? "Disable" : "Enable"}
-                              aria-label={rule.isActive ? `Disable rule ${rule.name}` : `Enable rule ${rule.name}`}
+                              title={rule.isActive ? t("rowActions.disableTitle") : t("rowActions.enableTitle")}
+                              aria-label={
+                                rule.isActive
+                                  ? t("rowActions.disableAria", { name: rule.name })
+                                  : t("rowActions.enableAria", { name: rule.name })
+                              }
                             >
                               {updatingId === rule.id ? (
                                 <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
@@ -896,8 +915,8 @@ export default function AdminPricingRulesClient() {
                             <button
                               onClick={() => openEditForm(rule)}
                               className="text-gray-500 hover:text-brand-navy"
-                              title="Edit"
-                              aria-label={`Edit rule ${rule.name}`}
+                              title={t("rowActions.editTitle")}
+                              aria-label={t("rowActions.editAria", { name: rule.name })}
                             >
                               <Tag className="w-4 h-4" aria-hidden="true" />
                             </button>
@@ -905,8 +924,8 @@ export default function AdminPricingRulesClient() {
                               onClick={() => setDeleteTargetRule(rule)}
                               disabled={deletingId === rule.id}
                               className="text-gray-500 hover:text-red-500 disabled:opacity-50"
-                              title="Delete"
-                              aria-label={`Delete rule ${rule.name}`}
+                              title={t("rowActions.deleteTitle")}
+                              aria-label={t("rowActions.deleteAria", { name: rule.name })}
                             >
                               {deletingId === rule.id ? (
                                 <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
@@ -924,8 +943,8 @@ export default function AdminPricingRulesClient() {
                                 }
                               }}
                               className="text-gray-500 hover:text-brand-navy"
-                              title="Audit history"
-                              aria-label={`View audit history for rule ${rule.name}`}
+                              title={t("rowActions.auditTitle")}
+                              aria-label={t("rowActions.auditAria", { name: rule.name })}
                             >
                               <History className="w-4 h-4" aria-hidden="true" />
                             </button>
@@ -936,10 +955,10 @@ export default function AdminPricingRulesClient() {
                         <tr>
                           <td colSpan={6} className="bg-gray-50 px-4 py-3">
                             <div className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1">
-                              <History className="w-3 h-3" /> Audit history
+                              <History className="w-3 h-3" /> {t("audit.title")}
                             </div>
                             {auditLogs.length === 0 ? (
-                              <p className="text-xs text-gray-500">No audit entries found.</p>
+                              <p className="text-xs text-gray-500">{t("audit.empty")}</p>
                             ) : (
                               <ul className="space-y-1.5">
                                 {auditLogs.map((log) => (
@@ -964,13 +983,19 @@ export default function AdminPricingRulesClient() {
 
       {toggleTargetRule && (
         <ConfirmActionModal
-          title={`${toggleTargetRule.isActive ? "Disable" : "Enable"} rule "${toggleTargetRule.name}"`}
-          confirmLabel={toggleTargetRule.isActive ? "Disable" : "Enable"}
+          title={
+            toggleTargetRule.isActive
+              ? t("toggleModal.disableTitle", { name: toggleTargetRule.name })
+              : t("toggleModal.enableTitle", { name: toggleTargetRule.name })
+          }
+          confirmLabel={toggleTargetRule.isActive ? t("toggleModal.disableConfirm") : t("toggleModal.enableConfirm")}
           danger={toggleTargetRule.isActive}
           fields={[
             {
               key: "reason",
-              label: `Reason for ${toggleTargetRule.isActive ? "disabling" : "enabling"} this rule`,
+              label: toggleTargetRule.isActive
+                ? t("toggleModal.disableReasonLabel")
+                : t("toggleModal.enableReasonLabel"),
               autoFocus: true,
             },
           ]}
@@ -984,14 +1009,14 @@ export default function AdminPricingRulesClient() {
 
       {deleteTargetRule && (
         <ConfirmActionModal
-          title={`Delete rule "${deleteTargetRule.name}"`}
-          message="This pricing rule will be permanently removed."
-          confirmLabel="Delete"
+          title={t("deleteModal.title", { name: deleteTargetRule.name })}
+          message={t("deleteModal.message")}
+          confirmLabel={t("deleteModal.confirm")}
           danger
           fields={[
             {
               key: "reason",
-              label: "Reason for deleting this rule",
+              label: t("deleteModal.reasonLabel"),
               autoFocus: true,
             },
           ]}

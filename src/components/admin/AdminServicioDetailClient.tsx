@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Loader2,
   ChevronLeft,
@@ -45,13 +46,17 @@ interface ChecklistProgress {
 }
 
 export default function AdminServicioDetailClient() {
+  const t = useTranslations("admin.servicioDetail");
   const router = useRouter();
   const params = useParams();
   const orderId = params?.orderId as string;
 
-  const locale = (typeof window !== "undefined" 
-    ? window.location.pathname.split("/")[1] 
-    : "en") as string;
+  // Item 8 (auditoría 2026-07-25): antes se leía el locale con
+  // window.location.pathname.split("/")[1], que rendería "en" fijo en el
+  // servidor (SSR) vs el locale real en el cliente -- riesgo de hydration
+  // mismatch. useParams() lee el segmento [locale] de la ruta directo del
+  // router, igual que ya hace AdminDashboardClient.tsx.
+  const locale = (params?.locale as string) || "en";
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
   const adminPath = `/${safeLocale}/admin`;
 
@@ -74,7 +79,7 @@ export default function AdminServicioDetailClient() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load checklist");
+        setError(err.error || t("errors.loadFailed"));
         setLoading(false);
         return;
       }
@@ -84,7 +89,7 @@ export default function AdminServicioDetailClient() {
       // Expand all by default
       setExpandedZones(new Set((data.zones || []).map((z: ChecklistZone) => z.zone)));
     } catch {
-      setError("Network error");
+      setError(t("errors.networkError"));
     } finally {
       setLoading(false);
     }
@@ -139,7 +144,7 @@ export default function AdminServicioDetailClient() {
           className="mt-4 inline-flex items-center gap-2 text-brand-navy font-medium"
         >
           <ChevronLeft className="w-4 h-4" />
-          Back to Services
+          {t("backToServices")}
         </button>
       </div>
     );
@@ -150,12 +155,12 @@ export default function AdminServicioDetailClient() {
       <div className="flex items-center gap-3">
         <button
           onClick={() => router.push(`${adminPath}/servicios`)}
-          aria-label="Back to Services"
+          aria-label={t("backToServices")}
           className="text-gray-500 hover:text-brand-navy"
         >
           <ChevronLeft className="w-5 h-5" aria-hidden="true" />
         </button>
-        <h1 className="text-2xl font-bold text-brand-ink">Service Checklist</h1>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
       </div>
 
       {/* Progress summary */}
@@ -164,7 +169,7 @@ export default function AdminServicioDetailClient() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <ClipboardCheck className="w-5 h-5 text-brand-gold" />
-              <span className="font-medium text-brand-ink">Checklist Progress</span>
+              <span className="font-medium text-brand-ink">{t("progress.title")}</span>
             </div>
             <span className="text-lg font-bold text-brand-ink">
               {progress.percentComplete}%
@@ -178,10 +183,10 @@ export default function AdminServicioDetailClient() {
           </div>
           <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
             <span>
-              {progress.completedItems} of {progress.totalItems} items
+              {t("progress.itemsCount", { completed: progress.completedItems, total: progress.totalItems })}
             </span>
             <span>
-              {progress.requiredCompleted} of {progress.requiredItems} required
+              {t("progress.requiredCount", { completed: progress.requiredCompleted, total: progress.requiredItems })}
             </span>
           </div>
         </div>
@@ -259,7 +264,7 @@ export default function AdminServicioDetailClient() {
                         {item.photoUrl && (
                           <img
                             src={item.photoUrl}
-                            alt="Evidence"
+                            alt={t("evidenceAltText")}
                             className="mt-2 rounded-lg w-24 h-24 object-cover"
                           />
                         )}
@@ -280,7 +285,7 @@ export default function AdminServicioDetailClient() {
       {zones.length === 0 && (
         <div className="bg-white rounded-xl border p-8 text-center">
           <ClipboardCheck className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500">No checklist template found for this service type.</p>
+          <p className="text-gray-500">{t("noChecklistTemplate")}</p>
         </div>
       )}
     </div>

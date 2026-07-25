@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Loader2,
   AlertCircle,
@@ -35,10 +36,10 @@ interface Ticket {
 // tickets de alta prioridad (SOS, disputa de horas, aprobación de upsell,
 // reasignación por offboarding) se veían indistinguibles de una consulta
 // de baja prioridad.
-const PRIORITY_LABEL: Record<string, { label: string; color: string }> = {
-  high: { label: "High", color: "bg-red-100 text-red-700" },
-  medium: { label: "Medium", color: "bg-yellow-100 text-yellow-700" },
-  low: { label: "Low", color: "bg-blue-100 text-blue-700" },
+const PRIORITY_COLOR: Record<string, string> = {
+  high: "bg-red-100 text-red-700",
+  medium: "bg-yellow-100 text-yellow-700",
+  low: "bg-blue-100 text-blue-700",
 };
 
 // v8.3 ROUND 3 — hallazgo: hours_dispute y upsell_approval tienen su propio
@@ -51,6 +52,18 @@ const PRIORITY_LABEL: Record<string, { label: string; color: string }> = {
 // más abajo, que ramifica sobre selectedTicket.type).
 
 export default function AdminTicketsClient() {
+  const t = useTranslations("admin.tickets");
+  const STATUS_LABEL: Record<string, string> = {
+    open: t("statusLabels.open"),
+    in_review: t("statusLabels.inReview"),
+    resolved: t("statusLabels.resolved"),
+    escalated: t("statusLabels.escalated"),
+  };
+  const PRIORITY_LABEL: Record<string, { label: string; color: string }> = {
+    high: { label: t("priorityLabels.high"), color: PRIORITY_COLOR.high },
+    medium: { label: t("priorityLabels.medium"), color: PRIORITY_COLOR.medium },
+    low: { label: t("priorityLabels.low"), color: PRIORITY_COLOR.low },
+  };
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -74,14 +87,14 @@ export default function AdminTicketsClient() {
       const res = await fetch(`/api/admin/tickets?status=${statusFilter}`, { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load tickets");
+        setError(err.error || t("loadError"));
         setLoading(false);
         return;
       }
       const data = await res.json();
       setTickets(data.tickets || []);
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setLoading(false);
     }
@@ -89,7 +102,7 @@ export default function AdminTicketsClient() {
 
   async function resolveTicket(ticketId: string) {
     if (!resolutionNote.trim()) {
-      setError("Resolution note is required");
+      setError(t("resolutionNoteRequired"));
       return;
     }
     setSubmitting(true);
@@ -103,7 +116,7 @@ export default function AdminTicketsClient() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to resolve ticket");
+        setError(err.error || t("resolveTicketError"));
         setSubmitting(false);
         return;
       }
@@ -111,7 +124,7 @@ export default function AdminTicketsClient() {
       setResolutionNote("");
       loadTickets();
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -124,7 +137,7 @@ export default function AdminTicketsClient() {
   // cual (ej. el empleado se equivocó, no la app).
   async function resolveHoursDispute(ticketId: string, action: "approve_correction" | "reject") {
     if (!resolutionNote.trim()) {
-      setError("Resolution note is required");
+      setError(t("resolutionNoteRequired"));
       return;
     }
     setSubmitting(true);
@@ -147,7 +160,7 @@ export default function AdminTicketsClient() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to resolve hours dispute");
+        setError(err.error || t("resolveHoursDisputeError"));
         setSubmitting(false);
         return;
       }
@@ -156,7 +169,7 @@ export default function AdminTicketsClient() {
       setCorrectedTime("");
       loadTickets();
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -169,7 +182,7 @@ export default function AdminTicketsClient() {
   async function resolveUpsellApproval(action: "approve" | "reject") {
     const upsellId = selectedTicket?.context?.upsell_id;
     if (!upsellId || typeof upsellId !== "string") {
-      setError("Ticket is missing upsell_id in context — cannot resolve here");
+      setError(t("missingUpsellId"));
       return;
     }
     setSubmitting(true);
@@ -183,7 +196,7 @@ export default function AdminTicketsClient() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to resolve upsell approval");
+        setError(err.error || t("resolveUpsellError"));
         setSubmitting(false);
         return;
       }
@@ -191,7 +204,7 @@ export default function AdminTicketsClient() {
       setResolutionNote("");
       loadTickets();
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -218,7 +231,7 @@ export default function AdminTicketsClient() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-brand-ink">Tickets & Disputes</h1>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("heading")}</h1>
         <div className="flex gap-2">
           {["open", "in_review", "resolved", "escalated"].map((s) => (
             <button
@@ -230,7 +243,7 @@ export default function AdminTicketsClient() {
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              {s.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+              {STATUS_LABEL[s] || s}
             </button>
           ))}
         </div>
@@ -248,7 +261,7 @@ export default function AdminTicketsClient() {
       ) : tickets.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
           <CheckCircle2 className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500">No tickets with status &quot;{statusFilter.replace(/_/g, " ")}&quot;.</p>
+          <p className="text-gray-500">{t("emptyState", { status: STATUS_LABEL[statusFilter] || statusFilter })}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -266,7 +279,7 @@ export default function AdminTicketsClient() {
                         {priority.label}
                       </span>
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getStatusBadge(ticket.status)}`}>
-                        {ticket.status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                        {STATUS_LABEL[ticket.status] || ticket.status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                       </span>
                       <span className="text-xs text-gray-400 capitalize">
                         {ticket.type.replace(/_/g, " ")}
@@ -275,7 +288,7 @@ export default function AdminTicketsClient() {
 
                     <div className="flex items-center gap-2 text-sm text-brand-ink">
                       <User className="w-4 h-4 text-gray-400" />
-                      <span>{ticket.employees?.name || "System"}</span>
+                      <span>{ticket.employees?.name || t("employeeFallback")}</span>
                     </div>
 
                     {ticket.orders && (
@@ -294,11 +307,11 @@ export default function AdminTicketsClient() {
                     {ticket.resolution_note && (
                       <div className="bg-green-50 border border-green-200 rounded-lg p-2">
                         <p className="text-sm text-green-700">
-                          <strong>Resolution:</strong> {ticket.resolution_note}
+                          <strong>{t("resolutionLabel")}</strong> {ticket.resolution_note}
                         </p>
                         {ticket.resolved_at && (
                           <p className="text-xs text-green-500 mt-1">
-                            Resolved {new Date(ticket.resolved_at).toLocaleDateString()}
+                            {t("resolvedOn", { date: new Date(ticket.resolved_at).toLocaleDateString() })}
                           </p>
                         )}
                       </div>
@@ -316,7 +329,7 @@ export default function AdminTicketsClient() {
                       }}
                       className="bg-brand-navy text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors ml-2"
                     >
-                      Resolve
+                      {t("resolveButton")}
                     </button>
                   ) : (
                     <CheckCircle2 className="w-5 h-5 text-green-400 ml-2" />
@@ -333,7 +346,7 @@ export default function AdminTicketsClient() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-brand-ink">Resolve Ticket</h2>
+              <h2 className="text-lg font-bold text-brand-ink">{t("modal.title")}</h2>
               <button
                 onClick={() => setSelectedTicket(null)}
                 className="text-gray-400 hover:text-gray-600"
@@ -343,10 +356,10 @@ export default function AdminTicketsClient() {
             </div>
 
             <div className="text-sm space-y-1">
-              <p><strong>Type:</strong> {selectedTicket.type.replace(/_/g, " ")}</p>
-              <p><strong>Priority:</strong> {getPriorityLabel(selectedTicket.priority).label}</p>
+              <p><strong>{t("modal.typeLabel")}</strong> {selectedTicket.type.replace(/_/g, " ")}</p>
+              <p><strong>{t("modal.priorityLabel")}</strong> {getPriorityLabel(selectedTicket.priority).label}</p>
               {selectedTicket.employees?.name && (
-                <p><strong>Employee:</strong> {selectedTicket.employees.name}</p>
+                <p><strong>{t("modal.employeeLabel")}</strong> {selectedTicket.employees.name}</p>
               )}
               {selectedTicket.context && typeof selectedTicket.context === "object" && "description" in selectedTicket.context && (
                 <p className="text-gray-600 bg-gray-50 rounded-lg p-2 mt-2">
@@ -358,13 +371,11 @@ export default function AdminTicketsClient() {
             {selectedTicket.type === "hours_dispute" ? (
               <>
                 <p className="text-xs text-gray-500">
-                  Approving with a corrected time updates the actual service log — the employee&apos;s
-                  pay reflects the correction, not just a note. A technical failure never counts
-                  against them.
+                  {t("modal.hoursDispute.explanation")}
                 </p>
                 <div>
                   <label htmlFor="corrected-time-input" className="text-xs text-gray-600 block mb-1">
-                    Corrected time (optional — leave blank to reject or to approve without changing the log)
+                    {t("modal.hoursDispute.correctedTimeLabel")}
                   </label>
                   <input
                     id="corrected-time-input"
@@ -375,10 +386,10 @@ export default function AdminTicketsClient() {
                   />
                 </div>
                 <textarea
-                  aria-label="Nota de resolución de la disputa de horas"
+                  aria-label={t("modal.hoursDispute.noteAriaLabel")}
                   value={resolutionNote}
                   onChange={(e) => setResolutionNote(e.target.value)}
-                  placeholder="Resolution note (required)..."
+                  placeholder={t("modal.hoursDispute.notePlaceholder")}
                   className="w-full border rounded-lg p-3 text-sm min-h-[80px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
                 />
                 {error && <p className="text-sm text-red-600">{error}</p>}
@@ -388,28 +399,27 @@ export default function AdminTicketsClient() {
                     disabled={submitting}
                     className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50"
                   >
-                    Reject
+                    {t("modal.hoursDispute.reject")}
                   </button>
                   <button
                     onClick={() => resolveHoursDispute(selectedTicket.id, "approve_correction")}
                     disabled={submitting}
                     className="flex-1 bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
                   >
-                    {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Approve"}
+                    {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : t("modal.hoursDispute.approve")}
                   </button>
                 </div>
               </>
             ) : selectedTicket.type === "upsell_approval" ? (
               <>
                 <p className="text-xs text-gray-500">
-                  This upsell went over the 50% cap and needs your approval before it counts toward
-                  commission or Batch Capture.
+                  {t("modal.upsellApproval.explanation")}
                 </p>
                 <textarea
-                  aria-label="Nota de aprobación del upsell"
+                  aria-label={t("modal.upsellApproval.noteAriaLabel")}
                   value={resolutionNote}
                   onChange={(e) => setResolutionNote(e.target.value)}
-                  placeholder="Note (optional)..."
+                  placeholder={t("modal.upsellApproval.notePlaceholder")}
                   className="w-full border rounded-lg p-3 text-sm min-h-[80px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
                 />
                 {error && <p className="text-sm text-red-600">{error}</p>}
@@ -419,14 +429,14 @@ export default function AdminTicketsClient() {
                     disabled={submitting}
                     className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50"
                   >
-                    Reject
+                    {t("modal.upsellApproval.reject")}
                   </button>
                   <button
                     onClick={() => resolveUpsellApproval("approve")}
                     disabled={submitting}
                     className="flex-1 bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
                   >
-                    {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Approve"}
+                    {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : t("modal.upsellApproval.approve")}
                   </button>
                 </div>
               </>
@@ -442,7 +452,7 @@ export default function AdminTicketsClient() {
                     }`}
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    Resolve
+                    {t("modal.generic.resolveTab")}
                   </button>
                   <button
                     onClick={() => setResolutionStatus("escalated")}
@@ -453,15 +463,15 @@ export default function AdminTicketsClient() {
                     }`}
                   >
                     <AlertTriangle className="w-4 h-4" />
-                    Escalate
+                    {t("modal.generic.escalateTab")}
                   </button>
                 </div>
 
                 <textarea
-                  aria-label="Nota de resolución del ticket"
+                  aria-label={t("modal.generic.noteAriaLabel")}
                   value={resolutionNote}
                   onChange={(e) => setResolutionNote(e.target.value)}
-                  placeholder="Resolution note (required)..."
+                  placeholder={t("modal.generic.notePlaceholder")}
                   className="w-full border rounded-lg p-3 text-sm min-h-[100px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
                 />
 
@@ -472,7 +482,7 @@ export default function AdminTicketsClient() {
                   disabled={submitting}
                   className="w-full bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
                 >
-                  {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Submit Resolution"}
+                  {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : t("modal.generic.submit")}
                 </button>
               </>
             )}

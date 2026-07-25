@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, Moon, Smile, Meh, Frown, Calendar } from "lucide-react";
 
 interface Aggregate {
@@ -24,6 +25,7 @@ function todayStr(): string {
  * pantalla para que el admin realmente lo viera.
  */
 export default function WellbeingPage() {
+  const t = useTranslations("admin.wellbeing");
   const [date, setDate] = useState(todayStr());
   const [aggregate, setAggregate] = useState<Aggregate | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,13 +43,13 @@ export default function WellbeingPage() {
       const res = await fetch(`/api/admin/wellbeing?date=${d}`, { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load");
+        setError(err.error || t("errors.loadFailed"));
         return;
       }
       const data = await res.json();
       setAggregate(data.aggregate || null);
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -56,18 +58,15 @@ export default function WellbeingPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold text-brand-ink">Team Wellbeing</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Aggregated only — no individual check-in is ever readable, not even by owner_admin (RLS-enforced, no
-          SELECT policy exists on the underlying table).
-        </p>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t("description")}</p>
       </div>
 
       <div className="flex items-center gap-2">
         <Calendar className="w-4 h-4 text-gray-400" />
         <input
           type="date"
-          aria-label="Fecha del reporte de bienestar"
+          aria-label={t("dateAria")}
           value={date}
           onChange={(e) => setDate(e.target.value)}
           className="border rounded-lg px-3 py-2 text-sm"
@@ -82,33 +81,33 @@ export default function WellbeingPage() {
         </div>
       ) : !aggregate || aggregate.total_checkins === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center text-sm text-gray-500">
-          No check-ins recorded for {date}.
+          {t("noCheckins", { date })}
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl border p-4 text-center">
             <p className="text-2xl font-bold text-brand-ink">{aggregate.total_checkins}</p>
-            <p className="text-xs text-gray-500 mt-1">Total check-ins</p>
+            <p className="text-xs text-gray-500 mt-1">{t("stats.totalCheckins")}</p>
           </div>
           <div className="bg-white rounded-xl border p-4 text-center">
             <Moon className="w-5 h-5 text-brand-wave-blue mx-auto mb-1" />
             <p className="text-2xl font-bold text-brand-ink">{aggregate.slept_less_than_6h_count}</p>
-            <p className="text-xs text-gray-500 mt-1">Slept &lt;6h</p>
+            <p className="text-xs text-gray-500 mt-1">{t("stats.sleptLessThan6h")}</p>
           </div>
           <div className="bg-white rounded-xl border p-4 text-center">
             <Smile className="w-5 h-5 text-state-success mx-auto mb-1" />
             <p className="text-2xl font-bold text-brand-ink">{aggregate.mood_happy_count}</p>
-            <p className="text-xs text-gray-500 mt-1">Happy</p>
+            <p className="text-xs text-gray-500 mt-1">{t("stats.happy")}</p>
           </div>
           <div className="bg-white rounded-xl border p-4 text-center">
             <Meh className="w-5 h-5 text-state-warning mx-auto mb-1" />
             <p className="text-2xl font-bold text-brand-ink">{aggregate.mood_neutral_count}</p>
-            <p className="text-xs text-gray-500 mt-1">Neutral</p>
+            <p className="text-xs text-gray-500 mt-1">{t("stats.neutral")}</p>
           </div>
           <div className="bg-white rounded-xl border p-4 text-center col-span-2 sm:col-span-1">
             <Frown className="w-5 h-5 text-state-danger mx-auto mb-1" />
             <p className="text-2xl font-bold text-brand-ink">{aggregate.mood_sad_count}</p>
-            <p className="text-xs text-gray-500 mt-1">Sad</p>
+            <p className="text-xs text-gray-500 mt-1">{t("stats.sad")}</p>
           </div>
         </div>
       )}

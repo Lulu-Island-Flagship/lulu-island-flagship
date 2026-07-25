@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Loader2, Scale, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 interface Feed {
@@ -29,6 +31,18 @@ interface Alert {
  * página cierra el gap de que nadie podía usarlo.
  */
 export default function LegalMonitoringPage() {
+  const t = useTranslations("admin.monitoreoLegal");
+  const params = useParams();
+  // Item 13 (auditoría 2026-07-25): antes se formateaba en dólares crudos
+  // ($X.XX) sin importar el locale. Intl.NumberFormat usa el locale real de
+  // la ruta para separadores de miles/decimales; la moneda del negocio sigue
+  // siendo CAD sin importar el idioma mostrado.
+  const locale = (params?.locale as string) || "en";
+  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+  const currencyFormatter = new Intl.NumberFormat(safeLocale === "zh" ? "zh-CA" : safeLocale === "fr" ? "fr-CA" : "en-CA", {
+    style: "currency",
+    currency: "CAD",
+  });
   const [feeds, setFeeds] = useState<Feed[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +82,20 @@ export default function LegalMonitoringPage() {
       const body: Record<string, unknown> = { feedId, changeDetected: withChange };
       if (withChange && changeForm) {
         body.changeDescription = changeForm.description;
-        body.dollarImpactCents = changeForm.impact ? Math.round(parseFloat(changeForm.impact) * 100) : undefined;
+        if (changeForm.impact.trim()) {
+          // Item 11 (auditoría 2026-07-25): antes parseFloat() no validaba
+          // el input -- un valor no numérico ("abc") producía NaN, que
+          // Math.round(NaN * 100) también convierte en NaN, y el backend
+          // recibía dollarImpactCents: NaN (serializado como `null` por
+          // JSON.stringify, perdiendo el impacto en dólares silenciosamente).
+          const parsed = Number(changeForm.impact);
+          if (Number.isNaN(parsed) || parsed < 0) {
+            setError(t("invalidImpact"));
+            setCheckingId(null);
+            return;
+          }
+          body.dollarImpactCents = Math.round(parsed * 100);
+        }
       }
       const res = await fetch("/api/admin/legal-monitoring", {
         method: "PATCH",
@@ -129,7 +156,7 @@ export default function LegalMonitoringPage() {
                 <p className="text-brand-ink">{a.change_description}</p>
                 <p className="text-xs text-gray-400 mt-1">
                   Detected {new Date(a.detected_at).toLocaleDateString()}
-                  {a.dollar_impact_cents !== null && ` — impact $${(a.dollar_impact_cents / 100).toFixed(2)}`}
+                  {a.dollar_impact_cents !== null && ` — impact ${currencyFormatter.format(a.dollar_impact_cents / 100)}`}
                 </p>
                 {a.suggested_actions.length > 0 && (
                   <ul className="mt-1 list-disc list-inside text-xs text-gray-500">
@@ -185,7 +212,7 @@ export default function LegalMonitoringPage() {
                 <div className="space-y-2 pt-2 border-t">
                   <input
                     type="text"
-                    aria-label="Descripción del cambio"
+                    aria-label="Change description"
                     value={changeForm.description}
                     onChange={(e) => setChangeForm({ ...changeForm, description: e.target.value })}
                     placeholder="What changed?"
@@ -194,7 +221,7 @@ export default function LegalMonitoringPage() {
                   <input
                     type="number"
                     step="0.01"
-                    aria-label="Impacto en dólares (opcional)"
+                    aria-label="Dollar impact (optional)"
                     value={changeForm.impact}
                     onChange={(e) => setChangeForm({ ...changeForm, impact: e.target.value })}
                     placeholder="Dollar impact (optional)"

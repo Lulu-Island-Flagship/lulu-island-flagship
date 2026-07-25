@@ -1,6 +1,9 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   ClipboardList,
   Users,
@@ -57,10 +60,14 @@ import { roleAllows, type AdminRole, type AdminResource } from "@/lib/admin-rbac
 // propia API cuando no existía un link equivalente en el nav (ver comentario
 // por tarjeta más abajo para las que no están en AdminNav.tsx).
 export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) {
-  // Detect locale from pathname for navigation
-  const locale = (typeof window !== "undefined"
-    ? window.location.pathname.split("/")[1]
-    : "en") as string;
+  const t = useTranslations("admin.dashboard");
+  // Item 8 (auditoría 2026-07-25): antes se leía el locale con
+  // window.location.pathname.split("/")[1], lo que rendería distinto en
+  // servidor (SSR, "en" fijo) vs cliente (locale real) -- riesgo de
+  // hydration mismatch. useParams() lee el segmento [locale] de la ruta
+  // directo del router, sin depender de `window`.
+  const params = useParams();
+  const locale = (params?.locale as string) || "en";
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
 
   const cards: Array<{
@@ -72,8 +79,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
     resource: AdminResource;
   }> = [
     {
-      title: "Alert Inbox",
-      description: "Unified queue — respond in 10 min vs. can wait (E0.6)",
+      title: t("cards.alertInbox.title"),
+      description: t("cards.alertInbox.description"),
       icon: Siren,
       href: `/${safeLocale}/admin/alerts`,
       color: "bg-red-50 text-red-600",
@@ -81,16 +88,16 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "risk_assessments",
     },
     {
-      title: "Today's Services",
-      description: "View all scheduled services for today with checklist progress",
+      title: t("cards.todaysServices.title"),
+      description: t("cards.todaysServices.description"),
       icon: ClipboardList,
       href: `/${safeLocale}/admin/servicios`,
       color: "bg-blue-50 text-blue-600",
       resource: "services",
     },
     {
-      title: "Dispatch review",
-      description: "Daily assignment matrix — override, language match, workday alerts (D.4)",
+      title: t("cards.dispatchReview.title"),
+      description: t("cards.dispatchReview.description"),
       icon: CalendarClock,
       href: `/${safeLocale}/admin/dispatch`,
       color: "bg-teal-50 text-teal-600",
@@ -98,80 +105,80 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "dispatch",
     },
     {
-      title: "Employees",
-      description: "View all active and inactive employees",
+      title: t("cards.employees.title"),
+      description: t("cards.employees.description"),
       icon: Users,
       href: `/${safeLocale}/admin/empleados`,
       color: "bg-purple-50 text-purple-600",
       resource: "employees_admin",
     },
     {
-      title: "Upsells Review",
-      description: "Review upsells proposed by employees",
+      title: t("cards.upsellsReview.title"),
+      description: t("cards.upsellsReview.description"),
       icon: Tag,
       href: `/${safeLocale}/admin/upsells`,
       color: "bg-amber-50 text-amber-600",
       resource: "upsells_review",
     },
     {
-      title: "Checklists",
-      description: "Manage SOP checklist templates by zone and service type",
+      title: t("cards.checklists.title"),
+      description: t("cards.checklists.description"),
       icon: ListChecks,
       href: `/${safeLocale}/admin/checklists`,
       color: "bg-green-50 text-green-600",
       resource: "checklists_sop",
     },
     {
-      title: "QC Wall",
-      description: "Approve or reject completed services with evidence",
+      title: t("cards.qcWall.title"),
+      description: t("cards.qcWall.description"),
       icon: ShieldCheck,
       href: `/${safeLocale}/admin/qc`,
       color: "bg-indigo-50 text-indigo-600",
       resource: "qc_wall",
     },
     {
-      title: "Field Audits",
-      description: "Register field evaluations and view peer vote aggregates",
+      title: t("cards.fieldAudits.title"),
+      description: t("cards.fieldAudits.description"),
       icon: ClipboardCheck,
       href: `/${safeLocale}/admin/audits`,
       color: "bg-cyan-50 text-cyan-600",
       resource: "field_audits",
     },
     {
-      title: "Tickets",
-      description: "Disputes, discrepancies, and consultation queue",
+      title: t("cards.tickets.title"),
+      description: t("cards.tickets.description"),
       icon: AlertTriangle,
       href: `/${safeLocale}/admin/tickets`,
       color: "bg-red-50 text-red-600",
       resource: "tickets",
     },
     {
-      title: "Quote Reviews",
-      description: "Approve or reject quotes below the 15% margin floor",
+      title: t("cards.quoteReviews.title"),
+      description: t("cards.quoteReviews.description"),
       icon: FileSearch,
       href: `/${safeLocale}/admin/quotes-review`,
       color: "bg-rose-50 text-rose-600",
       resource: "quotes_review",
     },
     {
-      title: "Pricing Rules",
-      description: "Headless rule engine — active rules and audit log",
+      title: t("cards.pricingRules.title"),
+      description: t("cards.pricingRules.description"),
       icon: Settings2,
       href: `/${safeLocale}/admin/pricing-rules`,
       color: "bg-slate-50 text-slate-600",
       resource: "pricing_rules",
     },
     {
-      title: "Pricing Settings",
-      description: "Target hourly rate and HHE table preview",
+      title: t("cards.pricingSettings.title"),
+      description: t("cards.pricingSettings.description"),
       icon: DollarSign,
       href: `/${safeLocale}/admin/pricing-settings`,
       color: "bg-emerald-50 text-emerald-600",
       resource: "pricing_settings",
     },
     {
-      title: "Business Insurance",
-      description: "Vehicular, general liability, and E&O policy registry",
+      title: t("cards.businessInsurance.title"),
+      description: t("cards.businessInsurance.description"),
       icon: ShieldCheck,
       href: `/${safeLocale}/admin/business-insurance`,
       color: "bg-teal-50 text-teal-600",
@@ -179,8 +186,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "finance",
     },
     {
-      title: "Seasonal Campaigns",
-      description: "The 5 pre-loaded campaigns, modulated by real demand signals",
+      title: t("cards.seasonalCampaigns.title"),
+      description: t("cards.seasonalCampaigns.description"),
       icon: Sparkles,
       href: `/${safeLocale}/admin/seasonal-campaigns`,
       color: "bg-fuchsia-50 text-fuchsia-600",
@@ -188,8 +195,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "upsells_review",
     },
     {
-      title: "Succession Mode",
-      description: "Trusted successors and burnout/succession status",
+      title: t("cards.succession.title"),
+      description: t("cards.succession.description"),
       icon: Users,
       href: `/${safeLocale}/admin/succession`,
       color: "bg-indigo-50 text-indigo-600",
@@ -197,8 +204,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "employees_admin",
     },
     {
-      title: "DR Drills",
-      description: "Disaster recovery drill log — restore, succession, kit, fallback (E11.4)",
+      title: t("cards.drDrills.title"),
+      description: t("cards.drDrills.description"),
       icon: LifeBuoy,
       href: `/${safeLocale}/admin/dr-drill`,
       color: "bg-orange-50 text-orange-600",
@@ -210,8 +217,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "feature_flags",
     },
     {
-      title: "Weather Exceptions",
-      description: "Adverse weather log — reschedule vs. safe abort + Day Rate (D.10#10)",
+      title: t("cards.weatherExceptions.title"),
+      description: t("cards.weatherExceptions.description"),
       icon: CloudRain,
       href: `/${safeLocale}/admin/weather-exceptions`,
       color: "bg-sky-50 text-sky-600",
@@ -219,8 +226,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "risk_assessments",
     },
     {
-      title: "Workplace Incidents",
-      description: "Injuries — WorkSafeBC 72h pre-filled report countdown (D.10#6)",
+      title: t("cards.workplaceIncidents.title"),
+      description: t("cards.workplaceIncidents.description"),
       icon: HeartPulse,
       href: `/${safeLocale}/admin/workplace-incidents`,
       color: "bg-rose-50 text-rose-600",
@@ -228,8 +235,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "risk_assessments",
     },
     {
-      title: "Churn Signals",
-      description: "At-risk clients — survey, reactivation discount, personal follow-up (D.10.9)",
+      title: t("cards.churnSignals.title"),
+      description: t("cards.churnSignals.description"),
       icon: UserMinus,
       href: `/${safeLocale}/admin/churn-signals`,
       color: "bg-amber-50 text-amber-600",
@@ -237,8 +244,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "finance",
     },
     {
-      title: "Attribution",
-      description: "CAC/LTV by channel + suggested budget allocation (D.10.2)",
+      title: t("cards.attribution.title"),
+      description: t("cards.attribution.description"),
       icon: TrendingUp,
       href: `/${safeLocale}/admin/attribution`,
       color: "bg-lime-50 text-lime-600",
@@ -246,8 +253,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "finance",
     },
     {
-      title: "Partners & Commissions",
-      description: "Real estate, property manager, vet, builder referrals — all T4A (D.10.6)",
+      title: t("cards.partners.title"),
+      description: t("cards.partners.description"),
       icon: Handshake,
       href: `/${safeLocale}/admin/partners`,
       color: "bg-cyan-50 text-cyan-700",
@@ -255,8 +262,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "finance",
     },
     {
-      title: "Neighborhood",
-      description: "Concierge notices, noise rules, complaints, and neighbor leads (E11.5)",
+      title: t("cards.neighborhood.title"),
+      description: t("cards.neighborhood.description"),
       icon: Home,
       href: `/${safeLocale}/admin/neighborhood`,
       color: "bg-violet-50 text-violet-600",
@@ -264,8 +271,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "risk_assessments",
     },
     {
-      title: "A/B Experiments",
-      description: "Price/copy/UI experiments — recurring clients always protected (D.10.11)",
+      title: t("cards.experiments.title"),
+      description: t("cards.experiments.description"),
       icon: FlaskConical,
       href: `/${safeLocale}/admin/experiments`,
       color: "bg-fuchsia-50 text-fuchsia-700",
@@ -273,8 +280,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "finance",
     },
     {
-      title: "Client Segments",
-      description: "VIP / Regular / Sporadic / At Risk / New (E5.14)",
+      title: t("cards.clientSegments.title"),
+      description: t("cards.clientSegments.description"),
       icon: Crown,
       href: `/${safeLocale}/admin/client-segments`,
       color: "bg-amber-50 text-amber-700",
@@ -282,24 +289,24 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "finance",
     },
     {
-      title: "Team Wellbeing",
-      description: "Aggregated sleep/mood check-ins — never individual (E8.1/E8.3)",
+      title: t("cards.wellbeing.title"),
+      description: t("cards.wellbeing.description"),
       icon: Moon,
       href: `/${safeLocale}/admin/wellbeing`,
       color: "bg-blue-50 text-blue-700",
       resource: "wellbeing",
     },
     {
-      title: "Teams",
-      description: "Minimal team identity (name + avatar) feeding the weekly Top-3 ranking (E8.9/E8.10)",
+      title: t("cards.teams.title"),
+      description: t("cards.teams.description"),
       icon: Users,
       href: `/${safeLocale}/admin/teams`,
       color: "bg-indigo-50 text-indigo-700",
       resource: "teams",
     },
     {
-      title: "Route Shortcuts",
-      description: "Employee-reported shortcuts pending validation — validating pays $10 (E8 learning route)",
+      title: t("cards.routeShortcuts.title"),
+      description: t("cards.routeShortcuts.description"),
       icon: MapPin,
       href: `/${safeLocale}/admin/route-shortcuts`,
       color: "bg-cyan-50 text-cyan-700",
@@ -307,8 +314,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "wellbeing",
     },
     {
-      title: "Coworker Rotation",
-      description: "Minimum 3 distinct coworkers/month + \"never together\" exceptions (E8.14)",
+      title: t("cards.coworkerRotation.title"),
+      description: t("cards.coworkerRotation.description"),
       icon: Repeat,
       href: `/${safeLocale}/admin/coworker-rotation`,
       color: "bg-teal-50 text-teal-700",
@@ -316,8 +323,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "dispatch",
     },
     {
-      title: "Live Portfolio",
-      description: "Auto-surfaced candidates — one-tap approve, client keeps a 24h withdrawal right (E5.15)",
+      title: t("cards.livePortfolio.title"),
+      description: t("cards.livePortfolio.description"),
       icon: Images,
       href: `/${safeLocale}/admin/live-portfolio`,
       color: "bg-rose-50 text-rose-700",
@@ -325,8 +332,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "qc_wall",
     },
     {
-      title: "SEO Local & GBP",
-      description: "Checklist Google Business Profile + verificación NAP trimestral (E10.3)",
+      title: t("cards.seoLocal.title"),
+      description: t("cards.seoLocal.description"),
       icon: MapPin,
       href: `/${safeLocale}/admin/seo-local`,
       color: "bg-lime-50 text-lime-700",
@@ -334,8 +341,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "finance",
     },
     {
-      title: "Employee Marketing",
-      description: "Day-in-the-life reels & badge showcase — employee consent + one-touch approval (E10.8)",
+      title: t("cards.employeeMarketing.title"),
+      description: t("cards.employeeMarketing.description"),
       icon: Video,
       href: `/${safeLocale}/admin/employee-marketing`,
       color: "bg-violet-50 text-violet-700",
@@ -343,8 +350,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "finance",
     },
     {
-      title: "Payroll Export",
-      description: "CPP/EI/WorkSafeBC/Vacation Pay per employee, CSV/JSON export (E9.3)",
+      title: t("cards.payrollExport.title"),
+      description: t("cards.payrollExport.description"),
       icon: Wallet,
       href: `/${safeLocale}/admin/nomina`,
       color: "bg-emerald-50 text-emerald-700",
@@ -352,8 +359,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "payroll",
     },
     {
-      title: "Economic Parameters",
-      description: "Minimum wage / Day Rate — simulate impact, one click to apply (E9.6)",
+      title: t("cards.economicParameters.title"),
+      description: t("cards.economicParameters.description"),
       icon: DollarSign,
       href: `/${safeLocale}/admin/parametros-economicos`,
       color: "bg-amber-50 text-amber-700",
@@ -361,8 +368,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "payroll",
     },
     {
-      title: "Legal Monitoring",
-      description: "7 regulatory feeds, blind-feed alert, open change alerts (E9.7)",
+      title: t("cards.legalMonitoring.title"),
+      description: t("cards.legalMonitoring.description"),
       icon: Scale,
       href: `/${safeLocale}/admin/monitoreo-legal`,
       color: "bg-slate-50 text-slate-700",
@@ -370,8 +377,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "compliance",
     },
     {
-      title: "PIPEDA Compliance",
-      description: "Data subject requests (48h) + breach protocol (72h) (E9.9)",
+      title: t("cards.pipeda.title"),
+      description: t("cards.pipeda.description"),
       icon: ShieldAlert,
       href: `/${safeLocale}/admin/pipeda`,
       color: "bg-red-50 text-red-700",
@@ -379,8 +386,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "compliance",
     },
     {
-      title: "Gift Program",
-      description: "Residential retention gifts + property-manager building benefits (E9.11)",
+      title: t("cards.giftProgram.title"),
+      description: t("cards.giftProgram.description"),
       icon: Gift,
       href: `/${safeLocale}/admin/regalos`,
       color: "bg-pink-50 text-pink-700",
@@ -388,8 +395,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "finance",
     },
     {
-      title: "Growth Metrics",
-      description: "Funnel, referrals, churn, NPS scorecard vs. targets (E10.13)",
+      title: t("cards.growthMetrics.title"),
+      description: t("cards.growthMetrics.description"),
       icon: Target,
       href: `/${safeLocale}/admin/growth-metrics`,
       color: "bg-teal-50 text-teal-800",
@@ -397,8 +404,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "finance",
     },
     {
-      title: "Operational Notes",
-      description: "Notes tied to employees/properties, surfaced by context (E11.2)",
+      title: t("cards.entityNotes.title"),
+      description: t("cards.entityNotes.description"),
       icon: StickyNote,
       href: `/${safeLocale}/admin/entity-notes`,
       color: "bg-yellow-50 text-yellow-700",
@@ -406,8 +413,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "dispatch",
     },
     {
-      title: "Financial Stress Scenario",
-      description: "-30% revenue × 3 months simulation, levers in order, review threshold (E11.7)",
+      title: t("cards.stressScenario.title"),
+      description: t("cards.stressScenario.description"),
       icon: TrendingDown,
       href: `/${safeLocale}/admin/stress-scenario`,
       color: "bg-red-50 text-red-800",
@@ -415,8 +422,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "finance",
     },
     {
-      title: "Legacy Migration Closure",
-      description: "www redirect + Godaddy archive/cancellation checklist (E11.8)",
+      title: t("cards.legacyMigration.title"),
+      description: t("cards.legacyMigration.description"),
       icon: Archive,
       href: `/${safeLocale}/admin/legacy-migration`,
       color: "bg-gray-100 text-gray-700",
@@ -424,8 +431,8 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "finance",
     },
     {
-      title: "Certifications",
-      description: "Chemical handling levels with real expiry — blocks dispatch when lapsed (E9.4)",
+      title: t("cards.certifications.title"),
+      description: t("cards.certifications.description"),
       icon: BadgeCheck,
       href: `/${safeLocale}/admin/certificaciones`,
       color: "bg-indigo-50 text-indigo-800",
@@ -433,16 +440,16 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "compliance",
     },
     {
-      title: "CRA Remittances",
-      description: "CPP/EI monthly, GST/PST quarterly, T4 annual — reminder calendar (E9.4)",
+      title: t("cards.craRemittances.title"),
+      description: t("cards.craRemittances.description"),
       icon: Landmark,
       href: `/${safeLocale}/admin/cra-remittances`,
       color: "bg-emerald-50 text-emerald-800",
       resource: "compliance",
     },
     {
-      title: "Backup Status",
-      description: "Transactions/payroll/clients/photos CSV+hash + pg_dump reminder (E9.10)",
+      title: t("cards.backupStatus.title"),
+      description: t("cards.backupStatus.description"),
       icon: DatabaseBackup,
       href: `/${safeLocale}/admin/backups`,
       color: "bg-slate-50 text-slate-800",
@@ -450,16 +457,16 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       resource: "compliance",
     },
     {
-      title: "Contract Renewal Reviews",
-      description: "60 days before anniversary — legal diff, approval, digital signature (E9.8)",
+      title: t("cards.contractReviews.title"),
+      description: t("cards.contractReviews.description"),
       icon: FileSignature,
       href: `/${safeLocale}/admin/contract-reviews`,
       color: "bg-cyan-50 text-cyan-800",
       resource: "compliance",
     },
     {
-      title: "BC Labor Compliance",
-      description: "Documented breaks, sick leave, weekly 32h rest, statutory holiday pay",
+      title: t("cards.laborCompliance.title"),
+      description: t("cards.laborCompliance.description"),
       icon: CalendarDays,
       href: `/${safeLocale}/admin/cumplimiento-laboral`,
       color: "bg-orange-50 text-orange-800",
@@ -473,7 +480,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-brand-ink">Admin Dashboard</h1>
+      <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
 
       <AutopilotModeBanner locale={safeLocale} />
 
@@ -483,7 +490,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
         {visibleCards.map((card) => {
           const Icon = card.icon;
           return (
-            <a
+            <Link
               key={card.title}
               href={card.href}
               className="bg-white rounded-xl border p-5 text-left hover:shadow-md transition-shadow group block"
@@ -496,7 +503,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
               </div>
               <h2 className="mt-3 font-semibold text-brand-ink">{card.title}</h2>
               <p className="mt-1 text-sm text-gray-500">{card.description}</p>
-            </a>
+            </Link>
           );
         })}
       </div>

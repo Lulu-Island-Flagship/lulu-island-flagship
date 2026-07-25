@@ -9,6 +9,7 @@ import {
   User,
   XCircle,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface PendingOrder {
   id: string;
@@ -45,15 +46,24 @@ interface PeerVoteAggregate {
 
 // v8.3 E3 fix: labels descriptivos para la escala 1-5 del slider de puntaje
 // general (misma escala que field_audits.score, CHECK BETWEEN 1 AND 5).
-const OVERALL_SCORE_LABELS: Record<number, string> = {
-  1: "Deficiente",
-  2: "Regular",
-  3: "Aceptable",
-  4: "Bueno",
-  5: "Excelente",
+const OVERALL_SCORE_KEYS: Record<number, string> = {
+  1: "poor",
+  2: "fair",
+  3: "acceptable",
+  4: "good",
+  5: "excellent",
+};
+
+const CRITERIA_KEYS: Record<string, string> = {
+  punctuality: "punctuality",
+  thoroughness: "thoroughness",
+  professionalism: "professionalism",
+  client_satisfaction: "clientSatisfaction",
+  sop_compliance: "sopCompliance",
 };
 
 export default function AuditsPage() {
+  const t = useTranslations("admin.audits");
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
   const [audits, setAudits] = useState<FieldAudit[]>([]);
   const [peerVotes, setPeerVotes] = useState<Record<string, PeerVoteAggregate>>({});
@@ -89,7 +99,7 @@ export default function AuditsPage() {
       const res = await fetch("/api/admin/audits", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load audits");
+        setError(err.error || t("errors.loadFailed"));
         setLoading(false);
         return;
       }
@@ -98,7 +108,7 @@ export default function AuditsPage() {
       setAudits(data.audits || []);
       setPeerVotes(data.peerVoteAggregates || {});
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -111,7 +121,7 @@ export default function AuditsPage() {
     try {
       const employeeId = selectedOrder.assignments?.[0]?.employee_id;
       if (!employeeId) {
-        setError("No employee assigned to this order");
+        setError(t("errors.noEmployeeAssigned"));
         setSubmitting(false);
         return;
       }
@@ -130,7 +140,7 @@ export default function AuditsPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to submit audit");
+        setError(err.error || t("errors.submitFailed"));
         setSubmitting(false);
         return;
       }
@@ -146,7 +156,7 @@ export default function AuditsPage() {
       });
       loadData();
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setSubmitting(false);
     }
@@ -179,11 +189,11 @@ export default function AuditsPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold text-brand-ink">Field Audits</h1>
+      <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
 
       {/* Pending Audits */}
       <section>
-        <h2 className="text-lg font-semibold text-brand-ink mb-4">Pending Audits (Today&apos;s Completed)</h2>
+        <h2 className="text-lg font-semibold text-brand-ink mb-4">{t("sections.pendingAudits")}</h2>
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
@@ -191,7 +201,7 @@ export default function AuditsPage() {
         ) : pendingOrders.length === 0 ? (
           <div className="bg-white rounded-xl border p-6 text-center">
             <CheckCircle2 className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-500 text-sm">No completed services pending audit for today.</p>
+            <p className="text-gray-500 text-sm">{t("emptyStates.noPending")}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -213,7 +223,7 @@ export default function AuditsPage() {
                     </p>
                     {order.mandatoryAudit && (
                       <p className="text-xs font-semibold text-red-600">
-                        Mandatory audit: {order.mandatoryReasons?.join(", ")}
+                        {t("mandatoryAudit", { reasons: order.mandatoryReasons?.join(", ") || "" })}
                       </p>
                     )}
                   </div>
@@ -233,7 +243,7 @@ export default function AuditsPage() {
                     }}
                     className="bg-brand-navy text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors"
                   >
-                    Audit
+                    {t("actions.audit")}
                   </button>
                 </div>
               </div>
@@ -244,11 +254,11 @@ export default function AuditsPage() {
 
       {/* Audit History */}
       <section>
-        <h2 className="text-lg font-semibold text-brand-ink mb-4">Audit History</h2>
+        <h2 className="text-lg font-semibold text-brand-ink mb-4">{t("sections.auditHistory")}</h2>
         {audits.length === 0 ? (
           <div className="bg-white rounded-xl border p-6 text-center">
             <ClipboardCheck className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-500 text-sm">No audits recorded yet.</p>
+            <p className="text-gray-500 text-sm">{t("emptyStates.noAudits")}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -262,7 +272,7 @@ export default function AuditsPage() {
                     <div className="flex items-center gap-2">
                       <User className="w-4 h-4 text-gray-400" />
                       <span className="text-sm font-medium text-brand-ink">
-                        {audit.employees?.name || "Unknown"}
+                        {audit.employees?.name || t("unknownEmployee")}
                       </span>
                       <span className={`text-sm font-bold ${getScoreColor(audit.score)}`}>
                         {audit.score}/5
@@ -276,13 +286,13 @@ export default function AuditsPage() {
                     )}
                     {audit.appealed_at && (
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-sm">
-                        <p className="text-amber-700 font-medium">Appealed</p>
+                        <p className="text-amber-700 font-medium">{t("appealed")}</p>
                         <p className="text-amber-600 text-xs">{audit.appeal_reason}</p>
                       </div>
                     )}
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-gray-400">5-week avg</p>
+                    <p className="text-xs text-gray-400">{t("fiveWeekAvg")}</p>
                     <p className={`text-lg font-bold ${getScoreColor(getMovingAverage5(audit.employee_id) || audit.score)}`}>
                       {getMovingAverage5(audit.employee_id) || audit.score}
                     </p>
@@ -296,11 +306,11 @@ export default function AuditsPage() {
 
       {/* Peer Votes */}
       <section>
-        <h2 className="text-lg font-semibold text-brand-ink mb-4">Peer Vote Aggregates (This Week)</h2>
+        <h2 className="text-lg font-semibold text-brand-ink mb-4">{t("sections.peerVotes")}</h2>
         {Object.keys(peerVotes).length === 0 ? (
           <div className="bg-white rounded-xl border p-6 text-center">
             <Star className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-500 text-sm">No peer votes recorded for this week.</p>
+            <p className="text-gray-500 text-sm">{t("emptyStates.noPeerVotes")}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -313,7 +323,7 @@ export default function AuditsPage() {
                     <span className="text-sm font-bold">{vote.avg.toFixed(1)}</span>
                   </div>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">{vote.count} votes</p>
+                <p className="text-xs text-gray-400 mt-1">{t("voteCount", { count: vote.count })}</p>
               </div>
             ))}
           </div>
@@ -325,7 +335,7 @@ export default function AuditsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-brand-ink">Field Audit</h2>
+              <h2 className="text-lg font-bold text-brand-ink">{t("modal.title")}</h2>
               <button
                 onClick={() => setSelectedOrder(null)}
                 className="text-gray-400 hover:text-gray-600"
@@ -335,18 +345,18 @@ export default function AuditsPage() {
             </div>
 
             <div className="text-sm space-y-1">
-              <p><strong>Address:</strong> {selectedOrder.quotes?.address}</p>
-              <p><strong>Date:</strong> {selectedOrder.service_date} at {selectedOrder.service_time}</p>
+              <p><strong>{t("modal.address")}:</strong> {selectedOrder.quotes?.address}</p>
+              <p><strong>{t("modal.date")}:</strong> {selectedOrder.service_date} {t("modal.at")} {selectedOrder.service_time}</p>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-brand-ink">Overall Score (1-5)</label>
+              <label className="text-sm font-medium text-brand-ink">{t("modal.overallScore")}</label>
               {/* v8.3 E3 fix: field_audits.score tiene CHECK (score BETWEEN 1 AND 5)
                   -- este slider vivía en escala 0-100 con default 80, así que
                   cualquier envío con el default rompía el constraint de la base
                   de datos. Ahora coincide 1:1 con lo que espera el POST y la RPC. */}
               <input
-                aria-label="Puntaje general de la auditoría (1 a 5)"
+                aria-label={t("modal.overallScoreAria")}
                 type="range"
                 min="1"
                 max="5"
@@ -356,15 +366,15 @@ export default function AuditsPage() {
                 className="w-full mt-1"
               />
               <div className="text-center text-lg font-bold text-brand-navy">
-                {auditScore}/5 — {OVERALL_SCORE_LABELS[auditScore] || ""}
+                {auditScore}/5 — {t(`scoreLabels.${OVERALL_SCORE_KEYS[auditScore]}`)}
               </div>
             </div>
 
             <div className="space-y-3">
-              <label className="text-sm font-medium text-brand-ink">Criteria (1-5)</label>
+              <label className="text-sm font-medium text-brand-ink">{t("modal.criteria")}</label>
               {Object.entries(criteria).map(([key, value]) => (
                 <div key={key} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 capitalize">{key.replace(/_/g, " ")}</span>
+                  <span className="text-sm text-gray-600">{t(`criteria.${CRITERIA_KEYS[key] || key}`)}</span>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((n) => (
                       <button
@@ -385,44 +395,44 @@ export default function AuditsPage() {
             </div>
 
             <textarea
-              aria-label="Notas de la auditoría de campo"
+              aria-label={t("modal.notesAria")}
               value={auditNotes}
               onChange={(e) => setAuditNotes(e.target.value)}
-              placeholder="Notes (optional)..."
+              placeholder={t("modal.notesPlaceholder")}
               className="w-full border rounded-lg p-3 text-sm min-h-[80px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
             />
 
             <div className="bg-gray-50 rounded-lg p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-brand-ink">Dispatch probability</span>
+                <span className="text-sm font-medium text-brand-ink">{t("modal.dispatchProbability")}</span>
                 <span className={`text-sm font-bold ${dispatchProbability >= 0.8 ? "text-green-600" : dispatchProbability >= 0.5 ? "text-blue-600" : "text-amber-600"}`}>
                   {(dispatchProbability * 100).toFixed(0)}%
                 </span>
               </div>
               <label className="flex items-center gap-2 text-sm text-brand-ink cursor-pointer">
                 <input
-                  aria-label="Anunciar resultado de auditoría al cliente"
+                  aria-label={t("modal.announceAria")}
                   type="checkbox"
                   checked={announceToClient}
                   onChange={(e) => setAnnounceToClient(e.target.checked)}
                   className="rounded border-gray-300 text-brand-navy focus:ring-brand-navy"
                 />
-                Announce audit result to client
+                {t("modal.announceLabel")}
               </label>
               <p className="text-xs text-gray-500">
-                Auto-announcement is enabled when probability is ≥ 80%.
+                {t("modal.autoAnnounceNote")}
               </p>
             </div>
 
             {error && <p className="text-sm text-red-600">{error}</p>}
 
             <button
-              aria-label="Enviar auditoría de campo"
+              aria-label={t("modal.submitAria")}
               onClick={submitAudit}
               disabled={submitting}
               className="w-full bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
             >
-              {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Submit Audit"}
+              {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : t("modal.submit")}
             </button>
           </div>
         </div>

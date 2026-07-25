@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { AlertCircle, TrendingUp, HelpCircle } from "lucide-react";
 import { SkeletonMetricsGrid } from "@/components/ui/Skeleton";
 
@@ -98,6 +99,7 @@ function MetricCard({
  * curso (los costos fijos son mensuales por definición).
  */
 export default function DashboardMetricsPanel() {
+  const t = useTranslations("admin.dashboardMetrics");
   const [data, setData] = useState<DashboardMetricsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -113,12 +115,12 @@ export default function DashboardMetricsPanel() {
       const res = await fetch("/api/admin/dashboard-metrics", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load metrics");
+        setError(err.error || t("loadError"));
         return;
       }
       setData(await res.json());
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setLoading(false);
     }
@@ -126,12 +128,13 @@ export default function DashboardMetricsPanel() {
 
   useEffect(() => {
     loadMetrics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function saveFixedCosts() {
     const dollars = Number(fixedCostsInput);
     if (Number.isNaN(dollars) || dollars < 0) {
-      setFixedCostsError("Enter a valid non-negative amount");
+      setFixedCostsError(t("fixedCosts.invalidAmount"));
       return;
     }
     setSavingFixedCosts(true);
@@ -148,12 +151,12 @@ export default function DashboardMetricsPanel() {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to save");
+        throw new Error(err.error || t("fixedCosts.saveError"));
       }
       setEditingFixedCosts(false);
       await loadMetrics();
     } catch (err) {
-      setFixedCostsError(err instanceof Error ? err.message : "Failed to save");
+      setFixedCostsError(err instanceof Error ? err.message : t("fixedCosts.saveError"));
     } finally {
       setSavingFixedCosts(false);
     }
@@ -165,7 +168,7 @@ export default function DashboardMetricsPanel() {
         <div className="flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-brand-wave-blue" />
           <h2 className="text-sm font-semibold text-brand-ink">
-            Business Health — last 30 days
+            {t("title")}
           </h2>
         </div>
         <SkeletonMetricsGrid count={5} />
@@ -177,7 +180,7 @@ export default function DashboardMetricsPanel() {
     return (
       <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-2 text-sm">
         <AlertCircle className="w-4 h-4 text-red-500" />
-        <span className="text-red-700">{error || "No data"}</span>
+        <span className="text-red-700">{error || t("noData")}</span>
       </div>
     );
   }
@@ -189,10 +192,10 @@ export default function DashboardMetricsPanel() {
       <div className="flex items-center gap-2">
         <TrendingUp className="w-4 h-4 text-brand-wave-blue" />
         <h2 className="text-sm font-semibold text-brand-ink">
-          Business Health — last 30 days
+          {t("title")}
         </h2>
         <span
-          title="v8.3 D.13: los 4 umbrales operativos son literales del spec; el umbral del margen neto es un punto de partida recalibrable, no un número fijo del spec."
+          title={t("thresholdsTooltip")}
           className="text-gray-300"
         >
           <HelpCircle className="w-3.5 h-3.5" />
@@ -201,43 +204,49 @@ export default function DashboardMetricsPanel() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <MetricCard
-          title="Services w/o dispute"
+          title={t("cards.disputeFreeRate.title")}
           value={metrics.disputeFreeRate.valuePercent}
           unit="%"
           threshold={metrics.disputeFreeRate.thresholdPercent}
-          thresholdLabel={`Target: >${metrics.disputeFreeRate.thresholdPercent}%`}
+          thresholdLabel={t("target", { threshold: metrics.disputeFreeRate.thresholdPercent })}
           semaphore={metrics.disputeFreeRate.semaphore}
-          subtitle={`${metrics.disputeFreeRate.completedServicesCount} completed, ${metrics.disputeFreeRate.servicesWithDisputeCount} disputed`}
+          subtitle={t("cards.disputeFreeRate.subtitle", {
+            completed: metrics.disputeFreeRate.completedServicesCount,
+            disputed: metrics.disputeFreeRate.servicesWithDisputeCount,
+          })}
         />
         <MetricCard
-          title="Batch Capture success"
+          title={t("cards.batchCapture.title")}
           value={metrics.batchCaptureSuccessRate.valuePercent}
           unit="%"
           threshold={metrics.batchCaptureSuccessRate.thresholdPercent}
-          thresholdLabel={`Target: >${metrics.batchCaptureSuccessRate.thresholdPercent}%`}
+          thresholdLabel={t("target", { threshold: metrics.batchCaptureSuccessRate.thresholdPercent })}
           semaphore={metrics.batchCaptureSuccessRate.semaphore}
-          subtitle={`${metrics.batchCaptureSuccessRate.successfulCaptureCount} captured, ${metrics.batchCaptureSuccessRate.failedCaptureCount} failed`}
+          subtitle={t("cards.batchCapture.subtitle", {
+            captured: metrics.batchCaptureSuccessRate.successfulCaptureCount,
+            failed: metrics.batchCaptureSuccessRate.failedCaptureCount,
+          })}
         />
         <MetricCard
-          title="Avg. team score"
+          title={t("cards.teamScore.title")}
           value={metrics.teamScoreAverage.value}
           unit=""
           threshold={metrics.teamScoreAverage.threshold}
-          thresholdLabel={`Target: >${metrics.teamScoreAverage.threshold}`}
+          thresholdLabel={t("targetPlain", { threshold: metrics.teamScoreAverage.threshold })}
           semaphore={metrics.teamScoreAverage.semaphore}
-          subtitle={metrics.teamScoreAverage.weekStart ? `Week of ${metrics.teamScoreAverage.weekStart}` : "No team scores yet"}
+          subtitle={metrics.teamScoreAverage.weekStart ? t("cards.teamScore.weekOf", { week: metrics.teamScoreAverage.weekStart }) : t("cards.teamScore.noScores")}
         />
         <MetricCard
-          title="Contribution margin"
+          title={t("cards.contributionMargin.title")}
           value={metrics.contributionMargin.valuePercent}
           unit="%"
           threshold={metrics.contributionMargin.thresholdPercent}
-          thresholdLabel={`Target: >${metrics.contributionMargin.thresholdPercent}%`}
+          thresholdLabel={t("target", { threshold: metrics.contributionMargin.thresholdPercent })}
           semaphore={metrics.contributionMargin.semaphore}
         />
         <div className={`rounded-xl border p-5 ${SEMAPHORE_STYLES[metrics.netMargin.semaphore].ring}`}>
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-600">Net margin (real)</h3>
+            <h3 className="text-sm font-medium text-gray-600">{t("cards.netMargin.title")}</h3>
             <span
               className={`w-2.5 h-2.5 rounded-full ${SEMAPHORE_STYLES[metrics.netMargin.semaphore].dot}`}
               title={metrics.netMargin.semaphore}
@@ -248,19 +257,19 @@ export default function DashboardMetricsPanel() {
           </p>
           <p className="mt-1 text-xs text-gray-400">
             {metrics.netMargin.fixedCostsConfigured
-              ? `Target: >${metrics.netMargin.thresholdPercent}%`
-              : "Monthly fixed costs not set yet"}
+              ? t("target", { threshold: metrics.netMargin.thresholdPercent })
+              : t("cards.netMargin.notConfigured")}
           </p>
           {metrics.netMargin.fixedCostPerServiceDollars !== null && (
             <p className="mt-2 text-xs text-gray-500">
-              Fixed cost/service this month: ${metrics.netMargin.fixedCostPerServiceDollars}
+              {t("cards.netMargin.fixedCostPerService", { amount: metrics.netMargin.fixedCostPerServiceDollars })}
             </p>
           )}
           <p className="mt-2 text-[11px] text-gray-400 font-mono leading-snug">{metrics.netMargin.formula}</p>
 
           {editingFixedCosts ? (
             <div className="mt-3 space-y-2">
-              <label htmlFor="dashboard-fixed-costs" className="text-xs text-gray-500 block">Monthly fixed costs ($)</label>
+              <label htmlFor="dashboard-fixed-costs" className="text-xs text-gray-500 block">{t("fixedCosts.label")}</label>
               <input
                 id="dashboard-fixed-costs"
                 type="number"
@@ -269,7 +278,7 @@ export default function DashboardMetricsPanel() {
                 value={fixedCostsInput}
                 onChange={(e) => setFixedCostsInput(e.target.value)}
                 className="w-full px-2 py-1 text-sm border rounded-md"
-                placeholder="e.g. 3500"
+                placeholder={t("fixedCosts.placeholder")}
                 autoFocus
               />
               {fixedCostsError && <p className="text-xs text-state-danger">{fixedCostsError}</p>}
@@ -277,16 +286,16 @@ export default function DashboardMetricsPanel() {
                 <button
                   onClick={saveFixedCosts}
                   disabled={savingFixedCosts}
-                  aria-label={savingFixedCosts ? "Guardando costos fijos" : "Guardar costos fijos mensuales"}
+                  aria-label={savingFixedCosts ? t("fixedCosts.savingAriaLabel") : t("fixedCosts.saveAriaLabel")}
                   className="text-xs px-3 py-1 rounded-md bg-brand-navy text-white hover:bg-brand-navy-light disabled:opacity-50"
                 >
-                  {savingFixedCosts ? "Saving..." : "Save"}
+                  {savingFixedCosts ? t("fixedCosts.saving") : t("fixedCosts.save")}
                 </button>
                 <button
                   onClick={() => setEditingFixedCosts(false)}
                   className="text-xs px-3 py-1 rounded-md text-gray-500 hover:bg-gray-100"
                 >
-                  Cancel
+                  {t("fixedCosts.cancel")}
                 </button>
               </div>
             </div>
@@ -299,7 +308,7 @@ export default function DashboardMetricsPanel() {
               }}
               className="mt-3 text-xs text-brand-wave-blue hover:text-brand-navy underline"
             >
-              {metrics.netMargin.fixedCostsConfigured ? "Update fixed costs" : "Set monthly fixed costs"}
+              {metrics.netMargin.fixedCostsConfigured ? t("fixedCosts.update") : t("fixedCosts.set")}
             </button>
           )}
         </div>

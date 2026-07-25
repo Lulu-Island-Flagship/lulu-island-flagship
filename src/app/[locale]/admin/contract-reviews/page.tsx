@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, FileSignature, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 interface Review {
@@ -29,6 +30,7 @@ function formatCad(cents: number): string {
  * this environment.
  */
 export default function ContractReviewsPage() {
+  const t = useTranslations("admin.contractReviews");
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -49,10 +51,10 @@ export default function ContractReviewsPage() {
     try {
       const res = await fetch("/api/admin/contract-reviews", { credentials: "include" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load");
+      if (!res.ok) throw new Error(data.error || t("errors.loadFailed"));
       setReviews(data.reviews || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error");
+      setError(err instanceof Error ? err.message : t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -69,10 +71,10 @@ export default function ContractReviewsPage() {
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed");
+      if (!res.ok) throw new Error(data.error || t("errors.genericFailed"));
       await load();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Network error";
+      const message = err instanceof Error ? err.message : t("errors.network");
       setError(message);
       // 2026-07-24 fix: re-lanzar para que ConfirmActionModal (dismiss/sign)
       // pueda mostrar el error dentro del propio modal y mantenerlo abierto
@@ -88,19 +90,15 @@ export default function ContractReviewsPage() {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-2 mb-4">
         <FileSignature className="w-6 h-6" />
-        <h1 className="text-2xl font-bold">Contract Renewal Reviews</h1>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
       </div>
-      <p className="text-sm text-gray-500 mb-6">
-        Triggered 60 days before each recurring contract&apos;s annual anniversary. Approve the
-        proposed terms, then capture the client&apos;s signature (typed name — clickwrap, same as
-        the original quote consent) to supersede the previous version.
-      </p>
+      <p className="text-sm text-gray-500 mb-6">{t("subtitle")}</p>
 
       {error && <div className="text-red-600 text-sm mb-4">{error}</div>}
 
       {loading ? (
         <div className="flex items-center gap-2 text-gray-500">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+          <Loader2 className="w-4 h-4 animate-spin" /> {t("loading")}
         </div>
       ) : (
         <div className="space-y-3">
@@ -108,7 +106,7 @@ export default function ContractReviewsPage() {
             <div key={r.id} className="bg-white rounded border border-gray-200 p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm font-medium">
-                  Contract {r.contract_id.slice(0, 8)}… · anniversary {r.anniversary_date}
+                  {t("contractLabel", { id: r.contract_id.slice(0, 8), date: r.anniversary_date })}
                 </div>
                 <span
                   className={`text-xs px-2 py-0.5 rounded ${
@@ -121,7 +119,7 @@ export default function ContractReviewsPage() {
                           : "bg-blue-50 text-blue-700"
                   }`}
                 >
-                  {r.status}
+                  {t(`statusLabels.${r.status}`)}
                 </span>
               </div>
 
@@ -131,13 +129,16 @@ export default function ContractReviewsPage() {
                   <span>{r.legal_changes_summary.descriptions.join("; ")}</span>
                 </div>
               ) : (
-                <div className="mb-2 text-xs text-gray-400">No legal changes detected since last review.</div>
+                <div className="mb-2 text-xs text-gray-400">{t("noLegalChanges")}</div>
               )}
 
               {r.proposed_terms && (
                 <div className="text-xs text-gray-500 mb-3">
-                  Proposed: {r.proposed_terms.frequency} · {r.proposed_terms.serviceSubtype} ·{" "}
-                  {formatCad(r.proposed_terms.total)}
+                  {t("proposedTerms", {
+                    frequency: r.proposed_terms.frequency,
+                    subtype: r.proposed_terms.serviceSubtype,
+                    total: formatCad(r.proposed_terms.total),
+                  })}
                 </div>
               )}
 
@@ -152,14 +153,14 @@ export default function ContractReviewsPage() {
                     }}
                     className="text-xs bg-brand-navy text-white px-3 py-1.5 rounded"
                   >
-                    Approve
+                    {t("approve")}
                   </button>
                   <button
                     disabled={busyId === r.id}
                     onClick={() => setDismissingId(r.id)}
                     className="text-xs border px-3 py-1.5 rounded"
                   >
-                    Dismiss
+                    {t("dismiss")}
                   </button>
                 </div>
               )}
@@ -170,26 +171,26 @@ export default function ContractReviewsPage() {
                   onClick={() => setSigningId(r.id)}
                   className="text-xs bg-green-700 text-white px-3 py-1.5 rounded flex items-center gap-1"
                 >
-                  <CheckCircle2 className="w-3 h-3" /> Capture signature
+                  <CheckCircle2 className="w-3 h-3" /> {t("captureSignature")}
                 </button>
               )}
 
               {r.status === "dismissed" && r.dismissal_reason && (
-                <div className="text-xs text-gray-400">Dismissed: {r.dismissal_reason}</div>
+                <div className="text-xs text-gray-400">{t("dismissedReason", { reason: r.dismissal_reason })}</div>
               )}
             </div>
           ))}
-          {reviews.length === 0 && <div className="text-sm text-gray-400">No reviews triggered yet.</div>}
+          {reviews.length === 0 && <div className="text-sm text-gray-400">{t("noReviews")}</div>}
         </div>
       )}
 
       {dismissingId && (
         <ConfirmActionModal
-          title="Dismiss this review"
-          message="The renewal review will be marked as dismissed and the proposed terms will not be applied."
-          confirmLabel="Dismiss"
+          title={t("dismissModal.title")}
+          message={t("dismissModal.message")}
+          confirmLabel={t("dismiss")}
           danger
-          fields={[{ key: "reason", label: "Reason for dismissing this review", autoFocus: true }]}
+          fields={[{ key: "reason", label: t("dismissModal.reasonLabel"), autoFocus: true }]}
           onCancel={() => setDismissingId(null)}
           onConfirm={async (values) => {
             await act(dismissingId, { action: "dismiss", reason: values.reason });
@@ -200,15 +201,15 @@ export default function ContractReviewsPage() {
 
       {signingId && (
         <ConfirmActionModal
-          title="Capture client signature"
-          message="Read the proposed terms to the client and type the full name exactly as they say it, on the call."
-          noticeText="Typing the client's full name here constitutes a digital signature (clickwrap: typed name + IP + timestamp are recorded), the same as the original quote consent. This supersedes the previous contract version once submitted."
-          confirmLabel="Capture signature"
+          title={t("signModal.title")}
+          message={t("signModal.message")}
+          noticeText={t("signModal.notice")}
+          confirmLabel={t("captureSignature")}
           fields={[
             {
               key: "signedByName",
-              label: "Client's typed full name (digital signature)",
-              placeholder: "Full legal name",
+              label: t("signModal.nameLabel"),
+              placeholder: t("signModal.namePlaceholder"),
               autoFocus: true,
             },
           ]}

@@ -4,6 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, Camera, Clock, MessageSquare, AlertTriangle, CheckCircle2, CalendarPlus } from "lucide-react";
+import Image from "next/image";
+import { parseVancouverDateTime } from "@/lib/date-utils";
 
 interface RebookDateOption {
   date: string;
@@ -39,6 +41,12 @@ export default function ServiceGalleryPage() {
   const [data, setData] = useState<GalleryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Fix (2026-07-25, auditoría UX, item 16): antes las fotos eran una
+  // grilla estática sin forma de verlas en tamaño completo -- el único
+  // patrón de "modal" reutilizable en el repo es el overlay
+  // fixed inset-0 bg-black/50 de AuthModal.tsx, así que se replica aquí
+  // sin crear una dependencia nueva de librería de lightbox.
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!orderId) return;
@@ -119,9 +127,51 @@ export default function ServiceGalleryPage() {
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {data.photos.map((url, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={i} src={url} alt={t("servicePhotoAlt", { index: i + 1 })} className="rounded-lg aspect-square object-cover" />
+              <button
+                key={i}
+                type="button"
+                onClick={() => setLightboxIndex(i)}
+                aria-label={t("enlargePhotoAriaLabel", { index: i + 1 })}
+                className="relative aspect-square rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-brand-gold"
+              >
+                <Image
+                  src={url}
+                  alt={t("servicePhotoAlt", { index: i + 1 })}
+                  fill
+                  sizes="(max-width: 640px) 50vw, 33vw"
+                  className="object-cover"
+                />
+              </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Fix (2026-07-25, auditoría UX, item 16): lightbox simple para ver
+          la foto completa -- mismo patrón de overlay que AuthModal.tsx. */}
+      {lightboxIndex !== null && data.photos && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("photoLightboxAriaLabel")}
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+          onClick={() => setLightboxIndex(null)}
+        >
+          <button
+            aria-label={t("closeAriaLabel")}
+            onClick={() => setLightboxIndex(null)}
+            className="absolute top-4 right-4 text-white/80 hover:text-white text-3xl leading-none"
+          >
+            &times;
+          </button>
+          <div className="relative w-full h-full max-w-3xl max-h-[80vh]" onClick={(e) => e.stopPropagation()}>
+            <Image
+              src={data.photos[lightboxIndex]}
+              alt={t("servicePhotoAlt", { index: lightboxIndex + 1 })}
+              fill
+              sizes="100vw"
+              className="object-contain"
+            />
           </div>
         </div>
       )}
@@ -191,7 +241,16 @@ function RebookWidget({ orderId }: { orderId: string }) {
     setConfirming(true);
     setRebookError("");
     try {
-      const day = new Date(`${selectedDate}T12:00:00Z`).getUTCDay();
+      // Fix (2026-07-25, auditoría UX): revisado -- el cálculo anterior
+      // (`new Date(`${selectedDate}T12:00:00Z`).getUTCDay()`) ya era
+      // matemáticamente correcto (mediodía UTC nunca cruza el límite de
+      // fecha calendario para ningún huso horario terrestre, así que el
+      // día de la semana resultante siempre coincide con selectedDate). Se
+      // reemplaza igual por el helper compartido parseVancouverDateTime
+      // (src/lib/date-utils.ts) para no reinventar el parseo de fechas
+      // locales de Vancouver en cada archivo y mantener un solo lugar que
+      // maneje el offset PDT/PST.
+      const day = parseVancouverDateTime(selectedDate, "12:00").getUTCDay();
       const res = await fetch("/api/quote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

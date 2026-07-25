@@ -6,6 +6,8 @@
 // si mañana se agrega/renombra un link en el nav, el breadcrumb queda
 // sincronizado automáticamente sin tocar este archivo.
 import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { ChevronRight } from "lucide-react";
 import { buildGroups, type NavLink } from "@/components/admin/AdminNav";
 
@@ -21,6 +23,7 @@ function humanizeSlug(slug: string): string {
 
 export default function AdminBreadcrumbs({ adminPath }: { adminPath: string }) {
   const pathname = usePathname() || adminPath;
+  const tNav = useTranslations("admin.nav");
 
   // Ruta exacta del dashboard raíz de admin -- no hay grupo ni página que
   // mostrar más allá de "Admin".
@@ -28,7 +31,7 @@ export default function AdminBreadcrumbs({ adminPath }: { adminPath: string }) {
     return null;
   }
 
-  const groups = buildGroups(adminPath);
+  const groups = buildGroups(adminPath, tNav);
 
   let currentGroupLabel: string | null = null;
   let currentLink: NavLink | null = null;
@@ -57,9 +60,9 @@ export default function AdminBreadcrumbs({ adminPath }: { adminPath: string }) {
 
   return (
     <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-1.5 text-sm text-gray-500">
-      <a href={adminPath} className="hover:text-brand-navy hover:underline">
-        Admin
-      </a>
+      <Link href={adminPath} className="hover:text-brand-navy hover:underline">
+        {tNav("brand")}
+      </Link>
       {currentGroupLabel && (
         <>
           <ChevronRight className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />

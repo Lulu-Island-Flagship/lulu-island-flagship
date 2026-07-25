@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   Loader2,
   AlertCircle,
@@ -67,19 +68,20 @@ function todayIso(): string {
   return new Date().toISOString().split("T")[0];
 }
 
-const LANGUAGE_BADGE: Record<OrderSummary["languageMatch"], { label: string; className: string }> = {
-  match: { label: "Language match", className: "bg-state-success/10 text-state-success" },
-  no_match: { label: "No language match", className: "bg-state-danger/10 text-state-danger" },
-  unassigned: { label: "Unassigned", className: "bg-gray-100 text-gray-500" },
+const LANGUAGE_BADGE: Record<OrderSummary["languageMatch"], { className: string }> = {
+  match: { className: "bg-state-success/10 text-state-success" },
+  no_match: { className: "bg-state-danger/10 text-state-danger" },
+  unassigned: { className: "bg-gray-100 text-gray-500" },
 };
 
-const WORKDAY_BADGE: Record<EmployeeWorkday["status"], { label: string; className: string }> = {
-  ok: { label: "OK", className: "text-state-success" },
-  overtime_needs_approval: { label: ">8h — needs approval", className: "text-state-warning" },
-  blocked: { label: ">10h — blocked", className: "text-state-danger" },
+const WORKDAY_BADGE: Record<EmployeeWorkday["status"], { className: string }> = {
+  ok: { className: "text-state-success" },
+  overtime_needs_approval: { className: "text-state-warning" },
+  blocked: { className: "text-state-danger" },
 };
 
 export default function AdminDispatchClient() {
+  const t = useTranslations("admin.dispatch");
   const [date, setDate] = useState(todayIso());
   const [data, setData] = useState<DispatchResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,16 +96,16 @@ export default function AdminDispatchClient() {
       const res = await fetch(`/api/admin/dispatch?date=${date}`, { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load dispatch data");
+        setError(err.error || t("loadError"));
         return;
       }
       setData(await res.json());
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setLoading(false);
     }
-  }, [date]);
+  }, [date, t]);
 
   useEffect(() => {
     loadDispatch();
@@ -129,10 +131,10 @@ export default function AdminDispatchClient() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-brand-ink">Dispatch review</h1>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
         <input
           type="date"
-          aria-label="Fecha del reparto a revisar"
+          aria-label={t("dateAriaLabel")}
           value={date}
           onChange={(e) => setDate(e.target.value)}
           className="px-3 py-2 border rounded-lg text-sm"
@@ -142,9 +144,7 @@ export default function AdminDispatchClient() {
       <div className="flex items-start gap-2 bg-brand-navy/5 border border-brand-navy/10 rounded-lg p-3 text-xs text-gray-600">
         <Info className="w-4 h-4 text-brand-wave-blue flex-shrink-0 mt-0.5" />
         <p>
-          Transit time isn&apos;t wired to live traffic data yet — workday totals use a fixed 30 min/order
-          placeholder (same one the scheduler uses internally), not a real ETA. Manual assignments you make
-          here are locked and will survive the 5:30 PM automatic publish.
+          {t("transitNotice")}
         </p>
       </div>
 
@@ -159,14 +159,13 @@ export default function AdminDispatchClient() {
         </div>
       ) : !data || data.orders.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
-          <p className="text-gray-500">No services scheduled for {date}.</p>
+          <p className="text-gray-500">{t("emptyForDate", { date })}</p>
         </div>
       ) : (
         <>
           {!data.scheduled && (
             <div className="bg-state-warning/10 border border-state-warning/20 rounded-lg p-3 text-xs text-state-warning">
-              No assignments exist yet for this date — the scheduler proposes at 4:30 PM and publishes at
-              5:30 PM the day before. You can assign manually now; it will lock and won&apos;t be overwritten.
+              {t("noAssignmentsYet")}
             </div>
           )}
 
@@ -184,28 +183,28 @@ export default function AdminDispatchClient() {
                           <span className="text-sm text-gray-400">{order.squareFeet} sqft</span>
                         </div>
                         <p className="text-xs text-gray-500 mt-0.5">
-                          {order.zone ?? "Zone n/a"} · N {order.minTeams}-{order.maxTeams} · HHE{" "}
+                          {order.zone ?? t("zoneNA")} · N {order.minTeams}-{order.maxTeams} · HHE{" "}
                           {order.hheHours.toFixed(1)}h
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1 ${badge.className}`}>
                           <LanguagesIcon className="w-3 h-3" />
-                          {badge.label}
+                          {t(`languageBadge.${order.languageMatch}`)}
                         </span>
                         <button
                           onClick={() => setEditingOrder(order)}
                           className="flex items-center gap-1 text-xs text-brand-wave-blue hover:text-brand-navy"
                         >
                           <Pencil className="w-3.5 h-3.5" />
-                          Edit
+                          {t("edit")}
                         </button>
                       </div>
                     </div>
 
                     <div className="mt-3 flex flex-wrap gap-2">
                       {order.assignments.length === 0 ? (
-                        <span className="text-xs text-gray-400">No one assigned</span>
+                        <span className="text-xs text-gray-400">{t("noOneAssigned")}</span>
                       ) : (
                         order.assignments.map((a) => (
                           <span
@@ -219,9 +218,9 @@ export default function AdminDispatchClient() {
                             <User className="w-3 h-3 text-gray-400" />
                             {a.name}
                             {a.role === "supervisor" && (
-                              <span className="text-brand-wave-blue">· lead</span>
+                              <span className="text-brand-wave-blue">· {t("lead")}</span>
                             )}
-                            {a.lockedByAdmin && <span className="text-brand-gold-dark">· locked</span>}
+                            {a.lockedByAdmin && <span className="text-brand-gold-dark">· {t("locked")}</span>}
                           </span>
                         ))
                       )}
@@ -232,9 +231,9 @@ export default function AdminDispatchClient() {
             </div>
 
             <div className="space-y-3">
-              <h2 className="text-sm font-semibold text-brand-ink">Workday summary</h2>
+              <h2 className="text-sm font-semibold text-brand-ink">{t("workdaySummary")}</h2>
               {data.employeeWorkdays.length === 0 ? (
-                <p className="text-xs text-gray-400">No one assigned yet.</p>
+                <p className="text-xs text-gray-400">{t("noOneAssignedYet")}</p>
               ) : (
                 data.employeeWorkdays.map((w) => {
                   const badge = WORKDAY_BADGE[w.status];
@@ -244,11 +243,11 @@ export default function AdminDispatchClient() {
                         <span className="text-sm font-medium">{w.name}</span>
                         <span className={`text-xs font-medium flex items-center gap-1 ${badge.className}`}>
                           {w.status !== "ok" && <ClockAlert className="w-3.5 h-3.5" />}
-                          {badge.label}
+                          {t(`workdayBadge.${w.status}`)}
                         </span>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        {w.ordersCount} order(s) · {formatMinutes(w.totalDayMinutes)} total
+                        {t("ordersTotal", { count: w.ordersCount, hours: formatMinutes(w.totalDayMinutes) })}
                       </p>
                       {w.reasons.length > 0 && (
                         <p className="text-[11px] text-gray-400 mt-1">{w.reasons.join(" · ")}</p>
@@ -288,6 +287,7 @@ function EditAssignmentModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useTranslations("admin.dispatch");
   const [selected, setSelected] = useState<string[]>(order.assignments.map((a) => a.employeeId));
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -299,7 +299,7 @@ function EditAssignmentModal({
 
   const handleSave = async () => {
     if (selected.length === 0) {
-      setSaveError("Select at least one employee");
+      setSaveError(t("modal.selectAtLeastOne"));
       return;
     }
     setSaving(true);
@@ -313,11 +313,11 @@ function EditAssignmentModal({
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to save");
+        throw new Error(err.error || t("modal.saveError"));
       }
       onSaved();
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to save");
+      setSaveError(err instanceof Error ? err.message : t("modal.saveError"));
     } finally {
       setSaving(false);
     }
@@ -333,8 +333,7 @@ function EditAssignmentModal({
             {order.serviceTime} — {order.serviceType}
           </h2>
           <p className="text-xs text-gray-500">
-            Requires {order.minTeams}-{order.maxTeams} team member(s). Client language(s):{" "}
-            {order.clientLanguages.join(", ")}
+            {t("modal.requires", { min: order.minTeams, max: order.maxTeams, languages: order.clientLanguages.join(", ") })}
           </p>
         </div>
 
@@ -343,7 +342,7 @@ function EditAssignmentModal({
             <label key={emp.id} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-gray-50 cursor-pointer">
               <input
                 type="checkbox"
-                aria-label={`Asignar a ${emp.name}`}
+                aria-label={t("modal.assignToAriaLabel", { name: emp.name })}
                 checked={selected.includes(emp.id)}
                 onChange={() => toggle(emp.id)}
                 className="w-4 h-4 accent-brand-gold"
@@ -359,8 +358,8 @@ function EditAssignmentModal({
 
         <textarea
           rows={2}
-          aria-label="Notas de la asignación (opcional)"
-          placeholder="Notes (optional)"
+          aria-label={t("modal.notesAriaLabel")}
+          placeholder={t("modal.notesPlaceholder")}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           className="w-full text-sm border rounded-lg px-3 py-2"
@@ -370,15 +369,15 @@ function EditAssignmentModal({
 
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100">
-            Cancel
+            {t("modal.cancel")}
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            aria-label={saving ? "Guardando asignación" : "Guardar y bloquear asignación"}
+            aria-label={saving ? t("modal.savingAriaLabel") : t("modal.saveAriaLabel")}
             className="px-4 py-2 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light disabled:opacity-50"
           >
-            {saving ? "Saving..." : "Save & lock"}
+            {saving ? t("modal.saving") : t("modal.saveAndLock")}
           </button>
         </div>
       </div>

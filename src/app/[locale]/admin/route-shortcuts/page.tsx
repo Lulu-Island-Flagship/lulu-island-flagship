@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, MapPinned, Check } from "lucide-react";
 
 interface Shortcut {
@@ -20,6 +21,7 @@ interface Shortcut {
  * employee_wellbeing_bonuses).
  */
 export default function AdminRouteShortcutsPage() {
+  const t = useTranslations("admin.routeShortcuts");
   const [shortcuts, setShortcuts] = useState<Shortcut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -40,13 +42,13 @@ export default function AdminRouteShortcutsPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load");
+        setError(err.error || t("errors.loadFailed"));
         return;
       }
       const data = await res.json();
       setShortcuts(data.shortcuts || []);
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -74,21 +76,19 @@ export default function AdminRouteShortcutsPage() {
     <div className="space-y-6 max-w-2xl">
       <div>
         <h1 className="text-2xl font-bold text-brand-ink flex items-center gap-2">
-          <MapPinned className="w-5 h-5" /> Route Shortcuts
+          <MapPinned className="w-5 h-5" /> {t("title")}
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Atajos reportados por empleados. Validar paga $10 una sola vez por atajo.
-        </p>
+        <p className="text-sm text-gray-500 mt-1">{t("subtitle")}</p>
       </div>
 
       <label className="flex items-center gap-2 text-sm text-gray-600">
         <input
           type="checkbox"
-          aria-label="Mostrar solo pendientes de validar"
+          aria-label={t("pendingOnlyAria")}
           checked={pendingOnly}
           onChange={(e) => setPendingOnly(e.target.checked)}
         />
-        Solo pendientes
+        {t("pendingOnlyLabel")}
       </label>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{error}</div>}
@@ -99,7 +99,7 @@ export default function AdminRouteShortcutsPage() {
         </div>
       ) : shortcuts.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center text-sm text-gray-500">
-          No hay atajos reportados.
+          {t("emptyState")}
         </div>
       ) : (
         <div className="space-y-2">
@@ -109,7 +109,7 @@ export default function AdminRouteShortcutsPage() {
                 <span className="text-sm font-medium text-brand-ink">{employeeName(s)}</span>
                 {s.validated_at ? (
                   <span className="text-xs text-green-700 flex items-center gap-1">
-                    <Check className="w-3.5 h-3.5" /> Validado
+                    <Check className="w-3.5 h-3.5" /> {t("validated")}
                   </span>
                 ) : (
                   <button
@@ -117,7 +117,7 @@ export default function AdminRouteShortcutsPage() {
                     disabled={validatingId === s.id}
                     className="text-xs bg-brand-navy text-white px-3 py-1 rounded-full font-medium disabled:opacity-50"
                   >
-                    {validatingId === s.id ? "..." : "Validar (+$10)"}
+                    {validatingId === s.id ? "..." : t("validateAction")}
                   </button>
                 )}
               </div>

@@ -41,6 +41,7 @@ export function StepOrganic({ petsCount, petsType, residents, onChange }: StepOr
             return (
               <button
                 key={type}
+                aria-pressed={isSelected}
                 onClick={() =>
                   onChange({
                     petsCount: type === "none" ? 0 : Math.max(1, petsCount),
@@ -70,6 +71,7 @@ export function StepOrganic({ petsCount, petsType, residents, onChange }: StepOr
               {[1, 2, 3, "4+"].map((n) => (
                 <button
                   key={n}
+                  aria-pressed={petsCount === (n === "4+" ? 4 : n)}
                   onClick={() =>
                     onChange({
                       petsCount: n === "4+" ? 4 : (n as number),
@@ -101,6 +103,7 @@ export function StepOrganic({ petsCount, petsType, residents, onChange }: StepOr
           {[1, 2, 3, 4, 5, "6+"].map((n) => (
             <button
               key={n}
+              aria-pressed={residents === (n === "6+" ? 6 : n)}
               onClick={() =>
                 onChange({
                   petsCount,

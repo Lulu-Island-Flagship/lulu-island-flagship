@@ -20,6 +20,7 @@
  */
 
 import React, { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, AlertTriangle, X } from "lucide-react";
 
 export interface ConfirmActionField {
@@ -57,18 +58,22 @@ export default function ConfirmActionModal({
   title,
   message,
   noticeText,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   danger = false,
   fields,
   onConfirm,
   onCancel,
 }: ConfirmActionModalProps) {
+  const t = useTranslations("admin.confirmActionModal");
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries((fields || []).map((f) => [f.key, ""]))
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const resolvedConfirmLabel = confirmLabel ?? t("confirmDefault");
+  const resolvedCancelLabel = cancelLabel ?? t("cancelDefault");
 
   const missingRequired = (fields || []).some(
     (f) => f.required !== false && !values[f.key]?.trim()
@@ -81,7 +86,7 @@ export default function ConfirmActionModal({
     try {
       await onConfirm(values);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Action failed");
+      setError(err instanceof Error ? err.message : t("actionFailed"));
       setLoading(false);
     }
     // No `finally` clearing loading on success: on success the parent is
@@ -92,7 +97,7 @@ export default function ConfirmActionModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-elevation-3 max-w-md w-full p-6 relative">
         <button
-          aria-label="Cerrar"
+          aria-label={t("closeAria")}
           onClick={onCancel}
           disabled={loading}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 disabled:opacity-50"
@@ -127,7 +132,7 @@ export default function ConfirmActionModal({
                 >
                   {f.label}
                   {f.required === false && (
-                    <span className="text-gray-400 font-normal"> (optional)</span>
+                    <span className="text-gray-400 font-normal"> ({t("optional")})</span>
                   )}
                 </label>
                 <input
@@ -153,7 +158,7 @@ export default function ConfirmActionModal({
             disabled={loading}
             className="px-4 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-50"
           >
-            {cancelLabel}
+            {resolvedCancelLabel}
           </button>
           <button
             type="button"
@@ -166,7 +171,7 @@ export default function ConfirmActionModal({
             }`}
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {loading ? "Working..." : confirmLabel}
+            {loading ? t("working") : resolvedConfirmLabel}
           </button>
         </div>
       </div>

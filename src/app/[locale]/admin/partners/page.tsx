@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, Handshake, Plus, X, Calculator } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 type PartnerType = "real_estate_agent" | "property_manager" | "veterinarian" | "builder";
 
@@ -22,18 +23,18 @@ interface Commission {
   partners: { name: string; partner_type: PartnerType } | null;
 }
 
-const TYPE_LABEL: Record<PartnerType, string> = {
-  real_estate_agent: "Real Estate Agent (10% first booking)",
-  property_manager: "Property Manager (5% monthly)",
-  veterinarian: "Veterinarian ($20 flat)",
-  builder: "Builder (15%)",
-};
-
 function money(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
 export default function PartnersPage() {
+  const t = useTranslations("admin.partners");
+  const TYPE_LABEL: Record<PartnerType, string> = {
+    real_estate_agent: t("type.realEstateAgent"),
+    property_manager: t("type.propertyManager"),
+    veterinarian: t("type.veterinarian"),
+    builder: t("type.builder"),
+  };
   const [partners, setPartners] = useState<Partner[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +60,7 @@ export default function PartnersPage() {
       if (pRes.ok) setPartners((await pRes.json()).partners || []);
       if (cRes.ok) setCommissions((await cRes.json()).partnerCommissions || []);
     } catch {
-      setError("Network error");
+      setError(t("errorNetwork"));
     } finally {
       setLoading(false);
     }
@@ -82,14 +83,14 @@ export default function PartnersPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed");
+        setError(err.error || t("errorGeneric"));
         return;
       }
       setShowPartnerForm(false);
       setPartnerForm({ partnerType: "real_estate_agent", name: "", contactEmail: "" });
       await load();
     } catch {
-      setError("Network error");
+      setError(t("errorNetwork"));
     } finally {
       setSaving(false);
     }
@@ -113,14 +114,14 @@ export default function PartnersPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed");
+        setError(err.error || t("errorGeneric"));
         return;
       }
       setShowCalcForm(false);
       setCalcForm({ partnerId: "", orderId: "", orderValueDollars: "" });
       await load();
     } catch {
-      setError("Network error");
+      setError(t("errorNetwork"));
     } finally {
       setSaving(false);
     }
@@ -147,16 +148,16 @@ export default function PartnersPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-brand-ink">Partners & Commissions</h1>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
         <div className="flex gap-2">
           <button onClick={() => setShowCalcForm(true)} className="inline-flex items-center gap-1.5 text-sm text-brand-navy hover:underline">
-            <Calculator className="w-4 h-4" /> Calculate Commission
+            <Calculator className="w-4 h-4" /> {t("calculateCommission")}
           </button>
           <button
             onClick={() => setShowPartnerForm(true)}
             className="inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium"
           >
-            <Plus className="w-4 h-4" /> Register Partner
+            <Plus className="w-4 h-4" /> {t("registerPartner")}
           </button>
         </div>
       </div>
@@ -166,11 +167,11 @@ export default function PartnersPage() {
       {showPartnerForm && (
         <form onSubmit={submitPartner} className="bg-white rounded-xl border p-4 space-y-3 max-w-md">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-brand-ink">New Partner</h2>
-            <button type="button" onClick={() => setShowPartnerForm(false)} aria-label="Close form"><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
+            <h2 className="font-semibold text-brand-ink">{t("newPartner")}</h2>
+            <button type="button" onClick={() => setShowPartnerForm(false)} aria-label={t("closeForm")}><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
           </div>
           <select
-            aria-label="Tipo de socio"
+            aria-label={t("partnerType")}
             value={partnerForm.partnerType}
             onChange={(e) => setPartnerForm((f) => ({ ...f, partnerType: e.target.value as PartnerType }))}
             className="w-full border rounded-lg px-3 py-2 text-sm"
@@ -179,10 +180,10 @@ export default function PartnersPage() {
               <option key={v} value={v}>{l}</option>
             ))}
           </select>
-          <input type="text" aria-label="Nombre del socio" placeholder="Name" value={partnerForm.name} onChange={(e) => setPartnerForm((f) => ({ ...f, name: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
-          <input type="email" aria-label="Correo de contacto del socio (opcional)" placeholder="Contact email (optional)" value={partnerForm.contactEmail} onChange={(e) => setPartnerForm((f) => ({ ...f, contactEmail: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" />
-          <button type="submit" aria-label="Guardar socio" disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
-            {saving ? "Saving..." : "Save"}
+          <input type="text" aria-label={t("partnerName")} placeholder={t("name")} value={partnerForm.name} onChange={(e) => setPartnerForm((f) => ({ ...f, name: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
+          <input type="email" aria-label={t("partnerContactEmailOptional")} placeholder={t("contactEmailOptional")} value={partnerForm.contactEmail} onChange={(e) => setPartnerForm((f) => ({ ...f, contactEmail: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" />
+          <button type="submit" aria-label={t("savePartner")} disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+            {saving ? t("saving") : t("save")}
           </button>
         </form>
       )}
@@ -190,29 +191,29 @@ export default function PartnersPage() {
       {showCalcForm && (
         <form onSubmit={submitCalc} className="bg-white rounded-xl border p-4 space-y-3 max-w-md">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-brand-ink">Calculate Commission</h2>
-            <button type="button" onClick={() => setShowCalcForm(false)} aria-label="Close form"><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
+            <h2 className="font-semibold text-brand-ink">{t("calculateCommission")}</h2>
+            <button type="button" onClick={() => setShowCalcForm(false)} aria-label={t("closeForm")}><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
           </div>
-          <select aria-label="Seleccionar socio" value={calcForm.partnerId} onChange={(e) => setCalcForm((f) => ({ ...f, partnerId: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required>
-            <option value="" disabled>Select partner</option>
+          <select aria-label={t("selectPartner")} value={calcForm.partnerId} onChange={(e) => setCalcForm((f) => ({ ...f, partnerId: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required>
+            <option value="" disabled>{t("selectPartnerOption")}</option>
             {partners.map((p) => (
               <option key={p.id} value={p.id}>{p.name} — {TYPE_LABEL[p.partner_type]}</option>
             ))}
           </select>
-          <input type="text" aria-label="ID de la orden" placeholder="Order ID" value={calcForm.orderId} onChange={(e) => setCalcForm((f) => ({ ...f, orderId: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
-          <input type="number" aria-label="Valor de la orden en dólares" min={0} step="0.01" placeholder="Order value ($)" value={calcForm.orderValueDollars} onChange={(e) => setCalcForm((f) => ({ ...f, orderValueDollars: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
-          <button type="submit" aria-label="Calcular y registrar comisión" disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
-            {saving ? "Calculating..." : "Calculate & Log"}
+          <input type="text" aria-label={t("orderId")} placeholder={t("orderId")} value={calcForm.orderId} onChange={(e) => setCalcForm((f) => ({ ...f, orderId: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
+          <input type="number" aria-label={t("orderValueDollars")} min={0} step="0.01" placeholder={t("orderValuePlaceholder")} value={calcForm.orderValueDollars} onChange={(e) => setCalcForm((f) => ({ ...f, orderValueDollars: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
+          <button type="submit" aria-label={t("calculateAndLog")} disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+            {saving ? t("calculating") : t("calculateAndLogShort")}
           </button>
         </form>
       )}
 
       <div>
-        <h2 className="font-semibold text-brand-ink mb-2">Partners ({partners.length})</h2>
+        <h2 className="font-semibold text-brand-ink mb-2">{t("partnersCount", { count: partners.length })}</h2>
         <div className="bg-white rounded-xl border divide-y">
           {partners.length === 0 ? (
             <div className="p-6 text-center text-sm text-gray-500">
-              <Handshake className="w-8 h-8 text-gray-300 mx-auto mb-2" /> No partners registered yet.
+              <Handshake className="w-8 h-8 text-gray-300 mx-auto mb-2" /> {t("noPartners")}
             </div>
           ) : (
             partners.map((p) => (
@@ -226,10 +227,10 @@ export default function PartnersPage() {
       </div>
 
       <div>
-        <h2 className="font-semibold text-brand-ink mb-2">Commissions</h2>
+        <h2 className="font-semibold text-brand-ink mb-2">{t("commissions")}</h2>
         <div className="bg-white rounded-xl border divide-y">
           {commissions.length === 0 ? (
-            <div className="p-6 text-center text-sm text-gray-500">No commissions logged yet.</div>
+            <div className="p-6 text-center text-sm text-gray-500">{t("noCommissions")}</div>
           ) : (
             commissions.map((c) => (
               <div key={c.id} className="p-3 flex items-center justify-between text-sm">
@@ -239,10 +240,10 @@ export default function PartnersPage() {
                 </div>
                 {c.status === "pending" ? (
                   <button onClick={() => markPaid(c.id)} className="text-xs bg-brand-navy text-white px-3 py-1.5 rounded-lg">
-                    Mark Paid
+                    {t("markPaid")}
                   </button>
                 ) : (
-                  <span className="text-xs text-state-success">{c.status}</span>
+                  <span className="text-xs text-state-success">{t(`commissionStatus.${c.status}`)}</span>
                 )}
               </div>
             ))

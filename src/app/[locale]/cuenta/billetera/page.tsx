@@ -26,8 +26,23 @@ interface UnpaidOrder {
   canApplyWalletCredit: boolean;
 }
 
-function formatDollars(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+// Fix (2026-07-25, auditoría UX, item 13): antes esto era un `$` fijo
+// concatenado a mano, sin importar el idioma activo -- en /zh/cuenta/billetera
+// un cliente veía "$25.00" en vez del formato de moneda con el que
+// realmente está familiarizado (¥25.00 o 25.00 CAD según configuración
+// regional china) y en /fr/... el separador decimal/símbolo tampoco seguía
+// convenciones francesas ("25,00 $"). El resto del repo no usa useLocale()
+// de next-intl en ningún componente cliente (todos derivan el locale de
+// window.location.pathname, mismo patrón que WalletPayButton.tsx,
+// CheckoutBenefitsPanel.tsx, etc.) -- se sigue esa convención aquí también
+// para no introducir un patrón nuevo. La MONEDA sigue siendo CAD siempre
+// (single-currency business, ver B.2.11) -- solo cambia el locale de
+// formato usado por Intl.NumberFormat.
+const CURRENCY_LOCALE: Record<string, string> = { en: "en-CA", fr: "fr-CA", zh: "zh-CN" };
+
+function formatDollars(cents: number, locale: string): string {
+  const intlLocale = CURRENCY_LOCALE[locale] || "en-CA";
+  return new Intl.NumberFormat(intlLocale, { style: "currency", currency: "CAD" }).format(cents / 100);
 }
 
 // orders.status CHECK constraint (migración 001_modulo1_base_schema.sql):
@@ -52,6 +67,8 @@ export default function WalletPage() {
   const [error, setError] = useState("");
   const [applying, setApplying] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState("");
+  const locale = typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en";
+  const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
   // Fix (auditoría externa 2026-07-24): mismo patrón ya aplicado en
   // MisServiciosClient.tsx -- este componente no comprobaba sesión antes de
   // pedir datos, así que una sesión expirada entre el chequeo del layout
@@ -179,7 +196,7 @@ export default function WalletPage() {
           <Wallet className="w-6 h-6 text-brand-gold-dark" />
         </div>
         <div>
-          <p className="text-2xl font-bold text-brand-ink">{formatDollars(availableBalance)}</p>
+          <p className="text-2xl font-bold text-brand-ink">{formatDollars(availableBalance, safeLocale)}</p>
           <p className="text-xs text-gray-500">{t("availableToSpend")}</p>
         </div>
       </div>
@@ -231,7 +248,7 @@ export default function WalletPage() {
                 </div>
                 <span className={tx.type === "debit" || tx.type === "payout" ? "text-state-danger" : "text-state-success"}>
                   {tx.type === "debit" || tx.type === "payout" ? "-" : "+"}
-                  {formatDollars(tx.amount)}
+                  {formatDollars(tx.amount, safeLocale)}
                 </span>
               </div>
             ))}

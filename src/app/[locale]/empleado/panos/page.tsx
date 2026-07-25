@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Loader2, ChevronLeft, Check } from "lucide-react";
+import { ErrorBanner } from "@/components/empleado/ErrorBanner";
 
 type Color = "red" | "blue" | "green" | "yellow" | "white" | "black";
 type Stage = "clean" | "in_use" | "dirty" | "washing" | "warehouse" | "vehicle";
@@ -49,6 +50,12 @@ export default function PanosPage() {
   const [color, setColor] = useState<Color>("red");
   const [stage, setStage] = useState<Stage>("clean");
   const [count, setCount] = useState("");
+  // Auditoría UX/seguridad 2026-07-25 (#6): antes un fallo de red al cargar
+  // o enviar el conteo de paños fallaba en silencio (solo `finally`, sin
+  // mensaje) -- el empleado no tenía forma de saber si su conteo realmente
+  // se guardó o no.
+  const [loadError, setLoadError] = useState("");
+  const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
     load();
@@ -56,22 +63,30 @@ export default function PanosPage() {
 
   async function load() {
     setLoading(true);
+    setLoadError("");
     try {
       const res = await fetch("/api/empleado/panos", { credentials: "include" });
       if (res.ok) {
         const d = await res.json();
         setLogs(d.logs || []);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setLoadError(err.error || "Couldn't load today's towel logs. Please try again.");
       }
+    } catch (e) {
+      console.error("Panos load error:", e);
+      setLoadError("Connection error loading today's towel logs. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(e?: React.FormEvent) {
+    e?.preventDefault();
     const n = parseInt(count);
     if (isNaN(n) || n < 0) return;
     setSubmitting(true);
+    setSubmitError("");
     try {
       const res = await fetch("/api/empleado/panos", {
         method: "POST",
@@ -82,7 +97,13 @@ export default function PanosPage() {
       if (res.ok) {
         setCount("");
         await load();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setSubmitError(err.error || "Couldn't save the count. Please try again.");
       }
+    } catch (e) {
+      console.error("Panos submit error:", e);
+      setSubmitError("Connection error saving the count. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -146,10 +167,13 @@ export default function PanosPage() {
           >
             <Check className="w-4 h-4" /> Registrar conteo
           </button>
+          <ErrorBanner message={submitError} onRetry={() => submit()} retrying={submitting} />
         </form>
 
         {loading ? (
           <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
+        ) : loadError ? (
+          <ErrorBanner message={loadError} onRetry={load} retrying={loading} />
         ) : (
           <div className="bg-white rounded-xl shadow-elevation-1 divide-y">
             {logs.length === 0 && <p className="p-4 text-sm text-gray-500">Sin registros hoy.</p>}

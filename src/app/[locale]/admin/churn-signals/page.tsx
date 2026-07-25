@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, UserMinus, Send, X, PhoneCall, ShieldAlert } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 type ChurnAction = "survey_20" | "discount_30_percent" | "personal_intervention" | "flag_unreported_dispute";
 
@@ -17,14 +18,15 @@ interface ChurnSignal {
   created_at: string;
 }
 
-const ACTION_LABEL: Record<ChurnAction, { label: string; icon: typeof Send; className: string }> = {
-  survey_20: { label: "Send survey ($20 credit)", icon: Send, className: "text-brand-navy" },
-  discount_30_percent: { label: "Send reactivation offer (30% off)", icon: Send, className: "text-brand-navy" },
-  personal_intervention: { label: "Personal call required", icon: PhoneCall, className: "text-state-danger" },
-  flag_unreported_dispute: { label: "Investigate — possible unreported dispute", icon: ShieldAlert, className: "text-state-warning" },
+const ACTION_STYLE: Record<ChurnAction, { icon: typeof Send; className: string }> = {
+  survey_20: { icon: Send, className: "text-brand-navy" },
+  discount_30_percent: { icon: Send, className: "text-brand-navy" },
+  personal_intervention: { icon: PhoneCall, className: "text-state-danger" },
+  flag_unreported_dispute: { icon: ShieldAlert, className: "text-state-warning" },
 };
 
 export default function ChurnSignalsPage() {
+  const t = useTranslations("admin.churnSignals");
   const [signals, setSignals] = useState<ChurnSignal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -48,13 +50,13 @@ export default function ChurnSignalsPage() {
       const res = await fetch("/api/admin/churn-signals", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load");
+        setError(err.error || t("errors.loadFailed"));
         return;
       }
       const data = await res.json();
       setSignals(data.churnSignals || []);
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -72,12 +74,12 @@ export default function ChurnSignalsPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed");
+        setError(err.error || t("errors.genericFailed"));
         return;
       }
       await load();
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setBusy(null);
     }
@@ -102,14 +104,14 @@ export default function ChurnSignalsPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed");
+        setError(err.error || t("errors.genericFailed"));
         return;
       }
       setShowManualForm(false);
       setManualForm({ clientUserId: "", cancelledWithCompetitorMention: false, teamScorePrevious: "", teamScoreCurrent: "" });
       await load();
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setBusy(null);
     }
@@ -130,17 +132,14 @@ export default function ChurnSignalsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-brand-ink">Churn Signals</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            D.10.9 — recurring clients 60+ days inactive get a survey, sporadic clients 90+ days get a reactivation
-            offer. Competitor mentions and team score drops are flagged manually below.
-          </p>
+          <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t("subtitle")}</p>
         </div>
         <button
           onClick={() => setShowManualForm(true)}
           className="inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors"
         >
-          Flag Manually
+          {t("flagManually")}
         </button>
       </div>
 
@@ -149,15 +148,15 @@ export default function ChurnSignalsPage() {
       {showManualForm && (
         <form onSubmit={submitManual} className="bg-white rounded-xl border p-4 space-y-3 max-w-lg">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-brand-ink">Manual Signal</h2>
-            <button type="button" onClick={() => setShowManualForm(false)} aria-label="Close form" className="text-gray-400 hover:text-gray-600">
+            <h2 className="font-semibold text-brand-ink">{t("form.title")}</h2>
+            <button type="button" onClick={() => setShowManualForm(false)} aria-label={t("form.closeAria")} className="text-gray-400 hover:text-gray-600">
               <X className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
           <input
             type="text"
-            aria-label="ID de usuario del cliente"
-            placeholder="Client user ID"
+            aria-label={t("form.clientIdAria")}
+            placeholder={t("form.clientIdPlaceholder")}
             value={manualForm.clientUserId}
             onChange={(e) => setManualForm((f) => ({ ...f, clientUserId: e.target.value }))}
             className="w-full border rounded-lg px-3 py-2 text-sm"
@@ -166,60 +165,60 @@ export default function ChurnSignalsPage() {
           <label className="flex items-center gap-2 text-sm text-gray-600">
             <input
               type="checkbox"
-              aria-label="Canceló y mencionó a un competidor"
+              aria-label={t("form.competitorMentionAria")}
               checked={manualForm.cancelledWithCompetitorMention}
               onChange={(e) => setManualForm((f) => ({ ...f, cancelledWithCompetitorMention: e.target.checked }))}
             />
-            Cancelled and mentioned a competitor
+            {t("form.competitorMentionLabel")}
           </label>
           <div className="grid grid-cols-2 gap-3">
             <input
               type="number"
-              aria-label="Puntaje del equipo anterior"
-              placeholder="Team score before"
+              aria-label={t("form.teamScorePreviousAria")}
+              placeholder={t("form.teamScorePreviousPlaceholder")}
               value={manualForm.teamScorePrevious}
               onChange={(e) => setManualForm((f) => ({ ...f, teamScorePrevious: e.target.value }))}
               className="border rounded-lg px-3 py-2 text-sm"
             />
             <input
               type="number"
-              aria-label="Puntaje del equipo actual"
-              placeholder="Team score now"
+              aria-label={t("form.teamScoreCurrentAria")}
+              placeholder={t("form.teamScoreCurrentPlaceholder")}
               value={manualForm.teamScoreCurrent}
               onChange={(e) => setManualForm((f) => ({ ...f, teamScoreCurrent: e.target.value }))}
               className="border rounded-lg px-3 py-2 text-sm"
             />
           </div>
           <button
-            aria-label="Guardar señal de abandono"
+            aria-label={t("form.saveAria")}
             type="submit"
             disabled={busy === "manual"}
             className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
           >
-            {busy === "manual" ? "Saving..." : "Save Signal"}
+            {busy === "manual" ? t("form.saving") : t("form.save")}
           </button>
         </form>
       )}
 
       <div>
-        <h2 className="font-semibold text-brand-ink mb-2">Pending ({pending.length})</h2>
+        <h2 className="font-semibold text-brand-ink mb-2">{t("sections.pending", { count: pending.length })}</h2>
         {pending.length === 0 ? (
           <div className="bg-white rounded-xl border p-6 text-center text-sm text-gray-500">
             <UserMinus className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            No pending churn signals.
+            {t("emptyStates.noPending")}
           </div>
         ) : (
           <div className="bg-white rounded-xl border divide-y">
             {pending.map((s) => {
-              const style = ACTION_LABEL[s.action];
+              const style = ACTION_STYLE[s.action];
               const Icon = style.icon;
               return (
                 <div key={s.id} className="p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className={`flex items-center gap-1.5 text-sm font-medium ${style.className}`}>
-                      <Icon className="w-4 h-4" /> {style.label}
+                      <Icon className="w-4 h-4" /> {t(`actions.${s.action}`)}
                     </span>
-                    <span className="text-xs text-gray-400">{s.source}</span>
+                    <span className="text-xs text-gray-400">{t(`sources.${s.source}`)}</span>
                   </div>
                   <p className="text-xs text-gray-500">{s.reason}</p>
                   <div className="flex gap-2">
@@ -228,14 +227,14 @@ export default function ChurnSignalsPage() {
                       disabled={busy === s.id}
                       className="text-xs bg-brand-navy text-white px-3 py-1.5 rounded-lg disabled:opacity-50"
                     >
-                      {busy === s.id ? "..." : "Mark actioned"}
+                      {busy === s.id ? "..." : t("markActioned")}
                     </button>
                     <button
                       onClick={() => resolveSignal(s.id, true)}
                       disabled={busy === s.id}
                       className="text-xs text-gray-500 px-3 py-1.5"
                     >
-                      Dismiss
+                      {t("dismiss")}
                     </button>
                   </div>
                 </div>
@@ -247,12 +246,12 @@ export default function ChurnSignalsPage() {
 
       {resolved.length > 0 && (
         <div>
-          <h2 className="font-semibold text-brand-ink mb-2">Resolved</h2>
+          <h2 className="font-semibold text-brand-ink mb-2">{t("sections.resolved")}</h2>
           <div className="bg-white rounded-xl border divide-y">
             {resolved.slice(0, 20).map((s) => (
               <div key={s.id} className="p-3 flex items-center justify-between text-sm">
-                <span className="text-gray-600">{ACTION_LABEL[s.action].label}</span>
-                <span className="text-xs text-gray-400">{s.status}</span>
+                <span className="text-gray-600">{t(`actions.${s.action}`)}</span>
+                <span className="text-xs text-gray-400">{t(`statusLabels.${s.status}`)}</span>
               </div>
             ))}
           </div>

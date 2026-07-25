@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { ShieldAlert, Loader2, Plus, AlertOctagon } from "lucide-react";
 
 // v8.3 E7 (D.7.7) — Pre-evaluación de riesgo por dirección.
@@ -27,19 +28,13 @@ interface RiskAssessment {
   created_at: string;
 }
 
-const FLAG_OPTIONS: { value: RiskFlagType; label: string }[] = [
-  { value: "steep_stairs", label: "Steep stairs (+PPE +15 min)" },
-  { value: "aggressive_dog", label: "Aggressive dog (owner must be present)" },
-  { value: "mold_over_1sqm", label: "Mold >1m² (NOT a Lulu service — hard block)" },
-  { value: "confined_space", label: "Confined space (2 people + 15 min check-in)" },
-  { value: "defective_lockbox", label: "Defective lockbox (key escalation)" },
+const FLAG_KEYS: RiskFlagType[] = [
+  "steep_stairs",
+  "aggressive_dog",
+  "mold_over_1sqm",
+  "confined_space",
+  "defective_lockbox",
 ];
-
-const TIER_LABELS: Record<RiskTier, string> = {
-  standard: "Standard (0-2 flags)",
-  auditor_required: "Auditor required (3-4 flags)",
-  pre_inspection_required: "Pre-inspection required (5+ flags)",
-};
 
 const TIER_COLORS: Record<RiskTier, string> = {
   standard: "bg-gray-100 text-gray-700",
@@ -48,6 +43,7 @@ const TIER_COLORS: Record<RiskTier, string> = {
 };
 
 export default function RiesgoPage() {
+  const t = useTranslations("admin.riesgo");
   const [propertyId, setPropertyId] = useState("");
   const [selectedFlags, setSelectedFlags] = useState<RiskFlagType[]>([]);
   const [saving, setSaving] = useState(false);
@@ -88,7 +84,7 @@ export default function RiesgoPage() {
     e.preventDefault();
     setError("");
     if (!propertyId.trim()) {
-      setError("Missing property ID (client_property_id).");
+      setError(t("errors.missingPropertyId"));
       return;
     }
     setSaving(true);
@@ -101,7 +97,7 @@ export default function RiesgoPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Could not save the assessment.");
+        setError(data.error || t("errors.saveFailed"));
         return;
       }
       setSelectedFlags([]);
@@ -116,12 +112,9 @@ export default function RiesgoPage() {
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="flex items-center gap-2 mb-1">
           <ShieldAlert className="w-5 h-5 text-brand-navy" />
-          <h1 className="text-xl font-bold text-brand-ink">Risk by Address</h1>
+          <h1 className="text-xl font-bold text-brand-ink">{t("title")}</h1>
         </div>
-        <p className="text-sm text-gray-600 mb-6">
-          Visible to admin and lead — never to the client. 0-2 flags = standard · 3-4 = auditor
-          required · 5+ = pre-inspection required.
-        </p>
+        <p className="text-sm text-gray-600 mb-6">{t("subtitle")}</p>
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700 mb-4">
@@ -130,27 +123,27 @@ export default function RiesgoPage() {
         )}
 
         <form onSubmit={submit} className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3 mb-6">
-          <h2 className="text-sm font-semibold text-brand-ink">Record assessment</h2>
+          <h2 className="text-sm font-semibold text-brand-ink">{t("recordAssessment")}</h2>
           <input
             type="text"
-            aria-label="ID de propiedad del cliente (UUID)"
-            placeholder="client_property_id (UUID)"
+            aria-label={t("propertyIdAria")}
+            placeholder={t("propertyIdPlaceholder")}
             value={propertyId}
             onChange={(e) => setPropertyId(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2"
           />
           <div className="space-y-2">
-            {FLAG_OPTIONS.map((f) => (
-              <label key={f.value} className="flex items-start gap-2 text-sm">
+            {FLAG_KEYS.map((f) => (
+              <label key={f} className="flex items-start gap-2 text-sm">
                 <input
                   type="checkbox"
-                  aria-label={f.label}
-                  checked={selectedFlags.includes(f.value)}
-                  onChange={() => toggleFlag(f.value)}
+                  aria-label={t(`flags.${f}`)}
+                  checked={selectedFlags.includes(f)}
+                  onChange={() => toggleFlag(f)}
                   className="mt-0.5"
                 />
-                <span className={f.value === "mold_over_1sqm" ? "text-state-danger font-medium" : "text-gray-700"}>
-                  {f.label}
+                <span className={f === "mold_over_1sqm" ? "text-state-danger font-medium" : "text-gray-700"}>
+                  {t(`flags.${f}`)}
                 </span>
               </label>
             ))}
@@ -160,15 +153,15 @@ export default function RiesgoPage() {
             disabled={saving}
             className="flex items-center gap-1 bg-brand-navy text-white px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
           >
-            <Plus className="w-4 h-4" /> Record assessment
+            <Plus className="w-4 h-4" /> {t("recordAssessment")}
           </button>
         </form>
 
         <div className="flex items-center gap-2 mb-3">
           <input
             type="text"
-            aria-label="Filtrar por ID de propiedad del cliente"
-            placeholder="Filter by client_property_id (optional)"
+            aria-label={t("filterAria")}
+            placeholder={t("filterPlaceholder")}
             value={lookupPropertyId}
             onChange={(e) => setLookupPropertyId(e.target.value)}
             className="flex-1 text-sm border rounded-lg px-3 py-2"
@@ -177,7 +170,7 @@ export default function RiesgoPage() {
             onClick={() => loadAssessments(lookupPropertyId || undefined)}
             className="text-sm bg-white border px-3 py-2 rounded-lg font-medium text-brand-navy"
           >
-            Search
+            {t("search")}
           </button>
         </div>
 
@@ -186,19 +179,19 @@ export default function RiesgoPage() {
         ) : (
           <div className="bg-white rounded-xl shadow-elevation-1 divide-y">
             {assessments.length === 0 && (
-              <p className="p-4 text-sm text-gray-500">No assessments recorded yet.</p>
+              <p className="p-4 text-sm text-gray-500">{t("emptyState")}</p>
             )}
             {assessments.map((a) => (
               <div key={a.id} className="p-3 text-sm">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-mono text-xs text-gray-500">{a.client_property_id}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${TIER_COLORS[a.tier]}`}>
-                    {TIER_LABELS[a.tier]}
+                    {t(`tiers.${a.tier}`)}
                   </span>
                 </div>
                 {a.hard_blocked && (
                   <p className="text-xs text-state-danger font-medium mt-1 flex items-center gap-1">
-                    <AlertOctagon className="w-3.5 h-3.5" /> Blocked — not a Lulu service
+                    <AlertOctagon className="w-3.5 h-3.5" /> {t("blockedNotice")}
                   </p>
                 )}
                 {a.notes && <p className="text-xs text-gray-600 mt-1">{a.notes}</p>}

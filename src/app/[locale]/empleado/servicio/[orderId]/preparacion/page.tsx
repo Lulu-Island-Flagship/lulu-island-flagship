@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Loader2, Info, AlertTriangle, ShieldAlert } from "lucide-react";
+import { EmpleadoBackHeader } from "@/components/empleado/EmpleadoBackHeader";
 
 type Severity = "info" | "caution" | "critical";
 
@@ -22,6 +23,7 @@ const SEVERITY_STYLE: Record<Severity, { icon: typeof Info; className: string }>
 export default function ServiceBriefingPage() {
   const params = useParams();
   const orderId = params?.orderId as string;
+  const locale = (params?.locale as string) || "en";
 
   const [tips, setTips] = useState<BriefingTip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,16 +51,23 @@ export default function ServiceBriefingPage() {
     load();
   }, [orderId]);
 
+  const backHref = `/${locale}/empleado/servicio/${orderId}`;
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
-      </div>
+      <main className="min-h-screen bg-brand-ice">
+        <EmpleadoBackHeader title="Preparación del servicio" backHref={backHref} />
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        </div>
+      </main>
     );
   }
 
   return (
-    <div className="space-y-4 max-w-md mx-auto">
+    <main className="min-h-screen bg-brand-ice">
+      <EmpleadoBackHeader title="Preparación del servicio" backHref={backHref} />
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-4 max-w-md mx-auto">
       <h1 className="text-lg font-bold text-brand-ink">Preparación del servicio</h1>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">{error}</div>}
@@ -79,6 +88,7 @@ export default function ServiceBriefingPage() {
           })}
         </div>
       )}
-    </div>
+      </div>
+    </main>
   );
 }

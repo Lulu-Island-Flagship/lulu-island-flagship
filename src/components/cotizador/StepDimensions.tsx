@@ -36,6 +36,7 @@ export function StepDimensions({ bedrooms, bathrooms, squareFeet, onChange }: St
           </div>
           <div className="flex items-center gap-3">
             <button
+              aria-label={t("decreaseBedroomsAriaLabel")}
               onClick={() => adjust("bedrooms", -1)}
               className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:border-brand-wave-blue transition-colors"
             >
@@ -43,6 +44,7 @@ export function StepDimensions({ bedrooms, bathrooms, squareFeet, onChange }: St
             </button>
             <span className="w-8 text-center font-semibold text-lg">{bedrooms}</span>
             <button
+              aria-label={t("increaseBedroomsAriaLabel")}
               onClick={() => adjust("bedrooms", 1)}
               className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:border-brand-wave-blue transition-colors"
             >
@@ -61,6 +63,7 @@ export function StepDimensions({ bedrooms, bathrooms, squareFeet, onChange }: St
           </div>
           <div className="flex items-center gap-3">
             <button
+              aria-label={t("decreaseBathroomsAriaLabel")}
               onClick={() => adjust("bathrooms", -1)}
               className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:border-brand-wave-blue transition-colors"
             >
@@ -68,6 +71,7 @@ export function StepDimensions({ bedrooms, bathrooms, squareFeet, onChange }: St
             </button>
             <span className="w-8 text-center font-semibold text-lg">{bathrooms}</span>
             <button
+              aria-label={t("increaseBathroomsAriaLabel")}
               onClick={() => adjust("bathrooms", 1)}
               className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:border-brand-wave-blue transition-colors"
             >

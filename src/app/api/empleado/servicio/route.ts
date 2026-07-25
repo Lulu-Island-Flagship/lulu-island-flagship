@@ -260,6 +260,15 @@ export async function POST(request: NextRequest) {
       geofenceBypass,
       geofenceBypassCategory,
       geofenceBypassReason,
+      // Auditoría UX/seguridad 2026-07-25 (#4): si el empleado genuinamente
+      // no puede tomar una foto (celular sin cámara operativa, cliente
+      // pide no fotografiar el interior, etc.), el bypass de geocerca
+      // acepta una justificación escrita en su lugar -- nunca se pierde el
+      // registro de que esto pasó "sin foto", queda marcado igual que
+      // cualquier otro bypass (geofence_bypass=true) para revisión de
+      // supervisor, con la justificación guardada en notes.
+      geofenceBypassNoPhoto,
+      geofenceBypassNoPhotoReason,
     } = body;
 
     if (!orderId || !eventType) {
@@ -279,18 +288,37 @@ export async function POST(request: NextRequest) {
     // donde realmente se hace cumplir: si se declara bypass, TODOS los
     // campos son obligatorios, o se rechaza.
     const validBypassCategories = ["gps_inaccurate", "building_entrance_far", "parking_restriction", "other"];
+    const isNoPhotoBypass = eventType === "t_in" && geofenceBypass === true && geofenceBypassNoPhoto === true;
     if (eventType === "t_in" && geofenceBypass === true) {
       const reason = typeof geofenceBypassReason === "string" ? geofenceBypassReason.trim() : "";
-      if (
-        !validBypassCategories.includes(geofenceBypassCategory) ||
-        reason.length === 0 ||
-        typeof photoUrl !== "string" ||
-        photoUrl.length === 0
-      ) {
+      if (!validBypassCategories.includes(geofenceBypassCategory) || reason.length === 0) {
         return NextResponse.json(
           {
             error:
-              "Geofence bypass requires a reason category, a written reason, and an evidence photo — all three are mandatory.",
+              "Geofence bypass requires a reason category and a written reason — both are mandatory.",
+          },
+          { status: 400 }
+        );
+      }
+      if (isNoPhotoBypass) {
+        // Sin foto: exige una justificación escrita explícita en su lugar
+        // (nunca se acepta bypass sin foto Y sin explicar por qué).
+        const noPhotoReason =
+          typeof geofenceBypassNoPhotoReason === "string" ? geofenceBypassNoPhotoReason.trim() : "";
+        if (noPhotoReason.length < 10) {
+          return NextResponse.json(
+            {
+              error:
+                "If you can't take a photo, please explain why in at least a few words -- this is required for supervisor review.",
+            },
+            { status: 400 }
+          );
+        }
+      } else if (typeof photoUrl !== "string" || photoUrl.length === 0) {
+        return NextResponse.json(
+          {
+            error:
+              "Geofence bypass requires an evidence photo, unless you explicitly indicate you can't take one and explain why.",
           },
           { status: 400 }
         );
@@ -525,6 +553,14 @@ export async function POST(request: NextRequest) {
     const vancouverOffset = now.toLocaleString("en-CA", { timeZone: "America/Vancouver", timeZoneName: "short" }).includes("PDT") ? "-07:00" : "-08:00";
     const vancouverTimestamp = now.toLocaleString("en-CA", { timeZone: "America/Vancouver", hour12: false }).replace(", ", "T") + vancouverOffset;
     const isGeofenceBypass = eventType === "t_in" && geofenceBypass === true;
+    // Si no hubo foto de evidencia (isNoPhotoBypass), la justificación va al
+    // frente de `notes` con una etiqueta explícita -- así queda visible para
+    // quien revise service_logs con geofence_bypass=true, igual que
+    // cualquier otro bypass, sin requerir un campo/migración nueva.
+    const notesWithBypassContext =
+      isGeofenceBypass && isNoPhotoBypass
+        ? `[NO PHOTO — supervisor review needed] ${String(geofenceBypassNoPhotoReason).trim()}${notes ? ` | ${notes}` : ""}`
+        : notes ?? null;
     const { data: log, error: logError } = await supabase
       .from("service_logs")
       .insert({
@@ -535,7 +571,7 @@ export async function POST(request: NextRequest) {
         location_lat: locationLat ?? null,
         location_lng: locationLng ?? null,
         photo_url: photoUrl ?? null,
-        notes: notes ?? null,
+        notes: notesWithBypassContext,
         geofence_bypass: isGeofenceBypass,
         geofence_bypass_category: isGeofenceBypass ? geofenceBypassCategory : null,
         geofence_bypass_reason: isGeofenceBypass ? String(geofenceBypassReason).trim() : null,

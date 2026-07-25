@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -5,6 +6,15 @@ import { ServiceWorkerRegister } from "@/components/empleado/ServiceWorkerRegist
 import { SafetyAbortButton } from "@/components/empleado/SafetyAbortButton";
 import { getServiceRoleClient, getSupabaseClient } from "@/lib/admin";
 import { resolveStaffLogin } from "@/lib/staff-login";
+
+// Fix (auditoría UX/seguridad 2026-07-25, bug #1): las rutas de /empleado
+// deben usar el manifest PWA orientado a equipo (start_url apunta al
+// dashboard de empleado), no el manifest público general que hereda del
+// layout de locale. Next.js hace merge campo-por-campo de metadata anidada,
+// así que esto solo pisa `manifest` para /empleado/* sin afectar el resto.
+export const metadata: Metadata = {
+  manifest: "/manifest-empleado.json",
+};
 
 // v8.3 E7 (D.10 #7): el botón de aborto seguro (SOS) se monta aquí para
 // estar disponible en TODA página del área de empleado, no solo la de un

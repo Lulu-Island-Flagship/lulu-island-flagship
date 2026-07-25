@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, Mail, Shield, AlertCircle, UserPlus, UserMinus } from "lucide-react";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
@@ -12,12 +13,6 @@ interface AdminRoleRow {
   created_at: string;
   email: string | null;
 }
-
-const ROLE_LABEL: Record<AdminRoleRow["role"], string> = {
-  owner_admin: "Owner Admin",
-  ops_coordinator: "Ops Coordinator",
-  qc_only: "QC Only",
-};
 
 const ROLE_BADGE: Record<AdminRoleRow["role"], string> = {
   owner_admin: "bg-brand-gold/20 text-brand-gold-dark",
@@ -33,6 +28,12 @@ const ROLE_BADGE: Record<AdminRoleRow["role"], string> = {
  * "admin_roles_management", solo owner_admin).
  */
 export default function AdminRolesClient() {
+  const t = useTranslations("admin.roles");
+  const ROLE_LABEL: Record<AdminRoleRow["role"], string> = {
+    owner_admin: t("roleLabels.ownerAdmin"),
+    ops_coordinator: t("roleLabels.opsCoordinator"),
+    qc_only: t("roleLabels.qcOnly"),
+  };
   const [roles, setRoles] = useState<AdminRoleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -54,14 +55,14 @@ export default function AdminRolesClient() {
       const res = await fetch("/api/admin/roles", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load admin roles");
+        setError(err.error || t("loadError"));
         setLoading(false);
         return;
       }
       const data = await res.json();
       setRoles(data.roles || []);
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setLoading(false);
     }
@@ -76,10 +77,10 @@ export default function AdminRolesClient() {
         credentials: "include",
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to revoke role");
+      if (!res.ok) throw new Error(data.error || t("revokeErrorFallback"));
       setRoles((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
-      setRevokeError(err instanceof Error ? err.message : "Failed to revoke role");
+      setRevokeError(err instanceof Error ? err.message : t("revokeErrorFallback"));
       throw err;
     } finally {
       setRevokingId(null);
@@ -107,21 +108,21 @@ export default function AdminRolesClient() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-brand-ink">Admin Roles</h1>
+          <h1 className="text-2xl font-bold text-brand-ink">{t("heading")}</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Managers, coordinators and QC reviewers (admin_roles) — separate from field employees.
+            {t("subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-500">
-            {roles.length} role{roles.length !== 1 ? "s" : ""}
+            {t("roleCount", { count: roles.length })}
           </span>
           <button
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light"
           >
             <UserPlus className="w-4 h-4" />
-            Grant role
+            {t("grantRole")}
           </button>
         </div>
       </div>
@@ -135,7 +136,7 @@ export default function AdminRolesClient() {
       {roles.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
           <Shield className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500">No admin roles assigned yet.</p>
+          <p className="text-gray-500">{t("emptyState")}</p>
         </div>
       ) : (
         <div className="bg-white rounded-xl border overflow-hidden">
@@ -143,10 +144,10 @@ export default function AdminRolesClient() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Role</th>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Granted</th>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600"><span className="sr-only">Actions</span></th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("table.email")}</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("table.role")}</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("table.granted")}</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600"><span className="sr-only">{t("table.actions")}</span></th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -171,11 +172,11 @@ export default function AdminRolesClient() {
                       <button
                         onClick={() => setConfirmRevokeId(r.id)}
                         disabled={revokingId === r.id}
-                        aria-label={`Revoke ${ROLE_LABEL[r.role]} from ${r.email || r.user_id}`}
+                        aria-label={t("revokeAriaLabel", { role: ROLE_LABEL[r.role], target: r.email || r.user_id })}
                         className="flex items-center gap-1 text-xs text-state-danger hover:opacity-80 disabled:opacity-50"
                       >
                         <UserMinus className="w-3.5 h-3.5" />
-                        {revokingId === r.id ? "Revoking..." : "Revoke"}
+                        {revokingId === r.id ? t("revoking") : t("revoke")}
                       </button>
                     </td>
                   </tr>
@@ -198,9 +199,9 @@ export default function AdminRolesClient() {
 
       {confirmRevokeId && (
         <ConfirmActionModal
-          title="Revoke this admin role?"
-          message="The user will lose access to the resources it grants."
-          confirmLabel="Revoke"
+          title={t("confirmRevoke.title")}
+          message={t("confirmRevoke.message")}
+          confirmLabel={t("confirmRevoke.confirmLabel")}
           danger
           onCancel={() => setConfirmRevokeId(null)}
           onConfirm={async () => {
@@ -220,6 +221,7 @@ function AddRoleModal({
   onClose: () => void;
   onCreated: (role: AdminRoleRow) => void;
 }) {
+  const t = useTranslations("admin.roles");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<AdminRoleRow["role"]>("ops_coordinator");
   const [saving, setSaving] = useState(false);
@@ -236,10 +238,10 @@ function AddRoleModal({
         body: JSON.stringify({ email, role }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to grant role");
+      if (!res.ok) throw new Error(data.error || t("addModal.grantErrorFallback"));
       onCreated(data.role);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to grant role");
+      setSaveError(err instanceof Error ? err.message : t("addModal.grantErrorFallback"));
     } finally {
       setSaving(false);
     }
@@ -248,34 +250,34 @@ function AddRoleModal({
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
-        <h2 className="text-lg font-semibold text-brand-ink">Grant Admin Role</h2>
+        <h2 className="text-lg font-semibold text-brand-ink">{t("addModal.title")}</h2>
         <p className="text-xs text-gray-500">
-          If the email has no account yet, an invite is sent (same flow as employee onboarding).
+          {t("addModal.subtitle")}
         </p>
 
         <div className="space-y-3">
           <div>
-            <label htmlFor="add-role-email" className="text-xs text-gray-600 block mb-1">Email</label>
+            <label htmlFor="add-role-email" className="text-xs text-gray-600 block mb-1">{t("addModal.emailLabel")}</label>
             <input
               id="add-role-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm"
-              placeholder="name@example.com"
+              placeholder={t("addModal.emailPlaceholder")}
             />
           </div>
           <div>
-            <label htmlFor="add-role-role" className="text-xs text-gray-600 block mb-1">Role</label>
+            <label htmlFor="add-role-role" className="text-xs text-gray-600 block mb-1">{t("addModal.roleLabel")}</label>
             <select
               id="add-role-role"
               value={role}
               onChange={(e) => setRole(e.target.value as AdminRoleRow["role"])}
               className="w-full border rounded-lg px-3 py-2 text-sm"
             >
-              <option value="owner_admin">Owner Admin — full access</option>
-              <option value="ops_coordinator">Ops Coordinator — dispatch/QC/services, no finance/payroll</option>
-              <option value="qc_only">QC Only — photo evidence wall only</option>
+              <option value="owner_admin">{t("addModal.roleOptions.ownerAdmin")}</option>
+              <option value="ops_coordinator">{t("addModal.roleOptions.opsCoordinator")}</option>
+              <option value="qc_only">{t("addModal.roleOptions.qcOnly")}</option>
             </select>
           </div>
         </div>
@@ -284,15 +286,15 @@ function AddRoleModal({
 
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} className="px-4 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100">
-            Cancel
+            {t("addModal.cancel")}
           </button>
           <button
             onClick={handleCreate}
             disabled={saving || !email.trim()}
-            aria-label={saving ? "Granting role" : "Grant role and invite"}
+            aria-label={saving ? t("addModal.grantingAriaLabel") : t("addModal.grantAriaLabel")}
             className="px-4 py-2 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light disabled:opacity-50"
           >
-            {saving ? "Granting..." : "Grant & Invite"}
+            {saving ? t("addModal.granting") : t("addModal.grant")}
           </button>
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Swords, Loader2, AlertTriangle } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface Snapshot {
   price_cents: number;
@@ -50,6 +51,7 @@ function formatCad(cents: number): string {
 }
 
 export default function CompetenciaPage() {
+  const t = useTranslations("admin.competencia");
   const [data, setData] = useState<CompetenciaResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,14 +62,14 @@ export default function CompetenciaPage() {
     try {
       const res = await fetch("/api/admin/competencia");
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error loading competitive intelligence");
+      if (!res.ok) throw new Error(json.error || t("errors.loadFailed"));
       setData(json);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(err instanceof Error ? err.message : t("errors.unknown"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -77,18 +79,16 @@ export default function CompetenciaPage() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-2 mb-4">
         <Swords className="w-6 h-6" />
-        <h1 className="text-2xl font-bold">Competitive Intelligence</h1>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
       </div>
 
       <p className="text-sm text-gray-500 mb-6">
-        Up to 10 active competitors (D.10.10). Current data: monthly manual checklist from E1. Automated
-        scraping ⏸️ deferred (requires reviewing each site&apos;s TOS before automating) — once enabled,
-        it feeds this same table via <code>source = &apos;scraping&apos;</code>, without breaking this panel.
+        {t.rich("subtitle", { code: (chunks) => <code>{chunks}</code> })}
       </p>
 
       {loading && (
         <div className="flex items-center gap-2 text-gray-500">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+          <Loader2 className="w-4 h-4 animate-spin" /> {t("loading")}
         </div>
       )}
       {error && <div className="text-red-600 text-sm mb-4">{error}</div>}
@@ -111,18 +111,18 @@ export default function CompetenciaPage() {
             </div>
           )}
 
-          <div className="text-xs text-gray-400 mb-3">{data.activeCount} / 10 active competitors</div>
+          <div className="text-xs text-gray-400 mb-3">{t("activeCount", { count: data.activeCount })}</div>
 
           <div className="overflow-x-auto rounded border border-gray-200">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-3 py-2 text-left">Competitor</th>
-                  <th scope="col" className="px-3 py-2 text-left">Zone</th>
-                  <th scope="col" className="px-3 py-2 text-right">Price</th>
-                  <th scope="col" className="px-3 py-2 text-right">Rating</th>
-                  <th scope="col" className="px-3 py-2 text-right">Reviews</th>
-                  <th scope="col" className="px-3 py-2 text-left">Last capture</th>
+                  <th scope="col" className="px-3 py-2 text-left">{t("table.competitor")}</th>
+                  <th scope="col" className="px-3 py-2 text-left">{t("table.zone")}</th>
+                  <th scope="col" className="px-3 py-2 text-right">{t("table.price")}</th>
+                  <th scope="col" className="px-3 py-2 text-right">{t("table.rating")}</th>
+                  <th scope="col" className="px-3 py-2 text-right">{t("table.reviews")}</th>
+                  <th scope="col" className="px-3 py-2 text-left">{t("table.lastCapture")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -137,7 +137,7 @@ export default function CompetenciaPage() {
                       <td className="px-3 py-2 text-right">{c.latestSnapshot?.average_rating ?? "—"}</td>
                       <td className="px-3 py-2 text-right">{c.latestSnapshot?.review_count ?? "—"}</td>
                       <td className="px-3 py-2 text-gray-400">
-                        {c.latestSnapshot ? new Date(c.latestSnapshot.captured_at).toLocaleDateString("en-CA") : "no data"}
+                        {c.latestSnapshot ? new Date(c.latestSnapshot.captured_at).toLocaleDateString("en-CA") : t("noData")}
                       </td>
                     </tr>
                     {c.marginComparison && (
@@ -160,7 +160,7 @@ export default function CompetenciaPage() {
                 {data.competitors.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-3 py-4 text-center text-gray-400">
-                      No competitors recorded.
+                      {t("noCompetitors")}
                     </td>
                   </tr>
                 )}

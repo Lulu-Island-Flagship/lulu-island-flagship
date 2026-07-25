@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Camera, AlertTriangle, Send, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { ErrorBanner } from "@/components/empleado/ErrorBanner";
 
 interface DiscrepanciaReporterProps {
   orderId: string;
@@ -14,12 +15,19 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Auditoría UX/seguridad 2026-07-25 (#6): antes los fallos de subida de
+  // foto y de envío del reporte solo iban a console.error -- el empleado
+  // veía la UI "quedarse igual" y podía creer que su reporte de
+  // discrepancia se envió cuando en realidad nunca llegó al servidor.
+  const [photoUploadError, setPhotoUploadError] = useState("");
+  const [submitError, setSubmitError] = useState("");
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !orderId) return;
 
     setUploading(true);
+    setPhotoUploadError("");
     try {
       const fileExt = file.name.split(".").pop() || "jpg";
       const fileName = `${orderId}/discrepancia/${Date.now()}.${fileExt}`;
@@ -30,6 +38,7 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
 
       if (uploadError) {
         console.error("Upload error:", uploadError);
+        setPhotoUploadError("Couldn't upload the photo. Please try again.");
         return;
       }
 
@@ -40,6 +49,7 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
       setPhotos((prev) => [...prev, publicUrlData.publicUrl]);
     } catch (e) {
       console.error("Photo upload error:", e);
+      setPhotoUploadError("Connection error uploading the photo. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -49,6 +59,7 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
     if (!note.trim() && photos.length === 0) return;
 
     setIsSubmitting(true);
+    setSubmitError("");
     try {
       const res = await fetch("/api/empleado/servicio", {
         method: "POST",
@@ -65,9 +76,14 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
         setNote("");
         setPhotos([]);
         onReported?.();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        console.error("Discrepancia submit rejected:", err.error);
+        setSubmitError(err.error || "Couldn't send the report. Please try again.");
       }
     } catch (e) {
       console.error("Discrepancia submit error:", e);
+      setSubmitError("Connection error sending the report. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -126,7 +142,10 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
             />
           </label>
         </div>
+        <ErrorBanner message={photoUploadError} className="mt-2" />
       </div>
+
+      <ErrorBanner message={submitError} onRetry={handleSubmit} retrying={isSubmitting} />
 
       <button
         aria-label="Reportar discrepancia"

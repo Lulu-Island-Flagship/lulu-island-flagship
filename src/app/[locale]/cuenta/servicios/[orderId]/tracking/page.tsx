@@ -92,26 +92,48 @@ export default function ServiceTrackingPage() {
         </p>
       </div>
 
-      <div className="bg-white rounded-xl border p-6 space-y-3">
-        <div className="flex items-center gap-2 text-brand-ink">
-          <MapPin className="w-5 h-5 text-brand-gold" />
-          <span className="text-sm font-medium">
-            {data.lat?.toFixed(5)}, {data.lng?.toFixed(5)}
-          </span>
+      <div className="bg-white rounded-xl border overflow-hidden">
+        {/* Fix (2026-07-25, auditoría UX): antes esta tarjeta solo mostraba
+            "49.28270, -123.12070" como texto plano -- un cliente promedio no
+            puede ubicarse a partir de coordenadas crudas. El proyecto no usa
+            ninguna librería de mapas (no hay leaflet/mapbox/@react-google-maps
+            en package.json, solo `src/adapters/maps.ts`, que envuelve
+            geocodificación server-side, no renderizado de mapas), así que
+            agregar una librería completa (y su API key, billing, etc.) queda
+            fuera de alcance de este pase. En su lugar se embebe un iframe de
+            Google Maps vía el parámetro público `output=embed` (no requiere
+            API key ni facturación, a diferencia del Maps Embed API oficial)
+            -- el cliente ve un mapa real navegable en vez de números, y el
+            link "Open in Google Maps" se conserva como respaldo/acción
+            explícita para abrir la app nativa. */}
+        <iframe
+          title={t("mapFrameTitle")}
+          className="w-full h-64 border-0"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          src={`https://www.google.com/maps?q=${data.lat},${data.lng}&z=15&output=embed`}
+        />
+        <div className="p-4 space-y-2">
+          <div className="flex items-center gap-2 text-brand-ink">
+            <MapPin className="w-5 h-5 text-brand-gold" />
+            <span className="text-sm font-medium">
+              {data.lat?.toFixed(5)}, {data.lng?.toFixed(5)}
+            </span>
+          </div>
+          {data.lastUpdatedAt && (
+            <p className="text-xs text-gray-400">
+              {t("lastUpdated", { time: new Date(data.lastUpdatedAt).toLocaleTimeString() })}
+            </p>
+          )}
+          <a
+            href={`https://www.google.com/maps?q=${data.lat},${data.lng}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block text-sm text-brand-navy font-medium underline"
+          >
+            {t("openInMaps")}
+          </a>
         </div>
-        {data.lastUpdatedAt && (
-          <p className="text-xs text-gray-400">
-            {t("lastUpdated", { time: new Date(data.lastUpdatedAt).toLocaleTimeString() })}
-          </p>
-        )}
-        <a
-          href={`https://www.google.com/maps?q=${data.lat},${data.lng}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-block text-sm text-brand-navy font-medium underline"
-        >
-          {t("openInMaps")}
-        </a>
       </div>
     </div>
   );

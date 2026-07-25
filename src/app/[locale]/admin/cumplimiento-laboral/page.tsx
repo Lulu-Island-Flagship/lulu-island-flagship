@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, Clock, AlertTriangle, HeartPulse, CalendarDays, ExternalLink } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 type Tab = "rest" | "sick" | "weekly" | "holidays";
 
@@ -53,6 +54,7 @@ function formatCad(cents: number | null): string {
  * pagados. Cada pestaña llama a su propio endpoint ya construido.
  */
 export default function CumplimientoLaboralPage() {
+  const t = useTranslations("admin.cumplimientoLaboral");
   const [tab, setTab] = useState<Tab>("rest");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -67,65 +69,62 @@ export default function CumplimientoLaboralPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
-  async function load(t: Tab) {
+  async function load(tabId: Tab) {
     setLoading(true);
     setError("");
     try {
-      if (t === "rest") {
+      if (tabId === "rest") {
         const res = await fetch("/api/admin/rest-periods?days=14", { credentials: "include" });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
         setRestRows(data.rows || []);
-      } else if (t === "sick") {
+      } else if (tabId === "sick") {
         const res = await fetch("/api/admin/sick-leave", { credentials: "include" });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
         setSickRows(data.requests || []);
-      } else if (t === "weekly") {
+      } else if (tabId === "weekly") {
         const res = await fetch("/api/admin/weekly-rest-violations", { credentials: "include" });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
         setWeeklyRows(data.violations || []);
-      } else if (t === "holidays") {
+      } else if (tabId === "holidays") {
         const res = await fetch("/api/admin/statutory-holiday-pay", { credentials: "include" });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
         setHolidayRecords(data.records || []);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error");
+      setError(err instanceof Error ? err.message : t("errors.network"));
     } finally {
       setLoading(false);
     }
   }
 
-  const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
-    { id: "rest", label: "Breaks (transit)", icon: Clock },
-    { id: "sick", label: "Sick leave", icon: HeartPulse },
-    { id: "weekly", label: "Weekly rest (32h)", icon: AlertTriangle },
-    { id: "holidays", label: "Statutory holidays", icon: CalendarDays },
+  const tabs: { id: Tab; labelKey: string; icon: React.ElementType }[] = [
+    { id: "rest", labelKey: "tabs.rest", icon: Clock },
+    { id: "sick", labelKey: "tabs.sick", icon: HeartPulse },
+    { id: "weekly", labelKey: "tabs.weekly", icon: AlertTriangle },
+    { id: "holidays", labelKey: "tabs.holidays", icon: CalendarDays },
   ];
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">BC Labor Compliance</h1>
-      <p className="text-sm text-gray-500 mb-4">
-        Rest documented via transit time (drivers never count — they&apos;re still working), sick
-        leave reports, weekly 32h consecutive rest, and statutory holiday pay eligibility.
-      </p>
+      <h1 className="text-2xl font-bold mb-4">{t("title")}</h1>
+      <p className="text-sm text-gray-500 mb-4">{t("subtitle")}</p>
 
       <div className="flex gap-2 mb-4 border-b">
-        {tabs.map((t) => {
-          const Icon = t.icon;
+        {tabs.map((tabDef) => {
+          const Icon = tabDef.icon;
           return (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+              key={tabDef.id}
+              onClick={() => setTab(tabDef.id)}
               className={`flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 ${
-                tab === t.id ? "border-brand-navy text-brand-navy font-medium" : "border-transparent text-gray-500"
+                tab === tabDef.id ? "border-brand-navy text-brand-navy font-medium" : "border-transparent text-gray-500"
               }`}
             >
-              <Icon className="w-4 h-4" /> {t.label}
+              <Icon className="w-4 h-4" /> {t(tabDef.labelKey)}
             </button>
           );
         })}
@@ -135,7 +134,7 @@ export default function CumplimientoLaboralPage() {
 
       {loading ? (
         <div className="flex items-center gap-2 text-gray-500">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+          <Loader2 className="w-4 h-4 animate-spin" /> {t("loading")}
         </div>
       ) : (
         <>
@@ -144,11 +143,11 @@ export default function CumplimientoLaboralPage() {
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="px-3 py-2 text-left">Employee</th>
-                    <th scope="col" className="px-3 py-2 text-left">Date</th>
-                    <th scope="col" className="px-3 py-2 text-right">Segments</th>
-                    <th scope="col" className="px-3 py-2 text-right">Qualifying breaks</th>
-                    <th scope="col" className="px-3 py-2 text-left">Risk</th>
+                    <th scope="col" className="px-3 py-2 text-left">{t("table.employee")}</th>
+                    <th scope="col" className="px-3 py-2 text-left">{t("table.date")}</th>
+                    <th scope="col" className="px-3 py-2 text-right">{t("table.segments")}</th>
+                    <th scope="col" className="px-3 py-2 text-right">{t("table.qualifyingBreaks")}</th>
+                    <th scope="col" className="px-3 py-2 text-left">{t("table.risk")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -161,7 +160,7 @@ export default function CumplimientoLaboralPage() {
                       <td className="px-3 py-2">
                         {r.atRisk && (
                           <span className="text-red-700 text-xs flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3" /> No qualifying break despite 5h+ continuous
+                            <AlertTriangle className="w-3 h-3" /> {t("noQualifyingBreak")}
                           </span>
                         )}
                       </td>
@@ -170,7 +169,7 @@ export default function CumplimientoLaboralPage() {
                   {restRows.length === 0 && (
                     <tr>
                       <td colSpan={5} className="px-3 py-4 text-center text-gray-400">
-                        No data.
+                        {t("noData")}
                       </td>
                     </tr>
                   )}
@@ -184,11 +183,11 @@ export default function CumplimientoLaboralPage() {
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="px-3 py-2 text-left">Employee</th>
-                    <th scope="col" className="px-3 py-2 text-left">Date</th>
-                    <th scope="col" className="px-3 py-2 text-left">Reason</th>
-                    <th scope="col" className="px-3 py-2 text-left">Pay type</th>
-                    <th scope="col" className="px-3 py-2 text-left">Note</th>
+                    <th scope="col" className="px-3 py-2 text-left">{t("table.employee")}</th>
+                    <th scope="col" className="px-3 py-2 text-left">{t("table.date")}</th>
+                    <th scope="col" className="px-3 py-2 text-left">{t("table.reason")}</th>
+                    <th scope="col" className="px-3 py-2 text-left">{t("table.payType")}</th>
+                    <th scope="col" className="px-3 py-2 text-left">{t("table.note")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -206,7 +205,7 @@ export default function CumplimientoLaboralPage() {
                             rel="noreferrer"
                             className="text-brand-navy text-xs flex items-center gap-1"
                           >
-                            <ExternalLink className="w-3 h-3" /> View
+                            <ExternalLink className="w-3 h-3" /> {t("view")}
                           </a>
                         )}
                       </td>
@@ -215,7 +214,7 @@ export default function CumplimientoLaboralPage() {
                   {sickRows.length === 0 && (
                     <tr>
                       <td colSpan={5} className="px-3 py-4 text-center text-gray-400">
-                        No data.
+                        {t("noData")}
                       </td>
                     </tr>
                   )}
@@ -229,9 +228,9 @@ export default function CumplimientoLaboralPage() {
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="px-3 py-2 text-left">Employee</th>
-                    <th scope="col" className="px-3 py-2 text-left">Week</th>
-                    <th scope="col" className="px-3 py-2 text-right">Longest gap (h)</th>
+                    <th scope="col" className="px-3 py-2 text-left">{t("table.employee")}</th>
+                    <th scope="col" className="px-3 py-2 text-left">{t("table.week")}</th>
+                    <th scope="col" className="px-3 py-2 text-right">{t("table.longestGap")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -247,7 +246,7 @@ export default function CumplimientoLaboralPage() {
                   {weeklyRows.length === 0 && (
                     <tr>
                       <td colSpan={3} className="px-3 py-4 text-center text-gray-400">
-                        No violations recorded.
+                        {t("noViolations")}
                       </td>
                     </tr>
                   )}
@@ -261,11 +260,11 @@ export default function CumplimientoLaboralPage() {
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="px-3 py-2 text-left">Employee</th>
-                    <th scope="col" className="px-3 py-2 text-left">Holiday</th>
-                    <th scope="col" className="px-3 py-2 text-left">Date</th>
-                    <th scope="col" className="px-3 py-2 text-left">Eligible</th>
-                    <th scope="col" className="px-3 py-2 text-right">Avg day pay</th>
+                    <th scope="col" className="px-3 py-2 text-left">{t("table.employee")}</th>
+                    <th scope="col" className="px-3 py-2 text-left">{t("table.holiday")}</th>
+                    <th scope="col" className="px-3 py-2 text-left">{t("table.date")}</th>
+                    <th scope="col" className="px-3 py-2 text-left">{t("table.eligible")}</th>
+                    <th scope="col" className="px-3 py-2 text-right">{t("table.avgDayPay")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -274,10 +273,10 @@ export default function CumplimientoLaboralPage() {
                       <td className="px-3 py-2">{r.employeeName}</td>
                       <td className="px-3 py-2">{r.holiday_name}</td>
                       <td className="px-3 py-2">{r.holiday_date}</td>
-                      <td className="px-3 py-2">{r.eligible ? "Yes" : "No"}</td>
+                      <td className="px-3 py-2">{r.eligible ? t("yes") : t("no")}</td>
                       <td className="px-3 py-2 text-right">
                         {r.wage_data_unavailable ? (
-                          <span className="text-amber-600 text-xs">wage data unavailable</span>
+                          <span className="text-amber-600 text-xs">{t("wageDataUnavailable")}</span>
                         ) : (
                           formatCad(r.average_day_pay_cents)
                         )}
@@ -287,7 +286,7 @@ export default function CumplimientoLaboralPage() {
                   {holidayRecords.length === 0 && (
                     <tr>
                       <td colSpan={5} className="px-3 py-4 text-center text-gray-400">
-                        No records for this year yet.
+                        {t("noRecordsThisYear")}
                       </td>
                     </tr>
                   )}

@@ -177,8 +177,20 @@ export default function ReferralsPage() {
           ) : (
             <Loader2 className="w-5 h-5 animate-spin text-brand-gold" />
           )}
+          {/* Fix (2026-07-25, auditoría UX, item 14): antes `creditCents || 3000`
+              fabricaba "$30.00" (REFERRAL_CREDIT_CENTS, ver src/lib/referrals.ts)
+              cada vez que creditCents todavía no había llegado del backend --
+              en la práctica /api/client/referral siempre manda creditCents
+              real cuando eligible:true (route.ts), así que el fallback era
+              silenciosamente inofensivo hoy, pero seguía siendo un número
+              inventado mostrado como si fuera el crédito real de la cuenta
+              si esa garantía cambiara. Ahora, si por lo que sea creditCents
+              aún no llegó (0), se muestra copy genérico sin monto en vez de
+              inventar una cifra. */}
           <p className="text-xs text-gray-500">
-            {t("shareCode", { amount: `$${((creditCents || 3000) / 100).toFixed(2)}` })}
+            {creditCents > 0
+              ? t("shareCode", { amount: `$${(creditCents / 100).toFixed(2)}` })
+              : t("shareCodeGeneric")}
           </p>
         </div>
       ) : (

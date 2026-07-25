@@ -7,7 +7,10 @@ import { BRAND, STATE, ELEVATION, RADIUS, FONT } from "./src/design/tokens";
  */
 const config: Config = {
   content: [
-    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    // Fix (auditoría transversal 2026-07-25, item 10): "./src/pages/**/*"
+    // apuntaba al Pages Router -- este proyecto usa exclusivamente el App
+    // Router (src/app/). Se confirmó que no existe directorio src/pages en
+    // el repo; el glob no matcheaba nada y era config muerta. Se quita.
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Loader2,
   Plus,
@@ -72,6 +73,7 @@ const DEFAULT_ITEMS: ChecklistItem[] = [
 ];
 
 export default function AdminChecklistsClient() {
+  const t = useTranslations("admin.checklists");
   const [checklists, setChecklists] = useState<ChecklistZone[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -395,7 +397,7 @@ export default function AdminChecklistsClient() {
       credentials: "include",
     });
     if (res.status === 409) {
-      alert("Cannot delete: this service type has usage history. You can only deactivate all zones.");
+      setError(t("cannotDelete"));
       return;
     }
     if (!res.ok && res.status !== 404) {

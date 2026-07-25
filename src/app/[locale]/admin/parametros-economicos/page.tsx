@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, DollarSign, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface Settings {
   id: string;
@@ -27,6 +28,7 @@ interface Impact {
  * cierra el gap de que nadie podía usarlo.
  */
 export default function EconomicParamsPage() {
+  const t = useTranslations("admin.parametrosEconomicos");
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -51,12 +53,12 @@ export default function EconomicParamsPage() {
       const res = await fetch("/api/admin/economic-params", { credentials: "include" });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Failed to load");
+        setError(data.error || t("errorLoading"));
         return;
       }
       setSettings(data.settings);
     } catch {
-      setError("Network error");
+      setError(t("errorNetwork"));
     } finally {
       setLoading(false);
     }
@@ -77,13 +79,13 @@ export default function EconomicParamsPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Failed to simulate");
+        setError(data.error || t("errorSimulating"));
         return;
       }
       setImpact(data.impact);
       setAffectedCount(data.affectedContractsCount || 0);
     } catch {
-      setError("Network error");
+      setError(t("errorNetwork"));
     } finally {
       setSimulating(false);
     }
@@ -107,7 +109,7 @@ export default function EconomicParamsPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Failed to apply");
+        setError(data.error || t("errorApplying"));
         return;
       }
       setApplied(true);
@@ -116,7 +118,7 @@ export default function EconomicParamsPage() {
       setReason("");
       await load();
     } catch {
-      setError("Network error");
+      setError(t("errorNetwork"));
     } finally {
       setApplying(false);
     }
@@ -134,60 +136,58 @@ export default function EconomicParamsPage() {
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-brand-ink flex items-center gap-2">
-          <DollarSign className="w-6 h-6" /> Economic Parameters
+          <DollarSign className="w-6 h-6" /> {t("title")}
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          BC minimum wage / minimum Day Rate. Simulate first, then apply with one click — never auto-applied.
-        </p>
+        <p className="text-sm text-gray-500 mt-1">{t("subtitle")}</p>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{error}</div>}
       {applied && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-700 flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4" /> Applied successfully.
+          <CheckCircle2 className="w-4 h-4" /> {t("appliedSuccessfully")}
         </div>
       )}
 
       {settings && (
         <div className="bg-white rounded-xl border p-5 grid grid-cols-2 gap-4 text-sm">
           <div>
-            <p className="text-gray-500">Current BC minimum wage</p>
-            <p className="font-semibold text-brand-ink">${Number(settings.bc_min_wage_hourly).toFixed(2)}/hr</p>
+            <p className="text-gray-500">{t("currentMinWage")}</p>
+            <p className="font-semibold text-brand-ink">{t("perHour", { amount: Number(settings.bc_min_wage_hourly).toFixed(2) })}</p>
           </div>
           <div>
-            <p className="text-gray-500">Current minimum Day Rate</p>
+            <p className="text-gray-500">{t("currentMinDayRate")}</p>
             <p className="font-semibold text-brand-ink">${Number(settings.minimum_day_rate).toFixed(2)}</p>
           </div>
           <div>
-            <p className="text-gray-500">Standard day hours</p>
+            <p className="text-gray-500">{t("standardDayHours")}</p>
             <p className="font-semibold text-brand-ink">{settings.standard_day_hours}h</p>
           </div>
           <div>
-            <p className="text-gray-500">Effective from</p>
+            <p className="text-gray-500">{t("effectiveFrom")}</p>
             <p className="font-semibold text-brand-ink">{settings.effective_from}</p>
           </div>
         </div>
       )}
 
       <div className="bg-white rounded-xl border p-5 space-y-3">
-        <p className="font-medium text-brand-ink text-sm">Simulate a new minimum wage</p>
+        <p className="font-medium text-brand-ink text-sm">{t("simulateNewWage")}</p>
         <div className="flex items-center gap-2">
           <input
-            aria-label="Nuevo salario mínimo a simular"
+            aria-label={t("newWageToSimulate")}
             type="number"
             step="0.01"
             value={newWage}
             onChange={(e) => setNewWage(e.target.value)}
-            placeholder="e.g. 18.65"
+            placeholder={t("wageExample")}
             className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
           <button
-            aria-label="Simular impacto del nuevo salario mínimo"
+            aria-label={t("simulateImpact")}
             onClick={simulate}
             disabled={simulating || !newWage}
             className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
           >
-            {simulating ? "Simulating..." : "Simulate"}
+            {simulating ? t("simulating") : t("simulate")}
           </button>
         </div>
 
@@ -196,33 +196,36 @@ export default function EconomicParamsPage() {
             <div className="flex items-center gap-2 text-brand-ink">
               <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
               <span>
-                {impact.deltaPercent >= 0 ? "+" : ""}
-                {impact.deltaPercent.toFixed(1)}% per hour ({impact.deltaPerHour >= 0 ? "+" : ""}$
-                {impact.deltaPerHour.toFixed(2)})
+                {t("deltaPerHour", {
+                  sign: impact.deltaPercent >= 0 ? "+" : "",
+                  percent: impact.deltaPercent.toFixed(1),
+                  amountSign: impact.deltaPerHour >= 0 ? "+" : "",
+                  amount: impact.deltaPerHour.toFixed(2),
+                })}
               </span>
             </div>
             <p>
-              Suggested new minimum Day Rate: <strong>${impact.suggestedMinimumDayRate.toFixed(2)}</strong> (
+              {t("suggestedNewDayRate")} <strong>${impact.suggestedMinimumDayRate.toFixed(2)}</strong> (
               {impact.dayRateDeltaDollars >= 0 ? "+" : ""}${impact.dayRateDeltaDollars.toFixed(2)})
             </p>
-            <p>{affectedCount} active contract(s) below the new floor need adjustment.</p>
+            <p>{t("affectedContracts", { count: affectedCount })}</p>
 
             <div className="pt-2 border-t space-y-2">
               <input
-                aria-label="Motivo del cambio de salario mínimo"
+                aria-label={t("reasonForChange")}
                 type="text"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Reason for this change (required, min 3 chars)"
+                placeholder={t("reasonPlaceholder")}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
               <button
-                aria-label="Aplicar cambio de salario mínimo"
+                aria-label={t("applyWageChange")}
                 onClick={apply}
                 disabled={applying || reason.trim().length < 3}
                 className="w-full bg-state-danger text-white py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50"
               >
-                {applying ? "Applying..." : "Apply this change (one click, cannot be undone silently)"}
+                {applying ? t("applying") : t("applyButton")}
               </button>
             </div>
           </div>

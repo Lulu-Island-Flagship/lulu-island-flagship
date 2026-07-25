@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import { Loader2, Moon, Smile, Meh, Frown, Check, Zap, ShieldOff, Info } from "lucide-react";
+import { EmpleadoBackHeader } from "@/components/empleado/EmpleadoBackHeader";
 
 type Mood = "happy" | "neutral" | "sad";
 
@@ -25,6 +27,8 @@ const MOODS: { value: Mood; label: string; icon: typeof Smile }[] = [
  * faltaba para que un empleado realmente pudiera usarlo.
  */
 export default function CheckinPage() {
+  const params = useParams();
+  const locale = (params?.locale as string) || "en";
   const [checkin, setCheckin] = useState<Checkin | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -133,18 +137,25 @@ export default function CheckinPage() {
     }
   }
 
+  const backHref = `/${locale}/empleado`;
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
-      </div>
+      <main className="min-h-screen bg-brand-ice">
+        <EmpleadoBackHeader title="Checklist matutino" backHref={backHref} />
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        </div>
+      </main>
     );
   }
 
   const alreadyDone = checkin !== null;
 
   return (
-    <div className="space-y-6 max-w-md">
+    <main className="min-h-screen bg-brand-ice">
+      <EmpleadoBackHeader title="Checklist matutino" backHref={backHref} />
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-6 max-w-md">
       <div>
         <h1 className="text-2xl font-bold text-brand-ink">Checklist matutino</h1>
         <p className="text-sm text-gray-500 mt-1">
@@ -282,6 +293,7 @@ export default function CheckinPage() {
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </main>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, Gift, CheckCircle2, Building2 } from "lucide-react";
 
 interface RetentionGift {
@@ -37,6 +38,7 @@ interface BuildingBenefit {
  * aprobar/entregar los regalos ni registrar beneficios a edificios.
  */
 export default function GiftsPage() {
+  const t = useTranslations("admin.regalos");
   const [gifts, setGifts] = useState<RetentionGift[]>([]);
   const [benefits, setBenefits] = useState<BuildingBenefit[]>([]);
   const [pmPartners, setPmPartners] = useState<Partner[]>([]);
@@ -69,7 +71,7 @@ export default function GiftsPage() {
         setPmPartners((partnersData.partners || []).filter((p: Partner) => p.partner_type === "property_manager"));
       }
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -92,7 +94,7 @@ export default function GiftsPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Failed");
+        setError(data.error || t("errors.failed"));
         return;
       }
       if (data.eligible === false) {
@@ -102,7 +104,7 @@ export default function GiftsPage() {
       setNewGift({ clientUserId: "", monthsActive: "", firstYearValue: "", ltv: "" });
       await load();
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     }
   }
 
@@ -118,12 +120,12 @@ export default function GiftsPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Failed");
+        setError(data.error || t("errors.failed"));
         return;
       }
       await load();
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setBusyId(null);
     }
@@ -141,13 +143,13 @@ export default function GiftsPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Failed");
+        setError(data.error || t("errors.failed"));
         return;
       }
       setNewBenefit({ partnerId: "", description: "" });
       await load();
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     }
   }
 
@@ -161,12 +163,12 @@ export default function GiftsPage() {
       });
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error || "Failed");
+        setError(data.error || t("errors.failed"));
         return;
       }
       await load();
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setBusyId(null);
     }
@@ -184,57 +186,54 @@ export default function GiftsPage() {
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-brand-ink flex items-center gap-2">
-          <Gift className="w-6 h-6" /> Gift Program
+          <Gift className="w-6 h-6" /> {t("title")}
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Residential 12+ month retention gifts, and property-manager building benefits (never a hidden personal
-          gift — declared partnership commissions live under Partners &amp; Commissions).
-        </p>
+        <p className="text-sm text-gray-500 mt-1">{t("subtitle")}</p>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{error}</div>}
 
       <div className="space-y-3">
-        <h2 className="font-semibold text-brand-ink">Residential gifts</h2>
+        <h2 className="font-semibold text-brand-ink">{t("residentialGifts.heading")}</h2>
         <div className="bg-white rounded-xl border p-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
           <input
-            aria-label="ID de usuario del cliente"
-            placeholder="Client user ID"
+            aria-label={t("residentialGifts.clientUserIdAria")}
+            placeholder={t("residentialGifts.clientUserIdPlaceholder")}
             value={newGift.clientUserId}
             onChange={(e) => setNewGift({ ...newGift, clientUserId: e.target.value })}
             className="col-span-2 rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
           <input
-            aria-label="Meses activo"
+            aria-label={t("residentialGifts.monthsActiveAria")}
             type="number"
-            placeholder="Months active"
+            placeholder={t("residentialGifts.monthsActivePlaceholder")}
             value={newGift.monthsActive}
             onChange={(e) => setNewGift({ ...newGift, monthsActive: e.target.value })}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
           <input
-            aria-label="Valor del primer año en dólares"
+            aria-label={t("residentialGifts.firstYearValueAria")}
             type="number"
-            placeholder="1st yr value $"
+            placeholder={t("residentialGifts.firstYearValuePlaceholder")}
             value={newGift.firstYearValue}
             onChange={(e) => setNewGift({ ...newGift, firstYearValue: e.target.value })}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
           <input
-            aria-label="Valor de vida del cliente (LTV) en dólares, opcional"
+            aria-label={t("residentialGifts.ltvAria")}
             type="number"
-            placeholder="LTV $ (optional)"
+            placeholder={t("residentialGifts.ltvPlaceholder")}
             value={newGift.ltv}
             onChange={(e) => setNewGift({ ...newGift, ltv: e.target.value })}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
           <button onClick={createGift} className="col-span-2 sm:col-span-1 bg-brand-navy text-white px-3 py-2 rounded-lg text-sm font-medium">
-            Evaluate
+            {t("residentialGifts.evaluate")}
           </button>
         </div>
 
         {gifts.length === 0 ? (
-          <div className="bg-white rounded-xl border p-6 text-center text-sm text-gray-500">No gifts logged.</div>
+          <div className="bg-white rounded-xl border p-6 text-center text-sm text-gray-500">{t("residentialGifts.emptyState")}</div>
         ) : (
           <div className="bg-white rounded-xl border divide-y">
             {gifts.map((g) => (
@@ -244,10 +243,10 @@ export default function GiftsPage() {
                     {g.tier} — ${(g.suggested_gift_cents / 100).toFixed(2)}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {g.months_active} months active
-                    {g.requires_manual_approval && !g.approved_at && " · needs approval"}
-                    {g.approved_at && " · approved"}
-                    {g.delivered_at && " · delivered"}
+                    {t("residentialGifts.monthsActiveCount", { count: g.months_active })}
+                    {g.requires_manual_approval && !g.approved_at && ` · ${t("residentialGifts.needsApproval")}`}
+                    {g.approved_at && ` · ${t("residentialGifts.approvedLabel")}`}
+                    {g.delivered_at && ` · ${t("residentialGifts.deliveredLabel")}`}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -257,7 +256,7 @@ export default function GiftsPage() {
                       disabled={busyId === g.id}
                       className="text-xs font-medium bg-brand-navy text-white px-3 py-1.5 rounded-lg disabled:opacity-50"
                     >
-                      Approve
+                      {t("residentialGifts.approve")}
                     </button>
                   )}
                   {!g.delivered_at && (!g.requires_manual_approval || g.approved_at) && (
@@ -266,7 +265,7 @@ export default function GiftsPage() {
                       disabled={busyId === g.id}
                       className="text-xs font-medium bg-state-success text-white px-3 py-1.5 rounded-lg disabled:opacity-50"
                     >
-                      Mark delivered
+                      {t("residentialGifts.markDelivered")}
                     </button>
                   )}
                   {g.delivered_at && <CheckCircle2 className="w-4 h-4 text-state-success" />}
@@ -279,16 +278,16 @@ export default function GiftsPage() {
 
       <div className="space-y-3">
         <h2 className="font-semibold text-brand-ink flex items-center gap-2">
-          <Building2 className="w-4 h-4" /> Property manager building benefits
+          <Building2 className="w-4 h-4" /> {t("buildingBenefits.heading")}
         </h2>
         <div className="bg-white rounded-xl border p-4 space-y-2">
           <select
-            aria-label="Seleccionar socio administrador de propiedad"
+            aria-label={t("buildingBenefits.selectPartnerAria")}
             value={newBenefit.partnerId}
             onChange={(e) => setNewBenefit({ ...newBenefit, partnerId: e.target.value })}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
           >
-            <option value="">Select property manager partner...</option>
+            <option value="">{t("buildingBenefits.selectPartnerOption")}</option>
             {pmPartners.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -296,19 +295,19 @@ export default function GiftsPage() {
             ))}
           </select>
           <input
-            aria-label="Descripción del beneficio"
+            aria-label={t("buildingBenefits.descriptionAria")}
             value={newBenefit.description}
             onChange={(e) => setNewBenefit({ ...newBenefit, description: e.target.value })}
-            placeholder="e.g. Free common-area cleaning session"
+            placeholder={t("buildingBenefits.descriptionPlaceholder")}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
           <button onClick={createBenefit} className="w-full bg-brand-navy text-white py-2 rounded-lg text-sm font-medium">
-            Log benefit
+            {t("buildingBenefits.logBenefit")}
           </button>
         </div>
 
         {benefits.length === 0 ? (
-          <div className="bg-white rounded-xl border p-6 text-center text-sm text-gray-500">No benefits logged.</div>
+          <div className="bg-white rounded-xl border p-6 text-center text-sm text-gray-500">{t("buildingBenefits.emptyState")}</div>
         ) : (
           <div className="bg-white rounded-xl border divide-y">
             {benefits.map((b) => {
@@ -316,7 +315,7 @@ export default function GiftsPage() {
               return (
                 <div key={b.id} className="p-4 flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-brand-ink">{partner?.name || "(partner)"}</p>
+                    <p className="text-sm font-medium text-brand-ink">{partner?.name || t("buildingBenefits.unknownPartner")}</p>
                     <p className="text-xs text-gray-500">{b.description}</p>
                   </div>
                   {b.delivered_at ? (
@@ -327,7 +326,7 @@ export default function GiftsPage() {
                       disabled={busyId === b.id}
                       className="text-xs font-medium bg-state-success text-white px-3 py-1.5 rounded-lg disabled:opacity-50"
                     >
-                      Mark delivered
+                      {t("buildingBenefits.markDelivered")}
                     </button>
                   )}
                 </div>

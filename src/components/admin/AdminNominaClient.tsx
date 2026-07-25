@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, Wallet, Download } from "lucide-react";
 
 interface PayrollLine {
@@ -35,6 +36,7 @@ interface Cycle {
  * de conformidad -- solo CSV/JSON con el desglose de deducciones reales.
  */
 export default function AdminNominaClient() {
+  const t = useTranslations("admin.nomina");
   const [cycle, setCycle] = useState<Cycle | null>(null);
   const [lines, setLines] = useState<PayrollLine[]>([]);
   const [which, setWhich] = useState<"previous" | "current">("previous");
@@ -53,13 +55,13 @@ export default function AdminNominaClient() {
       const res = await fetch(`/api/admin/payroll-export?cycle=${which}&format=json`, { credentials: "include" });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Failed to load");
+        setError(data.error || t("loadError"));
         return;
       }
       setCycle(data.cycle);
       setLines(data.lines || []);
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setLoading(false);
     }
@@ -85,28 +87,27 @@ export default function AdminNominaClient() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-brand-ink flex items-center gap-2">
-            <Wallet className="w-6 h-6" /> Payroll Export
+            <Wallet className="w-6 h-6" /> {t("title")}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            {cycle ? `${cycle.label} (${cycle.start} to ${cycle.end})` : ""} — CPP/EI/WorkSafeBC/Vacation Pay per
-            employee. Does not include federal/provincial income tax withholding.
+            {cycle ? `${cycle.label} (${cycle.start} to ${cycle.end})` : ""} — {t("subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <select
-            aria-label="Seleccionar ciclo de pago"
+            aria-label={t("cycleSelectAriaLabel")}
             value={which}
             onChange={(e) => setWhich(e.target.value as "previous" | "current")}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
           >
-            <option value="previous">Previous cycle (to pay)</option>
-            <option value="current">Current cycle</option>
+            <option value="previous">{t("cycleOptions.previous")}</option>
+            <option value="current">{t("cycleOptions.current")}</option>
           </select>
           <button
             onClick={downloadCsv}
             className="inline-flex items-center gap-1.5 bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium"
           >
-            <Download className="w-4 h-4" /> CSV
+            <Download className="w-4 h-4" /> {t("csvButton")}
           </button>
         </div>
       </div>
@@ -115,17 +116,17 @@ export default function AdminNominaClient() {
 
       {lines.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center text-sm text-gray-500">
-          No payroll entries for this cycle.
+          {t("empty")}
         </div>
       ) : (
         <>
           <div className="bg-white rounded-xl border p-5 grid grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="text-gray-500">Total gross</p>
+              <p className="text-gray-500">{t("totals.gross")}</p>
               <p className="font-semibold text-brand-ink">${(totalGross / 100).toFixed(2)}</p>
             </div>
             <div>
-              <p className="text-gray-500">Total estimated net</p>
+              <p className="text-gray-500">{t("totals.net")}</p>
               <p className="font-semibold text-brand-ink">${(totalNet / 100).toFixed(2)}</p>
             </div>
           </div>
@@ -134,14 +135,14 @@ export default function AdminNominaClient() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-xs text-gray-500">
-                  <th scope="col" className="p-3">Employee</th>
-                  <th scope="col" className="p-3">Services</th>
-                  <th scope="col" className="p-3">Gross</th>
-                  <th scope="col" className="p-3">CPP</th>
-                  <th scope="col" className="p-3">EI (emp.)</th>
-                  <th scope="col" className="p-3">WorkSafeBC</th>
-                  <th scope="col" className="p-3">Vacation Pay</th>
-                  <th scope="col" className="p-3">Est. Net</th>
+                  <th scope="col" className="p-3">{t("table.employee")}</th>
+                  <th scope="col" className="p-3">{t("table.services")}</th>
+                  <th scope="col" className="p-3">{t("table.gross")}</th>
+                  <th scope="col" className="p-3">{t("table.cpp")}</th>
+                  <th scope="col" className="p-3">{t("table.eiEmployee")}</th>
+                  <th scope="col" className="p-3">{t("table.workSafeBc")}</th>
+                  <th scope="col" className="p-3">{t("table.vacationPay")}</th>
+                  <th scope="col" className="p-3">{t("table.estNet")}</th>
                 </tr>
               </thead>
               <tbody>

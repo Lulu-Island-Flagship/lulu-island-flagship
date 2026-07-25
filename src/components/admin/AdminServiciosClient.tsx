@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Loader2,
   MapPin,
@@ -43,6 +44,7 @@ interface Employee {
 }
 
 export default function AdminServiciosClient() {
+  const t = useTranslations("admin.servicios");
   const [services, setServices] = useState<AdminService[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,14 +67,14 @@ export default function AdminServiciosClient() {
       const res = await fetch("/api/admin/servicios", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load services");
+        setError(err.error || t("errors.loadFailed"));
         setLoading(false);
         return;
       }
       const data = await res.json();
       setServices(data.services || []);
     } catch {
-      setError("Network error");
+      setError(t("errors.networkError"));
     } finally {
       setLoading(false);
     }
@@ -91,7 +93,7 @@ export default function AdminServiciosClient() {
 
   async function handleDispatch(orderId: string) {
     if (selectedEmployeeIds.length === 0) {
-      setDispatchError("Select at least one employee");
+      setDispatchError(t("dispatch.selectEmployeeError"));
       return;
     }
 
@@ -111,7 +113,7 @@ export default function AdminServiciosClient() {
 
       const data = await res.json();
       if (!res.ok) {
-        setDispatchError(data.error || "Dispatch failed");
+        setDispatchError(data.error || t("dispatch.dispatchFailed"));
         setDispatchLoading(false);
         return;
       }
@@ -120,7 +122,7 @@ export default function AdminServiciosClient() {
       setSelectedEmployeeIds([]);
       await loadServices();
     } catch {
-      setDispatchError("Network error");
+      setDispatchError(t("errors.networkError"));
     } finally {
       setDispatchLoading(false);
     }
@@ -139,8 +141,14 @@ export default function AdminServiciosClient() {
     return styles[status] || "bg-gray-100 text-gray-700";
   };
 
-  const formatStatus = (status: string) =>
-    status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  const knownStatuses = ["pending", "en_route", "arrived", "in_progress", "completed", "cancelled", "no_show"];
+
+  const formatStatus = (status: string) => {
+    if (knownStatuses.includes(status)) {
+      return t(`statusLabels.${status}` as "statusLabels.pending");
+    }
+    return status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  };
 
   if (loading) {
     return (
@@ -162,16 +170,16 @@ export default function AdminServiciosClient() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-brand-ink">Today&apos;s Services</h1>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
         <span className="text-sm text-gray-500">
-          {services.length} service{services.length !== 1 ? "s" : ""}
+          {t("serviceCount", { count: services.length })}
         </span>
       </div>
 
       {services.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
           <CheckCircle2 className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500">No services scheduled for today.</p>
+          <p className="text-gray-500">{t("noServicesToday")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -222,7 +230,7 @@ export default function AdminServiciosClient() {
                   <a
                     href={`./servicios/${s.orderId}`}
                     className="p-2 text-gray-400 hover:text-brand-navy transition-colors"
-                    title="View details"
+                    title={t("viewDetails")}
                   >
                     <ChevronRight className="w-5 h-5" />
                   </a>
@@ -233,10 +241,10 @@ export default function AdminServiciosClient() {
                       setDispatchError("");
                     }}
                     className="inline-flex items-center gap-1 text-xs font-medium text-brand-navy hover:text-brand-navy-light bg-brand-navy/5 hover:bg-brand-navy/10 px-2 py-1 rounded transition-colors"
-                    title="Assign team"
+                    title={t("assignTeam")}
                   >
                     <Users className="w-3.5 h-3.5" />
-                    Assign
+                    {t("assign")}
                   </button>
                 </div>
               </div>
@@ -250,10 +258,10 @@ export default function AdminServiciosClient() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
           <div className="bg-white rounded-xl shadow-elevation-2 w-full max-w-md p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-brand-ink">Assign Team</h2>
+              <h2 className="text-lg font-bold text-brand-ink">{t("dispatch.title")}</h2>
               <button
                 onClick={() => setDispatchOrderId(null)}
-                aria-label="Close dialog"
+                aria-label={t("dispatch.closeDialog")}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <X className="w-5 h-5" aria-hidden="true" />
@@ -261,12 +269,12 @@ export default function AdminServiciosClient() {
             </div>
 
             <p className="text-sm text-gray-600">
-              Select employees for order{" "}
+              {t("dispatch.selectEmployeesFor")}{" "}
               <span className="font-mono text-xs">{dispatchOrderId.slice(0, 8)}</span>
             </p>
 
             {employees.length === 0 ? (
-              <p className="text-sm text-gray-500">No active employees available.</p>
+              <p className="text-sm text-gray-500">{t("dispatch.noEmployeesAvailable")}</p>
             ) : (
               <div className="max-h-64 overflow-y-auto border rounded-lg divide-y">
                 {employees.map((emp) => (
@@ -276,7 +284,7 @@ export default function AdminServiciosClient() {
                   >
                     <input
                       type="checkbox"
-                      aria-label={`Asignar a ${emp.name}`}
+                      aria-label={t("dispatch.assignToEmployee", { name: emp.name })}
                       className="w-4 h-4 text-brand-navy rounded"
                       checked={selectedEmployeeIds.includes(emp.id)}
                       onChange={(e) => {
@@ -308,7 +316,7 @@ export default function AdminServiciosClient() {
                 onClick={() => setDispatchOrderId(null)}
                 className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                Cancel
+                {t("dispatch.cancel")}
               </button>
               <button
                 onClick={() => handleDispatch(dispatchOrderId)}
@@ -316,7 +324,7 @@ export default function AdminServiciosClient() {
                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-brand-navy text-white rounded-lg hover:bg-brand-navy-light transition-colors disabled:opacity-50"
               >
                 {dispatchLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                Assign Team
+                {t("dispatch.title")}
               </button>
             </div>
           </div>

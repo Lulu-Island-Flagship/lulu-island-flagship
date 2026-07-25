@@ -55,9 +55,106 @@ export function ChecklistCierre({
     percentRequired: 0,
   });
 
+  // Auditoría UX/seguridad 2026-07-25 (#5): si la página se recarga o se
+  // pierde la conexión antes de que un toggle termine de sincronizar con el
+  // servidor, el estado marcado se perdía por completo (sin cache local
+  // alguna). No existe en el resto del código un patrón de cola offline
+  // genérico por item de checklist (offline-queue.ts está tipado para
+  // eventos de servicio t_in/t_start/t_out/photo/note, no para items de
+  // checklist arbitrarios), así que se usa localStorage como respaldo
+  // mínimo: cada cambio de `zones` se persiste, y al montar se restauran
+  // los checks que el servidor aún no confirme.
+  const localStorageKey = `lulu_checklist_cierre_${orderId}`;
+
+  function loadLocalSnapshot(): ChecklistZoneProgress[] | null {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = window.localStorage.getItem(localStorageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed?.zones) ? parsed.zones : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveLocalSnapshot(nextZones: ChecklistZoneProgress[]) {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        localStorageKey,
+        JSON.stringify({ zones: nextZones, savedAtIso: new Date().toISOString() })
+      );
+    } catch {
+      // localStorage lleno o deshabilitado -- el respaldo es best-effort,
+      // nunca debe romper el flujo principal.
+    }
+  }
+
+  function clearLocalSnapshot() {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.removeItem(localStorageKey);
+    } catch {
+      // no-op
+    }
+  }
+
   useEffect(() => {
     loadChecklist();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId, serviceSubtype]);
+
+  // Respaldo local: cualquier cambio en `zones` (toggle, foto) se guarda de
+  // inmediato, así un refresh o pérdida de conexión antes del POST no borra
+  // lo ya marcado -- se restaura al volver a montar (ver loadChecklist).
+  useEffect(() => {
+    if (zones.length > 0) saveLocalSnapshot(zones);
+  }, [zones]);
+
+  /** Aplica sobre `serverZones` cualquier item que localStorage tenga marcado como completado y el servidor no. */
+  function mergeLocalSnapshotOntoServerZones(
+    serverZones: ChecklistZoneProgress[]
+  ): ChecklistZoneProgress[] {
+    const local = loadLocalSnapshot();
+    if (!local) return serverZones;
+    const localById = new Map<string, { isCompleted: boolean; photoUrl?: string }>();
+    for (const z of local) {
+      for (const item of z.items) {
+        localById.set(item.itemId, { isCompleted: item.isCompleted, photoUrl: item.photoUrl });
+      }
+    }
+    return serverZones.map((z) => {
+      const items = z.items.map((item) => {
+        const localItem = localById.get(item.itemId);
+        // Solo aplicamos el override local si "adelanta" al servidor
+        // (marcado localmente pero no en el servidor) -- nunca desmarcamos
+        // algo que el servidor ya confirmó.
+        if (localItem?.isCompleted && !item.isCompleted) {
+          return { ...item, isCompleted: true, photoUrl: item.photoUrl ?? localItem.photoUrl };
+        }
+        return item;
+      });
+      const completedItems = items.filter((i) => i.isCompleted).length;
+      const requiredCompleted = items.filter((i) => i.required && i.isCompleted).length;
+      return { ...z, items, completedItems, requiredCompleted };
+    });
+  }
+
+  function recomputeOverallProgress(zonesList: ChecklistZoneProgress[]) {
+    const totalItems = zonesList.reduce((sum, z) => sum + z.totalItems, 0);
+    const completedItems = zonesList.reduce((sum, z) => sum + z.completedItems, 0);
+    const requiredItems = zonesList.reduce((sum, z) => sum + z.requiredItems, 0);
+    const requiredCompleted = zonesList.reduce((sum, z) => sum + z.requiredCompleted, 0);
+    setOverallProgress({
+      totalItems,
+      completedItems,
+      requiredItems,
+      requiredCompleted,
+      percentComplete: totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0,
+      percentRequired: requiredItems > 0 ? Math.round((requiredCompleted / requiredItems) * 100) : 100,
+    });
+  }
 
   async function loadChecklist() {
     setLoading(true);
@@ -68,28 +165,50 @@ export function ChecklistCierre({
       );
       if (!res.ok) {
         console.error("Checklist load error:", await res.json());
+        // Sin respuesta válida del servidor: si hay un snapshot local de
+        // una sesión anterior para esta orden, mostrarlo en vez de dejar la
+        // pantalla vacía -- mejor un estado potencialmente desactualizado
+        // que perder de vista el progreso ya marcado.
+        const local = loadLocalSnapshot();
+        if (local && local.length > 0) {
+          setZones(local);
+          recomputeOverallProgress(local);
+          setExpandedZones(new Set(local.map((z) => z.zone)));
+        }
         setLoading(false);
         return;
       }
       const data = await res.json();
-      setZones(data.zones || []);
+      const merged = mergeLocalSnapshotOntoServerZones(data.zones || []);
+      setZones(merged);
       // v8.3 E4 (D.7): myZones !== null y con menos zonas que el total
       // significa que el reparto real corrió (N>=2) y a este empleado le
       // tocó un subconjunto — se lo mostramos para que no piense que faltan
       // zonas por error.
       setMyZoneCount(Array.isArray(data.myZones) ? data.myZones.length : null);
-      setOverallProgress(data.progress || {
-        totalItems: 0,
-        completedItems: 0,
-        requiredItems: 0,
-        requiredCompleted: 0,
-        percentComplete: 0,
-        percentRequired: 0,
-      });
+      if (merged.length > 0) {
+        recomputeOverallProgress(merged);
+      } else {
+        setOverallProgress(data.progress || {
+          totalItems: 0,
+          completedItems: 0,
+          requiredItems: 0,
+          requiredCompleted: 0,
+          percentComplete: 0,
+          percentRequired: 0,
+        });
+      }
       // Expand all zones by default
-      setExpandedZones(new Set((data.zones || []).map((z: ChecklistZoneProgress) => z.zone)));
+      setExpandedZones(new Set(merged.map((z: ChecklistZoneProgress) => z.zone)));
     } catch (e) {
       console.error("Checklist load error:", e);
+      // Fallo de red total al cargar: igual, preferir el snapshot local si existe.
+      const local = loadLocalSnapshot();
+      if (local && local.length > 0) {
+        setZones(local);
+        recomputeOverallProgress(local);
+        setExpandedZones(new Set(local.map((z) => z.zone)));
+      }
     } finally {
       setLoading(false);
     }
@@ -160,9 +279,19 @@ export function ChecklistCierre({
       return prev;
     });
 
-    // Save to server
+    // Save to server -- #5 fix: distinguimos un fallo de RED real (fetch()
+    // lanza, típico sin conexión) de un RECHAZO explícito del servidor
+    // (respuesta HTTP no-ok, ej. candado químico/timer todavía activo).
+    // Antes ambos casos revertían el check de inmediato sin diferenciar --
+    // perdiendo el trabajo del empleado apenas se quedaba sin señal, aunque
+    // el toggle en sí fuera válido y solo faltara conectividad para
+    // confirmarlo. Ahora, si es un fallo de red, el check se queda marcado
+    // (ya respaldado en localStorage por el useEffect de arriba) y se
+    // reintenta solo cuando vuelva la conexión; solo un rechazo real del
+    // servidor revierte la UI.
+    let res: Response;
     try {
-      const res = await fetch("/api/empleado/checklist", {
+      res = await fetch("/api/empleado/checklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -174,13 +303,16 @@ export function ChecklistCierre({
           isCompleted: newCompleted,
         }),
       });
-      if (!res.ok) {
-        throw new Error(`Server returned ${res.status}`);
-      }
-    } catch (e) {
-      console.error("Checklist save error:", e);
+    } catch (networkErr) {
+      console.error("Checklist save network error (queued locally, will retry):", networkErr);
+      setSaveError(`"${itemLabel}" saved on this device -- will sync when you're back online.`);
+      return;
+    }
+
+    if (!res.ok) {
+      console.error("Checklist save rejected by server:", res.status);
       setSaveError(`Couldn't save "${itemLabel}" -- reverted. Please try again.`);
-      // Rollback: revert to original state
+      // Rollback: revert to original state (solo para rechazo real del servidor)
       setZones((prev) =>
         prev.map((z) => {
           if (z.zone !== zone.zone) return z;
@@ -213,6 +345,15 @@ export function ChecklistCierre({
         });
         return prev;
       });
+      return;
+    }
+
+    // Éxito confirmado por el servidor: ya no hace falta el respaldo local
+    // de este item en particular -- el snapshot completo se re-persiste de
+    // todos modos en el próximo cambio de `zones` (useEffect de arriba), y
+    // se limpia del todo cuando el checklist llega a 100%.
+    if (overallProgress.percentComplete >= 100) {
+      clearLocalSnapshot();
     }
   };
 

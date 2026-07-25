@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Megaphone, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface BlogPost {
   id: string;
@@ -13,15 +14,15 @@ interface BlogPost {
   created_at: string;
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
-  pending_approval: "Pending approval",
-  approved: "Approved",
-  published: "Published",
-  rejected: "Rejected",
-};
-
 export default function MarketingPage() {
+  const t = useTranslations("admin.marketing");
+  const STATUS_LABEL: Record<string, string> = {
+    draft: t("status.draft"),
+    pending_approval: t("status.pendingApproval"),
+    approved: t("status.approved"),
+    published: t("status.published"),
+    rejected: t("status.rejected"),
+  };
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,10 +34,10 @@ export default function MarketingPage() {
     try {
       const res = await fetch("/api/admin/marketing");
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error loading marketing");
+      if (!res.ok) throw new Error(json.error || t("errorLoading"));
       setPosts(json.posts || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(err instanceof Error ? err.message : t("errorUnknown"));
     } finally {
       setLoading(false);
     }
@@ -55,17 +56,19 @@ export default function MarketingPage() {
         body: JSON.stringify({ id, action }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error running the action");
+      if (!res.ok) throw new Error(json.error || t("errorRunningAction"));
       if (action === "evaluate") {
         setActionMsg(
           json.passed
-            ? "PIPA + positioning validation: OK. Post moved to pending approval."
-            : `Validation failed: ${[...(json.evaluation?.reasons || []), ...(json.positioning?.violations || []).map((v: { reason: string }) => v.reason)].join(" | ")}`
+            ? t("validationPassed")
+            : t("validationFailed", {
+                reasons: [...(json.evaluation?.reasons || []), ...(json.positioning?.violations || []).map((v: { reason: string }) => v.reason)].join(" | "),
+              })
         );
       }
       await load();
     } catch (err) {
-      setActionMsg(err instanceof Error ? err.message : "Unknown error");
+      setActionMsg(err instanceof Error ? err.message : t("errorUnknown"));
     }
   };
 
@@ -73,18 +76,16 @@ export default function MarketingPage() {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-2 mb-4">
         <Megaphone className="w-6 h-6" />
-        <h1 className="text-2xl font-bold">Marketing — educational content (blog)</h1>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
       </div>
 
       <p className="text-sm text-gray-500 mb-6">
-        Every post goes through the PIPA validator (B.2.20) and the positioning consistency
-        validator (B.2.24/B.2.25) before it can be approved. &quot;Insured/bonded&quot; is blocked automatically
-        while the <code>pólizas_seguro</code> flag is off.
+        {t("intro")} <code>pólizas_seguro</code> {t("introFlagSuffix")}
       </p>
 
       {loading && (
         <div className="flex items-center gap-2 text-gray-500">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+          <Loader2 className="w-4 h-4 animate-spin" /> {t("loading")}
         </div>
       )}
       {error && <div className="text-red-600 text-sm mb-4">{error}</div>}
@@ -95,16 +96,16 @@ export default function MarketingPage() {
           {posts.map((p) => (
             <div key={p.id} className="border rounded-lg p-4">
               <div className="flex items-center justify-between mb-1">
-                <div className="font-semibold">{p.title || "(untitled)"}</div>
+                <div className="font-semibold">{p.title || t("untitled")}</div>
                 <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">
                   {STATUS_LABEL[p.status] || p.status}
                 </span>
               </div>
               <div className="text-xs text-gray-400 mb-2">
-                Source: {p.source_trigger_type} · sample={p.source_sample_size}
+                {t("sourceSample", { source: p.source_trigger_type, sample: p.source_sample_size })}
               </div>
               <div className="text-sm text-gray-800 whitespace-pre-wrap border rounded p-3 bg-gray-50 mb-3 max-h-64 overflow-y-auto">
-                {p.content || <span className="text-gray-400 italic">(no content)</span>}
+                {p.content || <span className="text-gray-400 italic">{t("noContent")}</span>}
               </div>
               <div className="flex gap-2">
                 {p.status === "draft" && (
@@ -112,7 +113,7 @@ export default function MarketingPage() {
                     onClick={() => runAction(p.id, "evaluate")}
                     className="text-xs px-2.5 py-1 border rounded hover:bg-gray-50"
                   >
-                    Evaluate (PIPA + positioning)
+                    {t("evaluateAction")}
                   </button>
                 )}
                 {p.status === "pending_approval" && (
@@ -121,13 +122,13 @@ export default function MarketingPage() {
                       onClick={() => runAction(p.id, "approve")}
                       className="text-xs px-2.5 py-1 bg-gray-900 text-white rounded"
                     >
-                      Approve
+                      {t("approve")}
                     </button>
                     <button
                       onClick={() => runAction(p.id, "reject")}
                       className="text-xs px-2.5 py-1 border rounded hover:bg-gray-50"
                     >
-                      Reject
+                      {t("reject")}
                     </button>
                   </>
                 )}
@@ -136,13 +137,13 @@ export default function MarketingPage() {
                     onClick={() => runAction(p.id, "publish")}
                     className="text-xs px-2.5 py-1 bg-gray-900 text-white rounded"
                   >
-                    Publish
+                    {t("publish")}
                   </button>
                 )}
               </div>
             </div>
           ))}
-          {posts.length === 0 && <div className="text-gray-400 text-sm">No posts recorded.</div>}
+          {posts.length === 0 && <div className="text-gray-400 text-sm">{t("noPosts")}</div>}
         </div>
       )}
     </div>

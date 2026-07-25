@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { Loader2, AlertCircle, CheckCircle2, ImageOff, XCircle } from "lucide-react";
 
 interface PhotoEvidence {
@@ -54,13 +56,14 @@ interface ClaimDetail {
   decision: DisputeDecision;
 }
 
-const OUTCOME_LABEL: Record<string, string> = {
-  auto_favor_client_missing_closure_evidence: "No closure evidence — favors client (automatic)",
-  auto_favor_team_unsubstantiated_claim: "Unsubstantiated by client — explained (automatic)",
-  requires_human_review_contradictory_evidence: "Evidence from both sides — requires human review",
+const OUTCOME_KEYS: Record<string, string> = {
+  auto_favor_client_missing_closure_evidence: "autoFavorClientMissingClosureEvidence",
+  auto_favor_team_unsubstantiated_claim: "autoFavorTeamUnsubstantiatedClaim",
+  requires_human_review_contradictory_evidence: "requiresHumanReviewContradictoryEvidence",
 };
 
 export default function WarrantyClaimsPage() {
+  const t = useTranslations("admin.warrantyClaims");
   const [claims, setClaims] = useState<WarrantyClaim[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -87,17 +90,18 @@ export default function WarrantyClaimsPage() {
       const res = await fetch(`/api/admin/warranty-claims?status=${statusFilter}`, { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load warranty claims");
+        setError(err.error || t("errors.loadFailed"));
         setLoading(false);
         return;
       }
       const data = await res.json();
       setClaims(data.claims || []);
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
   useEffect(() => {
@@ -118,7 +122,7 @@ export default function WarrantyClaimsPage() {
       const res = await fetch(`/api/admin/warranty-claims/${claim.id}`, { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setDetailError(err.error || "Failed to load claim detail");
+        setDetailError(err.error || t("errors.loadDetailFailed"));
         return;
       }
       const data: ClaimDetail = await res.json();
@@ -127,7 +131,7 @@ export default function WarrantyClaimsPage() {
         setFinalAction(data.decision.suggestedAction);
       }
     } catch {
-      setDetailError("Network error");
+      setDetailError(t("errors.network"));
     } finally {
       setDetailLoading(false);
     }
@@ -152,7 +156,7 @@ export default function WarrantyClaimsPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setDetailError(err.error || "Failed to resolve claim");
+        setDetailError(err.error || t("errors.resolveFailed"));
         setSubmitting(false);
         return;
       }
@@ -160,7 +164,7 @@ export default function WarrantyClaimsPage() {
       setDetail(null);
       loadClaims();
     } catch {
-      setDetailError("Network error");
+      setDetailError(t("errors.network"));
     } finally {
       setSubmitting(false);
     }
@@ -169,7 +173,7 @@ export default function WarrantyClaimsPage() {
   async function forceFullCapture() {
     if (!selectedClaim) return;
     if (!forceCaptureReason.trim()) {
-      setForceCaptureError("Reason is required for the audit trail.");
+      setForceCaptureError(t("errors.reasonRequired"));
       return;
     }
     setForceCaptureSubmitting(true);
@@ -184,12 +188,14 @@ export default function WarrantyClaimsPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setForceCaptureError(data.error || "Failed to force full capture");
+        setForceCaptureError(data.error || t("errors.forceCaptureFailed"));
         return;
       }
-      setForceCaptureResult(`Captured $${data.capturedNowDollars} (PaymentIntent ${data.paymentIntentId ?? "n/a"}).`);
+      setForceCaptureResult(
+        t("forceCapture.result", { amount: data.capturedNowDollars, paymentIntentId: data.paymentIntentId ?? t("forceCapture.notApplicable") })
+      );
     } catch {
-      setForceCaptureError("Network error");
+      setForceCaptureError(t("errors.network"));
     } finally {
       setForceCaptureSubmitting(false);
     }
@@ -201,7 +207,7 @@ export default function WarrantyClaimsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-brand-ink">Warranty Claims</h1>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
         <div className="flex gap-2">
           {["open", "escalated", "resolved_client", "resolved_lulu", "dismissed"].map((s) => (
             <button
@@ -213,7 +219,7 @@ export default function WarrantyClaimsPage() {
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              {s.replace(/_/g, " ")}
+              {t(`statusFilters.${s}`)}
             </button>
           ))}
         </div>
@@ -231,7 +237,7 @@ export default function WarrantyClaimsPage() {
       ) : claims.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
           <CheckCircle2 className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500">No claims with status &quot;{statusFilter}&quot;.</p>
+          <p className="text-gray-500">{t("emptyState", { status: t(`statusFilters.${statusFilter}`) })}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -250,7 +256,7 @@ export default function WarrantyClaimsPage() {
                     {claim.severity}
                   </span>
                   {claim.claim_zone && (
-                    <span className="text-xs text-gray-400">Zone: {claim.claim_zone}</span>
+                    <span className="text-xs text-gray-400">{t("zoneLabel", { zone: claim.claim_zone })}</span>
                   )}
                   {claim.orders && (
                     <span className="text-xs text-gray-400">
@@ -261,8 +267,7 @@ export default function WarrantyClaimsPage() {
                 <p className="text-sm text-brand-ink font-medium">{claim.reason}</p>
                 {claim.description && <p className="text-sm text-gray-600">{claim.description}</p>}
                 <p className="text-xs text-gray-400">
-                  {claim.warranty_photo_evidence?.filter((e) => e.photo_type === "client").length || 0} client
-                  photo(s)
+                  {t("clientPhotoCount", { count: claim.warranty_photo_evidence?.filter((e) => e.photo_type === "client").length || 0 })}
                 </p>
               </div>
               {claim.status === "open" || claim.status === "escalated" ? (
@@ -270,7 +275,7 @@ export default function WarrantyClaimsPage() {
                   onClick={() => openClaim(claim)}
                   className="bg-brand-navy text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors ml-2 shrink-0"
                 >
-                  Review
+                  {t("review")}
                 </button>
               ) : (
                 <CheckCircle2 className="w-5 h-5 text-green-400 ml-2 shrink-0" />
@@ -284,7 +289,7 @@ export default function WarrantyClaimsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-xl max-w-3xl w-full p-6 space-y-4 my-8">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-brand-ink">Resolve claim</h2>
+              <h2 className="text-lg font-bold text-brand-ink">{t("resolveModal.title")}</h2>
               <button onClick={() => setSelectedClaim(null)} className="text-gray-400 hover:text-gray-600">
                 <XCircle className="w-5 h-5" />
               </button>
@@ -292,10 +297,10 @@ export default function WarrantyClaimsPage() {
 
             <div className="text-sm space-y-1">
               <p>
-                <strong>Claimed zone:</strong> {selectedClaim.claim_zone || "(no zone assigned)"}
+                <strong>{t("resolveModal.claimedZone")}</strong> {selectedClaim.claim_zone || t("resolveModal.noZoneAssigned")}
               </p>
               <p>
-                <strong>Reason:</strong> {selectedClaim.reason}
+                <strong>{t("resolveModal.reason")}</strong> {selectedClaim.reason}
               </p>
               {selectedClaim.description && <p className="text-gray-600">{selectedClaim.description}</p>}
             </div>
@@ -308,34 +313,36 @@ export default function WarrantyClaimsPage() {
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h3 className="text-sm font-semibold text-brand-ink mb-2">Closure photo (team) — {claimZone}</h3>
+                    <h3 className="text-sm font-semibold text-brand-ink mb-2">{t("resolveModal.closurePhotoHeading", { zone: claimZone })}</h3>
                     {matchedZone?.hasClosurePhoto ? (
                       <div className="grid grid-cols-2 gap-2">
                         {matchedZone.closurePhotoUrls.map((url) => (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img key={url} src={url} alt="Closure photo" className="rounded-lg border w-full aspect-square object-cover" />
+                          <div key={url} className="relative w-full aspect-square rounded-lg border overflow-hidden">
+                            <Image src={url} alt={t("resolveModal.closurePhotoAlt")} fill unoptimized sizes="200px" className="object-cover" />
+                          </div>
                         ))}
                       </div>
                     ) : (
                       <div className="border border-dashed rounded-lg p-6 text-center text-gray-400">
                         <ImageOff className="w-6 h-6 mx-auto mb-1" />
-                        <p className="text-xs">No closure photo for this zone</p>
+                        <p className="text-xs">{t("resolveModal.noClosurePhoto")}</p>
                       </div>
                     )}
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-brand-ink mb-2">Client evidence</h3>
+                    <h3 className="text-sm font-semibold text-brand-ink mb-2">{t("resolveModal.clientEvidenceHeading")}</h3>
                     {detail.clientEvidence.length > 0 ? (
                       <div className="grid grid-cols-2 gap-2">
                         {detail.clientEvidence.map((e) => (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img key={e.id} src={e.photo_url} alt="Client evidence" className="rounded-lg border w-full aspect-square object-cover" />
+                          <div key={e.id} className="relative w-full aspect-square rounded-lg border overflow-hidden">
+                            <Image src={e.photo_url} alt={t("resolveModal.clientEvidenceAlt")} fill unoptimized sizes="200px" className="object-cover" />
+                          </div>
                         ))}
                       </div>
                     ) : (
                       <div className="border border-dashed rounded-lg p-6 text-center text-gray-400">
                         <ImageOff className="w-6 h-6 mx-auto mb-1" />
-                        <p className="text-xs">Client did not provide their own evidence</p>
+                        <p className="text-xs">{t("resolveModal.noClientEvidence")}</p>
                       </div>
                     )}
                   </div>
@@ -348,7 +355,9 @@ export default function WarrantyClaimsPage() {
                       : "bg-blue-50 border border-blue-200 text-blue-800"
                   }`}
                 >
-                  <p className="font-medium">{OUTCOME_LABEL[detail.decision.outcome] || detail.decision.outcome}</p>
+                  <p className="font-medium">
+                    {OUTCOME_KEYS[detail.decision.outcome] ? t(`outcomes.${OUTCOME_KEYS[detail.decision.outcome]}`) : detail.decision.outcome}
+                  </p>
                   <p className="mt-1">{detail.decision.note}</p>
                 </div>
 
@@ -356,10 +365,10 @@ export default function WarrantyClaimsPage() {
                   <div className="flex gap-2">
                     {(
                       [
-                        { key: "free_recleaning", label: "Free re-cleaning" },
-                        { key: "explain_no_action", label: "Explain, no action" },
-                        { key: "dismiss", label: "Dismiss" },
-                      ] as { key: "free_recleaning" | "explain_no_action" | "dismiss"; label: string }[]
+                        { key: "free_recleaning", i18nKey: "freeRecleaning" },
+                        { key: "explain_no_action", i18nKey: "explainNoAction" },
+                        { key: "dismiss", i18nKey: "dismiss" },
+                      ] as { key: "free_recleaning" | "explain_no_action" | "dismiss"; i18nKey: string }[]
                     ).map((opt) => (
                       <button
                         key={opt.key}
@@ -370,7 +379,7 @@ export default function WarrantyClaimsPage() {
                             : "bg-gray-100 text-gray-600 border-transparent"
                         }`}
                       >
-                        {opt.label}
+                        {t(`resolveModal.actions.${opt.i18nKey}`)}
                       </button>
                     ))}
                   </div>
@@ -379,41 +388,41 @@ export default function WarrantyClaimsPage() {
                 {selectedClaim.severity === "critical" && (
                   <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 space-y-2">
                     <p className="text-xs font-semibold text-orange-800">
-                      Force full capture (overrides withheld/partial capture for this order)
+                      {t("forceCapture.heading")}
                     </p>
                     <textarea
-                      aria-label="Reason for forcing full capture"
+                      aria-label={t("forceCapture.reasonAria")}
                       value={forceCaptureReason}
                       onChange={(e) => setForceCaptureReason(e.target.value)}
-                      placeholder="Reason (required for audit trail)..."
+                      placeholder={t("forceCapture.reasonPlaceholder")}
                       className="w-full border rounded-lg p-2 text-xs min-h-[50px]"
                     />
                     {forceCaptureError && <p className="text-xs text-red-600">{forceCaptureError}</p>}
                     {forceCaptureResult && <p className="text-xs text-green-700">{forceCaptureResult}</p>}
                     <button
                       type="button"
-                      aria-label="Forzar cobro completo de la orden"
+                      aria-label={t("forceCapture.buttonAria")}
                       onClick={forceFullCapture}
                       disabled={forceCaptureSubmitting}
                       className="bg-orange-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
                     >
-                      {forceCaptureSubmitting ? "Capturing..." : "Force full capture"}
+                      {forceCaptureSubmitting ? t("forceCapture.capturing") : t("forceCapture.button")}
                     </button>
                   </div>
                 )}
 
                 <textarea
-                  aria-label="Notas de resolución (opcional)"
+                  aria-label={t("resolutionNotesAria")}
                   value={resolutionNotes}
                   onChange={(e) => setResolutionNotes(e.target.value)}
-                  placeholder="Resolution notes (optional — if left empty, the system-generated explanation is used)..."
+                  placeholder={t("resolutionNotesPlaceholder")}
                   className="w-full border rounded-lg p-3 text-sm min-h-[80px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
                 />
 
                 {detailError && <p className="text-sm text-red-600">{detailError}</p>}
 
                 <button
-                  aria-label="Aplicar decisión de resolución del reclamo de garantía"
+                  aria-label={t("applyDecisionAria")}
                   onClick={resolveClaim}
                   disabled={submitting}
                   className="w-full bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
@@ -421,9 +430,9 @@ export default function WarrantyClaimsPage() {
                   {submitting ? (
                     <Loader2 className="w-5 h-5 animate-spin mx-auto" />
                   ) : detail.decision.requiresHumanReview ? (
-                    "Apply decision"
+                    t("applyDecision")
                   ) : (
-                    "Apply automatic decision"
+                    t("applyAutomaticDecision")
                   )}
                 </button>
               </>

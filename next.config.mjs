@@ -7,6 +7,26 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 // HSTS, Permissions-Policy y CSP. Ver comentarios inline en headers() para
 // el razonamiento de cada valor.
 const nextConfig = {
+  // Fix (auditoría transversal 2026-07-25, item 9): Next.js expone por
+  // defecto el header "X-Powered-By: Next.js" en cada respuesta, filtrando
+  // stack tecnológico a cualquier scanner externo sin aportar nada al
+  // usuario. Se desactiva.
+  poweredByHeader: false,
+  // Fix (2026-07-25, auditoría UX cliente, item 16 -- galería de servicio):
+  // /cuenta/servicios/[orderId]/galeria pasa de <img> plano a next/image
+  // (optimización automática de tamaño/formato). Las fotos vienen de
+  // Supabase Storage (supabase.storage.from(...).getPublicUrl() /
+  // createSignedUrl(), mismo dominio ya permitido en img-src del CSP de
+  // abajo, https://*.supabase.co) -- next/image exige declarar el host
+  // explícitamente aparte del CSP, así que se añade aquí.
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+      },
+    ],
+  },
   async headers() {
     return [
       {
@@ -37,9 +57,14 @@ const nextConfig = {
           // src/components/empleado/SafetyAbortButton.tsx (check-in/check-out
           // y botón de seguridad del empleado in situ) -- por eso se permite
           // solo para el propio origen (self), no para terceros embebidos.
+          // Fix (auditoría transversal 2026-07-25, item 9): interest-cohort=()
+          // era el opt-out de FLoC (Federated Learning of Cohorts), una
+          // propuesta de Chrome que Google abandonó en 2022 en favor de la
+          // Privacy Sandbox / Topics API. Ningún navegador actual reconoce ya
+          // esta directiva -- queda solo como ruido en el header, se quita.
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=(self), payment=(self), usb=(), magnetometer=(), gyroscope=(), interest-cohort=()',
+            value: 'camera=(), microphone=(), geolocation=(self), payment=(self), usb=(), magnetometer=(), gyroscope=()',
           },
           // Fix (auditoría externa 2026-07-24): Content-Security-Policy.
           // Dominios externos confirmados en el repo: Stripe.js/Stripe
@@ -60,25 +85,56 @@ const nextConfig = {
           // repo (.env.local solo tiene el valor local de desarrollo
           // http://127.0.0.1:54321; .env.example trae un placeholder). Sin el
           // dominio real de producción no se puede armar una whitelist
-          // 100% precisa para connect-src sin arriesgar romper la app en
-          // producción (login, fetch de datos, etc.) si el dominio real no
-          // coincide exactamente con lo que se adivine aquí. Por eso se usa
-          // Content-Security-Policy-Report-Only: reporta violaciones en la
-          // consola sin bloquear nada, permitiendo verificar la lista de
-          // dominios contra tráfico real antes de pasar a la versión que sí
-          // bloquea. Cuando se confirme el dominio de producción de
-          // Supabase, cambiar el key a 'Content-Security-Policy' y quitar
-          // este comentario de aviso.
+          // 100% precisa acotada a un único subdominio de Supabase --
+          // `connect-src` se mantiene con el wildcard `https://*.supabase.co`
+          // / `wss://*.supabase.co` a propósito (cualquier proyecto Supabase
+          // vive bajo ese sufijo, así que el wildcard no amplía el riesgo
+          // real más allá de "solo Supabase").
+          //
+          // Fix (auditoría transversal 2026-07-25, item 1): esta política
+          // pasa de Content-Security-Policy-Report-Only (solo registraba
+          // violaciones en consola, no bloqueaba nada) a Content-Security-
+          // Policy real (bloquea). Se confirmó primero, leyendo el código
+          // fuente, que ninguna directiva se rompería:
+          //   - img-src: se acota de `https:` (cualquier host HTTPS) a
+          //     `'self' data: blob: https://*.supabase.co`. Se auditaron
+          //     todos los <img src=...} del repo (grep "<img"): todas las
+          //     imágenes remotas vienen de Supabase Storage
+          //     (`supabase.storage.from(...).getPublicUrl()` /
+          //     `createSignedUrl()`, ver p.ej.
+          //     src/components/empleado/ChecklistCierre.tsx,
+          //     AdminQCClient.tsx) o son `data:` URLs (WeChat Pay QR code en
+          //     WalletPayButton.tsx viene de
+          //     `wechat_pay_display_qr_code.image_data_url`, un data URL de
+          //     Stripe, no un fetch a un host externo). No se encontró
+          //     ningún <img> ni next/image apuntando a un dominio HTTPS
+          //     fuera de Supabase, así que no hace falta el wildcard amplio.
+          //   - script-src: se mantiene 'unsafe-inline' -- Next.js 14 (App
+          //     Router, sin configuración de nonce en next.config.mjs/
+          //     middleware) inyecta scripts inline (__NEXT_DATA__, streaming
+          //     de RSC) que necesitan esto para hidratar. Quitarlo requeriría
+          //     implementar CSP por nonce (headers dinámicos por request +
+          //     wiring en middleware.ts), un cambio de mayor alcance que no
+          //     se hace en este fix para no arriesgar romper la hidratación
+          //     de toda la app.
+          //   - connect-src: se deja el wildcard de Supabase (ver arriba).
           {
-            key: 'Content-Security-Policy-Report-Only',
+            key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' https://js.stripe.com",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https:",
+              "img-src 'self' data: blob: https://*.supabase.co",
               "font-src 'self' data:",
               "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com",
-              "frame-src https://js.stripe.com https://hooks.stripe.com",
+              // Fix (2026-07-25, auditoría UX cliente, item 2 -- tracking de
+              // servicio): se agrega www.google.com para el iframe de
+              // Google Maps embebido en /cuenta/servicios/[orderId]/tracking
+              // (output=embed, sin API key). Sin esta entrada, frame-src
+              // bloquea el iframe por completo y el cliente vuelve a ver
+              // solo coordenadas crudas -- justo lo que ese fix buscaba
+              // evitar.
+              "frame-src https://js.stripe.com https://hooks.stripe.com https://www.google.com",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",

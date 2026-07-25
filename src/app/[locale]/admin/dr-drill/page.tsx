@@ -15,6 +15,7 @@
 // AdminDashboardClient.tsx y AdminNav.tsx apuntan ambos a esta misma URL.
 import React, { useEffect, useState } from "react";
 import { Loader2, ShieldCheck, ShieldAlert, AlertTriangle, PlayCircle, ClipboardEdit } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 type DrillType = "restore_verification" | "succession_simulation" | "emergency_kit_check" | "fallback_no_admin";
 type DrillResult = "pass" | "fail" | "partial";
@@ -39,11 +40,12 @@ interface RtoTarget {
 
 // 2026-07-23: RTO consolidada en formato legible (antes en /admin/recuperacion-desastres,
 // eliminada por duplicar esta página — ver comentario más abajo y en AdminNav.tsx).
-function formatRto(hours: number): string {
-  if (hours === 0) return "Immediate";
-  if (hours < 1) return `${Math.round(hours * 60)} min`;
-  if (hours < 24) return `${hours} h`;
-  return `${(hours / 24).toFixed(1)} days`;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function formatRto(hours: number, t: (key: string, values?: any) => string): string {
+  if (hours === 0) return t("rto.immediate");
+  if (hours < 1) return t("rto.minutes", { count: Math.round(hours * 60) });
+  if (hours < 24) return t("rto.hours", { count: hours });
+  return t("rto.days", { count: (hours / 24).toFixed(1) });
 }
 
 interface OverdueStatus {
@@ -54,20 +56,21 @@ interface OverdueStatus {
   isOverdue: boolean;
 }
 
-const DRILL_TYPE_LABEL: Record<DrillType, string> = {
-  restore_verification: "Restore verification (automated)",
-  succession_simulation: "Succession simulation",
-  emergency_kit_check: "Emergency kit check",
-  fallback_no_admin: "Fallback without admin",
+const DRILL_TYPE_KEYS: Record<DrillType, string> = {
+  restore_verification: "restoreVerification",
+  succession_simulation: "successionSimulation",
+  emergency_kit_check: "emergencyKitCheck",
+  fallback_no_admin: "fallbackNoAdmin",
 };
 
-const RESULT_STYLE: Record<DrillResult, { className: string; icon: typeof ShieldCheck; label: string }> = {
-  pass: { className: "text-state-success", icon: ShieldCheck, label: "Pass" },
-  partial: { className: "text-state-warning", icon: AlertTriangle, label: "Partial" },
-  fail: { className: "text-state-danger", icon: ShieldAlert, label: "Fail" },
+const RESULT_STYLE: Record<DrillResult, { className: string; icon: typeof ShieldCheck; key: string }> = {
+  pass: { className: "text-state-success", icon: ShieldCheck, key: "pass" },
+  partial: { className: "text-state-warning", icon: AlertTriangle, key: "partial" },
+  fail: { className: "text-state-danger", icon: ShieldAlert, key: "fail" },
 };
 
 export default function DrDrillPage() {
+  const t = useTranslations("admin.drDrill");
   const [drills, setDrills] = useState<Drill[]>([]);
   const [rtoTargets, setRtoTargets] = useState<RtoTarget[]>([]);
   const [overdueStatuses, setOverdueStatuses] = useState<OverdueStatus[]>([]);
@@ -89,7 +92,7 @@ export default function DrDrillPage() {
       const res = await fetch("/api/admin/dr-drill", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load");
+        setError(err.error || t("errors.loadFailed"));
         return;
       }
       const data = await res.json();
@@ -97,7 +100,7 @@ export default function DrDrillPage() {
       setRtoTargets(data.rtoTargets || []);
       setOverdueStatuses(data.overdueStatuses || []);
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -113,17 +116,17 @@ export default function DrDrillPage() {
         credentials: "include",
         body: JSON.stringify({
           drillType: "restore_verification",
-          testedScope: "Integrity check against current connected database",
+          testedScope: t("integrityCheckScope"),
         }),
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to run");
+        setError(err.error || t("errors.runFailed"));
         return;
       }
       await load();
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setRunning(false);
     }
@@ -148,14 +151,14 @@ export default function DrDrillPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to save");
+        setError(err.error || t("errors.saveFailed"));
         return;
       }
       setShowManualForm(null);
       setManualForm({ testedScope: "", manualResult: "pass", notes: "" });
       await load();
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setSaving(false);
     }
@@ -172,11 +175,8 @@ export default function DrDrillPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-brand-ink">Disaster Recovery Drills</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Auditable log of DR drills (E11.4). Does not replace Supabase-managed backups or the monthly cold-storage
-          pg_dump — this only records WHEN each drill type was run and its verifiable result.
-        </p>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t("subtitle")}</p>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{error}</div>}
@@ -187,41 +187,43 @@ export default function DrDrillPage() {
             key={status.drillType}
             className={`bg-white rounded-xl border p-4 space-y-2 ${status.isOverdue ? "border-state-danger" : ""}`}
           >
-            <p className="font-medium text-brand-ink text-sm">{DRILL_TYPE_LABEL[status.drillType]}</p>
-            <p className="text-xs text-gray-400">Required every {status.intervalDays} days</p>
+            <p className="font-medium text-brand-ink text-sm">{t(`drillTypes.${DRILL_TYPE_KEYS[status.drillType]}`)}</p>
+            <p className="text-xs text-gray-400">{t("requiredEvery", { days: status.intervalDays })}</p>
             {status.lastRunAt ? (
               <p className="text-xs text-gray-500">
-                Last run: {new Date(status.lastRunAt).toLocaleDateString("en-CA", { timeZone: "America/Vancouver" })}
-                {" "}({Math.floor(status.daysSinceLastRun ?? 0)}d ago)
+                {t("lastRun", {
+                  date: new Date(status.lastRunAt).toLocaleDateString("en-CA", { timeZone: "America/Vancouver" }),
+                  days: Math.floor(status.daysSinceLastRun ?? 0),
+                })}
               </p>
             ) : (
-              <p className="text-xs text-gray-500">Never run</p>
+              <p className="text-xs text-gray-500">{t("neverRun")}</p>
             )}
             {status.isOverdue ? (
               <span className="inline-flex items-center gap-1 text-xs font-medium text-state-danger">
-                <ShieldAlert className="w-3.5 h-3.5" /> OVERDUE
+                <ShieldAlert className="w-3.5 h-3.5" /> {t("overdue")}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-xs font-medium text-state-success">
-                <ShieldCheck className="w-3.5 h-3.5" /> On schedule
+                <ShieldCheck className="w-3.5 h-3.5" /> {t("onSchedule")}
               </span>
             )}
             <div className="pt-1">
               {status.drillType === "restore_verification" ? (
                 <button
-                  aria-label="Ejecutar verificación de restauración"
+                  aria-label={t("runRestoreVerificationAria")}
                   onClick={runRestoreVerification}
                   disabled={running}
                   className="inline-flex items-center gap-1.5 text-xs text-brand-navy hover:underline disabled:opacity-50"
                 >
-                  <PlayCircle className="w-3.5 h-3.5" /> {running ? "Running..." : "Run now"}
+                  <PlayCircle className="w-3.5 h-3.5" /> {running ? t("running") : t("runNow")}
                 </button>
               ) : (
                 <button
                   onClick={() => setShowManualForm(status.drillType)}
                   className="inline-flex items-center gap-1.5 text-xs text-brand-navy hover:underline"
                 >
-                  <ClipboardEdit className="w-3.5 h-3.5" /> Log drill
+                  <ClipboardEdit className="w-3.5 h-3.5" /> {t("logDrill")}
                 </button>
               )}
             </div>
@@ -231,10 +233,10 @@ export default function DrDrillPage() {
 
       {showManualForm && (
         <form onSubmit={submitManual} className="bg-white rounded-xl border p-4 space-y-3 max-w-lg">
-          <h2 className="font-semibold text-brand-ink">Log: {DRILL_TYPE_LABEL[showManualForm]}</h2>
+          <h2 className="font-semibold text-brand-ink">{t("logFormTitle", { type: t(`drillTypes.${DRILL_TYPE_KEYS[showManualForm]}`) })}</h2>
           <textarea
-            aria-label="Alcance de lo probado en el simulacro"
-            placeholder="What was tested (e.g. 'physical kit inspected, seal intact, credentials current')"
+            aria-label={t("form.testedScopeAria")}
+            placeholder={t("form.testedScopePlaceholder")}
             value={manualForm.testedScope}
             onChange={(e) => setManualForm((f) => ({ ...f, testedScope: e.target.value }))}
             className="w-full border rounded-lg px-3 py-2 text-sm"
@@ -242,18 +244,18 @@ export default function DrDrillPage() {
             required
           />
           <select
-            aria-label="Resultado del simulacro"
+            aria-label={t("form.resultAria")}
             value={manualForm.manualResult}
             onChange={(e) => setManualForm((f) => ({ ...f, manualResult: e.target.value as DrillResult }))}
             className="border rounded-lg px-3 py-2 text-sm"
           >
-            <option value="pass">Pass</option>
-            <option value="partial">Partial</option>
-            <option value="fail">Fail</option>
+            <option value="pass">{t("resultLabels.pass")}</option>
+            <option value="partial">{t("resultLabels.partial")}</option>
+            <option value="fail">{t("resultLabels.fail")}</option>
           </select>
           <textarea
-            aria-label="Notas adicionales del simulacro (opcional)"
-            placeholder="Notes (optional)"
+            aria-label={t("form.notesAria")}
+            placeholder={t("form.notesPlaceholder")}
             value={manualForm.notes}
             onChange={(e) => setManualForm((f) => ({ ...f, notes: e.target.value }))}
             className="w-full border rounded-lg px-3 py-2 text-sm"
@@ -261,33 +263,33 @@ export default function DrDrillPage() {
           />
           <div className="flex gap-2">
             <button
-              aria-label="Guardar registro del simulacro"
+              aria-label={t("form.saveAria")}
               type="submit"
               disabled={saving}
               className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
             >
-              {saving ? "Saving..." : "Save"}
+              {saving ? t("form.saving") : t("form.save")}
             </button>
             <button type="button" onClick={() => setShowManualForm(null)} className="text-sm text-gray-500 px-4 py-2">
-              Cancel
+              {t("form.cancel")}
             </button>
           </div>
         </form>
       )}
 
       <div>
-        <h2 className="font-semibold text-brand-ink mb-2">RTO Targets</h2>
+        <h2 className="font-semibold text-brand-ink mb-2">{t("rtoTargetsTitle")}</h2>
         <div className="bg-white rounded-xl border divide-y">
-          {rtoTargets.map((t) => (
-            <div key={t.id} className="p-3 flex items-center justify-between text-sm gap-3">
-              <span className="text-brand-ink">{t.data_type.replace(/_/g, " ")}</span>
-              <span className="text-gray-500">{formatRto(t.rto_hours)} — {t.recovery_method}</span>
-              {t.is_example ? (
+          {rtoTargets.map((rt) => (
+            <div key={rt.id} className="p-3 flex items-center justify-between text-sm gap-3">
+              <span className="text-brand-ink">{rt.data_type.replace(/_/g, " ")}</span>
+              <span className="text-gray-500">{formatRto(rt.rto_hours, t)} — {rt.recovery_method}</span>
+              {rt.is_example ? (
                 <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800 shrink-0">
-                  declared in plan, not confirmed by drill
+                  {t("declaredNotConfirmed")}
                 </span>
               ) : (
-                <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-800 shrink-0">confirmed</span>
+                <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-800 shrink-0">{t("confirmed")}</span>
               )}
             </div>
           ))}
@@ -295,9 +297,9 @@ export default function DrDrillPage() {
       </div>
 
       <div>
-        <h2 className="font-semibold text-brand-ink mb-2">History</h2>
+        <h2 className="font-semibold text-brand-ink mb-2">{t("historyTitle")}</h2>
         {drills.length === 0 ? (
-          <div className="bg-white rounded-xl border p-6 text-center text-sm text-gray-500">No drills logged yet.</div>
+          <div className="bg-white rounded-xl border p-6 text-center text-sm text-gray-500">{t("noDrillsLogged")}</div>
         ) : (
           <div className="bg-white rounded-xl border divide-y">
             {drills.map((d) => {
@@ -306,16 +308,16 @@ export default function DrDrillPage() {
               return (
                 <div key={d.id} className="p-3 flex items-start justify-between gap-3 text-sm">
                   <div>
-                    <p className="font-medium text-brand-ink">{DRILL_TYPE_LABEL[d.drill_type]}</p>
+                    <p className="font-medium text-brand-ink">{t(`drillTypes.${DRILL_TYPE_KEYS[d.drill_type]}`)}</p>
                     <p className="text-xs text-gray-500 mt-0.5">{d.tested_scope}</p>
                     {d.notes && <p className="text-xs text-gray-400 mt-0.5">{d.notes}</p>}
                     <p className="text-xs text-gray-400 mt-0.5">
                       {new Date(d.created_at).toLocaleString("en-CA", { timeZone: "America/Vancouver" })}
-                      {d.duration_seconds !== null && ` — ${d.duration_seconds}s`}
+                      {d.duration_seconds !== null && ` — ${t("durationSeconds", { seconds: d.duration_seconds })}`}
                     </p>
                   </div>
                   <span className={`flex items-center gap-1 text-xs font-medium shrink-0 ${style.className}`}>
-                    <Icon className="w-3.5 h-3.5" /> {style.label}
+                    <Icon className="w-3.5 h-3.5" /> {t(`resultLabels.${style.key}`)}
                   </span>
                 </div>
               );

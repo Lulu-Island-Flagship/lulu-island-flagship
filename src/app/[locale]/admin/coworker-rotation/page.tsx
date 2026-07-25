@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, Users, AlertTriangle, CheckCircle2, Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface RotationStatus {
   employeeId: string;
@@ -31,6 +32,7 @@ function thisMonthStr(): string {
 }
 
 export default function CoworkerRotationPage() {
+  const t = useTranslations("admin.coworkerRotation");
   const [month, setMonth] = useState(thisMonthStr());
   const [rotationStatus, setRotationStatus] = useState<RotationStatus[]>([]);
   const [violations, setViolations] = useState<Violation[]>([]);
@@ -53,7 +55,7 @@ export default function CoworkerRotationPage() {
       const res = await fetch(`/api/admin/coworker-rotation?month=${month}`, { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load");
+        setError(err.error || t("errors.loadFailed"));
         return;
       }
       const data = await res.json();
@@ -61,7 +63,7 @@ export default function CoworkerRotationPage() {
       setViolations(data.violations || []);
       setExceptions(data.exceptions || []);
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -80,14 +82,14 @@ export default function CoworkerRotationPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to save");
+        setError(err.error || t("errors.saveFailed"));
         return;
       }
       setShowForm(false);
       setForm({ employeeAId: "", employeeBId: "", reason: "" });
       await load();
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setSaving(false);
     }
@@ -99,15 +101,12 @@ export default function CoworkerRotationPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-brand-ink">Coworker Rotation</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Minimum 3 distinct coworkers per month (E8.14). Read-only analysis over assignments — does not touch
-            the dispatch engine.
-          </p>
+          <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t("subtitle")}</p>
         </div>
         <input
           type="month"
-          aria-label="Mes de análisis de rotación"
+          aria-label={t("monthAria")}
           value={month}
           onChange={(e) => setMonth(e.target.value)}
           className="border rounded-lg px-3 py-2 text-sm"
@@ -125,11 +124,11 @@ export default function CoworkerRotationPage() {
           {violations.length > 0 && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2">
               <h2 className="font-semibold text-red-800 flex items-center gap-2 text-sm">
-                <AlertTriangle className="w-4 h-4" /> &quot;Never together&quot; exceptions violated this month
+                <AlertTriangle className="w-4 h-4" /> {t("violationsTitle")}
               </h2>
               {violations.map((v, i) => (
                 <p key={i} className="text-xs text-red-700">
-                  {v.employeeAId} + {v.employeeBId} — {v.reason} ({v.orderIds.length} order(s))
+                  {t("violationLine", { a: v.employeeAId, b: v.employeeBId, reason: v.reason, count: v.orderIds.length })}
                 </p>
               ))}
             </div>
@@ -137,18 +136,18 @@ export default function CoworkerRotationPage() {
 
           <div>
             <h2 className="font-semibold text-brand-ink mb-2 flex items-center gap-2">
-              <Users className="w-4 h-4 text-brand-wave-blue" /> Rotation status ({nonCompliant.length} below minimum)
+              <Users className="w-4 h-4 text-brand-wave-blue" /> {t("rotationStatusTitle", { count: nonCompliant.length })}
             </h2>
             <div className="bg-white rounded-xl border divide-y">
               {rotationStatus.length === 0 ? (
-                <p className="p-4 text-sm text-gray-500">No assignments recorded for {month}.</p>
+                <p className="p-4 text-sm text-gray-500">{t("noAssignments", { month })}</p>
               ) : (
                 rotationStatus.map((r) => (
                   <div key={r.employeeId} className="p-3 flex items-center justify-between text-sm">
                     <span className="text-brand-ink">{r.employeeId}</span>
                     <span className={`flex items-center gap-1 text-xs font-medium ${r.compliant ? "text-state-success" : "text-state-danger"}`}>
                       {r.compliant ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
-                      {r.distinctCount} distinct coworkers
+                      {t("distinctCoworkers", { count: r.distinctCount })}
                     </span>
                   </div>
                 ))
@@ -158,12 +157,12 @@ export default function CoworkerRotationPage() {
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h2 className="font-semibold text-brand-ink">&quot;Never together&quot; exceptions</h2>
+              <h2 className="font-semibold text-brand-ink">{t("exceptionsTitle")}</h2>
               <button
                 onClick={() => setShowForm(true)}
                 className="inline-flex items-center gap-1.5 text-sm text-brand-navy hover:underline"
               >
-                <Plus className="w-4 h-4" /> Add
+                <Plus className="w-4 h-4" /> {t("add")}
               </button>
             </div>
 
@@ -171,8 +170,8 @@ export default function CoworkerRotationPage() {
               <form onSubmit={addException} className="bg-white rounded-xl border p-4 space-y-3 mb-3">
                 <input
                   type="text"
-                  aria-label="ID del empleado A"
-                  placeholder="Employee A ID"
+                  aria-label={t("form.employeeAAria")}
+                  placeholder={t("form.employeeAPlaceholder")}
                   value={form.employeeAId}
                   onChange={(e) => setForm((f) => ({ ...f, employeeAId: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2 text-sm"
@@ -180,8 +179,8 @@ export default function CoworkerRotationPage() {
                 />
                 <input
                   type="text"
-                  aria-label="ID del empleado B"
-                  placeholder="Employee B ID"
+                  aria-label={t("form.employeeBAria")}
+                  placeholder={t("form.employeeBPlaceholder")}
                   value={form.employeeBId}
                   onChange={(e) => setForm((f) => ({ ...f, employeeBId: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2 text-sm"
@@ -189,19 +188,19 @@ export default function CoworkerRotationPage() {
                 />
                 <input
                   type="text"
-                  aria-label="Razón de la excepción"
-                  placeholder="Reason"
+                  aria-label={t("form.reasonAria")}
+                  placeholder={t("form.reasonPlaceholder")}
                   value={form.reason}
                   onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2 text-sm"
                   required
                 />
                 <div className="flex gap-2">
-                  <button aria-label="Guardar excepción de rotación" type="submit" disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
-                    {saving ? "Saving..." : "Save"}
+                  <button aria-label={t("form.saveAria")} type="submit" disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+                    {saving ? t("form.saving") : t("form.save")}
                   </button>
                   <button type="button" onClick={() => setShowForm(false)} className="text-sm text-gray-500 px-4 py-2">
-                    Cancel
+                    {t("form.cancel")}
                   </button>
                 </div>
               </form>
@@ -209,7 +208,7 @@ export default function CoworkerRotationPage() {
 
             <div className="bg-white rounded-xl border divide-y">
               {exceptions.length === 0 ? (
-                <p className="p-4 text-sm text-gray-500">No exceptions documented.</p>
+                <p className="p-4 text-sm text-gray-500">{t("noExceptions")}</p>
               ) : (
                 exceptions.map((exc) => (
                   <div key={exc.id} className="p-3 text-sm">

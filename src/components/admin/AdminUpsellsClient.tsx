@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   Loader2,
   Tag,
@@ -34,6 +35,7 @@ interface Upsell {
 }
 
 export default function AdminUpsellsClient() {
+  const t = useTranslations("admin.upsells");
   const [upsells, setUpsells] = useState<Upsell[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -78,7 +80,7 @@ export default function AdminUpsellsClient() {
       }
     } catch (e) {
       console.error("Review error:", e);
-      setError("Network error while marking as reviewed");
+      setError(t("reviewError"));
     } finally {
       setReviewing(null);
     }

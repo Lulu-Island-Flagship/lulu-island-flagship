@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import { Loader2, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 
@@ -23,6 +24,7 @@ interface PendingQuote {
 }
 
 export default function QuotesReviewPage() {
+  const t = useTranslations("admin.quotesReview");
   const [quotes, setQuotes] = useState<PendingQuote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -39,13 +41,13 @@ export default function QuotesReviewPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load quotes");
+        setError(err.error || t("errors.loadFailed"));
         return;
       }
       const data = await res.json();
       setQuotes(data.quotes || []);
     } catch {
-      setError("Network error");
+      setError(t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -66,16 +68,19 @@ export default function QuotesReviewPage() {
           "Content-Type": "application/json",
           Authorization: token ? `Bearer ${token}` : "",
         },
-        body: JSON.stringify({ action, reason: action === "approve" ? "Approved by admin" : "Rejected by admin" }),
+        body: JSON.stringify({
+          action,
+          reason: action === "approve" ? t("approvedReason") : t("rejectedReason"),
+        }),
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Review failed");
+        setError(err.error || t("errors.reviewFailed"));
         return;
       }
       await loadQuotes();
     } catch {
-      setError("Network error during review");
+      setError(t("errors.networkReview"));
     } finally {
       setProcessingId(null);
     }
@@ -95,8 +100,8 @@ export default function QuotesReviewPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-brand-ink">Quote Reviews</h1>
-        <span className="text-sm text-gray-500">{quotes.length} pending</span>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
+        <span className="text-sm text-gray-500">{t("pendingCount", { count: quotes.length })}</span>
       </div>
 
       {error && (
@@ -109,7 +114,7 @@ export default function QuotesReviewPage() {
       {quotes.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
           <CheckCircle2 className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500">No quotes pending admin review.</p>
+          <p className="text-gray-500">{t("emptyState")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -119,7 +124,7 @@ export default function QuotesReviewPage() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                      Review Required
+                      {t("reviewRequired")}
                     </span>
                     <span className="text-xs text-gray-400">{q.service_subtype.replace(/_/g, " ")}</span>
                   </div>
@@ -127,17 +132,17 @@ export default function QuotesReviewPage() {
                     {q.address}, {q.zone}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {q.bedrooms} bed · {q.bathrooms} bath · {q.square_feet} ft²
+                    {t("bedBathSqft", { bed: q.bedrooms, bath: q.bathrooms, sqft: q.square_feet })}
                   </p>
                   <p className="text-xs text-red-600 mt-1">{q.admin_review_reason}</p>
-                  <p className="text-xs text-gray-400">Client score: {q.client_score}</p>
+                  <p className="text-xs text-gray-400">{t("clientScore", { score: q.client_score })}</p>
                 </div>
 
                 <div className="text-right space-y-1 min-w-[140px]">
                   <p className="text-lg font-bold text-brand-ink">{formatCurrency(q.total)}</p>
-                  <p className="text-xs text-gray-500">Hold: {formatCurrency(q.hold_amount)}</p>
+                  <p className="text-xs text-gray-500">{t("hold", { amount: formatCurrency(q.hold_amount) })}</p>
                   <p className="text-xs text-gray-500">
-                    Margin: {((q.estimated_margin_contribution || 0) * 100).toFixed(1)}%
+                    {t("margin", { pct: ((q.estimated_margin_contribution || 0) * 100).toFixed(1) })}
                   </p>
                 </div>
               </div>
@@ -149,7 +154,7 @@ export default function QuotesReviewPage() {
                   className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
                 >
                   <XCircle className="w-4 h-4" />
-                  Reject
+                  {t("reject")}
                 </button>
                 <button
                   onClick={() => handleReview(q.id, "approve")}
@@ -161,7 +166,7 @@ export default function QuotesReviewPage() {
                   ) : (
                     <CheckCircle2 className="w-4 h-4" />
                   )}
-                  Approve
+                  {t("approve")}
                 </button>
               </div>
             </div>
