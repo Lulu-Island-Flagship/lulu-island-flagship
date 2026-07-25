@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Loader2, ChevronLeft, Check } from "lucide-react";
 
 type Color = "red" | "blue" | "green" | "yellow" | "white" | "black";
@@ -35,7 +35,12 @@ const STAGES: { value: Stage; label: string }[] = [
 
 export default function PanosPage() {
   const router = useRouter();
-  const locale = (typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en") as string;
+  const params = useParams();
+  // 2026-07-24: antes leía window.location.pathname, lo que causaba un
+  // hydration mismatch (SSR asumía "en", cliente calculaba el locale real) --
+  // ver auditoría externa. useParams() da el mismo valor en servidor y
+  // cliente porque viene del router de Next, no de window.
+  const locale = (params?.locale as string) || "en";
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
 
   const [logs, setLogs] = useState<TowelLog[]>([]);

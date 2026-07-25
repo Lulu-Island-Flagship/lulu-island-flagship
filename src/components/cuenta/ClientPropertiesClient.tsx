@@ -14,6 +14,8 @@ import {
 import { ACTIVE_ZONES } from "@/lib/pricing";
 import type { ClientProperty } from "@/types";
 import { StatusBanner } from "./StatusBanner";
+import { supabase } from "@/lib/supabase";
+import { AuthModal } from "@/components/cotizador/AuthModal";
 
 function isValidCanadianPostal(code: string): boolean {
   const normalized = code.replace(/\s/g, "").toUpperCase();
@@ -49,6 +51,12 @@ export default function ClientPropertiesClient() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [postalError, setPostalError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  // Fix (auditoría externa 2026-07-24): mismo patrón ya aplicado en
+  // MisServiciosClient.tsx -- este componente no comprobaba sesión antes de
+  // pedir datos, así que una sesión expirada entre el chequeo del layout
+  // padre (cuenta/layout.tsx) y este fetch se mostraba como un StatusBanner
+  // de error genérico en vez de pedir login de nuevo.
+  const [needsAuth, setNeedsAuth] = useState(false);
 
   useEffect(() => {
     loadProperties();
@@ -58,8 +66,22 @@ export default function ClientPropertiesClient() {
     setLoading(true);
     setError("");
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setNeedsAuth(true);
+        setLoading(false);
+        return;
+      }
+      setNeedsAuth(false);
+
       const res = await fetch("/api/client/properties", { credentials: "include" });
       if (!res.ok) {
+        if (res.status === 401) {
+          setNeedsAuth(true);
+          return;
+        }
         const err = await res.json();
         setError(err.error || t("loadFailed"));
         return;
@@ -179,6 +201,19 @@ export default function ClientPropertiesClient() {
     } finally {
       setDeletingId(null);
     }
+  }
+
+  if (needsAuth) {
+    return (
+      <AuthModal
+        onClose={() => {
+          const locale = typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en";
+          const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+          window.location.href = `/${safeLocale}`;
+        }}
+        onSuccess={() => loadProperties()}
+      />
+    );
   }
 
   if (loading) {

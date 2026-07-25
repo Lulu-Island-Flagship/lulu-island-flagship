@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import {
   Loader2,
   AlertCircle,
@@ -18,6 +19,12 @@ interface Peer {
 }
 
 export default function EmpleadoVotacionPage() {
+  const params = useParams();
+  // 2026-07-24: antes el href de "Back" leía window.location.pathname
+  // inline, lo que causaba un hydration mismatch (SSR asumía "en", cliente
+  // calculaba el locale real) -- ver auditoría externa. useParams() da el
+  // mismo valor en servidor y cliente porque viene del router de Next.
+  const locale = (params?.locale as string) || "en";
   const [peers, setPeers] = useState<Peer[]>([]);
   const [weekStart, setWeekStart] = useState("");
   const [loading, setLoading] = useState(true);
@@ -95,7 +102,7 @@ export default function EmpleadoVotacionPage() {
             <span className="font-semibold text-sm">Peer Voting</span>
           </div>
           <a
-            href={`/${typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en"}/empleado`}
+            href={`/${locale}/empleado`}
             className="text-sm text-gray-300 hover:text-white transition-colors"
           >
             Back

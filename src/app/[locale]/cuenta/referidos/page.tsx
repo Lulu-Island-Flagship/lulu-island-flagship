@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Users, Copy, CheckCircle2, Gift } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { AuthModal } from "@/components/cotizador/AuthModal";
 
 interface Leader {
   id: string;
@@ -29,6 +31,12 @@ export default function ReferralsPage() {
   const [redeeming, setRedeeming] = useState(false);
   const [redeemMessage, setRedeemMessage] = useState("");
   const [redeemError, setRedeemError] = useState("");
+  // Fix (auditoría externa 2026-07-24): mismo patrón ya aplicado en
+  // MisServiciosClient.tsx -- este componente no comprobaba sesión antes de
+  // pedir datos, así que una sesión expirada entre el chequeo del layout
+  // padre (cuenta/layout.tsx) y este fetch se mostraba como un error
+  // genérico en vez de pedir login de nuevo.
+  const [needsAuth, setNeedsAuth] = useState(false);
 
   useEffect(() => {
     load();
@@ -38,10 +46,24 @@ export default function ReferralsPage() {
     setLoading(true);
     setError("");
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setNeedsAuth(true);
+        setLoading(false);
+        return;
+      }
+      setNeedsAuth(false);
+
       const [refRes, leadersRes] = await Promise.all([
         fetch("/api/client/referral", { credentials: "include" }),
         fetch("/api/client/referral/leaders", { credentials: "include" }),
       ]);
+      if (refRes.status === 401 || leadersRes.status === 401) {
+        setNeedsAuth(true);
+        return;
+      }
       if (refRes.ok) {
         const data = await refRes.json();
         setEligible(Boolean(data.eligible));
@@ -98,6 +120,19 @@ export default function ReferralsPage() {
     } finally {
       setRedeeming(false);
     }
+  }
+
+  if (needsAuth) {
+    return (
+      <AuthModal
+        onClose={() => {
+          const locale = typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en";
+          const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+          window.location.href = `/${safeLocale}`;
+        }}
+        onSuccess={() => load()}
+      />
+    );
   }
 
   if (loading) {

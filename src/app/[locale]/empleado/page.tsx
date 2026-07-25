@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
   Shield,
@@ -49,6 +49,7 @@ type EmployeeAccessResult =
 
 export default function EmpleadoPage() {
   const router = useRouter();
+  const params = useParams();
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -63,12 +64,14 @@ export default function EmpleadoPage() {
   // v8.3 E4 (D.10.1-2): estado de la precarga offline (ruta+SOP+accesos del día).
   const [offlineDownloadStatus, setOfflineDownloadStatus] = useState<OfflineDownloadStatus>("idle");
 
-  // Detect locale from pathname (needed both by the auth effect below and by
-  // navigation links further down) -- movido arriba del useEffect para que
+  // Detect locale from route params (needed both by the auth effect below and
+  // by navigation links further down) -- movido arriba del useEffect para que
   // esté disponible en el primer render sin depender del orden textual.
-  const locale = (typeof window !== "undefined"
-    ? window.location.pathname.split("/")[1]
-    : "en") as string;
+  // 2026-07-24: antes leía window.location.pathname, lo que causaba un
+  // hydration mismatch (SSR asumía "en", cliente calculaba el locale real) --
+  // ver auditoría externa. useParams() da el mismo valor en servidor y
+  // cliente porque viene del router de Next, no de window.
+  const locale = (params?.locale as string) || "en";
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
   const portalUrl = `/${safeLocale}/portal?next=/${safeLocale}/empleado`;
 

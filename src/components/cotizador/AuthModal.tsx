@@ -1,9 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import { Globe, Apple, Mail, Smartphone, X } from "lucide-react";
+
+// Fix (auditoría externa 2026-07-24, accesibilidad): validación de email
+// débil (`!email.includes("@")` dejaba pasar "a@b" o "@@@"). Regex simple
+// de formato -- no pretende cubrir RFC 5322 completo, solo atrapar los
+// casos obvios que la auditoría señaló.
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface AuthModalProps {
   onClose: () => void;
@@ -33,6 +39,67 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
   const [error, setError] = useState(initialError || "");
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+
+  // Fix (auditoría externa 2026-07-24, accesibilidad): sin focus trap ni
+  // foco inicial, Tab podía escapar hacia elementos de fondo mientras el
+  // modal estaba abierto. modalRef delimita el contenedor para el trap y
+  // para ubicar el primer elemento focuseable al montar.
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const modalNode = modalRef.current;
+    if (!modalNode) return;
+
+    const getFocusable = () =>
+      Array.from(
+        modalNode.querySelectorAll<HTMLElement>(
+          'button, input, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => !el.hasAttribute("disabled"));
+
+    // Foco inicial al primer elemento interactivo visible según el `mode` actual.
+    const focusable = getFocusable();
+    focusable[0]?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const elements = getFocusable();
+      if (elements.length === 0) return;
+      const first = elements[0];
+      const last = elements[elements.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first || !modalNode.contains(document.activeElement)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last || !modalNode.contains(document.activeElement)) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, otpSent]);
+
+  // Fix (auditoría externa 2026-07-24, accesibilidad): el modal no se podía
+  // cerrar con Escape. Respeta el mismo criterio que el botón "X" (línea
+  // ~238): cuando forcePhoneVerification es true, el modal no debe poder
+  // cerrarse, así que ni se agrega el listener.
+  useEffect(() => {
+    if (forcePhoneVerification) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [forcePhoneVerification, onClose]);
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
@@ -72,7 +139,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
   };
 
   const handleEmailOtpRequest = async () => {
-    if (!email || !email.includes("@")) {
+    if (!email || !EMAIL_REGEX.test(email)) {
       setError(t("errors.invalidEmail"));
       return;
     }
@@ -183,7 +250,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       return;
     }
     // Validate email/phone is still present
-    if (mode === "email" && (!email || !email.includes("@"))) {
+    if (mode === "email" && (!email || !EMAIL_REGEX.test(email))) {
       setError(t("errors.emailRequired"));
       return;
     }
@@ -234,7 +301,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-elevation-3 max-w-md w-full p-6 relative">
+      <div ref={modalRef} className="bg-white rounded-lg shadow-elevation-3 max-w-md w-full p-6 relative">
         {!forcePhoneVerification && (
           <button
             aria-label={t("closeAriaLabel")}
@@ -271,7 +338,10 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
         </p>
 
         {error && (
-          <div className="p-3 bg-state-danger/10 text-state-danger rounded-lg text-sm mb-4">
+          // Fix (auditoría externa 2026-07-24, accesibilidad): role="alert"
+          // hace que lectores de pantalla anuncien el error automáticamente
+          // (equivale a aria-live="assertive" en la mayoría de lectores).
+          <div role="alert" className="p-3 bg-state-danger/10 text-state-danger rounded-lg text-sm mb-4">
             {error}
           </div>
         )}
@@ -312,6 +382,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                   <input
                     id="auth-otp-link-phone-input"
                     type="text"
+                    autoComplete="one-time-code"
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="123456"
@@ -343,6 +414,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
         {mode === "options" && (
           <div className="space-y-3">
             <button
+              aria-label={t("continueWithGoogle")}
               onClick={handleGoogleSignIn}
               disabled={loading}
               className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
@@ -352,6 +424,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
             </button>
 
             <button
+              aria-label={t("continueWithApple")}
               onClick={handleAppleSignIn}
               disabled={loading}
               className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
@@ -422,6 +495,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                   <input
                     id="auth-otp-email-input"
                     type="text"
+                    autoComplete="one-time-code"
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="123456"
@@ -492,6 +566,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                   <input
                     id="auth-otp-phone-input"
                     type="text"
+                    autoComplete="one-time-code"
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="123456"

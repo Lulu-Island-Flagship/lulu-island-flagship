@@ -4,6 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Mail, CheckCircle2, XCircle, Gift } from "lucide-react";
 import { StatusBanner } from "./StatusBanner";
+import { supabase } from "@/lib/supabase";
+import { AuthModal } from "@/components/cotizador/AuthModal";
 
 interface PreferencesState {
   marketingOptIn: boolean;
@@ -20,6 +22,12 @@ export default function CommunicationPreferencesClient() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  // Fix (auditoría externa 2026-07-24): mismo patrón ya aplicado en
+  // MisServiciosClient.tsx -- este componente no comprobaba sesión antes de
+  // pedir datos, así que una sesión expirada entre el chequeo del layout
+  // padre (cuenta/layout.tsx) y este fetch se mostraba como un StatusBanner
+  // de error genérico en vez de pedir login de nuevo.
+  const [needsAuth, setNeedsAuth] = useState(false);
 
   useEffect(() => {
     load();
@@ -29,8 +37,22 @@ export default function CommunicationPreferencesClient() {
     setLoading(true);
     setError("");
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setNeedsAuth(true);
+        setLoading(false);
+        return;
+      }
+      setNeedsAuth(false);
+
       const res = await fetch("/api/client/communication-preferences", { credentials: "include" });
       if (!res.ok) {
+        if (res.status === 401) {
+          setNeedsAuth(true);
+          return;
+        }
         const err = await res.json();
         setError(err.error || t("loadFailed"));
         return;
@@ -104,6 +126,19 @@ export default function CommunicationPreferencesClient() {
     } finally {
       setSavingBirthDate(false);
     }
+  }
+
+  if (needsAuth) {
+    return (
+      <AuthModal
+        onClose={() => {
+          const locale = typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en";
+          const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+          window.location.href = `/${safeLocale}`;
+        }}
+        onSuccess={() => load()}
+      />
+    );
   }
 
   if (loading) {

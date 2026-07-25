@@ -133,6 +133,21 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    // Fix 2026-07-24 (auditoría externa): altPaymentAmount no se validaba en
+    // absoluto -- aceptaba negativos, cero, o montos mayores al total de la
+    // orden, y ese valor se persistía directo en
+    // service_closures.alt_payment_amount sin ningún chequeo, contaminando
+    // contabilidad aguas abajo (este mismo archivo ya documenta arriba que
+    // esta info alimenta reportes financieros, E9).
+    if (altPaymentMethod) {
+      const amountNum = Number(altPaymentAmount);
+      if (!Number.isFinite(amountNum) || amountNum <= 0) {
+        return NextResponse.json(
+          { error: "altPaymentAmount debe ser mayor a 0 cuando se registra un pago alternativo" },
+          { status: 400 }
+        );
+      }
+    }
 
     const supabase = getSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -158,6 +173,36 @@ export async function POST(request: NextRequest) {
       .single();
     if (assignError || !assignment) {
       return NextResponse.json({ error: "No assignment found for this service" }, { status: 403 });
+    }
+
+    // Fix 2026-07-24 (auditoría externa): además de "> 0" (validado arriba),
+    // altPaymentAmount tampoco se comparaba contra el total real de la
+    // orden -- podía registrarse un pago alternativo por un monto mayor al
+    // total cobrable, contaminando contabilidad aguas abajo (E9). El total
+    // cobrable de una orden vive en quotes.total (en dólares, mismo criterio
+    // que usan stripe/confirm/route.ts y los crons de hold/capture vía
+    // "quotes(total)"), no en una columna propia de orders. Se compara sin
+    // margen porque no se encontró ninguna convención existente en el código
+    // para permitir propinas/extras sobre un pago alternativo -- si el
+    // negocio sí quiere tolerar un margen, debe definirse explícitamente.
+    if (altPaymentMethod) {
+      const { data: orderRow, error: orderError } = await supabase
+        .from("orders")
+        .select("id, quotes(total)")
+        .eq("id", orderId)
+        .single();
+      if (orderError || !orderRow) {
+        return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      }
+      const quoteData = orderRow.quotes as { total: number | string } | { total: number | string }[] | null;
+      const quoteTotal = Array.isArray(quoteData) ? quoteData[0]?.total : quoteData?.total;
+      const orderTotal = Number(quoteTotal);
+      if (Number.isFinite(orderTotal) && Number(altPaymentAmount) > orderTotal) {
+        return NextResponse.json(
+          { error: `altPaymentAmount no puede ser mayor al total de la orden ($${orderTotal.toFixed(2)})` },
+          { status: 400 }
+        );
+      }
     }
 
     const now = new Date().toISOString();

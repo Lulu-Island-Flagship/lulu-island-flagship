@@ -27,6 +27,11 @@ yarn-error.log*
 
 # local env files
 .env*.local
+# Fix (2026-07-24): la Supabase CLI lee sustitución de variables env(...) de
+# config.toml (ver [auth.external.google]) desde un .env en la raíz del
+# proyecto, DISTINTO del .env.local que lee Next.js -- sin esta línea, un
+# .env con el client secret real de Google quedaría trackeado por git.
+.env
 
 # vercel
 .vercel

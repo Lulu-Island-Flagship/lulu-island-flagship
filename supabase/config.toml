@@ -334,6 +334,25 @@ skip_nonce_check = false
 # If enabled, it will allow the user to successfully authenticate when the provider does not return an email address.
 email_optional = false
 
+# Fix (2026-07-24): no existía ningún bloque [auth.external.google] -- el
+# botón "Continue with Google" del código (AuthModal.tsx, StaffLoginScreen)
+# siempre estuvo implementado correctamente, pero Supabase local nunca tuvo
+# el proveedor Google habilitado para responder a esa llamada. client_id y
+# secret se leen de variables de entorno (nunca hardcodeados ni commiteados)
+# -- agregar SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID y
+# SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET a un archivo .env en la raíz del
+# proyecto (Supabase CLI lo carga automático al correr `supabase start`;
+# NO usar .env.local, ese es el que lee Next.js, no la CLI de Supabase).
+# skip_nonce_check=true porque el comentario de arriba lo marca como
+# necesario específicamente para login de Google en local.
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+redirect_uri = ""
+url = ""
+skip_nonce_check = true
+
 # Allow Solana wallet holders to sign in to your project via the Sign in with Solana (SIWS, EIP-4361) standard.
 # You can configure "web3" rate limit in the [auth.rate_limit] section and set up [auth.captcha] if self-hosting.
 [auth.web3.solana]
