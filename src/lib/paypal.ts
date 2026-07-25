@@ -15,12 +15,42 @@ export interface PayPalVerificationResult {
   error?: string;
 }
 
+// Fix B-P2-PAYPAL-ENV (auditoría externa 2026-07-24): antes, cualquier valor
+// de PAYPAL_ENVIRONMENT que no fuera EXACTAMENTE "live" (ausente, vacío, o
+// mal escrito como "Live"/"production") caía SILENCIOSAMENTE en sandbox, sin
+// log ni excepción -- incluso en producción real. Esto afectaba tanto
+// verifyPayPalTransaction (verificación de pagos) como refundPayPalCapture
+// (reembolsos reales de dinero): en producción, una variable faltante o mal
+// configurada apuntaría en silencio al sandbox -- un cliente "pagaría" sin
+// que hubiera dinero real de por medio, o un "reembolso" no devolvería nada
+// real. Ahora las 3 combinaciones son explícitas (live / sandbox /
+// inesperado) y, en producción, un valor inesperado falla ruidosamente
+// (throw) en vez de defaultear en silencio. Fuera de producción se mantiene
+// el default seguro a sandbox.
 function getPayPalBaseUrl(): string {
-  // Usar sandbox si no se indica lo contrario; en producción se puede cambiar
-  // a https://api.paypal.com o usar PAYPAL_ENVIRONMENT=live.
-  return process.env.PAYPAL_ENVIRONMENT === "live"
-    ? "https://api.paypal.com"
-    : "https://api.sandbox.paypal.com";
+  const env = process.env.PAYPAL_ENVIRONMENT;
+  const isProduction =
+    process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
+
+  if (env === "live") {
+    return "https://api.paypal.com";
+  }
+
+  if (env === "sandbox") {
+    return "https://api.sandbox.paypal.com";
+  }
+
+  // env es undefined, vacío, o algo inesperado (typo, etc.)
+  if (isProduction) {
+    throw new Error(
+      `PAYPAL_ENVIRONMENT inválido o ausente en producción: "${env}". ` +
+        `Debe ser exactamente "live" o "sandbox". Fallando en vez de ` +
+        `defaultear en silencio a sandbox (ver fix B-P2-PAYPAL-ENV, 2026-07-24).`
+    );
+  }
+
+  // Fuera de producción (dev/test/preview): default seguro a sandbox.
+  return "https://api.sandbox.paypal.com";
 }
 
 async function getAccessToken(): Promise<string> {

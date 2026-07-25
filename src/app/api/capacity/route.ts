@@ -101,8 +101,20 @@ export async function GET(request: NextRequest) {
     const todayStr = vancouverNowStr.split(",")[0];
     const hour = Number(vancouverNowStr.split(", ")[1]?.split(":")[0] ?? 0);
 
-    // Si es posterior al corte de hoy para mañana, marcar que mañana está bloqueado
-    const cutoffLocked = date > todayStr && hour >= 17;
+    // Fix 2026-07-24 (auditoría externa): antes `cutoffLocked` solo evaluaba
+    // `date > todayStr && hour >= 17`, así que reservas para HOY (date ===
+    // todayStr) nunca activaban el corte sin importar la hora -- un cliente
+    // podía, en teoría, ver disponibilidad para "hoy" incluso a las 11pm. En
+    // la práctica esto rara vez se notaba porque los slots de same-day
+    // normalmente no llegan a is_published=true bajo el modelo de corte de
+    // las 5PM del día anterior, pero nada en el código lo garantiza -- si un
+    // operador publica slots same-day manualmente, el hueco era real. Se
+    // aplica ahora la MISMA hora de corte (BOOKING_CUTOFF_HOUR-equivalente,
+    // 17:00) a same-day que ya se usaba para "mañana", cerrando el hueco.
+    // Nota: no hay ninguna pista en el código de que same-day deba tener una
+    // hora de corte distinta/más temprana que el corte para el día
+    // siguiente, así que se reutiliza la misma constante por simplicidad.
+    const cutoffLocked = date >= todayStr && hour >= 17;
 
     let query = supabase
       .from("capacity_slots")

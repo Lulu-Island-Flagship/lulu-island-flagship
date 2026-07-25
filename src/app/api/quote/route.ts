@@ -35,6 +35,11 @@ import {
   type ServiceCategory,
   computePrintedInvoiceCharge,
 } from "@/lib/pricing";
+// Fix 2026-07-24 (auditoría externa): captureError se usa en
+// getOrCreateClientProfile para dejar rastreable en producción el fallo
+// silencioso de creación de client_profile (ver comentario junto a esa
+// función más abajo).
+import { captureError } from "@/lib/observability";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -647,6 +652,13 @@ export async function POST(request: NextRequest) {
 
     // v8.3 B.2.3: el cliente ve SOLO el booleano de revisión — el motivo
     // (margen interno, score, etc.) es información interna del negocio.
+    // Fix 2026-07-24 (auditoría externa): profileWarning es un campo
+    // opcional adicional (no rompe el contrato existente) para que el
+    // frontend, si quiere, muestre un aviso discreto tipo "no pudimos
+    // guardar tus preferencias, pero tu cotización es válida" cuando
+    // getOrCreateClientProfile falló y las actualizaciones de consentimiento/
+    // idioma/factura/B2B se saltaron en silencio (ver profileCreationFailed
+    // en getOrCreateClientProfile más abajo).
     return NextResponse.json(
       {
         quote: data,
@@ -659,6 +671,7 @@ export async function POST(request: NextRequest) {
         b2bReviewRequired: accountType === "b2b" || accountType === "government",
         installmentEligible,
         installmentSplitPreview,
+        ...(clientProfile.profileCreationFailed ? { profileWarning: true } : {}),
       },
       { status: 201 }
     );
@@ -773,7 +786,23 @@ async function getOrCreateClientProfile(supabase: ReturnType<typeof getSupabaseC
     .single();
 
   if (error) {
-    console.error("Client profile creation error:", error);
+    // Fix 2026-07-24 (auditoría externa): cuando falla crear/recuperar el
+    // client_profile, el fallback sintético de abajo (id:"") es correcto --
+    // un fallo de infraestructura no debe bloquear la cotización, y las
+    // actualizaciones posteriores (consentimientos, idioma preferido,
+    // factura impresa, upgrade B2B) ya están protegidas con
+    // `if (clientProfile.id && ...)` así que no lanzan error. El problema es
+    // que antes se SALTABAN en silencio -- solo un console.error que nadie
+    // revisa en producción. Se usa ahora captureError (src/lib/observability.ts,
+    // mismo patrón logged_locally/forwarded_to_sentry que el resto del
+    // repo) para dejar esto rastreable, y se marca profileCreationFailed en
+    // el perfil sintético para que el caller pueda exponer un aviso opcional
+    // al cliente sin cambiar el contrato existente de la respuesta.
+    captureError(error, {
+      module: "api/quote",
+      operation: "getOrCreateClientProfile",
+      userId,
+    });
     // Fallback: devolver un perfil sintético para no romper la cotización
     return {
       id: "",
@@ -783,6 +812,7 @@ async function getOrCreateClientProfile(supabase: ReturnType<typeof getSupabaseC
       disputes_count: 0,
       no_show_count: 0,
       account_type: "b2c",
+      profileCreationFailed: true,
     };
   }
 

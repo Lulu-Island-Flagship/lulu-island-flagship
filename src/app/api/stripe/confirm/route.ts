@@ -534,6 +534,24 @@ export async function POST(request: NextRequest) {
 
     // Si no existe slot publicado, crear uno flexible por defecto
     if (slotError || !slotRow) {
+      // Limitación conocida, documentada 2026-07-24 (auditoría externa,
+      // revisada junto con el fix de sobreventa de arriba): estos 30
+      // minutos fijos NO reflejan la duración real estimada del servicio
+      // cotizado -- src/lib/pricing.ts sí calcula una estimación real
+      // (HHE -> getEstimatedServiceMinutes / hheMinutes dentro de
+      // calculateTeamRequirements, usado para dimensionar equipos y tiempo
+      // bloqueado AL MOMENTO DE COTIZAR), pero ese resultado nunca se
+      // persiste en la tabla `quotes` ni se selecciona en `quoteRow` aquí --
+      // no existe ningún estimatedDurationMinutes/estimatedHours en el
+      // objeto de la cotización disponible en este endpoint. Recomputarlo
+      // aquí requeriría un fetch adicional de la tabla HHE vigente
+      // (getCurrentHHETable, la misma llamada async que hace /api/quote) y
+      // podría no coincidir con la tabla HHE que se usó realmente al
+      // cotizar (que ya pudo cambiar desde entonces) -- eso es un cambio de
+      // mayor alcance (nueva columna persistida en `quotes`, no solo lógica
+      // de este endpoint) y queda fuera de este fix, que se limita al bug de
+      // atomicidad/sobreventa de arriba, el más grave de los dos. No
+      // inventar aquí un cálculo nuevo sin ese diseño.
       const [h, m] = serviceTime.split(":").map(Number);
       const endH = h + Math.floor((m + 30) / 60);
       const endM = (m + 30) % 60;
@@ -562,10 +580,40 @@ export async function POST(request: NextRequest) {
       slotRow = createdSlot;
     }
 
-    const slotAvailable = slotRow.slot_type !== "blocked" && slotRow.committed_teams < slotRow.max_teams;
-    if (!slotAvailable) {
+    // Fix 2026-07-24 (auditoría externa, sobreventa de capacidad confirmada
+    // -- dinero real): el chequeo anterior aquí ("slotAvailable" leído en
+    // memoria, sin lock) y el INSERT completo de la orden más abajo estaban
+    // separados por un INSERT de orden entero, con el UPDATE de
+    // committed_teams recién DESPUÉS de crear la orden. Dos requests
+    // concurrentes podían ambos leer "hay espacio" aquí, ambos crear su
+    // orden, y aunque el UPDATE posterior tenía optimistic lock (evitaba que
+    // el CONTADOR se corrompiera), no evitaba que AMBAS órdenes quedaran
+    // confirmadas en un slot con cupo para solo una -- sobreventa real.
+    //
+    // Fix: reservar el cupo de forma ATÓMICA (SELECT ... FOR UPDATE +
+    // verificación + incremento, todo en una transacción de Postgres) ANTES
+    // de tocar la tabla `orders`, con el mismo patrón ya usado para
+    // client_wallets (apply_wallet_delta, migraciones 180/233). Si el RPC
+    // confirma que no hay espacio, se aborta AQUÍ, antes de crear ninguna
+    // orden -- nunca se llega a tener una orden pagada sin capacidad real.
+    // Ver supabase/migrations/242_fix_capacity_slot_overselling_atomic_rpc.sql.
+    const { data: commitData, error: commitError } = await capacityClient.rpc(
+      "commit_capacity_slot",
+      { p_slot_id: slotRow.id, p_teams_needed: 1 }
+    );
+
+    if (commitError) {
+      console.error(`commit_capacity_slot RPC failed for slot ${slotRow.id} (quote ${quoteId}):`, commitError);
       return NextResponse.json(
-        { error: "Selected time slot is no longer available. Please choose another time." },
+        { error: "Unable to reserve selected time slot. Please try again." },
+        { status: 500 }
+      );
+    }
+
+    const commitResult = Array.isArray(commitData) ? commitData[0] : commitData;
+    if (!commitResult?.success) {
+      return NextResponse.json(
+        { error: "This time slot just filled up, please choose another." },
         { status: 409 }
       );
     }
@@ -668,6 +716,24 @@ export async function POST(request: NextRequest) {
 
     if (orderError) {
       console.error("Order insert error:", orderError);
+      // Fix 2026-07-24 (auditoría externa, mismo fix de sobreventa de
+      // arriba): el cupo del slot ya se comprometió atómicamente vía
+      // commit_capacity_slot ANTES de este INSERT. Si la orden termina sin
+      // poder crearse igual (ej. constraint distinta, error transitorio de
+      // red), ese cupo quedaría comprometido "fantasma" sin ninguna orden
+      // real detrás -- se libera aquí, best-effort, con el mismo patrón de
+      // "loguear y no bloquear la respuesta de error real al cliente" que ya
+      // usa el resto de este archivo (shadow ledger, dispatchCommunication).
+      const { error: releaseError } = await capacityClient.rpc("release_capacity_slot", {
+        p_slot_id: slotRow.id,
+        p_teams_to_release: 1,
+      });
+      if (releaseError) {
+        console.error(
+          `release_capacity_slot RPC failed after order insert error for slot ${slotRow.id} (quote ${quoteId}) -- capacity may be stranded, needs manual reconciliation:`,
+          releaseError
+        );
+      }
       return NextResponse.json(
         { error: orderError.message },
         { status: 500 }
@@ -735,37 +801,14 @@ export async function POST(request: NextRequest) {
       .update({ status: "reserved" })
       .eq("id", quoteId);
 
-    // Comprometer capacidad del slot reservado.
-    // v8.3 fix (auditoría 2026-07-15): antes no se comprobaba el resultado
-    // de este UPDATE -- si fallaba (por RLS, o por una condición de carrera
-    // con otra confirmación simultánea del mismo slot), el fallo era
-    // completamente silencioso: la orden ya se había creado y se respondía
-    // éxito al cliente, pero el contador de capacidad nunca se incrementaba,
-    // rompiendo el control de sobreventa para siempre en ese slot. Se agrega
-    // `.eq("committed_teams", slotRow.committed_teams)` como bloqueo
-    // optimista (TOCTOU): si otra request ya modificó el contador entre la
-    // lectura y esta escritura, el UPDATE no afecta ninguna fila y se
-    // detecta explícitamente en vez de sobrescribir con un valor obsoleto.
-    const { data: capacityUpdateRows, error: capacityUpdateError } = await capacityClient
-      .from("capacity_slots")
-      .update({
-        committed_teams: slotRow.committed_teams + 1,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", slotRow.id)
-      .eq("committed_teams", slotRow.committed_teams)
-      .select("id");
-
-    if (capacityUpdateError || !capacityUpdateRows || capacityUpdateRows.length === 0) {
-      console.error(
-        `Capacity slot commit failed for slot ${slotRow.id} (order already created for quote ${quoteId}):`,
-        capacityUpdateError
-      );
-      // La orden ya fue creada e insertada arriba -- no revertimos la
-      // reserva del cliente por esto (sería peor UX), pero queda un rastro
-      // claro en logs para reconciliación manual del contador de capacidad,
-      // en vez de un fallo silencioso indistinguible de un slot correcto.
-    }
+    // Fix 2026-07-24 (auditoría externa): el UPDATE de committed_teams con
+    // optimistic lock que vivía aquí (DESPUÉS del INSERT de la orden) se
+    // eliminó -- ya no hace falta. El cupo del slot ahora se reserva de
+    // forma atómica ANTES del INSERT de la orden, vía el RPC
+    // commit_capacity_slot (ver arriba, cerca del chequeo de disponibilidad
+    // del slot). Ese RPC es lo que realmente cierra la ventana de carrera
+    // TOCTOU que este UPDATE posterior solo detectaba después de que el
+    // daño (una orden pagada sin capacidad real) ya podía haber ocurrido.
 
     // E6 Sesión H — conecta el catálogo de plantillas (migración 045/057,
     // hasta ahora sin ningún disparador real) al primer evento del ciclo de

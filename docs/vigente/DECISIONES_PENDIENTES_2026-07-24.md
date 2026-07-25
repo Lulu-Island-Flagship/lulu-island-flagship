@@ -112,6 +112,32 @@ requiere tiempo dedicado aparte.
 
 ---
 
+## 5. zoneDemand es un placeholder fijo (50) en todo el motor de precios
+
+**Dónde:** `src/app/api/quote/route.ts:489`, `src/app/api/quote/preview/route.ts:280`,
+`src/app/api/admin/phone-booking/route.ts:419`, `src/app/api/admin/pricing-rules/simulate/route.ts:41`.
+
+**Qué pasa hoy:** los 4 lugares donde se usa `zoneDemand` en el sistema lo tienen hardcodeado a
+`50` (uno de ellos con comentario propio: `// placeholder; idealmente calculado desde capacidad
+real`). No existe en `src/lib/` ninguna función que calcule demanda real por zona — `rules.ts`
+solo define el tipo, no lo calcula, y `demand-signals.ts` calcula señales de clima/eventos/
+festivos, no demanda por zona geográfica. Cualquier regla de precio que dependa de `zoneDemand`
+hoy opera sobre un número inventado, siempre igual, para todas las zonas.
+
+**Por qué no se arregló hoy:** no es un bug de una línea — es una función de cálculo real que no
+existe todavía. Construirla bien requiere decidir:
+
+- Qué señal usar como proxy de demanda real (¿órdenes confirmadas recientes en esa zona?
+  ¿ocupación de `capacity_slots` publicados vs comprometidos? ¿ambas, ponderadas?).
+- Con qué ventana de tiempo (últimos 7 días, 30 días, mismo día de la semana el mes pasado).
+- Si el valor debe recalcularse en cada cotización (costo de una query extra por cotización) o
+  cachearse/precalcularse periódicamente (ej. un cron nocturno que actualice un valor por zona).
+
+**Quién debe decidir:** el dueño del producto, junto con quien entienda el modelo de pricing —
+define qué tan agresivo debe ser el ajuste de precio por demanda real, no solo la mecánica.
+
+---
+
 ## Resumen para retomar
 
 | # | Hallazgo | Tipo de bloqueo | Siguiente paso concreto |
@@ -120,3 +146,4 @@ requiere tiempo dedicado aparte.
 | 2 | QBO stub permanente | Contrato externo | Decidir si se contrata QBO; si no, ocultar/rotular la función en la UI como no disponible |
 | 3 | Margen neto sin carga patronal por orden | Decisión de modelo de datos | Definir regla de prorrateo con el dueño/contador |
 | 4 | payroll-export sin transacción atómica | Deuda técnica pura | Envolver el loop en una función RPC transaccional |
+| 5 | zoneDemand hardcodeado a 50 en todo el motor | Decisión de producto + construir función nueva | Definir señal/ventana de demanda real con el dueño, luego implementar |

@@ -14,7 +14,10 @@ import {
 // las fuentes YA CONSTRUIDAS y las pasa a buildUniversalExportJson/Csv.
 //
 // Fuentes usadas (todas reales, ninguna inventada):
-//   revenue          -> chargeback_reserves.captured_amount (cobrado real, join orders.service_date)
+//   revenue          -> orders.total_paid_cents (primario), con
+//                        chargeback_reserves.captured_amount como override
+//                        cuando existe registro para la orden (ver fix
+//                        B-P3-EXPORT, auditoría externa 2026-07-24, más abajo)
 //   payroll_gross    -> payroll_entries.gross_amount + payroll_readiness_credits.day_rate_cents
 //   payroll_deduction-> payroll_cycle_deductions: cpp + cpp2 + ei_employee (retenido al empleado)
 //   employer_burden  -> payroll_cycle_deductions: ei_employer + worksafebc_employer + vacation_pay_accrual
@@ -49,25 +52,57 @@ export async function GET(request: NextRequest) {
   const records: UniversalExportRecord[] = [];
 
   // ------------------------------------------------------------
-  // revenue: cobrado real (captured_amount) por orden, con service_date en el mes
-  // ------------------------------------------------------------
-  const { data: revenueRows, error: revenueError } = await supabase
-    .from("chargeback_reserves")
-    .select("order_id, captured_amount, orders!inner(service_date)")
-    .gte("orders.service_date", rangeStart)
-    .lte("orders.service_date", rangeEnd);
-  if (revenueError) return NextResponse.json({ error: revenueError.message }, { status: 500 });
+  // revenue: cobrado real por orden, con service_date en el mes.
+  //
+  // Fix B-P3-EXPORT (auditoría externa 2026-07-24): esta ruta leía
+  // EXCLUSIVAMENTE chargeback_reserves.captured_amount, sin fallback.
+  // chargeback_reserve_enabled está apagado por defecto (feature_flags,
+  // migración 024/081) y con el flag apagado chargeback_reserves NUNCA se
+  // puebla (ver accounting/route.ts líneas ~77-97), así que este reporte
+  // mostraba $0 de revenue para meses con órdenes cobradas de verdad,
+  // mientras accounting/route.ts, client-segments/route.ts y
+  // experiments/[id]/assign/route.ts sí mostraban el número real leyendo
+  // orders.total_paid_cents. Replicamos aquí la MISMA jerarquía ya probada
+  // en accounting/route.ts: orders.total_paid_cents (RAÍZ-3, migración 229,
+  // ya en centavos; se escribe siempre por las rutas de captura sin
+  // depender del flag) es la fuente primaria, y
+  // chargeback_reserves.captured_amount se usa solo como override cuando
+  // existe un registro para esa orden (flag activo y sí se pobló), porque
+  // da un dato más preciso a nivel de captured_amount real de Stripe.
+  const { data: revenueOrders, error: revenueOrdersError } = await supabase
+    .from("orders")
+    .select("id, service_date, total_paid_cents")
+    .eq("status", "completed")
+    .gte("service_date", rangeStart)
+    .lte("service_date", rangeEnd);
+  if (revenueOrdersError) return NextResponse.json({ error: revenueOrdersError.message }, { status: 500 });
 
-  type OrderJoin = { service_date: string } | { service_date: string }[] | null;
-  for (const r of revenueRows || []) {
-    const orderJoin = r.orders as OrderJoin;
-    const order = Array.isArray(orderJoin) ? orderJoin[0] : orderJoin;
+  const revenueOrderIds = (revenueOrders || []).map((o) => o.id);
+  const reserveCapturedByOrderId = new Map<string, number>();
+  if (revenueOrderIds.length > 0) {
+    const { data: reserveRows, error: reserveError } = await supabase
+      .from("chargeback_reserves")
+      .select("order_id, captured_amount")
+      .in("order_id", revenueOrderIds);
+    if (reserveError) return NextResponse.json({ error: reserveError.message }, { status: 500 });
+    for (const r of reserveRows || []) {
+      reserveCapturedByOrderId.set(
+        r.order_id,
+        (reserveCapturedByOrderId.get(r.order_id) || 0) + r.captured_amount
+      );
+    }
+  }
+
+  for (const o of revenueOrders || []) {
+    const reserveCaptured = reserveCapturedByOrderId.get(o.id);
+    const totalPaidCents = Math.round(Number(o.total_paid_cents ?? 0));
+    const amountCents = reserveCaptured !== undefined ? reserveCaptured : totalPaidCents;
     records.push({
       category: "revenue",
-      description: `Cobrado orden ${r.order_id}`,
-      amountCents: r.captured_amount,
-      date: order?.service_date || rangeStart,
-      metadata: { order_id: r.order_id },
+      description: `Cobrado orden ${o.id}`,
+      amountCents,
+      date: o.service_date || rangeStart,
+      metadata: { order_id: o.id },
     });
   }
 
