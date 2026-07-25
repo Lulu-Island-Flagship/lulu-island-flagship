@@ -138,6 +138,72 @@ define qué tan agresivo debe ser el ajuste de precio por demanda real, no solo 
 
 ---
 
+## 6. SMS automático de retraso nunca se dispara (falta señal de tráfico real)
+
+**Dónde:** `src/lib/traffic-conditions-provider.ts:102-135`, cron
+`src/app/api/cron/morning-conditions-check/route.ts`.
+
+**Qué pasa hoy:** con `OPENWEATHERMAP_API_KEY` configurada, el proveedor ya hace una
+llamada real y devuelve clima real (esto se arregló en algún punto después del informe
+del 2026-07-20). Pero `estimatedDelayMinutes` y `roadClosureReported` siguen forzados a
+`null` siempre — el propio archivo lo marca con un TODO: falta `GOOGLE_MAPS_API_KEY`.
+`shouldNotifyClientOfDelay()` recibe ese `null` real desde el cron horario, así que el
+SMS automático de retraso al cliente (feature E8.4) nunca se dispara, aunque el resto
+del pipeline (cron, plantilla de SMS, lógica de decisión) sí está construido y
+funcionando.
+
+**Por qué no se arregló hoy:** falta la única pieza que faltaba, y es una dependencia
+externa, no un bug: una cuenta de Google Maps Platform con Distance Matrix o Routes API
+habilitada, más decidir qué ruta de origen usar por zona (¿la base de operaciones? ¿la
+ubicación del equipo asignado, si existe?).
+
+**Quién debe decidir:** el dueño del negocio — si vale la pena contratar Google Maps
+Platform (tiene costo por llamada) para activar esta feature, y con quién define el
+mapeo zona → ruta de origen.
+
+---
+
+## 7. i18n de `/admin` y `/empleado` sigue en inglés (el flujo de cliente ya no)
+
+**Dónde:** las 69 páginas bajo `src/app/[locale]/admin/**` y las 15 bajo
+`src/app/[locale]/empleado/**` — 0 de ellas llama `useTranslations`/`getTranslations`.
+
+**Qué pasa hoy:** el trabajo de i18n de esta sesión (y de una ronda anterior) sí cubrió
+el flujo de cara al cliente (cotizador, reserva, confirmación, /cuenta): 34 archivos
+usan `useTranslations` y `messages/{en,zh,fr}.json` tienen 556 claves cada uno, con
+paridad perfecta entre los 3 idiomas. Pero el back-office (admin y empleado) sigue
+100% hardcodeado en inglés — un usuario en `/zh/admin` o `/fr/empleado` ve inglés en
+casi toda la interfaz, aunque el ruteo mantiene el locale.
+
+**Por qué no se arregló hoy:** no es un bug de una línea — es traducir 84 páginas
+completas, con las 168 (84 × 2) llamadas de red que implica revisar cada una. Es una
+decisión de alcance de producto, no una corrección técnica: si el staff interno
+(empleados, admins) es angloparlante en la práctica, esto puede no ser prioridad nunca.
+
+**Quién debe decidir:** el dueño del negocio — si el equipo interno necesita la UI en
+su propio idioma, o si el inglés en back-office es aceptable indefinidamente porque
+quien opera esas pantallas ya lo habla.
+
+---
+
+## 8. 12 de 45 crons corren sub-diario — falla el despliegue en el plan Hobby de Vercel
+
+**Dónde:** `vercel.json`.
+
+**Qué pasa hoy:** hay 45 crons definidos. 12 corren más de una vez al día (patrones
+`*/2`, `*/5`, `*/15`, horario `0 * * * *`) y otros 5 corren 2×/día. El plan Hobby de
+Vercel exige que todos los crons corran como máximo 1×/día — con la config actual, un
+despliegue en Hobby falla.
+
+**Por qué no se arregló hoy:** no es arreglable desde el código sin sacrificar
+funcionalidad real (los crons sub-diarios existen porque hay procesos que de verdad
+necesitan correr seguido, ej. reconciliación de pagos, escalación de seguridad).
+
+**Quién debe decidir:** el dueño del negocio — contratar el plan Pro de Vercel antes
+de desplegar a producción. No hay alternativa de código que preserve el comportamiento.
+
+---
+
 ## Resumen para retomar
 
 | # | Hallazgo | Tipo de bloqueo | Siguiente paso concreto |
@@ -147,3 +213,6 @@ define qué tan agresivo debe ser el ajuste de precio por demanda real, no solo 
 | 3 | Margen neto sin carga patronal por orden | Decisión de modelo de datos | Definir regla de prorrateo con el dueño/contador |
 | 4 | payroll-export sin transacción atómica | Deuda técnica pura | Envolver el loop en una función RPC transaccional |
 | 5 | zoneDemand hardcodeado a 50 en todo el motor | Decisión de producto + construir función nueva | Definir señal/ventana de demanda real con el dueño, luego implementar |
+| 6 | SMS de retraso nunca se dispara (falta Google Maps) | Contrato externo | Contratar Google Maps Platform + definir mapeo zona→ruta, luego cablear |
+| 7 | Admin/empleado sin traducir (solo cliente lo está) | Decisión de alcance de producto | Definir si vale la pena traducir 84 páginas de back-office |
+| 8 | 12 crons sub-diarios fallan en Vercel Hobby | Contrato externo | Contratar plan Pro de Vercel antes de desplegar |

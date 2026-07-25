@@ -79,7 +79,16 @@ export default async function AdminLayout({
     // (empleado/admin/qc) contra employees + admin_roles vía
     // /api/staff/resolve-login, sin importar por qué puerta entró el
     // usuario.
-    redirect(`/${safeLocale}/portal?next=/${safeLocale}/admin`);
+    //
+    // Fix 2026-07-24 (auditoría externa, M-1 parcial): portal/page.tsx ya
+    // honra `next=` desde el fix M-1 original, pero este layout seguía
+    // mandando siempre `next=/${safeLocale}/admin` (el área genérica) en vez
+    // de la subruta real que el usuario pidió -- un admin que abría
+    // /admin/nomina sin sesión terminaba en /admin a secas, no en /nomina,
+    // aunque el pathname real (leído arriba de x-invoke-path/x-pathname) ya
+    // estaba disponible. Ahora se preserva.
+    const safePathname = pathname && pathname.startsWith("/") && !pathname.startsWith("//") ? pathname : `/${safeLocale}/admin`;
+    redirect(`/${safeLocale}/portal?next=${encodeURIComponent(safePathname)}`);
   }
 
   // v8.3 E0 (2026-07-11): hallazgo de auditoría externa (verificado y

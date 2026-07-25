@@ -46,7 +46,13 @@ export default async function EmpleadoLayout({
   const pathname = headersList.get("x-invoke-path") || headersList.get("x-pathname") || `/${params.locale}/empleado`;
   const localeFromHeader = pathname.split("/")[1] || params.locale || "en";
   const safeLocale = ["en", "zh", "fr"].includes(localeFromHeader) ? localeFromHeader : "en";
-  const portalUrl = `/${safeLocale}/portal?next=/${safeLocale}/empleado`;
+  // Fix 2026-07-24 (auditoría externa, M-1 parcial): antes se mandaba
+  // siempre next=/${safeLocale}/empleado (el área genérica), descartando la
+  // subruta real (ej. /empleado/ritual) aunque `pathname` ya la tuviera --
+  // portal/page.tsx honra next= desde el fix M-1 original, pero solo si
+  // quien redirige se lo pasa. Ahora se preserva la subruta real.
+  const safePathname = pathname && pathname.startsWith("/") && !pathname.startsWith("//") ? pathname : `/${safeLocale}/empleado`;
+  const portalUrl = `/${safeLocale}/portal?next=${encodeURIComponent(safePathname)}`;
 
   const supabase = getSupabaseClient();
   const {
