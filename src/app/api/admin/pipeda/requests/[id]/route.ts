@@ -73,7 +73,10 @@ export async function PATCH(
         .eq("id", reqRow.id)
         .select()
         .single();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) {
+        console.error("admin/pipeda/requests/[id] error:", error);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
       return NextResponse.json({ request: updated }, { status: 200 });
     }
 
@@ -92,7 +95,10 @@ export async function PATCH(
         .eq("id", reqRow.id)
         .select()
         .single();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) {
+        console.error("admin/pipeda/requests/[id] error:", error);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
       return NextResponse.json({ request: updated }, { status: 200 });
     }
 
@@ -178,7 +184,10 @@ export async function PATCH(
         .eq("id", reqRow.id)
         .select()
         .single();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) {
+        console.error("admin/pipeda/requests/[id] error:", error);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
       return NextResponse.json({ request: updated }, { status: 200 });
     }
 

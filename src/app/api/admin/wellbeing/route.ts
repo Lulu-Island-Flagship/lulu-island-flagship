@@ -20,7 +20,8 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase.rpc("get_wellbeing_aggregate", { p_date: date });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("admin/wellbeing error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   return NextResponse.json({ aggregate: data?.[0] || null }, { status: 200 });

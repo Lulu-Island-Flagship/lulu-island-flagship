@@ -24,7 +24,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .eq("order_id", id)
     .order("created_at", { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("admin/orders/[id]/communication-log error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   return NextResponse.json({ communicationLog: data || [] }, { status: 200 });
 }

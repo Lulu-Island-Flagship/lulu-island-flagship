@@ -72,7 +72,8 @@ export async function PUT(
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/checklists/[id] error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ checklist: data }, { status: 200 });
@@ -111,7 +112,8 @@ export async function DELETE(
       );
 
       if (histError) {
-        return NextResponse.json({ error: histError.message }, { status: 500 });
+        console.error("admin/checklists/[id] error:", histError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
 
       if (hasHistory) {
@@ -128,7 +130,8 @@ export async function DELETE(
         .eq("id", id);
 
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("admin/checklists/[id] error:", error);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
 
       return NextResponse.json({ success: true, hardDeleted: true }, { status: 200 });
@@ -143,7 +146,8 @@ export async function DELETE(
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/checklists/[id] error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, checklist: data }, { status: 200 });

@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
     .select("id, name, role, is_active")
     .order("name", { ascending: true });
   if (employeesError) {
-    return NextResponse.json({ error: employeesError.message }, { status: 500 });
+    console.error("admin/certifications error:", employeesError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const { data: certifications, error: certsError } = await auth.supabase
@@ -32,7 +33,8 @@ export async function GET(request: NextRequest) {
     .select("id, employee_id, level, certificate_type, issued_at, expires_at, revoked_at, revoked_reason")
     .order("expires_at", { ascending: true });
   if (certsError) {
-    return NextResponse.json({ error: certsError.message }, { status: 500 });
+    console.error("admin/certifications error:", certsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const todayISO = new Date().toISOString();
@@ -106,7 +108,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/certifications error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ certification: created }, { status: 201 });

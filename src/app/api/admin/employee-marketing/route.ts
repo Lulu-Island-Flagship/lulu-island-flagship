@@ -39,7 +39,8 @@ export async function GET(request: NextRequest) {
     .order("updated_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("admin/employee-marketing error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const features = (data || []).map((f) => ({
@@ -97,7 +98,10 @@ export async function POST(request: NextRequest) {
       .from("employee_marketing_features")
       .update({ admin_approved_at: new Date().toISOString(), admin_approved_by: user?.id ?? null, updated_at: new Date().toISOString() })
       .eq("id", feature.id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("admin/employee-marketing error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     return NextResponse.json({ ok: true }, { status: 200 });
   }
 
@@ -106,7 +110,10 @@ export async function POST(request: NextRequest) {
       .from("employee_marketing_features")
       .update({ asset_url: body.assetUrl ?? null, updated_at: new Date().toISOString() })
       .eq("id", feature.id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("admin/employee-marketing error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     return NextResponse.json({ ok: true }, { status: 200 });
   }
 

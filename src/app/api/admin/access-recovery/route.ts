@@ -56,7 +56,8 @@ export async function GET(request: NextRequest) {
     .limit(100);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("admin/access-recovery error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   return NextResponse.json({ requests: data || [] });
@@ -119,7 +120,8 @@ export async function POST(request: NextRequest) {
         .eq("status", "verified_pending_approval");
 
       if (resolveError) {
-        return NextResponse.json({ error: resolveError.message }, { status: 500 });
+        console.error("admin/access-recovery error:", resolveError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
 
       await logRecoveryAuditEvent(serviceClient, {
@@ -175,7 +177,8 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
 
       if (denyError) {
-        return NextResponse.json({ error: denyError.message }, { status: 500 });
+        console.error("admin/access-recovery error:", denyError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
       if (!denied) {
         return NextResponse.json({ error: "Request not found or already resolved" }, { status: 404 });

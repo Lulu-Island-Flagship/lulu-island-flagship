@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { isAllowedInternalPath } from "@/lib/safe-redirect";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -17,7 +18,14 @@ export async function GET(request: NextRequest) {
   // de login legítimo con next=https://sitio-malicioso.com y, tras
   // autenticar de verdad, el navegador termina en el sitio del atacante.
   // Solo se permiten rutas relativas que empiecen con "/" y no con "//".
-  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/cotizador";
+  //
+  // Fix (auditoría de autenticación 2026-07-25/26, item 6): ese chequeo
+  // bloquea un origen externo, pero no garantiza que el destino sea una
+  // ruta interna VÁLIDA del proyecto (cualquier ruta relativa arbitraria
+  // pasaba). isAllowedInternalPath (src/lib/safe-redirect.ts) restringe a
+  // /{locale}/{sección conocida} usando la lista real de locales
+  // (src/i18n/config.ts) y de secciones bajo src/app/[locale]/.
+  const next = isAllowedInternalPath(rawNext) ? rawNext : "/cotizador";
 
   // v8.3 fix (auditoría 2026-07-15): si el proveedor OAuth (Google/Apple)
   // devuelve un error -- usuario cancela el consentimiento, cuenta

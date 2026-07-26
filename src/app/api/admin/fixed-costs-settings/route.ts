@@ -23,7 +23,8 @@ export async function GET() {
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("admin/fixed-costs-settings error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   return NextResponse.json({ current: current || null }, { status: 200 });
@@ -82,7 +83,8 @@ export async function PATCH(request: NextRequest) {
       .single();
 
     if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      console.error("admin/fixed-costs-settings error:", insertError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ setting: newSetting }, { status: 200 });

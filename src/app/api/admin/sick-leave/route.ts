@@ -24,7 +24,10 @@ export async function GET(request: NextRequest) {
     .gte("absence_date", `${year}-01-01`)
     .lte("absence_date", `${year}-12-31`)
     .order("absence_date", { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("admin/sick-leave error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const employeeIds = Array.from(new Set((requests || []).map((r) => r.employee_id)));
   const nameById = new Map<string, string>();

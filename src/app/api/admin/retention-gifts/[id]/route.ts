@@ -29,7 +29,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     .eq("id", params.id)
     .is("deleted_at", null)
     .maybeSingle();
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
+  if (fetchError) {
+    console.error("admin/retention-gifts/[id] error:", fetchError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   if (!gift) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const nowIso = new Date().toISOString();
@@ -48,7 +51,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       .eq("id", params.id)
       .select()
       .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("admin/retention-gifts/[id] error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     return NextResponse.json({ gift: data }, { status: 200 });
   }
 
@@ -62,7 +68,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       .eq("id", params.id)
       .select()
       .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("admin/retention-gifts/[id] error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     return NextResponse.json({ gift: data }, { status: 200 });
   }
 

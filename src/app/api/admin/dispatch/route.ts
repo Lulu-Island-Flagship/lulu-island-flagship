@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
 
     if (empError) {
       console.error("Dispatch employees fetch error:", empError);
-      return NextResponse.json({ error: empError.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const foundIds = new Set((employees || []).map((e) => e.id));
@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
 
     if (deleteError) {
       console.error("Dispatch delete error:", deleteError);
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // v8.3 E3/D.4 (migración 140): marcar como decisión humana explícita
@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error("Dispatch insert error:", insertError);
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json(
@@ -272,7 +272,8 @@ export async function GET(request: NextRequest) {
       .order("service_time", { ascending: true });
 
     if (ordersError) {
-      return NextResponse.json({ error: ordersError.message }, { status: 500 });
+      console.error("admin/dispatch error:", ordersError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     if (!orders || orders.length === 0) {

@@ -30,7 +30,10 @@ export async function GET(request: NextRequest) {
     .order("incident_datetime", { ascending: false })
     .limit(100);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("admin/workplace-incidents error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const nowIso = new Date().toISOString();
   const incidents = (data || []).map((row) => {
@@ -101,7 +104,10 @@ export async function POST(request: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("admin/workplace-incidents error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   return NextResponse.json({ workplaceIncident: data }, { status: 200 });
 }

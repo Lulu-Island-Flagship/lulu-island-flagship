@@ -95,7 +95,8 @@ export async function POST(
       .maybeSingle();
 
     if (fetchError) {
-      return NextResponse.json({ error: fetchError.message }, { status: 500 });
+      console.error("admin/purchase-orders/[id]/approve error:", fetchError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     if (!po) {
       return NextResponse.json({ error: "Orden de compra no encontrada" }, { status: 404 });
@@ -157,7 +158,8 @@ export async function POST(
           { status: 409 }
         );
       }
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      console.error("admin/purchase-orders/[id]/approve error:", updateError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // E-A2: al recibir mercancía, reponer el stock real. Antes

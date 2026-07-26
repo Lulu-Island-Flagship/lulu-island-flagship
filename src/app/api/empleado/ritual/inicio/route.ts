@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getMorningConditions } from "@/lib/traffic-conditions-provider";
 import { formatAggregatedRows } from "@/lib/team-ranking";
+import { requireActiveEmployee } from "@/lib/require-active-employee";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -45,8 +46,11 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data: employee } = await supabase.from("employees").select("id, name").eq("user_id", user.id).single();
-  if (!employee) return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
+  const { employee, error: empError, status: empStatus } = await requireActiveEmployee<{
+    id: string;
+    name: string | null;
+  }>(supabase, user.id, "id, name");
+  if (!employee) return NextResponse.json({ error: empError }, { status: empStatus });
 
   const vancouverDate = new Date().toLocaleString("en-CA", {
     timeZone: "America/Vancouver",

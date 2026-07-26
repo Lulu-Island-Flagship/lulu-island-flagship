@@ -2,6 +2,7 @@ import createIntlMiddleware from 'next-intl/middleware';
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { locales, defaultLocale } from './i18n/config';
+import { isAllowedInternalPath } from './lib/safe-redirect';
 
 // v8.3 E0 (2026-07-11): antes este archivo SOLO hacía ruteo de idioma.
 // Auditoría (interna y externa) encontró que no había refresh de sesión de
@@ -87,7 +88,16 @@ export default async function middleware(request: NextRequest) {
   if (isStaffProtected && !user) {
     const nextParam = `${pathname}${request.nextUrl.search}`;
     const loginUrl = new URL(`/${localeInPath}/portal`, request.url);
-    loginUrl.searchParams.set("next", nextParam);
+    // Fix (auditoría de autenticación 2026-07-25/26, item 6): antes se
+    // pasaba nextParam sin sanitizar. En la práctica pathname siempre cae
+    // bajo /admin o /empleado (por isStaffProtected arriba), así que ya era
+    // interno -- pero se agrega la misma allowlist que usan /portal y
+    // /auth/callback como defensa en profundidad, por si este bloque se
+    // reutiliza o se relaja en el futuro. Si no matchea, se cae al Portal
+    // sin `next` (destino seguro por defecto).
+    if (isAllowedInternalPath(nextParam)) {
+      loginUrl.searchParams.set("next", nextParam);
+    }
     return NextResponse.redirect(loginUrl);
   }
 

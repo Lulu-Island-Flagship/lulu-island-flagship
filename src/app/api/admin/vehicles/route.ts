@@ -18,7 +18,7 @@ export async function GET() {
 
     if (error) {
       console.error("Vehicles fetch error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ vehicles: data || [] }, { status: 200 });
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error("Vehicle insert error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ vehicle: data }, { status: 201 });

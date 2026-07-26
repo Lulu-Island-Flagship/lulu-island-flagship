@@ -39,7 +39,8 @@ export async function GET(request: NextRequest) {
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
   if (postsError) {
-    return NextResponse.json({ error: postsError.message }, { status: 500 });
+    console.error("admin/marketing error:", postsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const { data: checks, error: checksError } = await supabase
@@ -48,7 +49,8 @@ export async function GET(request: NextRequest) {
     .order("checked_at", { ascending: false })
     .limit(20);
   if (checksError) {
-    return NextResponse.json({ error: checksError.message }, { status: 500 });
+    console.error("admin/marketing error:", checksError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   return NextResponse.json({ posts: posts || [], recentChecks: checks || [] }, { status: 200 });
@@ -99,7 +101,8 @@ export async function POST(request: NextRequest) {
       violations,
     });
     if (checkInsertError) {
-      return NextResponse.json({ error: checkInsertError.message }, { status: 500 });
+      console.error("admin/marketing error:", checkInsertError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     if (passed) {
@@ -108,7 +111,8 @@ export async function POST(request: NextRequest) {
         .update({ status: "pending_approval" })
         .eq("id", post.id);
       if (updateError) {
-        return NextResponse.json({ error: updateError.message }, { status: 500 });
+        console.error("admin/marketing error:", updateError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
     }
 
@@ -125,7 +129,8 @@ export async function POST(request: NextRequest) {
       .update({ status: result.newStatus, approved_at: new Date().toISOString(), approved_by: user.id })
       .eq("id", post.id);
     if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      console.error("admin/marketing error:", updateError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     return NextResponse.json({ result }, { status: 200 });
   }
@@ -140,7 +145,8 @@ export async function POST(request: NextRequest) {
       .update({ status: result.newStatus })
       .eq("id", post.id);
     if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      console.error("admin/marketing error:", updateError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     return NextResponse.json({ result }, { status: 200 });
   }
@@ -155,7 +161,8 @@ export async function POST(request: NextRequest) {
       .update({ status: result.newStatus, published_at: new Date().toISOString() })
       .eq("id", post.id);
     if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      console.error("admin/marketing error:", updateError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     return NextResponse.json({ result }, { status: 200 });
   }

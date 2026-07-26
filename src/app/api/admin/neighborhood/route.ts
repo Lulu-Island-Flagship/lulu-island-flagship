@@ -41,8 +41,14 @@ export async function GET(request: NextRequest) {
       .limit(50),
   ]);
 
-  if (complaintsError) return NextResponse.json({ error: complaintsError.message }, { status: 500 });
-  if (leadsError) return NextResponse.json({ error: leadsError.message }, { status: 500 });
+  if (complaintsError) {
+    console.error("admin/neighborhood error:", complaintsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
+  if (leadsError) {
+    console.error("admin/neighborhood error:", leadsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   return NextResponse.json({ complaints: complaints || [], leads: leads || [] }, { status: 200 });
 }
@@ -92,7 +98,10 @@ export async function POST(request: NextRequest) {
       })
       .select()
       .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("admin/neighborhood error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
 
     // v8.3 E11 (auditoría 2026-07-18): client_properties.neighborhood_sensitive
     // (migración 050) nunca se activaba -- el flujo real de quejas usa
@@ -129,7 +138,10 @@ export async function POST(request: NextRequest) {
       })
       .select()
       .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("admin/neighborhood error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     return NextResponse.json({ lead: data }, { status: 201 });
   }
 

@@ -48,7 +48,8 @@ export async function GET(request: NextRequest) {
     .order("event_key", { ascending: true });
 
   if (eventsError) {
-    return NextResponse.json({ error: eventsError.message }, { status: 500 });
+    console.error("admin/communication-templates error:", eventsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const { data: templates, error: templatesError } = await auth.supabase
@@ -58,7 +59,8 @@ export async function GET(request: NextRequest) {
     .is("deleted_at", null);
 
   if (templatesError) {
-    return NextResponse.json({ error: templatesError.message }, { status: 500 });
+    console.error("admin/communication-templates error:", templatesError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const templatesByEvent = new Map<string, TemplateRow[]>();
@@ -119,7 +121,8 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (findError) {
-    return NextResponse.json({ error: findError.message }, { status: 500 });
+    console.error("admin/communication-templates error:", findError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   if (!existing) {
@@ -141,7 +144,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/communication-templates error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     return NextResponse.json({ template: data, created: true });
   }
@@ -161,7 +165,8 @@ export async function POST(request: NextRequest) {
   });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("admin/communication-templates error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   return NextResponse.json({ template: data, created: false });

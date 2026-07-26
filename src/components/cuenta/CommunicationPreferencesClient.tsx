@@ -226,6 +226,11 @@ export default function CommunicationPreferencesClient() {
             type="date"
             value={birthDateInput}
             onChange={(e) => setBirthDateInput(e.target.value)}
+            // Fix (auditoría UX/seguridad 2026-07-25/26, P3): "Cumpleaños acepta
+            // fechas futuras" -- max limita el date picker del navegador a hoy;
+            // la validación real (formato + fecha calendario válida + no futura)
+            // vive server-side en /api/client/communication-preferences.
+            max={new Date().toISOString().slice(0, 10)}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
           <button

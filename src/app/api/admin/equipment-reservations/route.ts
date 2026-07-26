@@ -33,7 +33,8 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("admin/equipment-reservations error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   return NextResponse.json({ reservations: data || [] }, { status: 200 });
@@ -74,7 +75,8 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (existingError) {
-      return NextResponse.json({ error: existingError.message }, { status: 500 });
+      console.error("admin/equipment-reservations error:", existingError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     if (existing && existing.length > 0) {
@@ -110,7 +112,8 @@ export async function POST(request: NextRequest) {
           { status: 409 }
         );
       }
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/equipment-reservations error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ reservation: data }, { status: 201 });

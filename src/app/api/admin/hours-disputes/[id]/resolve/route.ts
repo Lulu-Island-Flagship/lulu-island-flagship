@@ -106,7 +106,8 @@ export async function POST(
           .update({ timestamp: correctedTimestamp, notes: `Corrected via hours dispute ${ticketId} (admin ${userId})` })
           .eq("id", existingLog.id);
         if (updateLogError) {
-          return NextResponse.json({ error: updateLogError.message }, { status: 500 });
+          console.error("admin/hours-disputes/[id]/resolve error:", updateLogError);
+          return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
         }
       } else {
         // Falla técnica: el evento nunca se registró. Se crea ahora con el
@@ -120,7 +121,8 @@ export async function POST(
           notes: `Created via hours dispute ${ticketId} (admin ${userId}) -- technical failure, never penalize`,
         });
         if (insertLogError) {
-          return NextResponse.json({ error: insertLogError.message }, { status: 500 });
+          console.error("admin/hours-disputes/[id]/resolve error:", insertLogError);
+          return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
         }
       }
     }
@@ -140,7 +142,8 @@ export async function POST(
       .single();
 
     if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      console.error("admin/hours-disputes/[id]/resolve error:", updateError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // D-P1-4: la disputa se resolvió a favor del empleado. No hay cálculo

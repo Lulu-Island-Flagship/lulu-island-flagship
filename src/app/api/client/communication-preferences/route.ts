@@ -2,6 +2,40 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
+// v8.3 fix (auditoría seguridad 2026-07-26): el regex original
+// (/^\d{4}-\d{2}-\d{2}$/) solo valida el FORMATO -- "2023-99-99" pasaba
+// intacto. Se valida además que mes/día formen una fecha calendario real
+// (incluye años bisiestos vía Date.UTC, que normaliza "2023-02-30" a marzo
+// en vez de aceptarlo) y que no sea una fecha futura (bug P3 de UX ya
+// reportado: "Cumpleaños acepta fechas futuras").
+function isValidPastBirthDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > 31) return false;
+
+  const asUtcDate = new Date(Date.UTC(year, month - 1, day));
+  // Date normaliza días fuera de rango (ej. 2023-02-30 -> 2023-03-02) --
+  // si el round-trip no coincide, la fecha calendario no existía de verdad
+  // (esto también cubre 29 de febrero en años no bisiestos).
+  if (
+    asUtcDate.getUTCFullYear() !== year ||
+    asUtcDate.getUTCMonth() !== month - 1 ||
+    asUtcDate.getUTCDate() !== day
+  ) {
+    return false;
+  }
+
+  const todayUtc = new Date();
+  const todayUtcMidnight = Date.UTC(todayUtc.getUTCFullYear(), todayUtc.getUTCMonth(), todayUtc.getUTCDate());
+  if (asUtcDate.getTime() > todayUtcMidnight) return false;
+
+  return true;
+}
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
 
@@ -92,8 +126,11 @@ export async function POST(request: NextRequest) {
   // solo alimenta el regalo de cumpleaños configurable -- nunca se usa para
   // scoring, riesgo ni ninguna otra decisión.
   if (body.birthDate !== undefined) {
-    if (body.birthDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(String(body.birthDate))) {
-      return NextResponse.json({ error: "birthDate debe ser YYYY-MM-DD o null" }, { status: 400 });
+    if (body.birthDate !== null && !isValidPastBirthDate(String(body.birthDate))) {
+      return NextResponse.json(
+        { error: "birthDate debe ser una fecha YYYY-MM-DD válida y no futura, o null" },
+        { status: 400 }
+      );
     }
     update.birth_date = body.birthDate;
   }

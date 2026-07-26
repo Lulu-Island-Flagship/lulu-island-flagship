@@ -34,10 +34,16 @@ export default function QuotesReviewPage() {
     setLoading(true);
     setError("");
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      // Fix (auditoría de autenticación 2026-07-25/26, item 3): getSession()
+      // solo lee el JWT local sin validarlo contra el servidor -- inseguro
+      // para decisiones de negocio. Se usa getUser() (valida contra Auth).
+      // El header Authorization tampoco servía de nada: la API
+      // (/api/admin/quotes, vía requireAdminRole en src/lib/admin.ts) se
+      // autentica con la cookie de sesión, nunca leyó este header -- se
+      // elimina ese código muerto junto con el cambio.
+      await supabase.auth.getUser();
       const res = await fetch("/api/admin/quotes?review=true", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
       });
       if (!res.ok) {
         const err = await res.json();
@@ -60,13 +66,15 @@ export default function QuotesReviewPage() {
   async function handleReview(quoteId: string, action: "approve" | "reject") {
     setProcessingId(quoteId);
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      // Fix (item 3): getUser() en vez de getSession() -- ver comentario en
+      // loadQuotes(). El header Authorization tampoco lo usa el servidor
+      // (cookies vía requireAdminRole).
+      await supabase.auth.getUser();
       const res = await fetch(`/api/admin/quotes/${quoteId}/review`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
         },
         body: JSON.stringify({
           action,

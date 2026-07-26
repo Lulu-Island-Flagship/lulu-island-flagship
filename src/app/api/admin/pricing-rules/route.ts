@@ -89,7 +89,7 @@ export async function GET() {
 
     if (error) {
       console.error("Pricing rules fetch error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ rules: rules || [] }, { status: 200 });
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error("Pricing rule insert error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // Auditoría de reglas
@@ -236,7 +236,7 @@ export async function PATCH(request: NextRequest) {
 
     if (error) {
       console.error("Pricing rule update error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     await auth.supabase.from("rule_audit_logs").insert({
@@ -284,7 +284,7 @@ export async function DELETE(request: NextRequest) {
 
     if (error) {
       console.error("Pricing rule delete error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     await auth.supabase.from("rule_audit_logs").insert({

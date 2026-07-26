@@ -40,7 +40,8 @@ export async function GET(request: NextRequest) {
 
   const { data: orders, error: ordersError } = await ordersQuery;
   if (ordersError) {
-    return NextResponse.json({ error: ordersError.message }, { status: 500 });
+    console.error("admin/accounting error:", ordersError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const orderIds = (orders || []).map((o) => o.id);

@@ -42,7 +42,10 @@ export async function GET(request: NextRequest) {
     .gte("created_at", ninetyDaysAgo)
     .order("created_at", { ascending: true });
 
-  if (quotesError) return NextResponse.json({ error: quotesError.message }, { status: 500 });
+  if (quotesError) {
+    console.error("admin/attribution error:", quotesError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const firstQuoteByUser = new Map<string, string>(); // user_id -> channel
   for (const q of recentQuotes || []) {
@@ -62,7 +65,10 @@ export async function GET(request: NextRequest) {
     .eq("spend_month", monthStart)
     .is("deleted_at", null);
 
-  if (spendError) return NextResponse.json({ error: spendError.message }, { status: 500 });
+  if (spendError) {
+    console.error("admin/attribution error:", spendError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const spendByChannel = new Map<string, number>();
   for (const s of spendRows || []) {
@@ -90,7 +96,10 @@ export async function GET(request: NextRequest) {
     .eq("status", "completed")
     .gte("service_date", ninetyDaysAgo.slice(0, 10));
 
-  if (ordersError) return NextResponse.json({ error: ordersError.message }, { status: 500 });
+  if (ordersError) {
+    console.error("admin/attribution error:", ordersError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const orders = completedOrders || [];
   const avgTicketCents =
@@ -205,7 +214,10 @@ export async function POST(request: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("admin/attribution error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   return NextResponse.json({ spend: data }, { status: 201 });
 }

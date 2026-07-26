@@ -55,7 +55,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         .eq("id", id)
         .select()
         .single();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) {
+        console.error("admin/contract-reviews/[id] error:", error);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
       return NextResponse.json({ review: updated }, { status: 200 });
     }
 
@@ -75,7 +78,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         .eq("id", id)
         .select()
         .single();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) {
+        console.error("admin/contract-reviews/[id] error:", error);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
       return NextResponse.json({ review: updated }, { status: 200 });
     }
 
@@ -124,7 +130,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         })
         .select()
         .single();
-      if (versionError) return NextResponse.json({ error: versionError.message }, { status: 500 });
+      if (versionError) {
+        console.error("admin/contract-reviews/[id] error:", versionError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
 
       // Reflejar los términos aprobados en el contrato vigente (mismo
       // patrón que el ajuste IPC ya aplica base_price/total).
@@ -152,7 +161,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         .eq("id", id)
         .select()
         .single();
-      if (reviewUpdateError) return NextResponse.json({ error: reviewUpdateError.message }, { status: 500 });
+      if (reviewUpdateError) {
+        console.error("admin/contract-reviews/[id] error:", reviewUpdateError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
 
       return NextResponse.json({ review: updatedReview, version: newVersion }, { status: 200 });
     }

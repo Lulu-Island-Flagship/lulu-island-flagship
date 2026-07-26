@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("admin/entity-notes error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const notes: EntityNote[] = (data || []).map((n) => ({
@@ -80,7 +81,8 @@ export async function POST(request: NextRequest) {
     .select()
     .single();
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("admin/entity-notes error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
   return NextResponse.json({ note: data }, { status: 201 });
 }
@@ -101,7 +103,8 @@ export async function DELETE(request: NextRequest) {
   }
   const { error } = await supabase.from("entity_notes").update({ deleted_at: new Date().toISOString() }).eq("id", id);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("admin/entity-notes error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
   return NextResponse.json({ ok: true }, { status: 200 });
 }

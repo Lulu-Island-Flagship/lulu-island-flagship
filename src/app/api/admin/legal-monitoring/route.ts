@@ -28,7 +28,8 @@ export async function GET() {
     .order("entity_name", { ascending: true });
 
   if (feedsError) {
-    return NextResponse.json({ error: feedsError.message }, { status: 500 });
+    console.error("admin/legal-monitoring error:", feedsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const { data: alerts, error: alertsError } = await supabase
@@ -39,7 +40,8 @@ export async function GET() {
     .order("detected_at", { ascending: false });
 
   if (alertsError) {
-    return NextResponse.json({ error: alertsError.message }, { status: 500 });
+    console.error("admin/legal-monitoring error:", alertsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const now = new Date();
@@ -124,7 +126,8 @@ export async function PATCH(request: NextRequest) {
         .select()
         .single();
       if (alertError) {
-        return NextResponse.json({ error: alertError.message }, { status: 500 });
+        console.error("admin/legal-monitoring error:", alertError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
       alert = createdAlert;
     }

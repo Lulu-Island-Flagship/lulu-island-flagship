@@ -33,7 +33,8 @@ export async function POST(
       .single();
 
     if (fetchError) {
-      return NextResponse.json({ error: fetchError.message }, { status: 500 });
+      console.error("admin/tickets/[id]/resolve error:", fetchError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     if (!existingTicket) {
@@ -71,7 +72,8 @@ export async function POST(
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/tickets/[id]/resolve error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // E6 Sesión H — aviso de garantía/disputa al cliente. Solo cuando el

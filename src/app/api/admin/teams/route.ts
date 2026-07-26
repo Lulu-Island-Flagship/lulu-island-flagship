@@ -30,7 +30,10 @@ export async function GET(request: NextRequest) {
   }
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("admin/teams error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   return NextResponse.json({ teams: data || [] }, { status: 200 });
 }
@@ -59,7 +62,10 @@ export async function POST(request: NextRequest) {
       .select("id, name, avatar_initials, avatar_color, active, created_at")
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("admin/teams error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
 
     return NextResponse.json({ team: data }, { status: 201 });
   } catch (err: Error | unknown) {
@@ -99,7 +105,10 @@ export async function PATCH(request: NextRequest) {
       .select("id, name, avatar_initials, avatar_color, active, created_at")
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("admin/teams error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     if (!data) return NextResponse.json({ error: "Team not found" }, { status: 404 });
 
     return NextResponse.json({ team: data }, { status: 200 });

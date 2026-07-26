@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { computeWorkSafeBCDeadline } from "@/lib/workplace-incident";
+import { requireActiveEmployee } from "@/lib/require-active-employee";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -83,14 +84,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: reporter } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
+    const { employee: reporter, error: reporterError, status: reporterStatus } = await requireActiveEmployee(supabase, user.id);
 
     if (!reporter) {
-      return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
+      return NextResponse.json({ error: reporterError }, { status: reporterStatus });
     }
 
     // Si no se especifica employeeId (el lesionado), se asume que el
@@ -109,6 +106,7 @@ export async function POST(request: NextRequest) {
         .from("employees")
         .select("id")
         .eq("id", employeeId)
+        .eq("is_active", true)
         .is("deleted_at", null)
         .maybeSingle();
 

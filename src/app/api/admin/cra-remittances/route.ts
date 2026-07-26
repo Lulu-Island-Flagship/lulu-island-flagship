@@ -30,7 +30,8 @@ export async function GET(request: NextRequest) {
     .gte("period_start", `${year}-01-01`)
     .lte("period_end", `${year}-12-31`);
   if (existingError) {
-    return NextResponse.json({ error: existingError.message }, { status: 500 });
+    console.error("admin/cra-remittances error:", existingError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const existingKeys = new Set((existing || []).map((p) => `${p.remittance_type}|${p.period_start}|${p.period_end}`));
@@ -49,7 +50,8 @@ export async function GET(request: NextRequest) {
       }))
     );
     if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      console.error("admin/cra-remittances error:", insertError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
   }
 
@@ -60,7 +62,8 @@ export async function GET(request: NextRequest) {
     .lte("period_end", `${year}-12-31`)
     .order("due_date", { ascending: true });
   if (reloadError) {
-    return NextResponse.json({ error: reloadError.message }, { status: 500 });
+    console.error("admin/cra-remittances error:", reloadError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const todayISO = new Date().toISOString().slice(0, 10);

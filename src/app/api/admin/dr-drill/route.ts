@@ -54,8 +54,14 @@ export async function GET(request: NextRequest) {
       .order("rto_hours", { ascending: true }),
   ]);
 
-  if (drillsError) return NextResponse.json({ error: drillsError.message }, { status: 500 });
-  if (rtoError) return NextResponse.json({ error: rtoError.message }, { status: 500 });
+  if (drillsError) {
+    console.error("admin/dr-drill error:", drillsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
+  if (rtoError) {
+    console.error("admin/dr-drill error:", rtoError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   // Fecha del simulacro MÁS RECIENTE por tipo (sin importar pass/fail/partial
   // -- ver comentario en dr-drill.ts) para calcular vencimiento del intervalo
@@ -130,7 +136,10 @@ export async function POST(request: NextRequest) {
       })
       .select()
       .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("admin/dr-drill error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     return NextResponse.json({ drill: data }, { status: 201 });
   }
 
@@ -184,7 +193,10 @@ export async function POST(request: NextRequest) {
     .select()
     .single();
 
-  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
+  if (insertError) {
+    console.error("admin/dr-drill error:", insertError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   return NextResponse.json({ drill, evaluation }, { status: 201 });
 }

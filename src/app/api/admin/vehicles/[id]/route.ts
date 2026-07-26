@@ -43,7 +43,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     if (error) {
       console.error("Vehicle update error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ vehicle: data }, { status: 200 });

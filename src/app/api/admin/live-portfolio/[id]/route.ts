@@ -32,7 +32,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     .select("id, status, candidate_photo_urls")
     .eq("id", params.id)
     .maybeSingle();
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
+  if (fetchError) {
+    console.error("admin/live-portfolio/[id] error:", fetchError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   if (!candidate) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (candidate.status !== "candidate") {
     return NextResponse.json({ error: `Already resolved as '${candidate.status}'` }, { status: 409 });
@@ -60,7 +63,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("admin/live-portfolio/[id] error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     return NextResponse.json({ candidate: data }, { status: 200 });
   }
 
@@ -77,7 +83,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("admin/live-portfolio/[id] error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     return NextResponse.json({ candidate: data }, { status: 200 });
   }
 

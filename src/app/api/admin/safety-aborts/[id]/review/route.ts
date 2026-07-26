@@ -43,7 +43,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/safety-aborts/[id]/review error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ safetyAbort: data, outcome }, { status: 200 });

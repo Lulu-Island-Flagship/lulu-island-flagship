@@ -48,7 +48,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .eq("id", experimentId)
       .select()
       .single();
-    if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+    if (updateError) {
+      console.error("admin/experiments/[id]/evaluate error:", updateError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     return NextResponse.json({ result, experiment: updated }, { status: 200 });
   }
 

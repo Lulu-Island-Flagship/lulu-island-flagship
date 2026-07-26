@@ -47,7 +47,8 @@ export async function GET(request: NextRequest) {
       .lt("created_at", weekEndExclusive);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/near-misses error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const records: NearMissRecord[] = (data || []).map((r) => ({

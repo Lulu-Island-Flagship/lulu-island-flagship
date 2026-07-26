@@ -44,7 +44,8 @@ export async function GET(request: NextRequest) {
       .order("opened_at", { ascending: true });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/warranty-claims error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ claims: data || [] }, { status: 200 });

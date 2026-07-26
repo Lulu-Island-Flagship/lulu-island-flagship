@@ -11,6 +11,11 @@ import {
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
 
+// v8.3 fix (auditoría seguridad 2026-07-26): orderId solo se validaba como
+// string no vacío, sin comprobar que fuera un UUID válido -- un valor
+// arbitrario llegaba intacto hasta la consulta a `orders`.
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function getSupabaseClient() {
   const cookieStore = cookies();
   return createServerClient(supabaseUrl, supabaseKey, {
@@ -57,8 +62,11 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
   }
-  if (!body.orderId) {
+  if (!body.orderId || typeof body.orderId !== "string") {
     return NextResponse.json({ error: "orderId es obligatorio" }, { status: 400 });
+  }
+  if (!UUID_REGEX.test(body.orderId)) {
+    return NextResponse.json({ error: "orderId inválido" }, { status: 400 });
   }
 
   const { data: order, error: orderError } = await supabase

@@ -120,7 +120,8 @@ export async function POST(
       .single();
 
     if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      console.error("admin/warranty-claims/[id]/resolve error:", updateError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     if (!updatedClaim) {
       return NextResponse.json(

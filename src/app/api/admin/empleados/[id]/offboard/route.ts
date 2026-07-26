@@ -96,7 +96,8 @@ export async function POST(
           { onConflict: "employee_id,payout_type,source_calendar_year" }
         );
       if (payoutError) {
-        return NextResponse.json({ error: payoutError.message }, { status: 500 });
+        console.error("admin/empleados/[id]/offboard error:", payoutError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
     }
 
@@ -169,7 +170,8 @@ export async function POST(
           .in("id", assignmentIds);
 
         if (releaseError) {
-          return NextResponse.json({ error: releaseError.message }, { status: 500 });
+          console.error("admin/empleados/[id]/offboard error:", releaseError);
+          return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
         }
         reassignedCount = assignmentIds.length;
 
@@ -231,7 +233,8 @@ export async function POST(
       .single();
 
     if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      console.error("admin/empleados/[id]/offboard error:", updateError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json(

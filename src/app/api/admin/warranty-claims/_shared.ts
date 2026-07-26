@@ -34,7 +34,8 @@ export async function loadDisputeResolutionContext(supabase: any, claimId: strin
     .maybeSingle();
 
   if (claimError) {
-    return { error: claimError.message, status: 500 as const };
+    console.error("admin/warranty-claims/_shared claim fetch error:", claimError);
+    return { error: "Ocurrió un error interno", status: 500 as const };
   }
   if (!claim) {
     return { error: "Warranty claim not found", status: 404 as const };
@@ -64,10 +65,12 @@ export async function loadDisputeResolutionContext(supabase: any, claimId: strin
     ]);
 
   if (checklistError) {
-    return { error: checklistError.message, status: 500 as const };
+    console.error("admin/warranty-claims/_shared checklist fetch error:", checklistError);
+    return { error: "Ocurrió un error interno", status: 500 as const };
   }
   if (evidenceError) {
-    return { error: evidenceError.message, status: 500 as const };
+    console.error("admin/warranty-claims/_shared evidence fetch error:", evidenceError);
+    return { error: "Ocurrió un error interno", status: 500 as const };
   }
 
   const zoneMap = new Map<string, ZoneClosureEvidence>();

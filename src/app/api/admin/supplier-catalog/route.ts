@@ -40,7 +40,8 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("admin/supplier-catalog error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   return NextResponse.json({ catalog: data || [] }, { status: 200 });
@@ -88,7 +89,8 @@ export async function POST(request: NextRequest) {
       .eq("is_current", true);
 
     if (retireError) {
-      return NextResponse.json({ error: retireError.message }, { status: 500 });
+      console.error("admin/supplier-catalog error:", retireError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const { data, error } = await supabase
@@ -105,7 +107,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/supplier-catalog error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ catalogEntry: data }, { status: 201 });

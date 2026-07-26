@@ -379,11 +379,15 @@ export default function CotizadorPage() {
     setSubmitError("");
 
     try {
-      // Always verify session fresh from Supabase before trusting it
+      // Always verify session fresh from Supabase before trusting it.
+      // Fix (auditoría de autenticación 2026-07-25/26, item 3): getSession()
+      // solo lee el JWT local sin validarlo contra el servidor -- getUser()
+      // sí lo valida, que es lo que este comentario ya decía que se quería
+      // hacer.
       let currentUserId = forcedUserId;
       if (!currentUserId) {
-        const { data: { session } } = await supabase.auth.getSession();
-        currentUserId = session?.user?.id;
+        const { data: { user } } = await supabase.auth.getUser();
+        currentUserId = user?.id;
       }
 
       if (!currentUserId) {

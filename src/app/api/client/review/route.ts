@@ -46,6 +46,15 @@ function vancouverOffsetForDate(dateStr: string): string {
 
 // POST /api/client/review — guardar evaluación post-servicio (Fase 8.1)
 // Autenticación por token (review_token) — no requiere login de usuario
+//
+// EXCEPCIÓN INTENCIONAL (auditoría seguridad 2026-07-26): este endpoint es
+// deliberadamente público / sin sesión, a diferencia del resto de rutas de
+// /api/client/**. NO agregar un chequeo de auth.getUser()/sesión aquí -- el
+// cliente llega por un link de SMS/email sin sesión de navegador activa (ver
+// comentario completo arriba, líneas 4-18), y el control de acceso real es el
+// review_token: single-use (review_token_used_at), ventana de 24h, atado a
+// una orden específica. "Corregir" esto para exigir sesión rompería el flujo
+// completo de reseñas post-servicio.
 export async function POST(request: NextRequest) {
   try {
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {

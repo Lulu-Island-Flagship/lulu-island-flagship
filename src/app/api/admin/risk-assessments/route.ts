@@ -30,7 +30,8 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query.limit(100);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/risk-assessments error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ assessments: data || [] }, { status: 200 });
@@ -83,7 +84,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/risk-assessments error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ assessment: data, computed: assessment }, { status: 201 });

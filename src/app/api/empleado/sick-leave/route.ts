@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { calculatePayroll, BC_MIN_WAGE_HOURLY } from "@/lib/payroll";
 import { decideSickLeaveEligibility } from "@/lib/sick-leave";
+import { requireActiveEmployee } from "@/lib/require-active-employee";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -56,12 +57,12 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data: employee } = await supabase
-    .from("employees")
-    .select("id, hire_date, day_rate")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!employee) return NextResponse.json({ error: "No employee record found" }, { status: 404 });
+  const { employee, error: empError, status: empStatus } = await requireActiveEmployee<{
+    id: string;
+    hire_date: string | null;
+    day_rate: number | null;
+  }>(supabase, user.id, "id, hire_date, day_rate");
+  if (!employee) return NextResponse.json({ error: empError }, { status: empStatus });
 
   try {
     const body = await request.json();
@@ -122,8 +123,15 @@ export async function POST(request: NextRequest) {
     // llamar, y se usa .grossAmount (no .baseAmount) para respetar el
     // ajuste al piso salarial mínimo de BC que calculatePayroll ya
     // calcula pero que .baseAmount ignora.
+    if (eligibility.payType === "paid" && employee.day_rate == null) {
+      return NextResponse.json(
+        { error: "Employee day rate is not configured" },
+        { status: 500 }
+      );
+    }
+
     const paidAmountCents =
-      eligibility.payType === "paid"
+      eligibility.payType === "paid" && employee.day_rate != null
         ? calculatePayroll({ dayRate: Math.round(employee.day_rate * 100) }).grossAmount
         : null;
 
@@ -176,12 +184,8 @@ export async function GET() {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data: employee } = await supabase
-    .from("employees")
-    .select("id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!employee) return NextResponse.json({ error: "No employee record found" }, { status: 404 });
+  const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id);
+  if (!employee) return NextResponse.json({ error: empError }, { status: empStatus });
 
   const currentYear = new Date().getUTCFullYear();
   const { data: requests, error } = await supabase

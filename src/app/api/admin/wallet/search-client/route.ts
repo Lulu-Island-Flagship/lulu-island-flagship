@@ -57,7 +57,8 @@ export async function GET(request: NextRequest) {
 
   const firstError = byName.error || byEmail.error || byPhone.error;
   if (firstError) {
-    return NextResponse.json({ error: firstError.message }, { status: 500 });
+    console.error("admin/wallet/search-client error:", firstError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const merged = new Map<string, { userId: string; fullName: string | null; email: string | null; phone: string | null }>();

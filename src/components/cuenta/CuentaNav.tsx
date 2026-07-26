@@ -14,21 +14,17 @@
 // secciones quedan visibles/descubribles con un swipe, sin un tap extra
 // para abrir un menú, y sin la complejidad de un overlay a construir aquí.
 //
-// Logout: reusa el MISMO mecanismo que empleado/page.tsx handleLogout()
-// (supabase.auth.signOut() + router.push a la pantalla de login del área),
-// no se inventa un flujo nuevo. La diferencia es el destino: en /cuenta no
-// hay "Portal" propio -- el login de cliente es el AuthModal montado por
-// cuenta/layout.tsx sobre la propia ruta actual, así que basta con navegar
-// a la raíz de /cuenta (o quedarse en la página actual) tras el signOut;
-// el layout detecta la sesión perdida vía onAuthStateChange y vuelve a
-// mostrar el AuthModal automáticamente -- sin necesitar un router.push
-// explícito a otra URL.
+// Logout (actualizado, auditoría de autenticación 2026-07-25/26, item 4):
+// ya NO cierra sesión directo desde el navegador con supabase.auth.signOut()
+// -- usa el mismo endpoint POST /auth/signout que /admin (form POST, ver
+// más abajo). cuenta/layout.tsx sigue detectando la sesión perdida vía
+// onAuthStateChange y vuelve a mostrar el AuthModal automáticamente una vez
+// que /auth/signout limpia las cookies y redirige.
 import React from "react";
 import Link from "next/link";
-import { usePathname, useParams, useRouter } from "next/navigation";
+import { usePathname, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Wrench, Home, Wallet, Gift, Settings, LogOut } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 
 const SECTIONS = [
   { key: "servicios", href: "servicios", icon: Wrench },
@@ -42,19 +38,16 @@ export function CuentaNav() {
   const t = useTranslations("cuenta.nav");
   const pathname = usePathname();
   const params = useParams();
-  const router = useRouter();
   const locale = (params?.locale as string) || "en";
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    // cuenta/layout.tsx escucha onAuthStateChange y vuelve a mostrar el
-    // AuthModal automáticamente al perder la sesión -- no hace falta
-    // redirigir a otra ruta, solo asegurarnos de estar en la raíz de
-    // /cuenta para un login limpio (evita quedarse en, p.ej., un formulario
-    // de edición a medio llenar tras cerrar sesión).
-    router.push(`/${locale}/cuenta`);
-  };
-
+  // Fix (auditoría de autenticación 2026-07-25/26, item 4): antes cerraba
+  // sesión directo desde el navegador con supabase.auth.signOut(), distinto
+  // al patrón ya usado en /admin (form POST a /auth/signout, ver
+  // src/app/[locale]/admin/layout.tsx). Se unifica al mismo endpoint server-
+  // side -- limpia las cookies de sesión de forma consistente y evita tener
+  // dos mecanismos de logout distintos en el mismo proyecto. Se usa un
+  // <form> normal (no fetch) para que el POST + redirect final de esa Route
+  // Handler funcione igual que en /admin.
   return (
     <nav
       aria-label={t("ariaLabel")}
@@ -79,15 +72,16 @@ export function CuentaNav() {
             </Link>
           );
         })}
-        <button
-          type="button"
-          onClick={handleLogout}
-          aria-label={t("logout")}
-          className="flex flex-col items-center justify-center gap-1 px-4 py-2.5 min-w-[76px] shrink-0 text-xs font-medium border-b-2 border-transparent text-gray-400 hover:text-state-danger transition-colors ml-auto"
-        >
-          <LogOut className="w-5 h-5" />
-          <span className="whitespace-nowrap">{t("logout")}</span>
-        </button>
+        <form action={`/auth/signout?locale=${locale}`} method="post" className="ml-auto">
+          <button
+            type="submit"
+            aria-label={t("logout")}
+            className="flex flex-col items-center justify-center gap-1 px-4 py-2.5 min-w-[76px] shrink-0 text-xs font-medium border-b-2 border-transparent text-gray-400 hover:text-state-danger transition-colors"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="whitespace-nowrap">{t("logout")}</span>
+          </button>
+        </form>
       </div>
     </nav>
   );

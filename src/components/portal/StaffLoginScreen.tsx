@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import { Shield, Loader2 } from "lucide-react";
 
@@ -32,6 +33,7 @@ interface StaffLoginScreenProps {
  * src/components/cotizador/AuthModal.tsx) como alterna adicional a Google.
  */
 export default function StaffLoginScreen({ locale, error: initialError }: StaffLoginScreenProps) {
+  const t = useTranslations("portal.staffLogin");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(initialError || "");
   const [mode, setMode] = useState<"google" | "options" | "email" | "backup-code">("google");
@@ -51,9 +53,12 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
         },
       });
       if (error) throw error;
-    } catch (err: Error | unknown) {
+    } catch {
+      // Fix (auditoría de autenticación 2026-07-25/26, item 1): nunca mostrar
+      // err.message crudo de Supabase Auth al usuario -- mismo patrón que
+      // src/components/cotizador/AuthModal.tsx (item 13).
       setIsLoading(false);
-      setError(err instanceof Error ? err.message : "Google sign-in failed.");
+      setError(t("errors.googleFailed"));
     }
   };
 
@@ -64,7 +69,7 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
   // ya esté en employees o admin_roles.
   const handleEmailOtpRequest = async () => {
     if (!email || !email.includes("@")) {
-      setError("Please enter a valid email address");
+      setError(t("errors.invalidEmail"));
       return;
     }
     setIsLoading(true);
@@ -92,8 +97,9 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
       });
       if (error) throw error;
       setOtpSent(true);
-    } catch (err: Error | unknown) {
-      setError(err instanceof Error ? err.message : "Failed to send verification code");
+    } catch {
+      // Fix (item 1): nunca mostrar err.message crudo de Supabase Auth.
+      setError(t("errors.sendCodeFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -101,7 +107,7 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
 
   const handleVerifyOtp = async () => {
     if (!otpCode || otpCode.length < 6) {
-      setError("Please enter the 6-digit code");
+      setError(t("errors.invalidCode"));
       return;
     }
     setIsLoading(true);
@@ -114,8 +120,9 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
       });
       if (error) throw error;
       window.location.reload();
-    } catch (err: Error | unknown) {
-      setError(err instanceof Error ? err.message : "Invalid verification code");
+    } catch {
+      // Fix (item 1): nunca mostrar err.message crudo de Supabase Auth.
+      setError(t("errors.invalidVerificationCode"));
       setIsLoading(false);
     }
   };
@@ -131,7 +138,7 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
   // que el token llegó por esta respuesta en vez de por correo.
   const handleBackupCodeSignIn = async () => {
     if (!backupCode.trim()) {
-      setError("Please enter a backup code");
+      setError(t("errors.backupCodeRequired"));
       return;
     }
     setIsLoading(true);
@@ -143,7 +150,10 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
         body: JSON.stringify({ code: backupCode }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Invalid backup code");
+      // Fix (item 1): antes se propagaba json.error (mensaje del servidor,
+      // potencialmente técnico) directo al usuario vía new Error(...).message
+      // más abajo. Se usa siempre el mensaje genérico localizado.
+      if (!res.ok) throw new Error("backup_code_failed");
 
       const { error: verifyError } = await supabase.auth.verifyOtp({
         token_hash: json.tokenHash,
@@ -151,8 +161,8 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
       });
       if (verifyError) throw verifyError;
       window.location.reload();
-    } catch (err: Error | unknown) {
-      setError(err instanceof Error ? err.message : "Backup code sign-in failed");
+    } catch {
+      setError(t("errors.backupCodeFailed"));
       setIsLoading(false);
     }
   };

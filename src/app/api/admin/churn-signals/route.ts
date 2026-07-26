@@ -37,7 +37,10 @@ export async function GET(request: NextRequest) {
     .order("created_at", { ascending: false })
     .limit(100);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("admin/churn-signals error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   return NextResponse.json({ churnSignals: data || [] }, { status: 200 });
 }
@@ -100,7 +103,10 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("admin/churn-signals error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     return NextResponse.json({ churnSignal: data }, { status: 201 });
   }
 
@@ -166,7 +172,10 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+    if (updateError) {
+      console.error("admin/churn-signals error:", updateError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     return NextResponse.json({ churnSignal: updated }, { status: 200 });
   }
 

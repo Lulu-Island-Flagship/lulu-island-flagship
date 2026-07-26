@@ -75,7 +75,10 @@ export async function GET(request: NextRequest) {
     .eq("status", "completed")
     .gte("service_date", rangeStart)
     .lte("service_date", rangeEnd);
-  if (revenueOrdersError) return NextResponse.json({ error: revenueOrdersError.message }, { status: 500 });
+  if (revenueOrdersError) {
+    console.error("admin/export error:", revenueOrdersError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const revenueOrderIds = (revenueOrders || []).map((o) => o.id);
   const reserveCapturedByOrderId = new Map<string, number>();
@@ -84,7 +87,10 @@ export async function GET(request: NextRequest) {
       .from("chargeback_reserves")
       .select("order_id, captured_amount")
       .in("order_id", revenueOrderIds);
-    if (reserveError) return NextResponse.json({ error: reserveError.message }, { status: 500 });
+    if (reserveError) {
+      console.error("admin/export error:", reserveError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     for (const r of reserveRows || []) {
       reserveCapturedByOrderId.set(
         r.order_id,
@@ -115,7 +121,10 @@ export async function GET(request: NextRequest) {
     .gte("created_at", rangeStart)
     .lte("created_at", `${rangeEnd}T23:59:59`)
     .is("deleted_at", null);
-  if (payrollError) return NextResponse.json({ error: payrollError.message }, { status: 500 });
+  if (payrollError) {
+    console.error("admin/export error:", payrollError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   type EmpJoin = { name: string } | { name: string }[] | null;
   for (const p of payrollRows || []) {
@@ -136,7 +145,10 @@ export async function GET(request: NextRequest) {
     .gte("credit_date", rangeStart)
     .lte("credit_date", rangeEnd)
     .is("deleted_at", null);
-  if (readinessError) return NextResponse.json({ error: readinessError.message }, { status: 500 });
+  if (readinessError) {
+    console.error("admin/export error:", readinessError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   for (const c of readinessRows || []) {
     const empJoin = c.employees as EmpJoin;
@@ -159,7 +171,10 @@ export async function GET(request: NextRequest) {
       "employee_id, cycle_label, cpp_cents, cpp2_cents, ei_employee_cents, ei_employer_cents, worksafebc_employer_cents, vacation_pay_accrual_cents, created_at, employees(name)"
     )
     .like("cycle_label", `${month}%`);
-  if (deductionError) return NextResponse.json({ error: deductionError.message }, { status: 500 });
+  if (deductionError) {
+    console.error("admin/export error:", deductionError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   for (const d of deductionRows || []) {
     const empJoin = d.employees as EmpJoin;
@@ -197,7 +212,10 @@ export async function GET(request: NextRequest) {
     .gte("created_at", rangeStart)
     .lte("created_at", `${rangeEnd}T23:59:59`)
     .is("deleted_at", null);
-  if (giftError) return NextResponse.json({ error: giftError.message }, { status: 500 });
+  if (giftError) {
+    console.error("admin/export error:", giftError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   for (const g of giftRows || []) {
     records.push({
@@ -221,7 +239,10 @@ export async function GET(request: NextRequest) {
     .select("order_id, tax_reserve_cents, created_at")
     .gte("created_at", rangeStart)
     .lte("created_at", `${rangeEnd}T23:59:59`);
-  if (reserveErr) return NextResponse.json({ error: reserveErr.message }, { status: 500 });
+  if (reserveErr) {
+    console.error("admin/export error:", reserveErr);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   for (const t of reserveRows || []) {
     records.push({

@@ -238,12 +238,19 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       // Persistir phone_verified=true en client_profiles -- es lo que el
       // resto del sistema (reserva, recordatorios SMS) consulta. RLS
       // (migración 018) permite que el usuario actualice su propia fila.
+      // Fix (auditoría seguridad 2026-07-26): antes era un .update(), que no
+      // hace nada (sin error visible) si la fila todavía no existe -- ej. si
+      // el trigger de Supabase que debería crearla en signup no corrió.
+      // upsert con onConflict "user_id" garantiza que la fila se cree si
+      // falta, en vez de fallar en silencio.
       const { data: userData } = await supabase.auth.getUser();
       if (userData.user) {
         await supabase
           .from("client_profiles")
-          .update({ phone_verified: true, phone_number: normalizedPhone })
-          .eq("user_id", userData.user.id);
+          .upsert(
+            { user_id: userData.user.id, phone_verified: true, phone_number: normalizedPhone },
+            { onConflict: "user_id" }
+          );
       }
 
       onSuccess();
@@ -295,10 +302,15 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
         const { data: userData } = await supabase.auth.getUser();
         if (userData.user) {
           const normalizedPhone = phone.startsWith("+") ? phone : `+1${phone}`;
+          // Fix (auditoría seguridad 2026-07-26): mismo problema que
+          // handleVerifyLinkedPhone -- .update() no hace nada si la fila de
+          // client_profiles todavía no existe. upsert garantiza que se cree.
           await supabase
             .from("client_profiles")
-            .update({ phone_verified: true, phone_number: normalizedPhone })
-            .eq("user_id", userData.user.id);
+            .upsert(
+              { user_id: userData.user.id, phone_verified: true, phone_number: normalizedPhone },
+              { onConflict: "user_id" }
+            );
         }
       }
 

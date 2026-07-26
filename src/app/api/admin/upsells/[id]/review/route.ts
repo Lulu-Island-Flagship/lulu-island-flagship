@@ -82,7 +82,7 @@ export async function POST(
 
     if (error) {
       console.error("Upsell review error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     if (action === "approve" || action === "reject") {

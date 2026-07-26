@@ -10,6 +10,7 @@ import {
   type CareerLevel,
 } from "@/lib/career-path";
 import type { EmployeeCertificationRecord } from "@/lib/certifications";
+import { requireActiveEmployee } from "@/lib/require-active-employee";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -45,14 +46,17 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: me, error: meError } = await supabase
-      .from("employees")
-      .select("id, name, trust_level, career_level, career_level_since, hire_date")
-      .eq("user_id", user.id)
-      .single();
+    const { employee: me, error: meError, status: meStatus } = await requireActiveEmployee<{
+      id: string;
+      name: string | null;
+      trust_level: string | null;
+      career_level: string | null;
+      career_level_since: string | null;
+      hire_date: string | null;
+    }>(supabase, user.id, "id, name, trust_level, career_level, career_level_since, hire_date");
 
-    if (meError || !me) {
-      return NextResponse.json({ error: "Employee not found" }, { status: 403 });
+    if (!me) {
+      return NextResponse.json({ error: meError }, { status: meStatus });
     }
 
     // Scores históricos. v8.3 E8 FIX-1 (auditoría, bug crítico): esta ruta

@@ -34,7 +34,8 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase.rpc("get_team_top3", { p_week_start: weekStart });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("admin/team-ranking error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const rows = (data || []).map((r: { team_id: string; team_name: string; composite_score: number }) => ({

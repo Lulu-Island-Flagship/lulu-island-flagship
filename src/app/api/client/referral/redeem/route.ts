@@ -170,6 +170,34 @@ export async function POST(request: NextRequest) {
 
   const sameIpFlag = decideSameIpFraudFlag(referrerLastQuote?.consent_ip ?? null, clientIp);
 
+  // v8.3 fix (auditoría seguridad 2026-07-26): mentionedEmployeeId se insertaba
+  // sin validar que ese empleado existiera y estuviera activo -- un id
+  // arbitrario (ajeno, inactivo o borrado) quedaba guardado sin más
+  // comprobación. Se verifica contra `employees` (is_active=true,
+  // deleted_at IS NULL) antes de insertar; si no matchea, se rechaza el
+  // canje completo con un mensaje genérico (sin filtrar detalles técnicos).
+  let mentionedEmployeeId: string | null = null;
+  if (body.mentionedEmployeeId) {
+    const { data: mentionedEmployee, error: mentionedEmployeeError } = await supabase
+      .from("employees")
+      .select("id")
+      .eq("id", body.mentionedEmployeeId)
+      .eq("is_active", true)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (mentionedEmployeeError) {
+      console.error("referral/redeem mentionedEmployeeId lookup error:", mentionedEmployeeError);
+      return NextResponse.json({ error: "No se pudo procesar el canje" }, { status: 500 });
+    }
+    if (!mentionedEmployee) {
+      return NextResponse.json(
+        { error: "The mentioned employee is invalid or no longer active" },
+        { status: 400 }
+      );
+    }
+    mentionedEmployeeId = mentionedEmployee.id;
+  }
+
   const { data: referral, error: referralError } = await supabase
     .from("referrals")
     .insert({
@@ -179,7 +207,7 @@ export async function POST(request: NextRequest) {
       referrer_signup_ip: referrerLastQuote?.consent_ip ?? null,
       referred_signup_ip: clientIp,
       same_ip_flag: sameIpFlag,
-      mentioned_employee_id: body.mentionedEmployeeId || null,
+      mentioned_employee_id: mentionedEmployeeId,
       status: sameIpFlag ? "flagged" : "pending",
     })
     .select()

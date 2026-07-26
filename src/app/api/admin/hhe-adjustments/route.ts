@@ -47,7 +47,10 @@ export async function GET(request: NextRequest) {
     .eq("status", "completed")
     .gte("service_date", lookbackStr)
     .lte("service_date", asOfDate);
-  if (ordersError) return NextResponse.json({ error: ordersError.message }, { status: 500 });
+  if (ordersError) {
+    console.error("admin/hhe-adjustments error:", ordersError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const orderIds = (orders || []).map((o) => o.id);
   if (orderIds.length === 0) {
@@ -64,9 +67,18 @@ export async function GET(request: NextRequest) {
       supabase.from("assignments").select("order_id, employee_id, employees(name)").in("order_id", orderIds),
       supabase.rpc("get_current_hhe_table"),
     ]);
-  if (checklistError) return NextResponse.json({ error: checklistError.message }, { status: 500 });
-  if (assignmentError) return NextResponse.json({ error: assignmentError.message }, { status: 500 });
-  if (hheError) return NextResponse.json({ error: hheError.message }, { status: 500 });
+  if (checklistError) {
+    console.error("admin/hhe-adjustments error:", checklistError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
+  if (assignmentError) {
+    console.error("admin/hhe-adjustments error:", assignmentError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
+  if (hheError) {
+    console.error("admin/hhe-adjustments error:", hheError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const baselineTable = new Map<string, number>(); // "service_type::range_index" -> hhe_value
   for (const row of hheTable || []) {
@@ -200,7 +212,10 @@ export async function POST(request: NextRequest) {
     .eq("service_type", serviceType)
     .eq("range_index", rangeIndex)
     .is("effective_to", null);
-  if (closeError) return NextResponse.json({ error: closeError.message }, { status: 500 });
+  if (closeError) {
+    console.error("admin/hhe-adjustments error:", closeError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const { data: inserted, error: insertError } = await supabase
     .from("hhe_settings")
@@ -214,7 +229,10 @@ export async function POST(request: NextRequest) {
     })
     .select()
     .single();
-  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
+  if (insertError) {
+    console.error("admin/hhe-adjustments error:", insertError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   return NextResponse.json({ applied: inserted }, { status: 200 });
 }

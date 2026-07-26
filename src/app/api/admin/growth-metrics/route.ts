@@ -44,7 +44,10 @@ export async function GET(request: NextRequest) {
     .from("quotes")
     .select("id")
     .gte("created_at", periodStartIso);
-  if (quotesError) return NextResponse.json({ error: quotesError.message }, { status: 500 });
+  if (quotesError) {
+    console.error("admin/growth-metrics error:", quotesError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   const quoteIds = (quotesInPeriod || []).map((q: { id: string }) => q.id);
 
   let ordersFromThoseQuotes = 0;
@@ -53,7 +56,10 @@ export async function GET(request: NextRequest) {
       .from("orders")
       .select("id", { count: "exact", head: true })
       .in("quote_id", quoteIds);
-    if (ordersError) return NextResponse.json({ error: ordersError.message }, { status: 500 });
+    if (ordersError) {
+      console.error("admin/growth-metrics error:", ordersError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     ordersFromThoseQuotes = count || 0;
   }
   const funnel = evaluateFunnelConversionRate(quoteIds.length, ordersFromThoseQuotes);
@@ -63,7 +69,10 @@ export async function GET(request: NextRequest) {
     .from("client_profiles")
     .select("referred_by_code")
     .gte("created_at", periodStartIso);
-  if (newClientsError) return NextResponse.json({ error: newClientsError.message }, { status: 500 });
+  if (newClientsError) {
+    console.error("admin/growth-metrics error:", newClientsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   const newClientsTotal = (newClients || []).length;
   const newClientsReferred = (newClients || []).filter((c: { referred_by_code: string | null }) => !!c.referred_by_code).length;
   const referral = evaluateReferralRate(newClientsTotal, newClientsReferred);
@@ -74,7 +83,10 @@ export async function GET(request: NextRequest) {
     .select("user_id")
     .gte("service_datetime", activeWindowStartDate)
     .lt("service_datetime", periodStartIso);
-  if (activeOrdersError) return NextResponse.json({ error: activeOrdersError.message }, { status: 500 });
+  if (activeOrdersError) {
+    console.error("admin/growth-metrics error:", activeOrdersError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   const activeClientsBeforePeriod = new Set((activeOrders || []).map((o: { user_id: string }) => o.user_id)).size;
 
   const { data: churnSignalsInPeriod, error: churnError } = await supabase
@@ -82,7 +94,10 @@ export async function GET(request: NextRequest) {
     .select("client_user_id")
     .gte("created_at", periodStartIso)
     .is("deleted_at", null);
-  if (churnError) return NextResponse.json({ error: churnError.message }, { status: 500 });
+  if (churnError) {
+    console.error("admin/growth-metrics error:", churnError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   const churnedClients = new Set((churnSignalsInPeriod || []).map((c: { client_user_id: string }) => c.client_user_id)).size;
   const churn = evaluateChurnRate(activeClientsBeforePeriod, churnedClients);
 
@@ -93,7 +108,10 @@ export async function GET(request: NextRequest) {
     .gte("responded_at", periodStartIso)
     .not("score", "is", null)
     .is("deleted_at", null);
-  if (npsError) return NextResponse.json({ error: npsError.message }, { status: 500 });
+  if (npsError) {
+    console.error("admin/growth-metrics error:", npsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   const nps = computeNpsScore((npsResponses || []).map((r: { score: number }) => ({ score: r.score })));
 
   return NextResponse.json(

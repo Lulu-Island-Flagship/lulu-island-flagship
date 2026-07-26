@@ -76,7 +76,10 @@ export async function GET(request: NextRequest) {
     .select("*")
     .eq("user_id", userId)
     .maybeSingle();
-  if (walletError) return NextResponse.json({ error: walletError.message }, { status: 500 });
+  if (walletError) {
+    console.error("admin/wallet error:", walletError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   if (!wallet) {
     return NextResponse.json({ wallet: null, transactions: [], availableBalance: 0 }, { status: 200 });
   }
@@ -87,7 +90,10 @@ export async function GET(request: NextRequest) {
     .eq("wallet_id", wallet.id)
     .order("created_at", { ascending: false })
     .limit(100);
-  if (txError) return NextResponse.json({ error: txError.message }, { status: 500 });
+  if (txError) {
+    console.error("admin/wallet error:", txError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const records: WalletTransactionRecord[] = (transactions || []).map((t) => ({
     id: t.id,
@@ -156,7 +162,10 @@ export async function POST(request: NextRequest) {
     .select("id")
     .eq("user_id", body.userId)
     .maybeSingle();
-  if (walletError) return NextResponse.json({ error: walletError.message }, { status: 500 });
+  if (walletError) {
+    console.error("admin/wallet error:", walletError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   if (!wallet) {
     return NextResponse.json({ error: "Este cliente no tiene billetera (sin client_profiles activo)" }, { status: 404 });
   }
@@ -182,7 +191,8 @@ export async function POST(request: NextRequest) {
     : recentDuplicateQuery.is("description", null);
   const { data: recentDuplicate, error: recentDuplicateError } = await recentDuplicateQuery.maybeSingle();
   if (recentDuplicateError) {
-    return NextResponse.json({ error: recentDuplicateError.message }, { status: 500 });
+    console.error("admin/wallet error:", recentDuplicateError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
   if (recentDuplicate) {
     return NextResponse.json(
@@ -207,7 +217,10 @@ export async function POST(request: NextRequest) {
     p_description: trimmedDescription,
     p_expires_at: expiresAt,
   });
-  if (rpcError) return NextResponse.json({ error: rpcError.message }, { status: 500 });
+  if (rpcError) {
+    console.error("admin/wallet error:", rpcError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   const newBalance = rpcResult?.[0]?.new_balance ?? null;
   const transactionId = rpcResult?.[0]?.transaction_id ?? null;
 

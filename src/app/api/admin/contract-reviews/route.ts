@@ -19,7 +19,10 @@ export async function GET(request: NextRequest) {
     )
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("admin/contract-reviews error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const contractIds = Array.from(new Set((reviews || []).map((r) => r.contract_id)));
   const contractById = new Map<string, { user_id: string; service_subtype: string; frequency: string; base_price: number; total: number }>();

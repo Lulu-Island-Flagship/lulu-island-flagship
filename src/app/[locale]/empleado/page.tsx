@@ -94,12 +94,25 @@ export default function EmpleadoPage() {
     // (ej. otra pestaña cerró sesión, o el token expiró y el propio SDK de
     // Supabase lo detecta) -- no repite la verificación de autorización,
     // solo saca al usuario si ya no hay sesión.
+    // Fix (auditoría de autenticación 2026-07-25/26, item 3): el callback de
+    // onAuthStateChange recibe `session` del SDK, que viene del JWT local sin
+    // validar contra el servidor. Antes de tomar una decisión de seguridad
+    // (sacar o no al usuario), se confirma con una llamada explícita a
+    // getUser() en vez de confiar ciegamente en session?.user.
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) {
         setServices([]);
         setLoadingServices(false);
         router.replace(portalUrl);
+        return;
       }
+      supabase.auth.getUser().then(({ data }) => {
+        if (!data.user) {
+          setServices([]);
+          setLoadingServices(false);
+          router.replace(portalUrl);
+        }
+      });
     });
 
     return () => listener.subscription.unsubscribe();
@@ -190,7 +203,18 @@ export default function EmpleadoPage() {
         }
       }
 
-      await supabase.auth.signOut();
+      // Fix (auditoría de autenticación 2026-07-25/26, item 4): antes cerraba
+      // sesión directo desde el navegador con supabase.auth.signOut(), a
+      // diferencia de /admin (POST a /auth/signout, ver
+      // src/app/[locale]/admin/layout.tsx). Se unifica al mismo endpoint
+      // server-side vía fetch (no un <form> submit normal, porque antes hay
+      // trabajo async -- el ciclo de sync offline -- que debe completarse
+      // primero). credentials:"include" para que la Route Handler reciba las
+      // cookies de sesión a limpiar.
+      await fetch(`/auth/signout?locale=${safeLocale}`, {
+        method: "POST",
+        credentials: "include",
+      });
       setServices([]);
       setEmployeeName("");
       setJornadaStatus("not_started");

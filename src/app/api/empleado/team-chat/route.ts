@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { requireActiveEmployee } from "@/lib/require-active-employee";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -45,6 +46,27 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "orderId es obligatorio" }, { status: 400 });
   }
 
+  // Fix auditoría implacable (2026-07-26, #4 de 3 APIs sin ningún check de
+  // empleado): este GET leía team_chat_messages por orderId con SOLO
+  // getUser() -- ni siquiera verificaba que el llamador fuera un empleado,
+  // mucho menos que estuviera asignado a esta orden. Cualquier usuario
+  // autenticado (incluso un cliente) podía leer el chat interno de
+  // cualquier equipo con solo conocer/adivinar un orderId.
+  const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id);
+  if (!employee) return NextResponse.json({ error: empError }, { status: empStatus });
+
+  const { data: chatAssignment, error: chatAssignError } = await supabase
+    .from("assignments")
+    .select("id")
+    .is("deleted_at", null)
+    .eq("order_id", orderId)
+    .eq("employee_id", employee.id)
+    .maybeSingle();
+
+  if (chatAssignError || !chatAssignment) {
+    return NextResponse.json({ error: "No tienes una asignación en esta orden" }, { status: 403 });
+  }
+
   const sinceIso = new Date(Date.now() - HISTORY_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
   const { data, error } = await supabase
@@ -73,8 +95,8 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data: employee } = await supabase.from("employees").select("id").eq("user_id", user.id).single();
-  if (!employee) return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
+  const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id);
+  if (!employee) return NextResponse.json({ error: empError }, { status: empStatus });
 
   try {
     const { orderId, body } = await request.json();

@@ -25,7 +25,10 @@ export async function GET(request: NextRequest) {
     .from("client_profiles")
     .select("user_id, services_count, account_type")
     .eq("account_type", "b2c"); // B2C solamente -- B2B/Gob tienen su propio ciclo de cuenta (E10, diferido)
-  if (profilesError) return NextResponse.json({ error: profilesError.message }, { status: 500 });
+  if (profilesError) {
+    console.error("admin/client-segments error:", profilesError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
@@ -34,7 +37,10 @@ export async function GET(request: NextRequest) {
     .select("user_id, service_date, total_paid_cents")
     .eq("status", "completed")
     .order("service_date", { ascending: false });
-  if (ordersError) return NextResponse.json({ error: ordersError.message }, { status: 500 });
+  if (ordersError) {
+    console.error("admin/client-segments error:", ordersError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const lastServiceByClient = new Map<string, string>();
   const monthlySpendByClient = new Map<string, number>();

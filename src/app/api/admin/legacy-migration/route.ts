@@ -30,7 +30,10 @@ export async function GET(request: NextRequest) {
     .select("item_key, label, completed_at, notes")
     .is("deleted_at", null)
     .order("item_key");
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("admin/legacy-migration error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   return NextResponse.json({ items: data || [] }, { status: 200 });
 }
@@ -59,7 +62,10 @@ export async function POST(request: NextRequest) {
     .update({ completed_at: new Date().toISOString(), completed_by: user?.id ?? null, updated_at: new Date().toISOString() })
     .eq("item_key", body.itemKey)
     .is("deleted_at", null);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("admin/legacy-migration error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true }, { status: 200 });
 }

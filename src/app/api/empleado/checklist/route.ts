@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { isKitchenTimerExpired } from "@/lib/kitchen-timer";
 import { ensureZoneAssignment } from "@/lib/zone-assignment";
+import { requireActiveEmployee } from "@/lib/require-active-employee";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -48,14 +49,28 @@ export async function GET(request: NextRequest) {
     }
 
     // Buscar perfil de empleado
-    const { data: employee, error: empError } = await supabase
-      .from("employees")
+    const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id);
+
+    if (!employee) {
+      return NextResponse.json({ error: empError }, { status: empStatus });
+    }
+
+    // Fix auditoría implacable (2026-07-26, paso 5): este GET nunca
+    // verificaba que el empleado tuviera una asignación real sobre
+    // `orderId` antes de devolver el checklist (plantilla + respuestas +
+    // reparto de zonas) -- mismo patrón de verificación de `assignments`
+    // ya usado en /api/empleado/servicio/route.ts y
+    // /api/empleado/upsells/route.ts.
+    const { data: checklistAssignment, error: checklistAssignError } = await supabase
+      .from("assignments")
       .select("id")
-      .eq("user_id", user.id)
+      .is("deleted_at", null)
+      .eq("order_id", orderId)
+      .eq("employee_id", employee.id)
       .single();
 
-    if (empError || !employee) {
-      return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
+    if (checklistAssignError || !checklistAssignment) {
+      return NextResponse.json({ error: "No assignment found for this service" }, { status: 403 });
     }
 
     // Obtener plantilla de checklist para este tipo de servicio
@@ -208,14 +223,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Buscar perfil de empleado
-    const { data: employee, error: empError } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
+    const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id);
 
-    if (empError || !employee) {
-      return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
+    if (!employee) {
+      return NextResponse.json({ error: empError }, { status: empStatus });
     }
 
     // Verificar que el empleado tiene asignación para este order

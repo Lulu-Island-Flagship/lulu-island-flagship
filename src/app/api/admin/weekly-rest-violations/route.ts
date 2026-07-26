@@ -13,7 +13,10 @@ export async function GET(request: NextRequest) {
     .select("id, employee_id, week_start, week_end, longest_gap_hours, shifts_count, acknowledged_at")
     .order("week_start", { ascending: false })
     .limit(100);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("admin/weekly-rest-violations error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const employeeIds = Array.from(new Set((violations || []).map((v) => v.employee_id)));
   const nameById = new Map<string, string>();

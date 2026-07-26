@@ -117,6 +117,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     .select()
     .single();
 
-  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
+  if (insertError) {
+    console.error("admin/experiments/[id]/assign error:", insertError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   return NextResponse.json({ assignment: inserted, reused: false }, { status: 201 });
 }

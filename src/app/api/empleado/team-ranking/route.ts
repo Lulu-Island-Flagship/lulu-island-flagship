@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { formatAggregatedRows } from "@/lib/team-ranking";
+import { requireActiveEmployee } from "@/lib/require-active-employee";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -44,8 +45,8 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data: employee } = await supabase.from("employees").select("id").eq("user_id", user.id).single();
-  if (!employee) return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
+  const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id);
+  if (!employee) return NextResponse.json({ error: empError }, { status: empStatus });
 
   const weekStart = mostRecentMonday(new Date());
 

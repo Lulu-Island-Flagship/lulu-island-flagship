@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
       .in("status", ["open", "in_review"]);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/hours-disputes error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const now = Date.now();

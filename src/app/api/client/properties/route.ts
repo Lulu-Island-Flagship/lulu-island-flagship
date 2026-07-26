@@ -72,7 +72,66 @@ function validatePropertyBody(body: Record<string, unknown>): { valid: false; er
   return { valid: true };
 }
 
+// v8.3 fix (auditoría seguridad 2026-07-26): postalCode/squareFeet/nickname no
+// se validaban en absoluto -- cualquier string/número arbitrario llegaba
+// directo a la fila. Se valida FORMA aquí (canadian postal code, rango
+// razonable de pies cuadrados, longitud de nickname); es la misma
+// comprobación tanto para crear (POST) como para actualizar (PATCH) estos
+// campos opcionales.
+const CANADIAN_POSTAL_CODE_REGEX = /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/;
+const MIN_SQUARE_FEET = 100;
+const MAX_SQUARE_FEET = 50000;
+const MAX_NICKNAME_LENGTH = 100;
+
+function validateOptionalPropertyFields(
+  body: Record<string, unknown>
+): { valid: false; error: string } | { valid: true } {
+  if (body.postalCode !== undefined && body.postalCode !== null && body.postalCode !== "") {
+    if (typeof body.postalCode !== "string" || !CANADIAN_POSTAL_CODE_REGEX.test(body.postalCode.trim())) {
+      return { valid: false, error: "postalCode must be a valid Canadian postal code (e.g. A1A 1A1)" };
+    }
+  }
+
+  if (body.squareFeet !== undefined && body.squareFeet !== null && body.squareFeet !== "") {
+    const squareFeetNum = Number(body.squareFeet);
+    if (!Number.isFinite(squareFeetNum) || squareFeetNum < MIN_SQUARE_FEET || squareFeetNum > MAX_SQUARE_FEET) {
+      return {
+        valid: false,
+        error: `squareFeet must be a number between ${MIN_SQUARE_FEET} and ${MAX_SQUARE_FEET}`,
+      };
+    }
+  }
+
+  if (body.nickname !== undefined && body.nickname !== null && body.nickname !== "") {
+    if (
+      typeof body.nickname !== "string" ||
+      body.nickname.trim().length === 0 ||
+      body.nickname.trim().length > MAX_NICKNAME_LENGTH
+    ) {
+      return {
+        valid: false,
+        error: `nickname must be a non-empty string up to ${MAX_NICKNAME_LENGTH} characters`,
+      };
+    }
+  }
+
+  return { valid: true };
+}
+
 // GET /api/client/properties — listar propiedades del cliente autenticado
+//
+// Nota conocida (auditoría seguridad 2026-07-26): este GET, que debería ser de
+// solo lectura, llama a getOrCreateClientProfile() -- si la fila de
+// client_profiles todavía no existe para este usuario (ej. el trigger de
+// creación no corrió), esta llamada la CREA como efecto secundario de una
+// petición GET. Existe así porque varias pantallas de "Mi Cuenta" dependen de
+// poder listar propiedades apenas el usuario inicia sesión, sin garantía de
+// que el profile ya exista en ese momento; mover la creación a un punto de
+// signup/login exclusivo requeriría auditar todos los flujos de alta de
+// cuenta (Google/Apple/email/phone OTP, ver AuthModal.tsx) para asegurar que
+// SIEMPRE se ejecute antes de que cualquier pantalla de cuenta pueda montarse
+// -- un refactor más amplio que este fix puntual. Se documenta aquí para que
+// no se asuma que es un descuido.
 export async function GET() {
   const supabase = getSupabaseClient();
   const user = await getCurrentUser(supabase);
@@ -113,6 +172,10 @@ export async function POST(request: NextRequest) {
     const validation = validatePropertyBody(body);
     if (!validation.valid) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+    const optionalFieldsValidation = validateOptionalPropertyFields(body);
+    if (!optionalFieldsValidation.valid) {
+      return NextResponse.json({ error: optionalFieldsValidation.error }, { status: 400 });
     }
 
     const profile = await getOrCreateClientProfile(supabase, user.id);
@@ -159,6 +222,10 @@ export async function PATCH(request: NextRequest) {
     const { id, ...updates } = body;
     if (!id) {
       return NextResponse.json({ error: "Property id is required" }, { status: 400 });
+    }
+    const optionalFieldsValidation = validateOptionalPropertyFields(updates);
+    if (!optionalFieldsValidation.valid) {
+      return NextResponse.json({ error: optionalFieldsValidation.error }, { status: 400 });
     }
 
     const profile = await getOrCreateClientProfile(supabase, user.id);

@@ -23,6 +23,26 @@ export default function CuentaLayout({ children }: { children: React.ReactNode }
   const locale = (params?.locale as string) || "en";
   const [checking, setChecking] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
+  // Fix (auditoría de autenticación 2026-07-25/26, item 5): antes solo se
+  // verificaba Boolean(data.user) -- un empleado o admin autenticado veía el
+  // layout de cliente igual que un cliente real. isStaff distingue ese caso
+  // vía /api/cuenta/access-check (resolveStaffLogin del lado del servidor,
+  // ver ese archivo para el detalle -- este layout, siendo Client Component,
+  // no puede leer employees/admin_roles directamente por RLS).
+  const [isStaff, setIsStaff] = useState(false);
+
+  async function checkStaffStatus() {
+    try {
+      const res = await fetch("/api/cuenta/access-check", { credentials: "include" });
+      if (!res.ok) return false;
+      const data = await res.json();
+      return Boolean(data.isStaff);
+    } catch {
+      // Fail-safe: si el chequeo falla (red, etc.), no se bloquea al
+      // cliente legítimo -- mismo criterio que ya usa el endpoint.
+      return false;
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -30,7 +50,15 @@ export default function CuentaLayout({ children }: { children: React.ReactNode }
     async function checkSession() {
       const { data } = await supabase.auth.getUser();
       if (cancelled) return;
-      setAuthenticated(Boolean(data.user));
+      if (!data.user) {
+        setAuthenticated(false);
+        setChecking(false);
+        return;
+      }
+      const staff = await checkStaffStatus();
+      if (cancelled) return;
+      setIsStaff(staff);
+      setAuthenticated(true);
       setChecking(false);
     }
 
@@ -41,22 +69,40 @@ export default function CuentaLayout({ children }: { children: React.ReactNode }
     // cambio sin necesitar un refresh manual.
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (cancelled) return;
-      setAuthenticated(Boolean(session?.user));
-      setChecking(false);
+      if (!session?.user) {
+        setAuthenticated(false);
+        setIsStaff(false);
+        setChecking(false);
+        return;
+      }
+      checkStaffStatus().then((staff) => {
+        if (cancelled) return;
+        setIsStaff(staff);
+        setAuthenticated(true);
+        setChecking(false);
+      });
     });
 
     return () => {
       cancelled = true;
       listener.subscription.unsubscribe();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAuthSuccess = () => {
     // Volver a verificar sesión real (getUser, no solo el evento) antes de
     // dar por buena la autenticación -- mismo patrón que
-    // cotizador/page.tsx handleAuthSuccess.
-    supabase.auth.getUser().then(({ data }) => {
-      setAuthenticated(Boolean(data.user));
+    // cotizador/page.tsx handleAuthSuccess. También revalida isStaff, por si
+    // la cuenta recién autenticada resulta ser de empleado/admin.
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) {
+        setAuthenticated(false);
+        return;
+      }
+      const staff = await checkStaffStatus();
+      setIsStaff(staff);
+      setAuthenticated(true);
     });
   };
 
@@ -89,6 +135,18 @@ export default function CuentaLayout({ children }: { children: React.ReactNode }
           }}
           onSuccess={handleAuthSuccess}
         />
+      </div>
+    );
+  }
+
+  if (isStaff) {
+    // Fix (item 5): una cuenta de empleado/admin autenticada no debe ver el
+    // área de cliente -- se manda al Portal de equipo, que resuelve su
+    // destino real (empleado/admin/qc).
+    router.replace(`/${locale}/portal`);
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <Loader2 className="w-8 h-8 text-brand-navy animate-spin" />
       </div>
     );
   }

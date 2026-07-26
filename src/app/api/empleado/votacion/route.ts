@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { requireActiveEmployee } from "@/lib/require-active-employee";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -36,14 +37,10 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: me, error: meError } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
+    const { employee: me, error: meError, status: meStatus } = await requireActiveEmployee(supabase, user.id);
 
-    if (meError || !me) {
-      return NextResponse.json({ error: "Employee not found" }, { status: 403 });
+    if (!me) {
+      return NextResponse.json({ error: meError }, { status: meStatus });
     }
 
     // v8.3 auditoría 2026-07-21 (D-P1-6): `getDate() - getDay() + 1` manda
@@ -64,6 +61,7 @@ export async function GET() {
       .from("employees")
       .select("id, name, role")
       .eq("is_active", true)
+      .is("deleted_at", null)
       .neq("id", me.id);
 
     if (peersError) {
@@ -106,14 +104,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: me, error: meError } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
+    const { employee: me, error: meError, status: meStatus } = await requireActiveEmployee(supabase, user.id);
 
-    if (meError || !me) {
-      return NextResponse.json({ error: "Employee not found" }, { status: 403 });
+    if (!me) {
+      return NextResponse.json({ error: meError }, { status: meStatus });
     }
 
     const body = await request.json();
@@ -166,6 +160,7 @@ export async function POST(request: NextRequest) {
       .select("id")
       .eq("id", targetEmployeeId)
       .eq("is_active", true)
+      .is("deleted_at", null)
       .single();
 
     if (targetError || !targetEmployee) {

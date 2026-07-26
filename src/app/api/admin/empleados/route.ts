@@ -29,7 +29,7 @@ export async function GET() {
 
     if (error) {
       console.error("Employees fetch error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ employees: data || [] }, { status: 200 });
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
 
       if (!existingAuthUser) {
         console.error("Employee invite error:", inviteError, listError);
-        return NextResponse.json({ error: inviteError.message }, { status: 500 });
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
       authUserId = existingAuthUser.id;
     } else {
@@ -182,7 +182,8 @@ export async function POST(request: NextRequest) {
       // Si el insert de employees falla después de crear la cuenta auth, no
       // queda huérfana silenciosamente: el mismo email ya existe en auth y un
       // reintento de este endpoint la reutilizará vía el branch de arriba.
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      console.error("admin/empleados error:", insertError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ employee, invited: !inviteError }, { status: 201 });

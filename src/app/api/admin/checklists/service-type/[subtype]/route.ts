@@ -31,7 +31,7 @@ export async function DELETE(
 
     if (histError) {
       console.error("History check error:", histError);
-      return NextResponse.json({ error: histError.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     if (hasHistory) {
@@ -55,7 +55,8 @@ export async function DELETE(
       .eq("service_subtype", decodedSubtype);
 
     if (deleteError) {
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+      console.error("admin/checklists/service-type/[subtype] error:", deleteError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true }, { status: 200 });

@@ -95,7 +95,8 @@ export async function PATCH(
         p_encryption_key: encryptionKey,
       });
       if (bankingError) {
-        return NextResponse.json({ error: bankingError.message }, { status: 500 });
+        console.error("admin/empleados/[id] error:", bankingError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
     }
 
@@ -188,7 +189,8 @@ export async function PATCH(
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/empleados/[id] error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     if (!data) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 });

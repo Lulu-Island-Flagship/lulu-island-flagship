@@ -49,7 +49,7 @@ export async function GET() {
 
     if (error) {
       console.error("admin_roles fetch error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const rows = data || [];
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
 
       if (!existingAuthUser) {
         console.error("Admin role invite error:", inviteError, listError);
-        return NextResponse.json({ error: inviteError.message }, { status: 500 });
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
       targetUserId = existingAuthUser.id;
     } else {
@@ -162,7 +162,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      console.error("admin/roles error:", insertError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json(
@@ -205,7 +206,8 @@ export async function DELETE(request: NextRequest) {
       .maybeSingle();
 
     if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      console.error("admin/roles error:", updateError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     if (!revoked) {
       return NextResponse.json({ error: "Admin role not found or already revoked" }, { status: 404 });

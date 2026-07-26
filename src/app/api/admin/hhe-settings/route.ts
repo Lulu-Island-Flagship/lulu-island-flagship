@@ -25,7 +25,7 @@ export async function GET() {
     const { data, error } = await auth.supabase.rpc("get_current_hhe_table");
     if (error) {
       console.error("HHE settings fetch error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const table: Record<string, number[]> = {
@@ -97,7 +97,7 @@ export async function PATCH(request: NextRequest) {
 
         if (insertError) {
           console.error("HHE setting insert error:", insertError);
-          return NextResponse.json({ error: insertError.message }, { status: 500 });
+          return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
         }
       }
     }

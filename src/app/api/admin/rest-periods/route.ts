@@ -25,7 +25,10 @@ export async function GET(request: NextRequest) {
     .select("employee_id, work_date, duration_minutes, cumulative_continuous_minutes_before, role_during_rest, satisfies_esa_break")
     .gte("work_date", since.toISOString().slice(0, 10))
     .order("work_date", { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("admin/rest-periods error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const employeeIds = Array.from(new Set((periods || []).map((p) => p.employee_id)));
   const nameById = new Map<string, string>();

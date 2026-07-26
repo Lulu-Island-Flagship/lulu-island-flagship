@@ -39,7 +39,8 @@ export async function GET() {
     .eq("is_active", true)
     .order("suggested_month", { ascending: true });
   if (campaignsError) {
-    return NextResponse.json({ error: campaignsError.message }, { status: 500 });
+    console.error("admin/seasonal-campaigns error:", campaignsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const { data: runs, error: runsError } = await auth.supabase
@@ -49,7 +50,8 @@ export async function GET() {
     .order("evaluated_at", { ascending: false })
     .limit(30);
   if (runsError) {
-    return NextResponse.json({ error: runsError.message }, { status: 500 });
+    console.error("admin/seasonal-campaigns error:", runsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   return NextResponse.json({ campaigns: campaigns || [], runs: runs || [] }, { status: 200 });
@@ -76,7 +78,8 @@ export async function POST(request: NextRequest) {
         .select("campaign_key, suggested_month")
         .eq("is_active", true);
       if (campaignsError) {
-        return NextResponse.json({ error: campaignsError.message }, { status: 500 });
+        console.error("admin/seasonal-campaigns error:", campaignsError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
 
       const results = [];
@@ -152,7 +155,8 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (updateError) {
-        return NextResponse.json({ error: updateError.message }, { status: 500 });
+        console.error("admin/seasonal-campaigns error:", updateError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
 
       return NextResponse.json({ run: updated }, { status: 200 });
@@ -192,7 +196,8 @@ export async function POST(request: NextRequest) {
         .eq("marketing_opt_in", true)
         .eq("account_type", "b2c");
       if (targetError) {
-        return NextResponse.json({ error: targetError.message }, { status: 500 });
+        console.error("admin/seasonal-campaigns error:", targetError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
 
       let dispatchedCount = 0;
@@ -231,7 +236,8 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (updateError) {
-        return NextResponse.json({ error: updateError.message }, { status: 500 });
+        console.error("admin/seasonal-campaigns error:", updateError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
 
       return NextResponse.json(

@@ -809,6 +809,29 @@
       "save": "Save"
     }
   },
+  "portal": {
+    "staffLogin": {
+      "errors": {
+        "googleFailed": "Google sign-in failed. Please try again.",
+        "invalidEmail": "Please enter a valid email address",
+        "sendCodeFailed": "Failed to send verification code",
+        "invalidCode": "Please enter the 6-digit code",
+        "invalidVerificationCode": "Invalid verification code",
+        "backupCodeRequired": "Please enter a backup code",
+        "backupCodeFailed": "Backup code sign-in failed"
+      }
+    },
+    "page": {
+      "title": "Team Portal",
+      "checkingAccount": "Checking your account…",
+      "tryAgain": "Try again",
+      "errors": {
+        "authFailed": "Couldn't sign you in. Please try again.",
+        "notAuthorized": "Your account is not authorized.",
+        "connection": "Connection error while verifying your account. Please try again."
+      }
+    }
+  },
   "employee": {
     "loginTitle": "Employee Login",
     "loginSubtitle": "Sign in with your work email",

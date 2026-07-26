@@ -31,7 +31,7 @@ export async function GET() {
 
     if (ordersError) {
       console.error("Orders fetch error:", ordersError);
-      return NextResponse.json({ error: ordersError.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const orderIds = (orders || []).map((o: { id: string }) => o.id);

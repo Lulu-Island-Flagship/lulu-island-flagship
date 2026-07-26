@@ -28,7 +28,8 @@ export async function GET() {
     .limit(1)
     .maybeSingle();
   if (statusError) {
-    return NextResponse.json({ error: statusError.message }, { status: 500 });
+    console.error("admin/succession error:", statusError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const { data: successors, error: successorsError } = await auth.supabase
@@ -37,7 +38,8 @@ export async function GET() {
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
   if (successorsError) {
-    return NextResponse.json({ error: successorsError.message }, { status: 500 });
+    console.error("admin/succession error:", successorsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   return NextResponse.json({ status: status || null, successors: successors || [] }, { status: 200 });
@@ -71,7 +73,8 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("admin/succession error:", error);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
       return NextResponse.json({ successor }, { status: 201 });
     }
@@ -88,7 +91,8 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("admin/succession error:", error);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
       return NextResponse.json({ successor }, { status: 200 });
     }

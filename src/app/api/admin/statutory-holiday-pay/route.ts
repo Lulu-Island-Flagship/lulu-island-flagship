@@ -21,7 +21,10 @@ export async function GET(request: NextRequest) {
     .gte("holiday_date", `${year}-01-01`)
     .lte("holiday_date", `${year}-12-31`)
     .order("holiday_date", { ascending: true });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("admin/statutory-holiday-pay error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const employeeIds = Array.from(new Set((records || []).map((r) => r.employee_id)));
   const nameById = new Map<string, string>();

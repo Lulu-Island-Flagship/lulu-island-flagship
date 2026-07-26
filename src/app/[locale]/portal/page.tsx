@@ -2,7 +2,9 @@
 
 import React, { useEffect, useState, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
+import { isAllowedInternalPath } from "@/lib/safe-redirect";
 import { Loader2 } from "lucide-react";
 import StaffLoginScreen from "@/components/portal/StaffLoginScreen";
 
@@ -34,6 +36,7 @@ function PortalContent() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
+  const t = useTranslations("portal.page");
   const locale = (params?.locale as string) || "en";
 
   const [phase, setPhase] = useState<Phase>("checking");
@@ -46,7 +49,7 @@ function PortalContent() {
       const authError = searchParams.get("auth_error");
       if (authError) {
         if (!cancelled) {
-          setMessage("No se pudo iniciar sesión. Intenta de nuevo.");
+          setMessage(t("errors.authFailed"));
           setPhase("login");
         }
         return;
@@ -68,7 +71,13 @@ function PortalContent() {
         if (cancelled) return;
 
         if (!res.ok) {
-          setMessage(data.error || "Tu cuenta no está autorizada.");
+          // Fix (auditoría de autenticación 2026-07-25/26, item 2): antes se
+          // pintaba data.error del servidor directamente y el fallback estaba
+          // hardcodeado en español, sin pasar por next-intl. El fallback
+          // ahora está localizado; data.error (texto ya controlado por
+          // /api/staff/resolve-login, nunca un mensaje crudo de excepción) se
+          // conserva solo como mejor-esfuerzo si el servidor lo provee.
+          setMessage(data.error || t("errors.notAuthorized"));
           setPhase("rejected");
           return;
         }
@@ -92,9 +101,13 @@ function PortalContent() {
         // data.path es /admin/qc), se ignora `next` y se cae al landing fijo
         // del área real. Así un qc_only nunca puede usar `next` para llegar
         // a una página de /admin fuera de /admin/qc.
+        // Fix (auditoría de autenticación 2026-07-25/26, item 6):
+        // isAllowedInternalPath (src/lib/safe-redirect.ts) agrega, además del
+        // chequeo de "/" y no "//", una allowlist de secciones internas
+        // conocidas -- defensa adicional antes incluso de la comparación de
+        // área de abajo.
         const rawNext = searchParams.get("next");
-        const safeNext =
-          rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : null;
+        const safeNext = isAllowedInternalPath(rawNext) ? rawNext : null;
         // safeNext ya viene con el locale incluido (ej. /en/admin/nomina) --
         // el prefijo de área real es todo lo que sigue al segmento de
         // locale, así que se compara ese resto contra data.path
@@ -107,7 +120,7 @@ function PortalContent() {
         router.replace(isSameArea && safeNext ? safeNext : `/${locale}${data.path}`);
       } catch {
         if (!cancelled) {
-          setMessage("Error de conexión verificando tu cuenta. Intenta de nuevo.");
+          setMessage(t("errors.connection"));
           setPhase("rejected");
         }
       }
@@ -133,7 +146,7 @@ function PortalContent() {
       <main className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center space-y-3">
           <Loader2 className="w-6 h-6 animate-spin text-brand-navy mx-auto" />
-          <p className="text-sm text-gray-500">Verificando tu cuenta…</p>
+          <p className="text-sm text-gray-500">{t("checkingAccount")}</p>
         </div>
       </main>
     );
@@ -143,7 +156,7 @@ function PortalContent() {
     return (
       <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="bg-white rounded-xl shadow-elevation-1 p-8 max-w-sm w-full text-center space-y-4">
-          <h1 className="text-xl font-bold text-brand-ink">Portal de equipo</h1>
+          <h1 className="text-xl font-bold text-brand-ink">{t("title")}</h1>
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-state-danger">
             {message}
           </div>
@@ -154,7 +167,7 @@ function PortalContent() {
             }}
             className="text-sm text-brand-wave-blue hover:underline"
           >
-            Volver a intentar
+            {t("tryAgain")}
           </button>
         </div>
       </main>

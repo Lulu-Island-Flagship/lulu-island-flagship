@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { requireActiveEmployee } from "@/lib/require-active-employee";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -37,14 +38,14 @@ export async function GET() {
     }
 
     // Buscar el perfil de empleado del usuario autenticado
-    const { data: employee, error: empError } = await supabase
-      .from("employees")
-      .select("id, name, role")
-      .eq("user_id", user.id)
-      .single();
+    const { employee, error: empError, status: empStatus } = await requireActiveEmployee<{
+      id: string;
+      name: string | null;
+      role: string | null;
+    }>(supabase, user.id, "id, name, role");
 
-    if (empError || !employee) {
-      return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
+    if (!employee) {
+      return NextResponse.json({ error: empError }, { status: empStatus });
     }
 
     // Calcular "hoy" en la zona horaria del negocio (America/Vancouver)

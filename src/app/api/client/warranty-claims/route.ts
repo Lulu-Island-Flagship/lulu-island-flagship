@@ -152,24 +152,46 @@ export async function POST(request: NextRequest) {
     // tabla puede estar vacía incluso para órdenes sí reembolsadas por
     // otras vías (Stripe/PayPal directo). Esta comprobación es la mejor
     // señal disponible en el esquema actual, no una garantía completa.
+    // v8.3 fix (auditoría seguridad 2026-07-26): si falta la env var, esta
+    // comprobación se saltaba EN SILENCIO (deny-by-default invertido -- el
+    // reclamo se aceptaba como si no hubiera reembolso previo). Un control de
+    // seguridad que se apaga solo porque falta config no debe fallar abierto:
+    // ahora, sin la service key, la operación se rechaza explícitamente (503,
+    // "no disponible temporalmente") y se deja un log server-side claro para
+    // que el equipo note la misconfiguración -- nunca se expone al cliente
+    // que el motivo es una env var faltante.
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (serviceKey) {
-      const serviceClient = createClient(supabaseUrl, serviceKey);
-      const { data: refundEntries, error: refundError } = await serviceClient
-        .from("shadow_ledger_entries")
-        .select("id")
-        .eq("order_id", orderId)
-        .in("event_type", ["paypal_refund", "warranty_refund"])
-        .limit(1);
+    if (!serviceKey) {
+      console.error(
+        "client/warranty-claims: SUPABASE_SERVICE_ROLE_KEY no está configurada -- " +
+          "no se puede verificar reembolso previo. Rechazando por seguridad (deny-by-default)."
+      );
+      return NextResponse.json(
+        { error: "Unable to process this request right now. Please try again later." },
+        { status: 503 }
+      );
+    }
 
-      if (refundError) {
-        console.error("client/warranty-claims refund check error:", refundError);
-      } else if (refundEntries && refundEntries.length > 0) {
-        return NextResponse.json(
-          { error: "This order has already been refunded and is not eligible for a new warranty claim." },
-          { status: 400 }
-        );
-      }
+    const serviceClient = createClient(supabaseUrl, serviceKey);
+    const { data: refundEntries, error: refundError } = await serviceClient
+      .from("shadow_ledger_entries")
+      .select("id")
+      .eq("order_id", orderId)
+      .in("event_type", ["paypal_refund", "warranty_refund"])
+      .limit(1);
+
+    if (refundError) {
+      console.error("client/warranty-claims refund check error:", refundError);
+      return NextResponse.json(
+        { error: "Unable to process this request right now. Please try again later." },
+        { status: 500 }
+      );
+    }
+    if (refundEntries && refundEntries.length > 0) {
+      return NextResponse.json(
+        { error: "This order has already been refunded and is not eligible for a new warranty claim." },
+        { status: 400 }
+      );
     }
 
     // 3: la zona existe de verdad en el checklist de esta orden.

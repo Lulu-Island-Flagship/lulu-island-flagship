@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { isValidConfirmation, detectHazard, type ChemicalConfirmationAttempt } from "@/lib/chemical-lockout";
+import { requireActiveEmployee } from "@/lib/require-active-employee";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -56,13 +57,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: employee, error: empError } = await supabase
-      .from("employees")
+    const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id);
+    if (!employee) {
+      return NextResponse.json({ error: empError }, { status: empStatus });
+    }
+
+    // Fix auditoría implacable (2026-07-26, paso 5): este GET nunca
+    // verificaba que el empleado tuviera asignación real sobre `orderId`
+    // -- mismo candado de ownership que ya usa el POST de este archivo.
+    const { data: chemAssignment, error: chemAssignError } = await supabase
+      .from("assignments")
       .select("id")
-      .eq("user_id", user.id)
+      .is("deleted_at", null)
+      .eq("order_id", orderId)
+      .eq("employee_id", employee.id)
       .single();
-    if (empError || !employee) {
-      return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
+    if (chemAssignError || !chemAssignment) {
+      return NextResponse.json({ error: "No assignment found for this service" }, { status: 403 });
     }
 
     const { data: rows, error: rowsError } = await supabase
@@ -101,13 +112,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: employee, error: empError } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
-    if (empError || !employee) {
-      return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
+    const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id);
+    if (!employee) {
+      return NextResponse.json({ error: empError }, { status: empStatus });
     }
 
     // Verificar que el empleado tiene asignación para este order (mismo

@@ -536,7 +536,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error("Phone booking quote insert error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json(

@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
     .is("deleted_at", null)
     .order("frequency");
   if (itemsError) {
-    return NextResponse.json({ error: itemsError.message }, { status: 500 });
+    console.error("admin/seo-local error:", itemsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const nowIso = new Date().toISOString();
@@ -95,7 +96,8 @@ export async function POST(request: NextRequest) {
       .eq("item_key", body.itemKey)
       .is("deleted_at", null);
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/seo-local error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     return NextResponse.json({ ok: true }, { status: 200 });
   }
@@ -115,7 +117,8 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/seo-local error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     return NextResponse.json({ napCheck: data }, { status: 201 });
   }

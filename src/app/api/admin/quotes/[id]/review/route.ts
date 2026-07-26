@@ -84,7 +84,7 @@ export async function POST(
 
     if (updateError) {
       console.error("Quote review update error:", updateError);
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json(

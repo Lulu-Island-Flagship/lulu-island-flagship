@@ -54,7 +54,8 @@ export async function GET(request: NextRequest) {
       .order("sort_order", { ascending: true });
 
     if (checklistError) {
-      return NextResponse.json({ error: checklistError.message }, { status: 500 });
+      console.error("admin/checklist error:", checklistError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // Obtener respuestas guardadas
@@ -64,7 +65,8 @@ export async function GET(request: NextRequest) {
       .eq("order_id", orderId);
 
     if (respError) {
-      return NextResponse.json({ error: respError.message }, { status: 500 });
+      console.error("admin/checklist error:", respError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const responseMap = new Map();

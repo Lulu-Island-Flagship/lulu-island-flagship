@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
     .limit(50);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("admin/purchase-orders error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   return NextResponse.json({ purchaseOrders: data || [] }, { status: 200 });
@@ -69,7 +70,8 @@ export async function POST(request: NextRequest) {
       .eq("is_active", true);
 
     if (itemsError) {
-      return NextResponse.json({ error: itemsError.message }, { status: 500 });
+      console.error("admin/purchase-orders error:", itemsError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const stockItems: InventoryItemStock[] = (items || []).map((i) => ({
@@ -100,7 +102,8 @@ export async function POST(request: NextRequest) {
       .eq("is_current", true);
 
     if (catalogError) {
-      return NextResponse.json({ error: catalogError.message }, { status: 500 });
+      console.error("admin/purchase-orders error:", catalogError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const cheapestBySupplierPerItem = new Map<string, { supplierId: string; unitPriceCents: number }>();
@@ -137,7 +140,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (poError) {
-      return NextResponse.json({ error: poError.message }, { status: 500 });
+      console.error("admin/purchase-orders error:", poError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const lines = suggestions.map((s) => {
@@ -152,7 +156,8 @@ export async function POST(request: NextRequest) {
 
     const { error: linesError } = await supabase.from("purchase_order_lines").insert(lines);
     if (linesError) {
-      return NextResponse.json({ error: linesError.message }, { status: 500 });
+      console.error("admin/purchase-orders error:", linesError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const estimatedTotalCents = lines.reduce(

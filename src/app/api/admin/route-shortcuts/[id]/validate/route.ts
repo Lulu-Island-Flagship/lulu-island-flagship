@@ -36,7 +36,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     .single();
 
   if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 });
+    console.error("admin/route-shortcuts/[id]/validate error:", updateError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const { error: bonusError } = await supabase.from("employee_wellbeing_bonuses").insert({

@@ -237,7 +237,7 @@ export async function POST(request: NextRequest) {
 
     if (activeError) {
       console.error("Active rules fetch error:", activeError);
-      return NextResponse.json({ error: activeError.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const activeRules: PricingRule[] = (activeRulesRows || []).map((r: Record<string, unknown>) => ({
@@ -266,7 +266,7 @@ export async function POST(request: NextRequest) {
 
     if (quotesError) {
       console.error("Quotes fetch error:", quotesError);
-      return NextResponse.json({ error: quotesError.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const userIds = Array.from(

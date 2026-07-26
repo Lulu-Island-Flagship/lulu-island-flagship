@@ -35,7 +35,10 @@ export async function GET(request: NextRequest) {
     .gte("service_date", monthStart)
     .lt("service_date", nextMonth);
 
-  if (ordersError) return NextResponse.json({ error: ordersError.message }, { status: 500 });
+  if (ordersError) {
+    console.error("admin/coworker-rotation error:", ordersError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const orderIds = (orders ?? []).map((o) => o.id);
   const orderDateMap = new Map((orders ?? []).map((o) => [o.id, o.service_date]));
@@ -50,7 +53,10 @@ export async function GET(request: NextRequest) {
           .is("deleted_at", null)
           .not("status", "in", "(cancelled)");
 
-  if (assignError) return NextResponse.json({ error: assignError.message }, { status: 500 });
+  if (assignError) {
+    console.error("admin/coworker-rotation error:", assignError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   // Armar pares: dos empleados en la misma orden = trabajaron juntos.
   const byOrder = new Map<string, string[]>();
@@ -75,7 +81,10 @@ export async function GET(request: NextRequest) {
     .is("deleted_at", null)
     .eq("is_active", true);
 
-  if (exceptionsError) return NextResponse.json({ error: exceptionsError.message }, { status: 500 });
+  if (exceptionsError) {
+    console.error("admin/coworker-rotation error:", exceptionsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   const exceptions: PairingException[] = (exceptionRows ?? []).map((e) => ({
     employeeAId: e.employee_a_id,
@@ -144,7 +153,10 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("admin/coworker-rotation error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     return NextResponse.json({ exception: data }, { status: 201 });
   }
 
@@ -158,7 +170,10 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("admin/coworker-rotation error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     return NextResponse.json({ exception: data }, { status: 200 });
   }
 

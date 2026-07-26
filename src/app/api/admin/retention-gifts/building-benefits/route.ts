@@ -23,7 +23,10 @@ export async function GET() {
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("admin/retention-gifts/building-benefits error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   return NextResponse.json({ benefits: data || [] }, { status: 200 });
 }
@@ -57,7 +60,10 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("admin/retention-gifts/building-benefits error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
 
     return NextResponse.json({ benefit: data }, { status: 201 });
   } catch (err: Error | unknown) {

@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Rule audit logs fetch error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ logs: logs || [] }, { status: 200 });

@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { requireActiveEmployee } from "@/lib/require-active-employee";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -32,14 +33,13 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data: employee, error } = await supabase
-    .from("employees")
-    .select("wellbeing_opt_out")
-    .eq("user_id", user.id)
-    .single();
+  const { employee, error: empError, status: empStatus } = await requireActiveEmployee<{
+    id: string;
+    wellbeing_opt_out: boolean | null;
+  }>(supabase, user.id, "id, wellbeing_opt_out");
 
-  if (error || !employee) {
-    return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
+  if (!employee) {
+    return NextResponse.json({ error: empError }, { status: empStatus });
   }
 
   return NextResponse.json({ wellbeingOptOut: employee.wellbeing_opt_out === true }, { status: 200 });
@@ -51,6 +51,16 @@ export async function PATCH(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Fix auditoría implacable (2026-07-26, #4 de 3 APIs sin ningún check de
+  // empleado): este PATCH actualizaba employees.wellbeing_opt_out
+  // directamente por user_id, sin verificar primero que la fila
+  // correspondiera a un empleado activo/no dado de baja -- un empleado
+  // offboarded con sesión viva podía seguir escribiendo en su propia fila.
+  const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id);
+  if (!employee) {
+    return NextResponse.json({ error: empError }, { status: empStatus });
+  }
+
   try {
     const body = await request.json();
     if (typeof body.optOut !== "boolean") {
@@ -60,7 +70,7 @@ export async function PATCH(request: NextRequest) {
     const { data, error } = await supabase
       .from("employees")
       .update({ wellbeing_opt_out: body.optOut })
-      .eq("user_id", user.id)
+      .eq("id", employee.id)
       .select("wellbeing_opt_out")
       .single();
 

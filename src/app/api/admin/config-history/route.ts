@@ -26,7 +26,8 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await query;
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("admin/config-history error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
   return NextResponse.json({ snapshots: data ?? [] });
 }
@@ -54,7 +55,8 @@ export async function POST(request: NextRequest) {
     p_snapshot_id: body.snapshot_id,
   });
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("admin/config-history error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
   return NextResponse.json({ restored: data });
 }

@@ -46,7 +46,8 @@ export async function GET(request: NextRequest) {
     .is("deleted_at", null);
 
   if (entriesError) {
-    return NextResponse.json({ error: entriesError.message }, { status: 500 });
+    console.error("admin/payroll-export error:", entriesError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   type EmployeeJoin = { name: string; hire_date: string | null } | { name: string; hire_date: string | null }[] | null;
@@ -78,7 +79,8 @@ export async function GET(request: NextRequest) {
     .is("deleted_at", null);
 
   if (readinessError) {
-    return NextResponse.json({ error: readinessError.message }, { status: 500 });
+    console.error("admin/payroll-export error:", readinessError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   type EmployeeNameJoin = { name: string } | { name: string }[] | null;
@@ -110,7 +112,8 @@ export async function GET(request: NextRequest) {
     .is("deleted_at", null);
 
   if (badgeBonusError) {
-    return NextResponse.json({ error: badgeBonusError.message }, { status: 500 });
+    console.error("admin/payroll-export error:", badgeBonusError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const badgeBonusCycleEntries: CycleEntry[] = (badgeBonuses || []).map((b) => {
@@ -140,7 +143,8 @@ export async function GET(request: NextRequest) {
     .is("deleted_at", null);
 
   if (referralBonusError) {
-    return NextResponse.json({ error: referralBonusError.message }, { status: 500 });
+    console.error("admin/payroll-export error:", referralBonusError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const referralBonusCycleEntries: CycleEntry[] = (referralBonuses || []).map((b) => {
@@ -174,7 +178,8 @@ export async function GET(request: NextRequest) {
     .lte("absence_date", cycle.end);
 
   if (sickLeaveError) {
-    return NextResponse.json({ error: sickLeaveError.message }, { status: 500 });
+    console.error("admin/payroll-export error:", sickLeaveError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const sickLeaveCycleEntries: CycleEntry[] = (sickLeavePays || []).map((s) => {
@@ -208,7 +213,8 @@ export async function GET(request: NextRequest) {
     .lte("holiday_date", cycle.end);
 
   if (statHolidayError) {
-    return NextResponse.json({ error: statHolidayError.message }, { status: 500 });
+    console.error("admin/payroll-export error:", statHolidayError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const statHolidayCycleEntries: CycleEntry[] = (statHolidayPays || []).map((h) => {
@@ -238,7 +244,8 @@ export async function GET(request: NextRequest) {
     .lte("payout_date", cycle.end);
 
   if (finalPayoutsError) {
-    return NextResponse.json({ error: finalPayoutsError.message }, { status: 500 });
+    console.error("admin/payroll-export error:", finalPayoutsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const finalPayoutCycleEntries: CycleEntry[] = (finalPayouts || []).map((p) => {

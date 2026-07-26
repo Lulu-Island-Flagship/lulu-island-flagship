@@ -23,7 +23,7 @@ export async function GET() {
 
     if (currentError) {
       console.error("Pricing settings fetch error:", currentError);
-      return NextResponse.json({ error: currentError.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const { data: history, error: historyError } = await auth.supabase
@@ -118,7 +118,7 @@ export async function PATCH(request: NextRequest) {
 
     if (insertError) {
       console.error("Pricing settings insert error:", insertError);
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // Audit log

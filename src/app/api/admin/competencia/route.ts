@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
     .is("deleted_at", null)
     .order("name");
   if (compError) {
-    return NextResponse.json({ error: compError.message }, { status: 500 });
+    console.error("admin/competencia error:", compError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const competitorIds = (competitors || []).map((c: { id: string }) => c.id);
@@ -53,7 +54,8 @@ export async function GET(request: NextRequest) {
     .in("competitor_id", competitorIds.length ? competitorIds : ["00000000-0000-0000-0000-000000000000"])
     .order("captured_at", { ascending: false });
   if (snapError) {
-    return NextResponse.json({ error: snapError.message }, { status: 500 });
+    console.error("admin/competencia error:", snapError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const latestByCompetitor = new Map<string, unknown>();
@@ -70,7 +72,8 @@ export async function GET(request: NextRequest) {
     .is("acknowledged_at", null)
     .order("created_at", { ascending: false });
   if (alertError) {
-    return NextResponse.json({ error: alertError.message }, { status: 500 });
+    console.error("admin/competencia error:", alertError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   // v8.3 E9.13: "nuestro margen si igualamos [precio del competidor]" --
@@ -175,7 +178,8 @@ export async function POST(request: NextRequest) {
       .select("id", { count: "exact", head: true })
       .is("deleted_at", null);
     if (countError) {
-      return NextResponse.json({ error: countError.message }, { status: 500 });
+      console.error("admin/competencia error:", countError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     const check = canAddCompetitor(count || 0);
     if (!check.allowed) {
@@ -188,7 +192,8 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/competencia error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     return NextResponse.json({ competitor: data }, { status: 201 });
   }
@@ -253,7 +258,8 @@ export async function POST(request: NextRequest) {
       review_count: current.reviewCount,
     });
     if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      console.error("admin/competencia error:", insertError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // knownCompetitorIds ANTES de este snapshot es lo que detectNewCompetitor
@@ -275,7 +281,8 @@ export async function POST(request: NextRequest) {
         }))
       );
       if (alertInsertError) {
-        return NextResponse.json({ error: alertInsertError.message }, { status: 500 });
+        console.error("admin/competencia error:", alertInsertError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
     }
 

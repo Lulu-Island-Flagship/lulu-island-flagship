@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { requireActiveEmployee } from "@/lib/require-active-employee";
 
 /**
  * v8.3 FIX-9 (D.3 #7 / D.11 sec. #517-518): "Disputa de T: el empleado marca
@@ -70,14 +71,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: employee } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
+    const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id);
 
     if (!employee) {
-      return NextResponse.json({ error: "Employee not found" }, { status: 403 });
+      return NextResponse.json({ error: empError }, { status: empStatus });
     }
 
     // Verificar que el empleado tuvo asignación real en este order -- mismo
@@ -179,14 +176,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: employee } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
+    const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id);
 
     if (!employee) {
-      return NextResponse.json({ error: "Employee not found" }, { status: 403 });
+      return NextResponse.json({ error: empError }, { status: empStatus });
     }
 
     let query = supabase

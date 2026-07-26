@@ -31,7 +31,8 @@ export async function GET() {
     .order("policy_type", { ascending: true });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("admin/business-insurance error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const enriched = (policies || []).map((p: { policy_type: string; expiry_date: string; coverage_amount_cents: number }) => ({
@@ -122,7 +123,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("admin/business-insurance error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ policy }, { status: 201 });

@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { requireActiveEmployee } from "@/lib/require-active-employee";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -45,14 +46,10 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: me, error: meError } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
+    const { employee: me, error: meError, status: meStatus } = await requireActiveEmployee(supabase, user.id);
 
-    if (meError || !me) {
-      return NextResponse.json({ error: "Employee not found" }, { status: 403 });
+    if (!me) {
+      return NextResponse.json({ error: meError }, { status: meStatus });
     }
 
     const { orderId } = await params;

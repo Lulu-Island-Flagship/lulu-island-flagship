@@ -10,6 +10,7 @@ import { dispatchCommunication } from "@/lib/send-communication";
 import { buildReviewLink, buildReviewQrSvg, hasOpenCriticalDispute } from "@/lib/review-delivery";
 import { ensureZoneAssignment } from "@/lib/zone-assignment";
 import { haversineDistance, ARRIVAL_GEOFENCE_RADIUS_METERS } from "@/lib/geocode";
+import { requireActiveEmployee } from "@/lib/require-active-employee";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -341,14 +342,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Buscar perfil de empleado
-    const { data: employee, error: empError } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
+    const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id);
 
-    if (empError || !employee) {
-      return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
+    if (!employee) {
+      return NextResponse.json({ error: empError }, { status: empStatus });
     }
 
     // Verificar que el empleado tiene asignación para este order

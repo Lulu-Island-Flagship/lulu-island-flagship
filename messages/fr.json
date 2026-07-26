@@ -809,6 +809,29 @@
       "save": "Enregistrer"
     }
   },
+  "portal": {
+    "staffLogin": {
+      "errors": {
+        "googleFailed": "Échec de la connexion Google. Veuillez réessayer.",
+        "invalidEmail": "Veuillez entrer une adresse e-mail valide",
+        "sendCodeFailed": "Échec de l'envoi du code de vérification",
+        "invalidCode": "Veuillez entrer le code à 6 chiffres",
+        "invalidVerificationCode": "Code de vérification invalide",
+        "backupCodeRequired": "Veuillez entrer un code de secours",
+        "backupCodeFailed": "Échec de la connexion avec le code de secours"
+      }
+    },
+    "page": {
+      "title": "Portail de l'équipe",
+      "checkingAccount": "Vérification de votre compte…",
+      "tryAgain": "Réessayer",
+      "errors": {
+        "authFailed": "Impossible de vous connecter. Veuillez réessayer.",
+        "notAuthorized": "Votre compte n'est pas autorisé.",
+        "connection": "Erreur de connexion lors de la vérification de votre compte. Veuillez réessayer."
+      }
+    }
+  },
   "employee": {
     "loginTitle": "Connexion employé",
     "loginSubtitle": "Connectez-vous avec votre courriel de travail",
