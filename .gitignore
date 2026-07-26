@@ -48,3 +48,5 @@ tsconfig.verify*.json
 
 # Supabase Studio SQL editor auto-saved snippets (local dev state, not source)
 /supabase/snippets/
+.tscout/
+tsconfig.check.json

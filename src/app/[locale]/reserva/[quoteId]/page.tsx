@@ -486,9 +486,22 @@ export default function ReservaPage() {
 
   if (!quote) return null;
 
+  // Fix (auditoría UX 2026-07-25, item 12): el paso "Card" se marcaba como
+  // completado (done: true) apenas el cliente hacía click en la pestaña
+  // "PayPal" -- eso solo hace setPaymentMethodId("paypal") (línea ~591), sin
+  // que el cliente haya escrito todavía el Transaction ID ni pasado la
+  // validación de 17 caracteres que handleConfirm sí exige antes de dejar
+  // confirmar (línea ~402). El indicador de progreso mentía. Para PayPal, el
+  // paso solo se considera completo cuando paypalTransactionId ya tiene el
+  // largo correcto (17 caracteres) -- la misma validación que handleConfirm.
+  const paypalStepDone = paymentOption === "paypal_first_time" && paypalTransactionId.length === 17;
   const stepLabels = [
     { icon: Calendar, label: t("steps.dateTime"), done: !!serviceDate && !!serviceTime },
-    { icon: CreditCard, label: t("steps.card"), done: !!paymentMethodId },
+    {
+      icon: CreditCard,
+      label: t("steps.card"),
+      done: paymentOption === "paypal_first_time" ? paypalStepDone : !!paymentMethodId,
+    },
     { icon: CheckCircle2, label: t("steps.confirm"), done: false },
   ];
 

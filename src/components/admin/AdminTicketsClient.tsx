@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { useTranslations } from "next-intl";
 import {
   Loader2,
@@ -74,6 +75,19 @@ export default function AdminTicketsClient() {
   const [resolutionStatus, setResolutionStatus] = useState<"resolved" | "escalated">("resolved");
   const [submitting, setSubmitting] = useState(false);
   const [correctedTime, setCorrectedTime] = useState("");
+
+  // Item 12 (auditoría 2026-07-25): el modal de resolución de tickets no
+  // tenía focus trap ni cierre con Escape.
+  const resolveModalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(resolveModalRef, !!selectedTicket);
+  useEffect(() => {
+    if (!selectedTicket) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setSelectedTicket(null);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [selectedTicket]);
 
   useEffect(() => {
     loadTickets();
@@ -344,10 +358,11 @@ export default function AdminTicketsClient() {
       {/* Resolve Modal */}
       {selectedTicket && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4">
+          <div ref={resolveModalRef} role="dialog" aria-modal="true" className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-brand-ink">{t("modal.title")}</h2>
               <button
+                type="button"
                 onClick={() => setSelectedTicket(null)}
                 className="text-gray-400 hover:text-gray-600"
               >

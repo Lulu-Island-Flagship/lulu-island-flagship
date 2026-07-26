@@ -7,6 +7,7 @@ import {
   detectHazard,
   type ChemicalCode,
 } from "@/lib/chemical-lockout";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 /**
  * v8.3 E4 (D.5 + B.2.8) — Reemplaza el "confirmar" de un solo toque que
@@ -127,9 +128,17 @@ export function ChemicalMatchModal({
     }
   }
 
+  const dialogRef = useFocusTrap<HTMLDivElement>(true, onClose);
+
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl max-w-md w-full p-5 max-h-[90vh] overflow-y-auto">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="¿Qué producto usas aquí?"
+        className="bg-white rounded-xl max-w-md w-full p-5 max-h-[90vh] overflow-y-auto"
+      >
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2 text-amber-800">
             <Lock className="w-5 h-5" />

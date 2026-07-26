@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
+import { useParams } from "next/navigation";
 import { ShieldAlert, HeartPulse, Loader2, CheckCircle2, Siren } from "lucide-react";
+import { EmpleadoBackHeader } from "@/components/empleado/EmpleadoBackHeader";
 
 /**
  * v8.3 E7 (D.10 #7) — Panel de seguridad del empleado. La activación de
@@ -14,19 +16,25 @@ import { ShieldAlert, HeartPulse, Loader2, CheckCircle2, Siren } from "lucide-re
  * invocaba -- eran inalcanzables desde el campo.
  */
 export default function SeguridadPage() {
+  const params = useParams();
+  const locale = (params?.locale as string) || "en";
+  const backHref = `/${locale}/empleado`;
   return (
-    <div className="p-4 max-w-lg mx-auto space-y-6">
-      <h1 className="text-xl font-bold text-brand-ink">Safety</h1>
-      <div className="bg-state-danger/5 border border-state-danger/20 rounded-xl p-4 flex items-center gap-3">
-        <Siren className="w-6 h-6 text-state-danger flex-shrink-0" />
-        <p className="text-sm text-gray-600">
-          For an emergency, use the red <strong>SOS</strong> button in the bottom-right corner —
-          it&apos;s available on every page.
-        </p>
+    <main className="min-h-screen bg-brand-ice">
+      <EmpleadoBackHeader title="Safety" backHref={backHref} />
+      <div className="p-4 max-w-lg mx-auto space-y-6">
+        <h1 className="text-xl font-bold text-brand-ink">Safety</h1>
+        <div className="bg-state-danger/5 border border-state-danger/20 rounded-xl p-4 flex items-center gap-3">
+          <Siren className="w-6 h-6 text-state-danger flex-shrink-0" />
+          <p className="text-sm text-gray-600">
+            For an emergency, use the red <strong>SOS</strong> button in the bottom-right corner —
+            it&apos;s available on every page.
+          </p>
+        </div>
+        <NearMissSection />
+        <WorkplaceIncidentSection />
       </div>
-      <NearMissSection />
-      <WorkplaceIncidentSection />
-    </div>
+    </main>
   );
 }
 

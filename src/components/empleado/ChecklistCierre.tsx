@@ -547,6 +547,8 @@ export function ChecklistCierre({
               {/* Zone header */}
               <button
                 onClick={() => toggleZone(zone.zone)}
+                aria-expanded={isExpanded}
+                aria-controls={`checklist-zone-${zone.zone}`}
                 className={`w-full flex items-center justify-between p-3 ${zoneColorClass}`}
               >
                 <div className="flex items-center gap-2">
@@ -574,7 +576,7 @@ export function ChecklistCierre({
                   nunca solo color, y NUNCA la respuesta pre-mostrada: el
                   empleado elige entre las 6 opciones en ChemicalMatchModal). */}
               {isExpanded && !zoneUnlocked && (
-                <div className="p-3 bg-amber-50 border-t border-amber-200 flex items-center gap-3">
+                <div id={`checklist-zone-${zone.zone}`} className="p-3 bg-amber-50 border-t border-amber-200 flex items-center gap-3">
                   <div className="flex-1 min-w-0 text-xs text-amber-800">
                     <p className="font-semibold">Confirm the chemical before starting this zone</p>
                     <p>Identifica el producto correcto para: {zone.zoneLabel}</p>
@@ -592,7 +594,7 @@ export function ChecklistCierre({
 
               {/* Zone items */}
               {isExpanded && zoneUnlocked && (
-                <div className="p-3 space-y-2">
+                <div id={`checklist-zone-${zone.zone}`} className="p-3 space-y-2">
                   {zone.items.map((item) => {
                     // v8.3 E4 (D.7): superficie caliente — estufa/campana con
                     // azul deben esperar 10 min de timer antes de completarse.
@@ -615,6 +617,8 @@ export function ChecklistCierre({
                       <button
                         onClick={() => handleToggleItem(zone, item.itemId, item.label)}
                         disabled={hotSurfaceLocked}
+                        aria-label={item.isCompleted ? `Mark "${item.label}" as incomplete` : `Mark "${item.label}" as complete`}
+                        aria-pressed={item.isCompleted}
                         className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
                           item.isCompleted
                             ? "bg-state-success border-state-success text-white"

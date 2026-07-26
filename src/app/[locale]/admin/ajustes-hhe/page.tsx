@@ -9,6 +9,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Gauge, Loader2, CheckCircle2, Zap } from "lucide-react";
 import { useTranslations } from "next-intl";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 interface Suggestion {
   serviceType: string;
@@ -43,6 +44,10 @@ export default function AjustesHhePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [applying, setApplying] = useState<string | null>(null);
+  // Item 7 (auditoría 2026-07-25): reemplaza el window.confirm() nativo
+  // (no accesible, no estilizable, bloqueable por popup blockers) por
+  // ConfirmActionModal, ya usado en el resto del admin.
+  const [confirmSuggestion, setConfirmSuggestion] = useState<Suggestion | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,7 +69,6 @@ export default function AjustesHhePage() {
   }, [load]);
 
   async function apply(s: Suggestion) {
-    if (!confirm(s.message)) return;
     const key = `${s.serviceType}::${s.sqftBand}`;
     setApplying(key);
     setError("");
@@ -121,7 +125,8 @@ export default function AjustesHhePage() {
                   })}
                 </p>
                 <button
-                  onClick={() => apply(s)}
+                  type="button"
+                  onClick={() => setConfirmSuggestion(s)}
                   disabled={applying === key}
                   className="mt-3 flex items-center gap-1.5 rounded-md bg-brand-navy px-3 py-1.5 text-xs text-white hover:opacity-90 disabled:opacity-50"
                 >
@@ -155,6 +160,19 @@ export default function AjustesHhePage() {
             ))}
           </div>
         </div>
+      )}
+
+      {confirmSuggestion && (
+        <ConfirmActionModal
+          title={t("apply")}
+          message={confirmSuggestion.message}
+          onCancel={() => setConfirmSuggestion(null)}
+          onConfirm={async () => {
+            const s = confirmSuggestion;
+            setConfirmSuggestion(null);
+            await apply(s);
+          }}
+        />
       )}
     </div>
   );

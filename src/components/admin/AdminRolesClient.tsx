@@ -285,10 +285,11 @@ function AddRoleModal({
         {saveError && <p className="text-xs text-state-danger">{saveError}</p>}
 
         <div className="flex justify-end gap-2 pt-2">
-          <button onClick={onClose} className="px-4 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100">
             {t("addModal.cancel")}
           </button>
           <button
+            type="button"
             onClick={handleCreate}
             disabled={saving || !email.trim()}
             aria-label={saving ? t("addModal.grantingAriaLabel") : t("addModal.grantAriaLabel")}

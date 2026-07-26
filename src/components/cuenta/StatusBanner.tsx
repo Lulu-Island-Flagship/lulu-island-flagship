@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { AlertCircle, CheckCircle2, Loader2, X } from "lucide-react";
 
 interface StatusBannerProps {
@@ -32,12 +33,23 @@ export function StatusBanner({
   message,
   onRetry,
   retrying,
-  retryLabel = "Retry",
+  retryLabel,
   onDismiss,
-  dismissLabel = "Dismiss",
+  dismissLabel,
   autoDismissMs,
   className = "",
 }: StatusBannerProps) {
+  // Fix (auditoría UX 2026-07-25): "Retry"/"Dismiss"/"Retrying…" eran
+  // fallbacks hardcodeados en inglés -- un cliente navegando en fr/zh que
+  // llegara a un caller sin retryLabel/dismissLabel explícito (o al estado
+  // "retrying", que no tenía prop de override) veía texto en inglés en medio
+  // de una UI ya traducida. Se usan claves i18n obligatorias como default en
+  // vez de literales en inglés.
+  const tCommon = useTranslations("cuenta.common");
+  const resolvedRetryLabel = retryLabel ?? tCommon("retry");
+  const resolvedDismissLabel = dismissLabel ?? tCommon("dismiss");
+  const resolvedRetryingLabel = tCommon("retrying");
+
   useEffect(() => {
     if (variant === "success" && message && autoDismissMs && onDismiss) {
       const timer = setTimeout(onDismiss, autoDismissMs);
@@ -70,14 +82,14 @@ export function StatusBanner({
             className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-semibold underline disabled:opacity-50"
           >
             {retrying && <Loader2 className="w-3 h-3 animate-spin" />}
-            {retrying ? "Retrying…" : retryLabel}
+            {retrying ? resolvedRetryingLabel : resolvedRetryLabel}
           </button>
         )}
       </div>
       {onDismiss && (
         <button
           type="button"
-          aria-label={dismissLabel}
+          aria-label={resolvedDismissLabel}
           onClick={onDismiss}
           className="shrink-0 opacity-60 hover:opacity-100"
         >

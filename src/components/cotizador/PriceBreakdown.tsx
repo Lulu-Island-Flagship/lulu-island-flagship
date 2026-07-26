@@ -1,10 +1,11 @@
 "use client";
 
 import React from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { QuoteData } from "@/types";
 import { SERVICE_TYPES } from "@/lib/pricing";
 import { DollarSign, Percent, MapPin, Truck, Receipt, Shield, AlertTriangle, Tag, Plus } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
 
 interface PriceBreakdownProps {
   quote: QuoteData;
@@ -12,6 +13,12 @@ interface PriceBreakdownProps {
 
 export function PriceBreakdown({ quote }: PriceBreakdownProps) {
   const t = useTranslations("cotizador.priceBreakdown");
+  // Fix (auditoría UX 2026-07-25): antes cada precio se formateaba a mano con
+  // `${n.toFixed(2)}` -- siempre en formato inglés-canadiense sin importar el
+  // idioma del cliente. Se usa el helper de moneda localizada compartido
+  // (src/lib/format.ts) en todo el desglose.
+  const locale = useLocale();
+  const fmt = (n: number) => formatCurrency(n, locale);
   const serviceKey = SERVICE_TYPES.find((s) => s.key === quote.serviceType)?.key;
   const serviceLabel = serviceKey ? t(`serviceTypes.${serviceKey}`) : quote.serviceType;
 
@@ -27,7 +34,7 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
         <span className="text-gray-600">
           {serviceLabel} ({quote.squareFeet.toLocaleString()} ft²)
         </span>
-        <span className="font-medium">${quote.basePrice.toFixed(2)}</span>
+        <span className="font-medium">{fmt(quote.basePrice)}</span>
       </div>
 
       {/* Organic adjustment */}
@@ -38,7 +45,7 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
             {quote.organicAdjustment > 0 ? t("organicHeavy") : t("organicLight")}
           </span>
           <span className={`font-medium ${quote.organicAdjustment > 0 ? "text-state-warning" : "text-state-success"}`}>
-            {quote.organicAdjustment > 0 ? "+" : "-"}${Math.abs(quote.organicAdjustment).toFixed(2)}
+            {quote.organicAdjustment > 0 ? "+" : "-"}{fmt(Math.abs(quote.organicAdjustment))}
           </span>
         </div>
       )}
@@ -51,7 +58,7 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
             {quote.recencyAdjustment > 0 ? t("recencyLong") : t("recencyRecent")}
           </span>
           <span className={`font-medium ${quote.recencyAdjustment > 0 ? "text-state-warning" : "text-state-success"}`}>
-            {quote.recencyAdjustment > 0 ? "+" : "-"}${Math.abs(quote.recencyAdjustment).toFixed(2)}
+            {quote.recencyAdjustment > 0 ? "+" : "-"}{fmt(Math.abs(quote.recencyAdjustment))}
           </span>
         </div>
       )}
@@ -64,7 +71,7 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
             {t("zoneSurcharge")}
           </span>
           <span className="font-medium text-state-warning">
-            +${quote.zoneSurcharge.toFixed(2)}
+            +{fmt(quote.zoneSurcharge)}
           </span>
         </div>
       )}
@@ -77,7 +84,7 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
             {t("logisticsSurcharge")}
           </span>
           <span className="font-medium text-state-warning">
-            +${quote.logisticsSurcharge.toFixed(2)}
+            +{fmt(quote.logisticsSurcharge)}
           </span>
         </div>
       )}
@@ -90,7 +97,7 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
             {t("extraAreas")}
           </span>
           <span className="font-medium text-state-warning">
-            +${quote.addonZonesCharge.toFixed(2)}
+            +{fmt(quote.addonZonesCharge)}
           </span>
         </div>
       )}
@@ -116,7 +123,7 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
                   {rule.name}
                 </span>
                 <span className={`font-medium ${rule.adjustment > 0 ? "text-state-warning" : "text-state-success"}`}>
-                  {rule.adjustment > 0 ? "+" : "-"}${Math.abs(rule.adjustment).toFixed(2)}
+                  {rule.adjustment > 0 ? "+" : "-"}{fmt(Math.abs(rule.adjustment))}
                 </span>
               </div>
             ))
@@ -127,7 +134,7 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
                 {t("ruleAdjustment")}
               </span>
               <span className={`font-medium ${quote.ruleAdjustment > 0 ? "text-state-warning" : "text-state-success"}`}>
-                {quote.ruleAdjustment > 0 ? "+" : "-"}${Math.abs(quote.ruleAdjustment).toFixed(2)}
+                {quote.ruleAdjustment > 0 ? "+" : "-"}{fmt(Math.abs(quote.ruleAdjustment))}
               </span>
             </div>
           )}
@@ -156,18 +163,18 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
       <div className="flex justify-between items-center py-2 border-b-2 border-brand-navy">
         <span className="font-semibold text-brand-ink">{t("subtotal")}</span>
         <span className="font-semibold text-brand-ink">
-          ${quote.subtotal.toFixed(2)}
+          {fmt(quote.subtotal)}
         </span>
       </div>
 
       {/* Taxes */}
       <div className="flex justify-between items-center py-1">
         <span className="text-gray-500 text-sm">{t("gst")}</span>
-        <span className="text-gray-500 text-sm">${quote.gst.toFixed(2)}</span>
+        <span className="text-gray-500 text-sm">{fmt(quote.gst)}</span>
       </div>
       <div className="flex justify-between items-center py-1">
         <span className="text-gray-500 text-sm">{t("pst")}</span>
-        <span className="text-gray-500 text-sm">${quote.pst.toFixed(2)}</span>
+        <span className="text-gray-500 text-sm">{fmt(quote.pst)}</span>
       </div>
 
       {/* Total */}
@@ -176,7 +183,7 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
           <DollarSign className="w-5 h-5" />
           {t("total")}
         </span>
-        <span className="text-2xl font-bold">${quote.total.toFixed(2)}</span>
+        <span className="text-2xl font-bold">{fmt(quote.total)}</span>
       </div>
 
       {/* Hold */}
@@ -184,7 +191,7 @@ export function PriceBreakdown({ quote }: PriceBreakdownProps) {
         <Shield className="w-5 h-5 text-state-warning flex-shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-medium text-state-warning">
-            {t("holdTitle", { amount: `$${quote.holdAmount.toFixed(2)}` })}
+            {t("holdTitle", { amount: fmt(quote.holdAmount) })}
           </p>
           <p className="text-xs text-gray-600 mt-1">
             {t("holdDesc")}

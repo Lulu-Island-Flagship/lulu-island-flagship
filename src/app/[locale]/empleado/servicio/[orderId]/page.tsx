@@ -22,6 +22,9 @@ import {
   AlertOctagon,
   Palette,
   ChevronRight,
+  ChevronDown,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import type { EmployeeService, AssignmentStatus } from "@/types";
 import { haversineDistance, ARRIVAL_GEOFENCE_RADIUS_METERS } from "@/lib/geocode";
@@ -87,6 +90,12 @@ export default function ServicioPage() {
   const [noteError, setNoteError] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("timeline");
   const [geofenceStatus, setGeofenceStatus] = useState<"checking" | "inside" | "outside" | "bypass">("checking");
+  // v8.3 fix (auditoría UX/UI/seguridad 2026-07-25, P0 #1): true apenas el
+  // server confirma un T_in con geofence_bypass=true -- el check-in NUNCA
+  // queda "aprobado" solo por completar las 3 salvaguardas client-side, así
+  // que se lo dejamos explícito al empleado en vez de mostrar el mismo
+  // estado de éxito que un check-in normal dentro de la geocerca.
+  const [bypassPendingReview, setBypassPendingReview] = useState(false);
   const [bypassReason, setBypassReason] = useState("");
   // v8.3 E4 fix (auditoría 2026-07-18) — el bypass de geocerca de T_in era
   // instantáneo: un botón habilitado apenas se escribía cualquier texto en
@@ -333,11 +342,20 @@ export default function ServicioPage() {
     }
   };
 
+  // v8.3 fix (auditoría UX/UI/seguridad 2026-07-25, P0 #1): el mínimo de
+  // caracteres de la justificación escrita subió de 10 a 30 -- 10 permitía
+  // texto sin contenido verificable real ("estoy aquí"). Este mínimo es
+  // solo higiene de dato, no reemplaza la aprobación de un supervisor: el
+  // check-in queda igual marcado 'pending_supervisor_review' en el server
+  // (ver route.ts) sin importar cuánto escriba el empleado aquí.
+  const MIN_BYPASS_REASON_LENGTH = 30;
   const bypassSafeguardsReady =
     bypassCountdown === 0 &&
     !!bypassCategory &&
-    bypassReason.trim().length > 0 &&
-    (bypassCannotPhoto ? bypassNoPhotoJustification.trim().length >= 10 : !!bypassPhotoUrl);
+    bypassReason.trim().length >= MIN_BYPASS_REASON_LENGTH &&
+    (bypassCannotPhoto
+      ? bypassNoPhotoJustification.trim().length >= MIN_BYPASS_REASON_LENGTH
+      : !!bypassPhotoUrl);
 
   const confirmBypass = () => {
     if (!bypassSafeguardsReady) return;
@@ -419,11 +437,28 @@ export default function ServicioPage() {
         if (service && optimisticStatus) {
           setService({ ...service, status: optimisticStatus });
         }
+        // Bypass encolado sin conexión: mismo criterio optimista que
+        // optimisticStatus arriba (D.10 #1) -- T_in con bypass siempre
+        // termina en pending_supervisor_review server-side (ver route.ts),
+        // así que se lo mostramos ya, aunque la confirmación real llegue al
+        // sincronizar.
+        if (eventType === "t_in" && geofenceStatus === "bypass") {
+          setBypassPendingReview(true);
+        }
         await refreshQueueStatus();
       } else {
-        const data = result.data as { assignmentStatus?: AssignmentStatus } | undefined;
+        const data = result.data as
+          | { assignmentStatus?: AssignmentStatus; geofenceBypassPendingReview?: boolean }
+          | undefined;
         if (service && data?.assignmentStatus) {
           setService({ ...service, status: data.assignmentStatus });
+        }
+        // v8.3 fix (auditoría UX/UI/seguridad 2026-07-25, P0 #1): el server
+        // confirma explícitamente si este T_in quedó pendiente de revisión
+        // de supervisor -- se lo mostramos al empleado en vez de dejarlo
+        // creer que el bypass ya fue aprobado.
+        if (data?.geofenceBypassPendingReview) {
+          setBypassPendingReview(true);
         }
         await loadLogs();
       }
@@ -584,7 +619,11 @@ export default function ServicioPage() {
       {/* Header */}
       <header className="bg-brand-navy text-white">
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
-          <button onClick={() => router.push(`/${safeLocale}/empleado`)} className="text-white/70 hover:text-white">
+          <button
+            onClick={() => router.push(`/${safeLocale}/empleado`)}
+            aria-label="Back to dashboard"
+            className="text-white/70 hover:text-white"
+          >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div className="flex-1 min-w-0">
@@ -602,49 +641,22 @@ export default function ServicioPage() {
 
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-brand-gold" />
+              <Clock className="w-4 h-4 text-brand-gold-dark" />
               <span>{service.serviceDate} at {service.serviceTime}</span>
             </div>
             <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-brand-gold" />
+              <MapPin className="w-4 h-4 text-brand-gold-dark" />
               <span>{service.address}, {service.zone}</span>
             </div>
-            {service.clientName && (
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-brand-gold" />
-                <span>{service.clientName}</span>
-              </div>
-            )}
-            {service.clientPhone && (
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-brand-gold" />
-                <a href={`tel:${service.clientPhone}`} className="text-brand-navy underline">
-                  {service.clientPhone}
-                </a>
-              </div>
-            )}
           </div>
 
-          <div className="border-t pt-3 grid grid-cols-2 gap-2 text-xs text-gray-600">
-            <div className="flex items-center gap-1">
-              <Home className="w-3.5 h-3.5" />
-              <span>{service.bedrooms} bed, {service.bathrooms} bath</span>
-            </div>
-            <div>
-              <span>{service.squareFeet} ft²</span>
-            </div>
-            {service.petsCount > 0 && (
-              <div className="col-span-2 text-amber-600">
-                <AlertTriangle className="w-3.5 h-3.5 inline mr-1" />
-                {service.petsCount} pet(s): {service.petsType}
-              </div>
-            )}
-            {service.residents > 0 && (
-              <div className="col-span-2">
-                {service.residents} resident(s)
-              </div>
-            )}
-          </div>
+          {/* Fix (auditoría UX/seguridad 2026-07-25, item #9): nombre,
+              teléfono, dirección, residentes y mascotas del cliente se
+              mostraban siempre visibles sin ninguna protección -- exposición
+              innecesaria de PII para cualquiera que mire por encima del
+              hombro del empleado. Ahora queda colapsado por defecto detrás
+              de un botón explícito "Show contact info". */}
+          <ContactInfoDisclosure service={service} />
         </div>
 
         {/* Quick links a paginas por-orden que antes existian pero eran
@@ -724,6 +736,60 @@ export default function ServicioPage() {
           </div>
         )}
 
+        {/* Fix (auditoría UX/UI 2026-07-25, item #2): antes, cuando había un
+            t_out ya encolado (offline / pendiente de sync), nextAction se
+            volvía null y el bloque "Action Button" completo desaparecía --
+            el empleado se quedaba sin ningún botón para reintentar el cierre
+            del servicio, solo el aviso pasivo de arriba. Ahora se muestra un
+            botón deshabilitado "Waiting for connection..." más un "Retry
+            now" explícito que fuerza un ciclo de sync inmediato. */}
+        {!isCompleted && !nextAction && hasQueuedTOut && (
+          <div className="space-y-2">
+            <button
+              type="button"
+              disabled
+              className="w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-2 bg-state-success/40 text-white cursor-not-allowed"
+            >
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Waiting for connection...
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                setRetryingSync(true);
+                await triggerSyncCycle();
+                await refreshQueueStatus();
+                await loadService();
+                setRetryingSync(false);
+              }}
+              disabled={retryingSync}
+              className="w-full inline-flex items-center justify-center gap-2 border border-brand-navy text-brand-navy px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+            >
+              {retryingSync ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Retry now
+            </button>
+          </div>
+        )}
+
+        {/* v8.3 fix (auditoría UX/UI/seguridad 2026-07-25, P0 #1): un check-in
+            con bypass de geocerca NUNCA queda aprobado solo por completar
+            las 3 salvaguardas en el teléfono -- se lo dejamos explícito al
+            empleado en vez de mostrar el mismo estado de éxito silencioso
+            que un check-in normal. Falta todavía: notificación push/email
+            en tiempo real al supervisor (no implementada en este repo) y
+            una pantalla admin para aprobar/rechazar -- por ahora el registro
+            queda en service_logs.geofence_bypass_review_status =
+            'pending_supervisor_review', consultable pero sin alerta activa. */}
+        {bypassPendingReview && (
+          <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-start gap-2 text-sm text-amber-800">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>
+              Your arrival was recorded outside the service geofence. This is <strong>not yet approved</strong> —
+              it&apos;s flagged and pending your supervisor&apos;s review.
+            </span>
+          </div>
+        )}
+
         {/* Action Button (always visible) */}
         {!isCompleted && nextAction && (
           <div className="space-y-2">
@@ -733,7 +799,8 @@ export default function ServicioPage() {
                   <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <span>
                     You appear to be far from the service location (or GPS is unavailable). Bypassing this
-                    check is logged and reviewed by your supervisor.
+                    check does <strong>not</strong> approve your check-in — it creates a flagged record
+                    that stays pending until your supervisor reviews it.
                   </span>
                 </div>
 
@@ -764,9 +831,14 @@ export default function ServicioPage() {
                   aria-label="Razón para omitir la verificación de geocerca"
                   value={bypassReason}
                   onChange={(e) => setBypassReason(e.target.value)}
-                  placeholder="Describe the specific situation (required)..."
+                  placeholder="Describe the specific situation in detail (required, min. 30 characters)..."
                   className="w-full text-sm border border-yellow-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 />
+                {bypassReason.trim().length > 0 && bypassReason.trim().length < MIN_BYPASS_REASON_LENGTH && (
+                  <p className="text-xs text-yellow-800">
+                    {MIN_BYPASS_REASON_LENGTH - bypassReason.trim().length} more characters needed.
+                  </p>
+                )}
 
                 {/* Salvaguarda 3: foto obligatoria de evidencia -- o, si
                     genuinamente no se puede tomar, una justificación escrita
@@ -817,10 +889,16 @@ export default function ServicioPage() {
                       aria-label="Justificación por no poder tomar foto de evidencia"
                       value={bypassNoPhotoJustification}
                       onChange={(e) => setBypassNoPhotoJustification(e.target.value)}
-                      placeholder="e.g. camera not working, client asked not to photograph the interior..."
+                      placeholder="e.g. camera not working, client asked not to photograph the interior... (min. 30 characters)"
                       rows={2}
                       className="w-full text-sm border border-yellow-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none"
                     />
+                    {bypassNoPhotoJustification.trim().length > 0 &&
+                      bypassNoPhotoJustification.trim().length < MIN_BYPASS_REASON_LENGTH && (
+                        <p className="text-xs text-yellow-800">
+                          {MIN_BYPASS_REASON_LENGTH - bypassNoPhotoJustification.trim().length} more characters needed.
+                        </p>
+                      )}
                     <button
                       type="button"
                       onClick={() => {
@@ -888,12 +966,17 @@ export default function ServicioPage() {
               última pestaña ya esté activa/visible) como affordance visual
               de "hay más contenido", sin restructurar la navegación. */}
           <div className="relative">
-            <div className="flex overflow-x-auto border-b scrollbar-hide">
+            <div role="tablist" aria-label="Service sections" className="flex overflow-x-auto border-b scrollbar-hide">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
                   <button
                     key={tab.key}
+                    id={`tab-${tab.key}`}
+                    role="tab"
+                    aria-selected={activeTab === tab.key}
+                    aria-controls={`tabpanel-${tab.key}`}
+                    tabIndex={activeTab === tab.key ? 0 : -1}
                     onClick={() => setActiveTab(tab.key)}
                     className={`flex items-center gap-1 px-3 py-3 text-xs font-medium whitespace-nowrap transition-colors ${
                       activeTab === tab.key
@@ -918,7 +1001,12 @@ export default function ServicioPage() {
           </div>
 
           {/* Tab content */}
-          <div className="p-4">
+          <div
+            className="p-4"
+            role="tabpanel"
+            id={`tabpanel-${activeTab}`}
+            aria-labelledby={`tab-${activeTab}`}
+          >
             {activeTab === "timeline" && (
               <div className="space-y-4">
                 {/* Photos */}
@@ -1077,5 +1165,81 @@ export default function ServicioPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+/**
+ * Fix (auditoría UX/seguridad 2026-07-25, item #9): nombre, teléfono,
+ * dirección detallada, residentes y mascotas del cliente colapsados por
+ * defecto detrás de un botón explícito -- reduce la exposición innecesaria
+ * de PII a cualquiera que mire la pantalla del empleado (transporte
+ * público, otros clientes, etc.), sin quitarle al empleado el acceso a la
+ * información cuando la necesita.
+ */
+function ContactInfoDisclosure({ service }: { service: EmployeeService }) {
+  const [revealed, setRevealed] = useState(false);
+
+  const hasContactInfo =
+    !!service.clientName || !!service.clientPhone || service.residents > 0 || service.petsCount > 0;
+
+  if (!hasContactInfo) return null;
+
+  return (
+    <div className="border-t pt-3">
+      <button
+        type="button"
+        onClick={() => setRevealed((v) => !v)}
+        aria-expanded={revealed}
+        className="w-full flex items-center justify-between text-sm font-medium text-brand-navy"
+      >
+        <span className="flex items-center gap-2">
+          {revealed ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          {revealed ? "Hide contact info" : "Show contact info"}
+        </span>
+        <ChevronDown className={`w-4 h-4 transition-transform ${revealed ? "rotate-180" : ""}`} />
+      </button>
+
+      {revealed && (
+        <div className="mt-3 space-y-3">
+          <div className="space-y-2 text-sm">
+            {service.clientName && (
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-brand-gold-dark" />
+                <span>{service.clientName}</span>
+              </div>
+            )}
+            {service.clientPhone && (
+              <div className="flex items-center gap-2">
+                <Phone className="w-4 h-4 text-brand-gold-dark" />
+                <a href={`tel:${service.clientPhone}`} className="text-brand-navy underline">
+                  {service.clientPhone}
+                </a>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+            <div className="flex items-center gap-1">
+              <Home className="w-3.5 h-3.5" />
+              <span>{service.bedrooms} bed, {service.bathrooms} bath</span>
+            </div>
+            <div>
+              <span>{service.squareFeet} ft²</span>
+            </div>
+            {service.petsCount > 0 && (
+              <div className="col-span-2 text-amber-600">
+                <AlertTriangle className="w-3.5 h-3.5 inline mr-1" />
+                {service.petsCount} pet(s): {service.petsType}
+              </div>
+            )}
+            {service.residents > 0 && (
+              <div className="col-span-2">
+                {service.residents} resident(s)
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

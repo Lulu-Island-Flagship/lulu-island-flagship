@@ -127,15 +127,25 @@ export default function HomePage() {
               agrega este link duplicado, visible únicamente por debajo de
               md (md:hidden), fuera del nav oculto. No se toca el resto del
               nav (LanguageSelector, ubicación) para no alterar el layout
-              mobile existente en otras partes del header. */}
-          <a
-            href={`/${locale}/cuenta/servicios`}
-            aria-label={t('nav.login')}
-            className="md:hidden flex items-center gap-1 text-brand-navy hover:text-brand-wave-blue transition-colors text-sm"
-          >
-            <LogIn className="w-5 h-5" />
-            <span className="sr-only">{t('nav.login')}</span>
-          </a>
+              mobile existente en otras partes del header.
+
+              Fix (auditoría UX 2026-07-25, items 7-8): este bloque mobile
+              mostraba SOLO el ícono de login con texto oculto (sr-only) --
+              ni el selector de idioma (LanguageSelector) ni un texto de
+              "Sign In" visible aparecían en mobile. Se agrega el
+              LanguageSelector junto al link, y el texto ya no es sr-only:
+              queda visible junto al ícono, igual que en desktop. */}
+          <div className="md:hidden flex items-center gap-3">
+            <LanguageSelector />
+            <a
+              href={`/${locale}/cuenta/servicios`}
+              aria-label={t('nav.login')}
+              className="flex items-center gap-1 text-brand-navy hover:text-brand-wave-blue transition-colors text-sm"
+            >
+              <LogIn className="w-5 h-5" />
+              <span>{t('nav.login')}</span>
+            </a>
+          </div>
         </div>
       </header>
 

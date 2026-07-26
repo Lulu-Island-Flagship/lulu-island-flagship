@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import {
   Loader2,
@@ -19,6 +19,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 
 interface ChecklistItem {
   id: string;
@@ -59,21 +60,22 @@ interface ConfirmDialogState {
   };
 }
 
-const COLORS = [
-  { key: "red", label: "Red", class: "bg-red-500" },
-  { key: "blue", label: "Blue", class: "bg-blue-500" },
-  { key: "green", label: "Green", class: "bg-green-500" },
-  { key: "yellow", label: "Yellow", class: "bg-yellow-500" },
-  { key: "white", label: "White", class: "bg-gray-200 border border-gray-300" },
-  { key: "black", label: "Black", class: "bg-gray-800" },
-];
-
 const DEFAULT_ITEMS: ChecklistItem[] = [
   { id: "", label: "", required: true, active: true },
 ];
 
 export default function AdminChecklistsClient() {
   const t = useTranslations("admin.checklists");
+
+  const COLORS = [
+    { key: "red", label: t("colorRed"), class: "bg-red-500" },
+    { key: "blue", label: t("colorBlue"), class: "bg-blue-500" },
+    { key: "green", label: t("colorGreen"), class: "bg-green-500" },
+    { key: "yellow", label: t("colorYellow"), class: "bg-yellow-500" },
+    { key: "white", label: t("colorWhite"), class: "bg-gray-200 border border-gray-300" },
+    { key: "black", label: t("colorBlack"), class: "bg-gray-800" },
+  ];
+
   const [checklists, setChecklists] = useState<ChecklistZone[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -97,6 +99,11 @@ export default function AdminChecklistsClient() {
   const [formIsAddonZone, setFormIsAddonZone] = useState(false);
   const [formItems, setFormItems] = useState<ChecklistItem[]>(JSON.parse(JSON.stringify(DEFAULT_ITEMS)));
 
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, showModal);
+  const confirmDialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(confirmDialogRef, !!confirmDialog?.open);
+
   useEffect(() => {
     loadChecklists();
   }, []);
@@ -114,6 +121,22 @@ export default function AdminChecklistsClient() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openZoneMenu]);
 
+  // Item 5/9 (auditoría 2026-07-25): el modal de zona y el diálogo de
+  // confirmación no cerraban con Escape. Se agrega manejo global de teclado
+  // -- el diálogo de confirmación tiene prioridad si ambos están abiertos.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      if (confirmDialog?.open) {
+        setConfirmDialog(null);
+      } else if (showModal) {
+        setShowModal(false);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [confirmDialog, showModal]);
+
   async function loadChecklists() {
     setLoading(true);
     setError(""); // Limpiar error previo
@@ -121,7 +144,7 @@ export default function AdminChecklistsClient() {
       const res = await fetch("/api/admin/checklists", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load checklists");
+        setError(err.error || t("errorLoadFailed"));
         setLoading(false);
         return;
       }
@@ -131,7 +154,7 @@ export default function AdminChecklistsClient() {
       const subtypes = new Set<string>((data.checklists || []).map((c: ChecklistZone) => c.service_subtype));
       setExpandedGroups(subtypes);
     } catch {
-      setError("Network error");
+      setError(t("errorNetwork"));
     } finally {
       setLoading(false);
     }
@@ -227,16 +250,16 @@ export default function AdminChecklistsClient() {
     } else {
       setConfirmDialog({
         open: true,
-        title: "Delete Item",
-        message: "Delete this item permanently? This cannot be undone.",
+        title: t("deleteItemTitle"),
+        message: t("deleteItemMessage"),
         onConfirm: () => {
           setFormItems((prev) => prev.filter((_, i) => i !== index));
           setConfirmDialog(null);
         },
-        confirmLabel: "Delete Permanently",
+        confirmLabel: t("deletePermanently"),
         danger: true,
         extraAction: {
-          label: "Deactivate",
+          label: t("deactivate"),
           onClick: () => {
             setFormItems((prev) =>
               prev.map((it, i) => (i === index ? { ...it, active: false } : it))
@@ -264,7 +287,7 @@ export default function AdminChecklistsClient() {
     // Additional validation: reject if any active item has empty label
     const emptyActiveItems = formItems.filter((item) => item.active !== false && item.label.trim().length === 0);
     if (emptyActiveItems.length > 0) {
-      setError("All active items must have a description.");
+      setError(t("errorAllActiveNeedDescription"));
       return;
     }
 
@@ -305,10 +328,10 @@ export default function AdminChecklistsClient() {
         await loadChecklists();
       } else {
         const err = await res.json();
-        setError(err.error || "Save failed");
+        setError(err.error || t("errorSaveFailed"));
       }
     } catch {
-      setError("Network error during save");
+      setError(t("errorNetworkSave"));
     } finally {
       setSaving(false);
     }
@@ -323,7 +346,7 @@ export default function AdminChecklistsClient() {
       );
 
       if (rpcError) {
-        setError("History check failed");
+        setError(t("errorHistoryCheckFailed"));
         return;
       }
 
@@ -331,8 +354,8 @@ export default function AdminChecklistsClient() {
         // Zone has usage history — only deactivation allowed
         setConfirmDialog({
           open: true,
-          title: "Deactivate Zone",
-          message: `This zone has usage history and can only be deactivated.`,
+          title: t("deactivateZoneTitle"),
+          message: t("deactivateZoneMessage"),
           onConfirm: async () => {
             const res = await fetch(`/api/admin/checklists/${zoneId}`, {
               method: "DELETE",
@@ -341,18 +364,18 @@ export default function AdminChecklistsClient() {
             if (res.ok) {
               await loadChecklists();
             } else {
-              setError("Deactivate failed");
+              setError(t("errorDeactivateFailed"));
             }
             setConfirmDialog(null);
           },
-          confirmLabel: "Deactivate",
+          confirmLabel: t("deactivate"),
         });
       } else {
         // No history — offer both deactivate and permanent delete
         setConfirmDialog({
           open: true,
-          title: "Delete Zone",
-          message: `Zone "${zoneLabel}" has no usage history.`,
+          title: t("deleteZoneTitle"),
+          message: t("deleteZoneMessage", { zone: zoneLabel }),
           onConfirm: async () => {
             // Deactivate (soft delete)
             const res = await fetch(`/api/admin/checklists/${zoneId}`, {
@@ -362,13 +385,13 @@ export default function AdminChecklistsClient() {
             if (res.ok) {
               await loadChecklists();
             } else {
-              setError("Deactivate failed");
+              setError(t("errorDeactivateFailed"));
             }
             setConfirmDialog(null);
           },
-          confirmLabel: "Deactivate",
+          confirmLabel: t("deactivate"),
           extraAction: {
-            label: "Delete Permanently",
+            label: t("deletePermanently"),
             onClick: async () => {
               const res = await fetch(`/api/admin/checklists/${zoneId}?force=true`, {
                 method: "DELETE",
@@ -377,7 +400,7 @@ export default function AdminChecklistsClient() {
               if (res.ok) {
                 await loadChecklists();
               } else {
-                setError("Hard delete failed");
+                setError(t("errorHardDeleteFailed"));
               }
               setConfirmDialog(null);
               setOpenZoneMenu(null);
@@ -386,7 +409,7 @@ export default function AdminChecklistsClient() {
         });
       }
     } catch {
-      setError("Delete zone failed");
+      setError(t("errorDeleteZoneFailed"));
     }
   };
 
@@ -401,14 +424,14 @@ export default function AdminChecklistsClient() {
       return;
     }
     if (!res.ok && res.status !== 404) {
-      setError("Delete service type failed");
+      setError(t("errorDeleteServiceTypeFailed"));
       return;
     }
     // Show confirmation before actual delete
     setConfirmDialog({
       open: true,
-      title: "Delete Service Type Permanently",
-      message: `This will permanently delete all zones for '${subtype.replace(/_/g, " ")}'. This cannot be undone.`,
+      title: t("deleteServiceTypeTitle"),
+      message: t("deleteServiceTypeMessage", { subtype: subtype.replace(/_/g, " ") }),
       onConfirm: async () => {
         const res2 = await fetch(`/api/admin/checklists/service-type/${encodeURIComponent(subtype)}`, {
           method: "DELETE",
@@ -417,11 +440,11 @@ export default function AdminChecklistsClient() {
         if (res2.ok) {
           await loadChecklists();
         } else {
-          setError("Delete service type failed");
+          setError(t("errorDeleteServiceTypeFailed"));
         }
         setConfirmDialog(null);
       },
-      confirmLabel: "Delete Permanently",
+      confirmLabel: t("deletePermanently"),
       danger: true,
     });
   };
@@ -453,13 +476,14 @@ export default function AdminChecklistsClient() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-brand-ink">SOP Checklists</h1>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
         <button
+          type="button"
           onClick={() => openNew()}
           className="inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-brand-navy/90"
         >
           <Plus className="w-4 h-4" />
-          New Service Type
+          {t("newServiceType")}
         </button>
       </div>
 
@@ -469,6 +493,7 @@ export default function AdminChecklistsClient() {
         return (
           <div key={subtype} className="bg-white rounded-xl border overflow-hidden">
             <button
+              type="button"
               onClick={() => toggleGroup(subtype)}
               className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
             >
@@ -478,27 +503,29 @@ export default function AdminChecklistsClient() {
                   {subtype.replace(/_/g, " ")}
                 </span>
                 <span className="text-xs text-gray-400">
-                  {activeZones.length} zone{activeZones.length !== 1 ? "s" : ""}
+                  {t("zoneCount", { count: activeZones.length })}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     openNew(subtype);
                   }}
                   className="text-xs bg-brand-navy text-white px-2 py-1 rounded hover:bg-brand-navy/90"
                 >
-                  Add Zone
+                  {t("addZone")}
                 </button>
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteServiceType(subtype);
                   }}
                   className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
                 >
-                  Delete Permanently
+                  {t("deletePermanently")}
                 </button>
                 {isExpanded ? (
                   <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -530,15 +557,19 @@ export default function AdminChecklistsClient() {
                           <span className="font-medium text-brand-ink">{zone.zone_label}</span>
                           {!zone.is_active && (
                             <span className="text-xs text-gray-400 bg-gray-200 px-1.5 rounded">
-                              Inactive
+                              {t("inactive")}
                             </span>
                           )}
                         </div>
                         <div className="text-xs text-gray-500 mt-0.5">
-                          {activeItems(zone.items).length} items · Order {zone.sort_order} · Weight {zone.zone_weight ?? 1.0}
+                          {t("itemsSummary", {
+                            count: activeItems(zone.items).length,
+                            order: zone.sort_order,
+                            weight: zone.zone_weight ?? 1.0,
+                          })}
                           {zone.is_addon_zone && (
                             <span className="ml-2 text-brand-gold-dark font-medium">
-                              · Add-on in quote (+{zone.zone_time_hours ?? 0.5}h)
+                              {t("addonInQuote", { hours: zone.zone_time_hours ?? 0.5 })}
                             </span>
                           )}
                         </div>
@@ -561,27 +592,30 @@ export default function AdminChecklistsClient() {
 
                     <div className="flex items-center gap-1 relative">
                       <button
+                        type="button"
                         onClick={() => openEdit(zone)}
-                        aria-label={`Edit zone ${zone.zone_label}`}
+                        aria-label={t("editZoneAria", { zone: zone.zone_label })}
                         className="p-1.5 text-gray-400 hover:text-brand-navy transition-colors"
                       >
                         <Edit2 className="w-4 h-4" aria-hidden="true" />
                       </button>
                       {zone.is_active && (
                         <button
+                          type="button"
                           onClick={() => handleDeleteZone(zone.id, zone.zone_label)}
                           className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
-                          title="Deactivate"
-                          aria-label={`Deactivate zone ${zone.zone_label}`}
+                          title={t("deactivate")}
+                          aria-label={t("deactivateZoneAria", { zone: zone.zone_label })}
                         >
                           <Trash2 className="w-4 h-4" aria-hidden="true" />
                         </button>
                       )}
                       <button
+                        type="button"
                         onClick={() => setOpenZoneMenu(openZoneMenu === zone.id ? null : zone.id)}
                         className="p-1.5 text-gray-400 hover:text-brand-navy transition-colors"
-                        title="More options"
-                        aria-label={`More options for zone ${zone.zone_label}`}
+                        title={t("moreOptions")}
+                        aria-label={t("moreOptionsAria", { zone: zone.zone_label })}
                         aria-expanded={openZoneMenu === zone.id}
                         data-zone-menu
                       >
@@ -590,13 +624,14 @@ export default function AdminChecklistsClient() {
                       {openZoneMenu === zone.id && (
                         <div data-zone-menu className="absolute right-0 top-8 bg-white border rounded-lg shadow-lg z-10 w-40">
                           <button
+                            type="button"
                             onClick={() => {
                               handleDeleteZone(zone.id, zone.zone_label);
                               setOpenZoneMenu(null);
                             }}
                             className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
                           >
-                            Delete
+                            {t("delete")}
                           </button>
                         </div>
                       )}
@@ -612,25 +647,27 @@ export default function AdminChecklistsClient() {
       {grouped.size === 0 && (
         <div className="bg-white rounded-xl border p-8 text-center">
           <ListChecks className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500">No checklists found. Create your first one.</p>
+          <p className="text-gray-500">{t("noChecklistsFound")}</p>
         </div>
       )}
 
       {/* Confirmation Dialog */}
       {confirmDialog?.open && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-xl shadow-elevation-2 w-full max-w-sm p-6 space-y-4">
+          <div ref={confirmDialogRef} role="alertdialog" aria-modal="true" className="bg-white rounded-xl shadow-elevation-2 w-full max-w-sm p-6 space-y-4">
             <h3 className="text-lg font-bold text-brand-ink">{confirmDialog.title}</h3>
             <p className="text-sm text-gray-600">{confirmDialog.message}</p>
             <div className="flex justify-end gap-3 pt-2">
               <button
+                type="button"
                 onClick={() => setConfirmDialog(null)}
                 className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
               >
-                Cancel
+                {t("cancel")}
               </button>
               {confirmDialog.extraAction && (
                 <button
+                  type="button"
                   onClick={confirmDialog.extraAction.onClick}
                   aria-label={confirmDialog.extraAction.label}
                   className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
@@ -639,15 +676,16 @@ export default function AdminChecklistsClient() {
                 </button>
               )}
               <button
+                type="button"
                 onClick={confirmDialog.onConfirm}
-                aria-label={confirmDialog.confirmLabel || "Confirmar"}
+                aria-label={confirmDialog.confirmLabel || t("confirm")}
                 className={`px-4 py-2 text-sm rounded-lg font-medium ${
                   confirmDialog.danger
                     ? "bg-red-600 text-white hover:bg-red-700"
                     : "bg-brand-navy text-white hover:bg-brand-navy/90"
                 }`}
               >
-                {confirmDialog.confirmLabel || "Confirm"}
+                {confirmDialog.confirmLabel || t("confirm")}
               </button>
             </div>
           </div>
@@ -657,15 +695,16 @@ export default function AdminChecklistsClient() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-elevation-2 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div ref={modalRef} role="dialog" aria-modal="true" className="bg-white rounded-xl shadow-elevation-2 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold text-brand-ink">
-                  {editingZone ? "Edit Zone" : "New Zone"}
+                  {editingZone ? t("editZoneTitle") : t("newZoneTitle")}
                 </h2>
                 <button
+                  type="button"
                   onClick={() => setShowModal(false)}
-                  aria-label="Close dialog"
+                  aria-label={t("closeDialog")}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-5 h-5" aria-hidden="true" />
@@ -675,7 +714,7 @@ export default function AdminChecklistsClient() {
               {/* Service Subtype — hidden when adding to existing service type */}
               {isAddingToExisting ? (
                 <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                  <span className="text-gray-500">Adding to: </span>
+                  <span className="text-gray-500">{t("addingTo")} </span>
                   <span className="font-medium text-brand-ink capitalize">
                     {formServiceSubtype.replace(/_/g, " ")}
                   </span>
@@ -683,14 +722,14 @@ export default function AdminChecklistsClient() {
               ) : (
                 <div>
                   <label htmlFor="checklist-service-type" className="block text-sm font-medium text-gray-700 mb-1">
-                    Service Type
+                    {t("serviceType")}
                   </label>
                   <input
                     id="checklist-service-type"
                     type="text"
                     value={formServiceSubtype}
                     onChange={(e) => setFormServiceSubtype(e.target.value)}
-                    placeholder="e.g. first_time, regular, airbnb"
+                    placeholder={t("serviceTypePlaceholder")}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
                   />
                 </div>
@@ -700,28 +739,28 @@ export default function AdminChecklistsClient() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="checklist-zone-code" className="block text-sm font-medium text-gray-700 mb-1">
-                    Zone Code
+                    {t("zoneCode")}
                   </label>
                   <input
                     id="checklist-zone-code"
                     type="text"
                     value={formZone}
                     onChange={(e) => setFormZone(e.target.value)}
-                    placeholder="e.g. bathroom"
+                    placeholder={t("zoneCodePlaceholder")}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
                     disabled={!!editingZone}
                   />
                 </div>
                 <div>
                   <label htmlFor="checklist-zone-label" className="block text-sm font-medium text-gray-700 mb-1">
-                    Zone Label
+                    {t("zoneLabel")}
                   </label>
                   <input
                     id="checklist-zone-label"
                     type="text"
                     value={formZoneLabel}
                     onChange={(e) => setFormZoneLabel(e.target.value)}
-                    placeholder="e.g. Bathroom"
+                    placeholder={t("zoneLabelPlaceholder")}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
                   />
                 </div>
@@ -732,11 +771,12 @@ export default function AdminChecklistsClient() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     <Palette className="w-3.5 h-3.5 inline mr-1" />
-                    Color
+                    {t("color")}
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {COLORS.map((c) => (
                       <button
+                        type="button"
                         key={c.key}
                         onClick={() => setFormZoneColor(c.key)}
                         className={`w-8 h-8 rounded-lg ${c.class} ${
@@ -752,14 +792,14 @@ export default function AdminChecklistsClient() {
                 <div>
                   <label htmlFor="checklist-zone-icon" className="block text-sm font-medium text-gray-700 mb-1">
                     <Smile className="w-3.5 h-3.5 inline mr-1" />
-                    Icon
+                    {t("icon")}
                   </label>
                   <input
                     id="checklist-zone-icon"
                     type="text"
                     value={formZoneIcon}
                     onChange={(e) => setFormZoneIcon(e.target.value)}
-                    placeholder="e.g. 🚽"
+                    placeholder={t("iconPlaceholder")}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
                   />
                 </div>
@@ -769,7 +809,7 @@ export default function AdminChecklistsClient() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="checklist-sort-order" className="block text-sm font-medium text-gray-700 mb-1">
-                    Sort Order
+                    {t("sortOrder")}
                   </label>
                   <input
                     id="checklist-sort-order"
@@ -782,7 +822,7 @@ export default function AdminChecklistsClient() {
                 </div>
                 <div>
                   <label htmlFor="checklist-zone-weight" className="block text-sm font-medium text-gray-700 mb-1">
-                    Zone Weight (D.7)
+                    {t("zoneWeight")}
                   </label>
                   <input
                     id="checklist-zone-weight"
@@ -793,7 +833,7 @@ export default function AdminChecklistsClient() {
                     onChange={(e) => setFormZoneWeight(Number(e.target.value))}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
                   />
-                  <p className="text-xs text-gray-400 mt-1">Usado en el reparto de zonas por operario</p>
+                  <p className="text-xs text-gray-400 mt-1">{t("zoneWeightHelper")}</p>
                 </div>
               </div>
 
@@ -806,25 +846,22 @@ export default function AdminChecklistsClient() {
                 <label className="flex items-start gap-2 text-sm">
                   <input
                     type="checkbox"
-                    aria-label="Ofrecer como complemento en la cotización"
+                    aria-label={t("addonCheckboxAria")}
                     className="mt-0.5"
                     checked={formIsAddonZone}
                     onChange={(e) => setFormIsAddonZone(e.target.checked)}
                   />
                   <span>
-                    <span className="font-medium text-brand-ink">Offer as add-on in the quote (D.7)</span>
+                    <span className="font-medium text-brand-ink">{t("addonLabel")}</span>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      Only check this for zones NOT already covered by the base ft² price table
-                      (e.g. Garage, Storage Room). The client will see it as an optional selection
-                      that adds time and price to the quote, and it will only appear on the
-                      leader&apos;s checklist for orders where it was selected.
+                      {t("addonDescription")}
                     </p>
                   </span>
                 </label>
                 {formIsAddonZone && (
                   <div>
                     <label htmlFor="checklist-zone-time-hours" className="block text-sm font-medium text-gray-700 mb-1">
-                      Estimated Add-on Time (hours)
+                      {t("estimatedAddonTime")}
                     </label>
                     <input
                       id="checklist-zone-time-hours"
@@ -836,7 +873,7 @@ export default function AdminChecklistsClient() {
                       className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
                     />
                     <p className="text-xs text-gray-400 mt-1">
-                      Charged as time × current target hourly rate, shown as its own line in the quote.
+                      {t("addonChargeHelper")}
                     </p>
                   </div>
                 )}
@@ -845,7 +882,7 @@ export default function AdminChecklistsClient() {
               {/* Items */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Items
+                  {t("items")}
                 </label>
                 <div className="space-y-2">
                   {formItems.map((item, index) => (
@@ -860,34 +897,36 @@ export default function AdminChecklistsClient() {
                       <GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
                       <input
                         type="text"
-                        aria-label={`Descripción del ítem de checklist ${index + 1}`}
+                        aria-label={t("itemDescriptionAria", { index: index + 1 })}
                         value={item.label}
                         onChange={(e) => updateItem(index, "label", e.target.value)}
-                        placeholder="Item description"
+                        placeholder={t("itemDescriptionPlaceholder")}
                         className="flex-1 text-sm border rounded px-2 py-1 focus:ring-2 focus:ring-brand-gold outline-none"
                         disabled={item.active === false}
                       />
                       <label className="flex items-center gap-1 text-xs text-gray-500 whitespace-nowrap">
                         <input
                           type="checkbox"
-                          aria-label={`Ítem ${index + 1} requerido`}
+                          aria-label={t("itemRequiredAria", { index: index + 1 })}
                           checked={item.required}
                           onChange={(e) => updateItem(index, "required", e.target.checked)}
                           disabled={item.active === false}
                         />
-                        Required
+                        {t("required")}
                       </label>
                       {item.active === false ? (
                         <button
+                          type="button"
                           onClick={() => restoreItem(index)}
                           className="text-xs text-green-600 hover:text-green-700"
                         >
-                          Restore
+                          {t("restore")}
                         </button>
                       ) : (
                         <button
+                          type="button"
                           onClick={() => removeItem(index)}
-                          aria-label="Remove item"
+                          aria-label={t("removeItemAria")}
                           className="text-gray-400 hover:text-red-500"
                         >
                           <X className="w-4 h-4" aria-hidden="true" />
@@ -897,30 +936,33 @@ export default function AdminChecklistsClient() {
                   ))}
                 </div>
                 <button
+                  type="button"
                   onClick={addItem}
                   className="mt-2 inline-flex items-center gap-1 text-sm text-brand-navy font-medium"
                 >
                   <Plus className="w-4 h-4" />
-                  Add Item
+                  {t("addItem")}
                 </button>
               </div>
 
               {/* Actions */}
               <div className="flex justify-end gap-3 pt-2">
                 <button
+                  type="button"
                   onClick={() => setShowModal(false)}
                   className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
                 >
-                  Cancel
+                  {t("cancel")}
                 </button>
                 <button
+                  type="button"
                   onClick={handleSubmit}
                   disabled={saving || !formServiceSubtype || !formZone || !formZoneLabel}
-                  aria-label={editingZone ? "Guardar cambios de zona" : "Crear zona"}
+                  aria-label={editingZone ? t("saveZoneAria") : t("createZoneAria")}
                   className="px-4 py-2 bg-brand-navy text-white rounded-lg font-medium text-sm hover:bg-brand-navy/90 disabled:opacity-50 flex items-center gap-2"
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                  {editingZone ? "Save Changes" : "Create Zone"}
+                  {editingZone ? t("saveChanges") : t("createZone")}
                 </button>
               </div>
             </div>

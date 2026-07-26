@@ -91,7 +91,7 @@ export function StepDimensions({ bedrooms, bathrooms, squareFeet, onChange }: St
           </div>
         </div>
         <input
-          aria-label="Metros cuadrados aproximados de la propiedad"
+          aria-label={t("squareFeetAriaLabel")}
           type="range"
           min="300"
           max="10000"

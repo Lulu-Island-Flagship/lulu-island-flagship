@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { Clock, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { EmpleadoBackHeader } from "@/components/empleado/EmpleadoBackHeader";
 
 interface RestPeriod {
   id: string;
@@ -22,6 +24,9 @@ interface RestPeriod {
  * qué, no solo el resultado.
  */
 export default function DescansosPage() {
+  const params = useParams();
+  const locale = (params?.locale as string) || "en";
+  const backHref = `/${locale}/empleado`;
   const [periods, setPeriods] = useState<RestPeriod[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -46,7 +51,9 @@ export default function DescansosPage() {
   }
 
   return (
-    <div className="p-4 max-w-lg mx-auto space-y-4">
+    <main className="min-h-screen bg-brand-ice">
+      <EmpleadoBackHeader title="My Breaks" backHref={backHref} />
+      <div className="p-4 max-w-lg mx-auto space-y-4">
       <div className="flex items-center gap-2">
         <Clock className="w-6 h-6 text-brand-navy" />
         <h1 className="text-xl font-bold text-brand-ink">My Breaks</h1>
@@ -92,6 +99,7 @@ export default function DescansosPage() {
           )}
         </div>
       )}
-    </div>
+      </div>
+    </main>
   );
 }

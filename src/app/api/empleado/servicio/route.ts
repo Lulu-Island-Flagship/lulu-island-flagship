@@ -289,13 +289,21 @@ export async function POST(request: NextRequest) {
     // campos son obligatorios, o se rechaza.
     const validBypassCategories = ["gps_inaccurate", "building_entrance_far", "parking_restriction", "other"];
     const isNoPhotoBypass = eventType === "t_in" && geofenceBypass === true && geofenceBypassNoPhoto === true;
+    // v8.3 fix (auditoría UX/UI/seguridad 2026-07-25, P0 #1): el mínimo de
+    // caracteres para la justificación escrita (tanto la razón general como
+    // la de "no puedo tomar foto") subió de 10 a 30 -- 10 caracteres permitía
+    // justificaciones vacías de contenido real ("estoy aquí", "sin señal")
+    // que no le dan a un supervisor nada verificable. Esto es un mínimo de
+    // higiene del dato, NO un reemplazo de la aprobación real: ver más abajo,
+    // geofence_bypass_review_status siempre queda 'pending_supervisor_review'.
+    const MIN_BYPASS_REASON_LENGTH = 30;
     if (eventType === "t_in" && geofenceBypass === true) {
       const reason = typeof geofenceBypassReason === "string" ? geofenceBypassReason.trim() : "";
-      if (!validBypassCategories.includes(geofenceBypassCategory) || reason.length === 0) {
+      if (!validBypassCategories.includes(geofenceBypassCategory) || reason.length < MIN_BYPASS_REASON_LENGTH) {
         return NextResponse.json(
           {
             error:
-              "Geofence bypass requires a reason category and a written reason — both are mandatory.",
+              `Geofence bypass requires a reason category and a written reason of at least ${MIN_BYPASS_REASON_LENGTH} characters — both are mandatory.`,
           },
           { status: 400 }
         );
@@ -305,11 +313,11 @@ export async function POST(request: NextRequest) {
         // (nunca se acepta bypass sin foto Y sin explicar por qué).
         const noPhotoReason =
           typeof geofenceBypassNoPhotoReason === "string" ? geofenceBypassNoPhotoReason.trim() : "";
-        if (noPhotoReason.length < 10) {
+        if (noPhotoReason.length < MIN_BYPASS_REASON_LENGTH) {
           return NextResponse.json(
             {
               error:
-                "If you can't take a photo, please explain why in at least a few words -- this is required for supervisor review.",
+                `If you can't take a photo, please explain why in at least ${MIN_BYPASS_REASON_LENGTH} characters -- this is required for supervisor review.`,
             },
             { status: 400 }
           );
@@ -561,6 +569,18 @@ export async function POST(request: NextRequest) {
       isGeofenceBypass && isNoPhotoBypass
         ? `[NO PHOTO — supervisor review needed] ${String(geofenceBypassNoPhotoReason).trim()}${notes ? ` | ${notes}` : ""}`
         : notes ?? null;
+    // v8.3 fix (auditoría UX/UI/seguridad 2026-07-25, P0 #1): un bypass de
+    // geocerca NUNCA se inserta como aprobado -- las 3 salvaguardas de la UI
+    // (countdown, foto/justificación, razón+categoría) generan evidencia
+    // para revisión, no una aprobación. geofence_bypass_review_status queda
+    // SIEMPRE 'pending_supervisor_review' en el momento del insert; solo un
+    // supervisor/admin (endpoint todavía no implementado) puede pasarlo a
+    // 'approved'/'rejected'. NOTA: todavía no existe en este repo ninguna
+    // integración de notificación push/email en tiempo real hacia el
+    // supervisor cuando esto ocurre -- este campo deja el registro
+    // persistido y consultable (para un futuro dashboard/alerta), pero la
+    // notificación real queda pendiente de esa integración. No se inventa
+    // aquí infraestructura de notificaciones que no existe.
     const { data: log, error: logError } = await supabase
       .from("service_logs")
       .insert({
@@ -575,6 +595,7 @@ export async function POST(request: NextRequest) {
         geofence_bypass: isGeofenceBypass,
         geofence_bypass_category: isGeofenceBypass ? geofenceBypassCategory : null,
         geofence_bypass_reason: isGeofenceBypass ? String(geofenceBypassReason).trim() : null,
+        geofence_bypass_review_status: isGeofenceBypass ? "pending_supervisor_review" : null,
       })
       .select()
       .single();
@@ -585,7 +606,17 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { success: true, eventType, logId: log.id, assignmentStatus: newStatus, timestamp: log.timestamp },
+      {
+        success: true,
+        eventType,
+        logId: log.id,
+        assignmentStatus: newStatus,
+        timestamp: log.timestamp,
+        // v8.3 fix (auditoría 2026-07-25, P0 #1): así la UI puede mostrar que
+        // este check-in quedó pendiente de revisión de supervisor, en vez de
+        // dar a entender que ya fue aprobado.
+        geofenceBypassPendingReview: isGeofenceBypass,
+      },
       { status: 200 }
     );
   } catch (err: Error | unknown) {

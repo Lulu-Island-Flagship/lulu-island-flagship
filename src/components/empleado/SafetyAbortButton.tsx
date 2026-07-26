@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Siren, X, Loader2 } from "lucide-react";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 /**
  * v8.3 E7 (D.10 #7) — Botón de aborto seguro (SOS), disponible en TODO
@@ -44,6 +45,15 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
   // detiene startGpsUpdates.
   const [minimized, setMinimized] = useState(false);
   const gpsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Fix (auditoría UX 2026-07-25): useFocusTrap debe llamarse siempre en el
+  // mismo orden en cada render -- no puede quedar detrás de los `return`
+  // tempranos de los estados "idle" y "sent && minimized" (violaba las
+  // Rules of Hooks). Se calcula aquí, sin condicionar la llamada al hook,
+  // y el trap se activa/desactiva internamente vía el flag `active`.
+  const isDialogOpen = stage !== "idle" && !(stage === "sent" && minimized);
+  const dialogCloseHandler = stage === "sent" ? minimizeDialog : reset;
+  const dialogRef = useFocusTrap<HTMLDivElement>(isDialogOpen, dialogCloseHandler);
 
   function stopGpsUpdates() {
     if (gpsIntervalRef.current) {
@@ -173,10 +183,16 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl max-w-sm w-full p-6 relative">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Aborto seguro de emergencia"
+        className="bg-white rounded-xl max-w-sm w-full p-6 relative"
+      >
         <button
           type="button"
-          onClick={stage === "sent" ? minimizeDialog : reset}
+          onClick={dialogCloseHandler}
           aria-label="Cerrar"
           className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
         >

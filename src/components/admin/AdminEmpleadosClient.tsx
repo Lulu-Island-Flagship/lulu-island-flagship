@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import {
   Loader2,
   User,
@@ -34,23 +35,23 @@ interface Employee {
   terminated_at?: string | null;
 }
 
-const CAREER_LEVEL_LABEL: Record<CareerLevel, string> = {
-  trabajador: "Team Member",
-  senior: "Senior",
-  lider: "Team Lead",
-  lider_mentor: "Lead Mentor",
-  coordinador_operativo: "Ops Coordinator",
-};
-
-const LEVEL_LABEL: Record<string, string> = {
-  basic: "Basic",
-  intermediate: "Intermediate",
-  fluent: "Fluent",
-  native: "Native",
-};
-
 export default function AdminEmpleadosClient() {
   const t = useTranslations("admin.empleados");
+
+  const CAREER_LEVEL_LABEL: Record<CareerLevel, string> = {
+    trabajador: t("careerLevelTeamMember"),
+    senior: t("careerLevelSenior"),
+    lider: t("careerLevelTeamLead"),
+    lider_mentor: t("careerLevelLeadMentor"),
+    coordinador_operativo: t("careerLevelOpsCoordinator"),
+  };
+
+  const LEVEL_LABEL: Record<string, string> = {
+    basic: t("languageLevelBasic"),
+    intermediate: t("languageLevelIntermediate"),
+    fluent: t("languageLevelFluent"),
+    native: t("languageLevelNative"),
+  };
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -59,6 +60,19 @@ export default function AdminEmpleadosClient() {
   const [offboardingEmployee, setOffboardingEmployee] = useState<Employee | null>(null);
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const [activateError, setActivateError] = useState("");
+  const [revealedDayRateIds, setRevealedDayRateIds] = useState<Set<string>>(new Set());
+
+  function toggleDayRateReveal(employeeId: string) {
+    setRevealedDayRateIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(employeeId)) {
+        next.delete(employeeId);
+      } else {
+        next.add(employeeId);
+      }
+      return next;
+    });
+  }
 
   useEffect(() => {
     loadEmployees();
@@ -71,14 +85,14 @@ export default function AdminEmpleadosClient() {
       const res = await fetch("/api/admin/empleados", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load employees");
+        setError(err.error || t("errorLoadFailed"));
         setLoading(false);
         return;
       }
       const data = await res.json();
       setEmployees(data.employees || []);
     } catch {
-      setError("Network error");
+      setError(t("errorNetwork"));
     } finally {
       setLoading(false);
     }
@@ -93,7 +107,7 @@ export default function AdminEmpleadosClient() {
     });
     if (!res.ok) {
       const err = await res.json();
-      throw new Error(err.error || "Failed to save");
+      throw new Error(err.error || t("errorSaveFailed"));
     }
     const data = await res.json();
     setEmployees((prev) => prev.map((e) => (e.id === employeeId ? data.employee : e)));
@@ -113,10 +127,10 @@ export default function AdminEmpleadosClient() {
         body: JSON.stringify({ isActive: true }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to activate employee");
+      if (!res.ok) throw new Error(data.error || t("errorActivateFailed"));
       setEmployees((prev) => prev.map((e) => (e.id === employeeId ? { ...e, ...data.employee } : e)));
     } catch (err) {
-      setActivateError(err instanceof Error ? err.message : "Failed to activate employee");
+      setActivateError(err instanceof Error ? err.message : t("errorActivateFailed"));
     } finally {
       setActivatingId(null);
     }
@@ -167,17 +181,18 @@ export default function AdminEmpleadosClient() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-brand-ink">Employees</h1>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-500">
-            {employees.length} employee{employees.length !== 1 ? "s" : ""}
+            {t("employeeCount", { count: employees.length })}
           </span>
           <button
+            type="button"
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light"
           >
             <UserPlus className="w-4 h-4" />
-            Add employee
+            {t("addEmployee")}
           </button>
         </div>
       </div>
@@ -191,7 +206,7 @@ export default function AdminEmpleadosClient() {
       {employees.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
           <User className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500">No employees found.</p>
+          <p className="text-gray-500">{t("noEmployeesFound")}</p>
         </div>
       ) : (
         <div className="bg-white rounded-xl border overflow-hidden">
@@ -199,14 +214,14 @@ export default function AdminEmpleadosClient() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Role</th>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Day Rate</th>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Languages</th>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">Career Level</th>
-                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600"><span className="sr-only">Actions</span></th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("colName")}</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("colEmail")}</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("colRole")}</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("colStatus")}</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("colDayRate")}</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("colLanguages")}</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600">{t("colCareerLevel")}</th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium text-gray-600"><span className="sr-only">{t("colActions")}</span></th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -234,39 +249,63 @@ export default function AdminEmpleadosClient() {
                       {emp.is_active ? (
                         <span className="flex items-center gap-1 text-green-600 text-xs">
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          Active
+                          {t("statusActive")}
                         </span>
                       ) : emp.terminated_at ? (
                         <span className="flex items-center gap-1 text-gray-400 text-xs">
                           <XCircle className="w-3.5 h-3.5" />
-                          Inactive
+                          {t("statusInactive")}
                         </span>
                       ) : (
                         <div className="space-y-1">
                           <span className="flex items-center gap-1 text-brand-gold-dark text-xs">
                             <XCircle className="w-3.5 h-3.5" />
-                            Pending activation
+                            {t("statusPendingActivation")}
                           </span>
                           <button
+                            type="button"
                             onClick={() => activateEmployee(emp.id)}
                             disabled={activatingId === emp.id}
-                            aria-label={activatingId === emp.id ? `Activando a ${emp.name}` : `Activar a ${emp.name} y enviar invitación`}
+                            aria-label={activatingId === emp.id ? t("activatingAria", { name: emp.name }) : t("activateInviteAria", { name: emp.name })}
                             className="text-xs text-brand-navy font-medium hover:underline disabled:opacity-50"
                           >
-                            {activatingId === emp.id ? "Activating…" : "Activate & invite"}
+                            {activatingId === emp.id ? t("activating") : t("activateAndInvite")}
                           </button>
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-gray-600">${emp.day_rate}/day</td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {/* Item 10 (auditoría 2026-07-25): el Day Rate (dato salarial) ya no
+                          se renderiza siempre visible en el listado general -- solo se
+                          revela por fila bajo demanda, para reducir la exposición
+                          incidental de nómina al escanear la tabla o compartir pantalla. */}
+                      {revealedDayRateIds.has(emp.id) ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleDayRateReveal(emp.id)}
+                          className="hover:underline"
+                        >
+                          ${emp.day_rate}/day
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => toggleDayRateReveal(emp.id)}
+                          className="text-xs text-brand-wave-blue hover:text-brand-navy hover:underline"
+                        >
+                          {t("showDayRate")}
+                        </button>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <button
+                        type="button"
                         onClick={() => setEditingEmployee(emp)}
                         className="flex items-center gap-1.5 text-xs text-brand-wave-blue hover:text-brand-navy"
                       >
                         <LanguagesIcon className="w-3.5 h-3.5" />
                         {(emp.languages || []).length === 0 ? (
-                          <span className="text-gray-400">Not set</span>
+                          <span className="text-gray-400">{t("languagesNotSet")}</span>
                         ) : (
                           <span>
                             {emp.languages
@@ -283,8 +322,8 @@ export default function AdminEmpleadosClient() {
                     </td>
                     <td className="px-4 py-3">
                       <select
-                        title="Promotions to Team Lead+ require certification and recommendation the system can't verify — confirm those manually before selecting."
-                        aria-label="Nivel de carrera del empleado"
+                        title={t("careerLevelPromotionNotice")}
+                        aria-label={t("careerLevelSelectAria")}
                         value={emp.career_level || "trabajador"}
                         onChange={(e) => saveCareerLevel(emp.id, e.target.value as CareerLevel)}
                         className="text-xs border rounded-md px-2 py-1"
@@ -298,15 +337,16 @@ export default function AdminEmpleadosClient() {
                     </td>
                     <td className="px-4 py-3">
                       {emp.terminated_at ? (
-                        <span className="text-xs text-gray-400">Offboarded</span>
+                        <span className="text-xs text-gray-400">{t("offboarded")}</span>
                       ) : (
                         <button
+                          type="button"
                           onClick={() => setOffboardingEmployee(emp)}
                           className="flex items-center gap-1 text-xs text-state-danger hover:opacity-80"
-                          title="Deactivate, pay out accrued vacation pay, revoke access, and release future assignments"
+                          title={t("offboardTitle")}
                         >
                           <UserMinus className="w-3.5 h-3.5" />
-                          Offboard
+                          {t("offboardAction")}
                         </button>
                       )}
                     </td>
@@ -364,6 +404,7 @@ function OffboardModal({
   onClose: () => void;
   onOffboarded: (employeeId: string, updated: Partial<Employee>) => void;
 }) {
+  const t = useTranslations("admin.empleados");
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -373,6 +414,15 @@ function OffboardModal({
     reassignedCount: number;
     inProgressOrders: { orderId: string; serviceDate: string; status: string }[];
   } | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, true);
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
   const handleConfirm = async () => {
     setSaving(true);
@@ -385,7 +435,7 @@ function OffboardModal({
         body: JSON.stringify({ terminationReason: reason }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to offboard employee");
+      if (!res.ok) throw new Error(data.error || t("errorOffboardFailed"));
       setResult({
         vacationPayoutCents: data.vacationPayoutCents,
         accessRevoked: data.accessRevoked,
@@ -397,7 +447,7 @@ function OffboardModal({
         terminated_at: data.employee.terminated_at,
       });
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to offboard employee");
+      setSaveError(err instanceof Error ? err.message : t("errorOffboardFailed"));
     } finally {
       setSaving(false);
     }
@@ -405,25 +455,24 @@ function OffboardModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
-        <h2 className="text-lg font-semibold text-brand-ink">Offboard — {employee.name}</h2>
+      <div ref={modalRef} role="dialog" aria-modal="true" className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+        <h2 className="text-lg font-semibold text-brand-ink">{t("offboardModalHeading", { name: employee.name })}</h2>
 
         {result ? (
           <div className="space-y-2 text-sm text-brand-ink">
-            <p className="text-state-success font-medium">Employee offboarded.</p>
-            <p>Vacation pay paid out: ${(result.vacationPayoutCents / 100).toFixed(2)}</p>
-            <p>Access revoked: {result.accessRevoked ? "yes" : "no (check service credentials)"}</p>
-            <p>Future services released for reassignment: {result.reassignedCount}</p>
+            <p className="text-state-success font-medium">{t("offboardSuccess")}</p>
+            <p>{t("offboardVacationPaid", { amount: (result.vacationPayoutCents / 100).toFixed(2) })}</p>
+            <p>{t("offboardAccessRevoked", { status: result.accessRevoked ? t("yes") : t("noCheckCredentials") })}</p>
+            <p>{t("offboardFutureReleased", { count: result.reassignedCount })}</p>
             {result.inProgressOrders.length > 0 && (
               <div className="bg-state-danger/5 border border-state-danger/20 rounded-lg p-3 mt-2">
                 <p className="font-medium text-state-danger">
-                  {result.inProgressOrders.length} service(s) already in progress were left untouched —
-                  handle manually:
+                  {t("offboardInProgressWarning", { count: result.inProgressOrders.length })}
                 </p>
                 <ul className="list-disc list-inside mt-1">
                   {result.inProgressOrders.map((o) => (
                     <li key={o.orderId}>
-                      Order {o.orderId.slice(0, 8)} — {o.serviceDate} ({o.status})
+                      {t("offboardOrderLine", { orderId: o.orderId.slice(0, 8), date: o.serviceDate, status: o.status })}
                     </li>
                   ))}
                 </ul>
@@ -431,43 +480,43 @@ function OffboardModal({
             )}
             <div className="flex justify-end pt-2">
               <button
+                type="button"
                 onClick={onClose}
                 className="px-4 py-2 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light"
               >
-                Done
+                {t("done")}
               </button>
             </div>
           </div>
         ) : (
           <>
             <p className="text-xs text-gray-500">
-              This deactivates the employee, pays out their accrued vacation pay in the next payroll
-              cycle, revokes their account access, and releases any future assigned services for
-              reassignment. This cannot be undone from here.
+              {t("offboardExplanation")}
             </p>
             <div>
-              <label htmlFor="offboard-termination-reason" className="text-xs text-gray-600 block mb-1">Termination reason</label>
+              <label htmlFor="offboard-termination-reason" className="text-xs text-gray-600 block mb-1">{t("offboardReasonLabel")}</label>
               <textarea
                 id="offboard-termination-reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2 text-sm"
                 rows={3}
-                placeholder="e.g. voluntary resignation, end of contract, performance"
+                placeholder={t("offboardReasonPlaceholder")}
               />
             </div>
             {saveError && <p className="text-xs text-state-danger">{saveError}</p>}
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={onClose} className="px-4 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100">
-                Cancel
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100">
+                {t("cancel")}
               </button>
               <button
+                type="button"
                 onClick={handleConfirm}
                 disabled={saving || !reason.trim()}
-                aria-label={saving ? "Procesando offboarding" : "Confirmar offboarding del empleado"}
+                aria-label={saving ? t("offboardingAria") : t("confirmOffboardAria")}
                 className="px-4 py-2 text-sm rounded-lg bg-state-danger text-white hover:opacity-90 disabled:opacity-50"
               >
-                {saving ? "Processing..." : "Confirm Offboard"}
+                {saving ? t("processing") : t("confirmOffboard")}
               </button>
             </div>
           </>
@@ -488,6 +537,7 @@ function AddEmployeeModal({
   onClose: () => void;
   onCreated: (employee: Employee) => void;
 }) {
+  const t = useTranslations("admin.empleados");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -495,6 +545,15 @@ function AddEmployeeModal({
   const [dayRate, setDayRate] = useState("200");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, true);
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
   const handleCreate = async () => {
     setSaving(true);
@@ -513,10 +572,10 @@ function AddEmployeeModal({
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create employee");
+      if (!res.ok) throw new Error(data.error || t("errorCreateFailed"));
       onCreated(data.employee);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to create employee");
+      setSaveError(err instanceof Error ? err.message : t("errorCreateFailed"));
     } finally {
       setSaving(false);
     }
@@ -524,36 +583,36 @@ function AddEmployeeModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
-        <h2 className="text-lg font-semibold text-brand-ink">Add Employee</h2>
+      <div ref={modalRef} role="dialog" aria-modal="true" className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+        <h2 className="text-lg font-semibold text-brand-ink">{t("addEmployeeModalHeading")}</h2>
         <p className="text-xs text-gray-500">
-          Creates the account and sends an invite email. The employee starts inactive — activate them once onboarding is complete.
+          {t("addEmployeeModalDescription")}
         </p>
 
         <div className="space-y-3">
           <div>
-            <label htmlFor="add-employee-name" className="text-xs text-gray-600 block mb-1">Name</label>
+            <label htmlFor="add-employee-name" className="text-xs text-gray-600 block mb-1">{t("nameLabel")}</label>
             <input
               id="add-employee-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm"
-              placeholder="Full name"
+              placeholder={t("namePlaceholder")}
             />
           </div>
           <div>
-            <label htmlFor="add-employee-email" className="text-xs text-gray-600 block mb-1">Email</label>
+            <label htmlFor="add-employee-email" className="text-xs text-gray-600 block mb-1">{t("emailLabel")}</label>
             <input
               id="add-employee-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm"
-              placeholder="name@example.com"
+              placeholder={t("emailPlaceholder")}
             />
           </div>
           <div>
-            <label htmlFor="add-employee-phone" className="text-xs text-gray-600 block mb-1">Phone (optional)</label>
+            <label htmlFor="add-employee-phone" className="text-xs text-gray-600 block mb-1">{t("phoneLabelOptional")}</label>
             <input
               id="add-employee-phone"
               value={phone}
@@ -562,20 +621,20 @@ function AddEmployeeModal({
             />
           </div>
           <div>
-            <label htmlFor="add-employee-role" className="text-xs text-gray-600 block mb-1">Role</label>
+            <label htmlFor="add-employee-role" className="text-xs text-gray-600 block mb-1">{t("roleLabel")}</label>
             <select
               id="add-employee-role"
               value={role}
               onChange={(e) => setRole(e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm"
             >
-              <option value="cleaner">Cleaner</option>
-              <option value="supervisor">Supervisor</option>
-              <option value="driver">Driver</option>
+              <option value="cleaner">{t("roleCleaner")}</option>
+              <option value="supervisor">{t("roleSupervisor")}</option>
+              <option value="driver">{t("roleDriver")}</option>
             </select>
           </div>
           <div>
-            <label htmlFor="add-employee-day-rate" className="text-xs text-gray-600 block mb-1">Day Rate ($CAD)</label>
+            <label htmlFor="add-employee-day-rate" className="text-xs text-gray-600 block mb-1">{t("dayRateLabel")}</label>
             <input
               id="add-employee-day-rate"
               type="number"
@@ -589,16 +648,17 @@ function AddEmployeeModal({
         {saveError && <p className="text-xs text-state-danger">{saveError}</p>}
 
         <div className="flex justify-end gap-2 pt-2">
-          <button onClick={onClose} className="px-4 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100">
-            Cancel
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100">
+            {t("cancel")}
           </button>
           <button
+            type="button"
             onClick={handleCreate}
             disabled={saving || !name.trim() || !email.trim()}
-            aria-label={saving ? "Creando empleado" : "Crear empleado e invitar"}
+            aria-label={saving ? t("creatingAria") : t("createAria")}
             className="px-4 py-2 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light disabled:opacity-50"
           >
-            {saving ? "Creating..." : "Create & Invite"}
+            {saving ? t("creating") : t("create")}
           </button>
         </div>
       </div>
@@ -615,10 +675,27 @@ function EditLanguagesModal({
   onClose: () => void;
   onSave: (employeeId: string, languages: string[], languageLevels: LanguageLevels) => Promise<void>;
 }) {
+  const t = useTranslations("admin.empleados");
   const [languages, setLanguages] = useState<string[]>(employee.languages || []);
   const [levels, setLevels] = useState<LanguageLevels>(employee.language_levels || {});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, true);
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  const LEVEL_LABEL: Record<string, string> = {
+    basic: t("languageLevelBasic"),
+    intermediate: t("languageLevelIntermediate"),
+    fluent: t("languageLevelFluent"),
+    native: t("languageLevelNative"),
+  };
 
   const toggleLanguage = (code: string) => {
     setLanguages((prev) => {
@@ -643,7 +720,7 @@ function EditLanguagesModal({
       await onSave(employee.id, languages, levels);
       onClose();
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to save");
+      setSaveError(err instanceof Error ? err.message : t("errorSaveFailed"));
     } finally {
       setSaving(false);
     }
@@ -651,13 +728,12 @@ function EditLanguagesModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+      <div ref={modalRef} role="dialog" aria-modal="true" className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
         <h2 className="text-lg font-semibold text-brand-ink">
-          Languages — {employee.name}
+          {t("editLanguagesHeading", { name: employee.name })}
         </h2>
         <p className="text-xs text-gray-500">
-          Used by dispatch to match this employee to accounts with the same
-          preferred language (B.2.13). A level is optional but recommended.
+          {t("editLanguagesDescription")}
         </p>
 
         <div className="space-y-3">
@@ -668,7 +744,7 @@ function EditLanguagesModal({
                 <label className="flex items-center gap-2 flex-1 cursor-pointer">
                   <input
                     type="checkbox"
-                    aria-label={`Habla ${lang.label}`}
+                    aria-label={t("speaksLanguageAria", { language: lang.label })}
                     checked={spoken}
                     onChange={() => toggleLanguage(lang.code)}
                     className="w-4 h-4 accent-brand-gold"
@@ -677,7 +753,7 @@ function EditLanguagesModal({
                 </label>
                 <select
                   disabled={!spoken}
-                  aria-label={`Nivel de ${lang.label}`}
+                  aria-label={t("languageLevelAria", { language: lang.label })}
                   value={levels[lang.code] || ""}
                   onChange={(e) => {
                     const value = e.target.value;
@@ -692,7 +768,7 @@ function EditLanguagesModal({
                   }}
                   className="text-xs border rounded-md px-2 py-1 disabled:opacity-40 disabled:bg-gray-50"
                 >
-                  <option value="">No level set</option>
+                  <option value="">{t("noLevelSet")}</option>
                   {LANGUAGE_LEVELS.map((lvl) => (
                     <option key={lvl} value={lvl}>
                       {LEVEL_LABEL[lvl]}
@@ -708,18 +784,20 @@ function EditLanguagesModal({
 
         <div className="flex justify-end gap-2 pt-2">
           <button
+            type="button"
             onClick={onClose}
             className="px-4 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100"
           >
-            Cancel
+            {t("cancel")}
           </button>
           <button
+            type="button"
             onClick={handleSave}
             disabled={saving || languages.length === 0}
-            aria-label={saving ? "Guardando idiomas" : "Guardar idiomas del empleado"}
+            aria-label={saving ? t("savingAria") : t("saveAria")}
             className="px-4 py-2 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light disabled:opacity-50"
           >
-            {saving ? "Saving..." : "Save"}
+            {saving ? t("saving") : t("save")}
           </button>
         </div>
       </div>

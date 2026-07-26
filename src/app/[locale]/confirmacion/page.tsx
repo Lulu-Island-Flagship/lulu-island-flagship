@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import { mapQuoteFromSupabase, mapOrderFromSupabase } from "@/lib/supabase-mappers";
-import { formatServiceDateDisplay } from "@/lib/date-utils";
+import { formatServiceDateDisplay, formatServiceTimeDisplay } from "@/lib/date-utils";
+import { formatCurrency as formatCurrencyLocalized } from "@/lib/format";
 import { Order, QuoteData } from "@/types";
 import {
   CheckCircle2,
@@ -89,11 +90,12 @@ function ConfirmacionContent() {
     loadOrder();
   }, [orderId]);
 
-  const formatCurrency = (n: number) =>
-    new Intl.NumberFormat("en-CA", {
-      style: "currency",
-      currency: "CAD",
-    }).format(n);
+  // Fix (auditoría UX 2026-07-25): antes esto formateaba SIEMPRE en "en-CA" y
+  // mostraba order.serviceTime crudo ("14:00:00") -- ninguno de los dos
+  // respetaba el locale (en/fr/zh) que el cliente estaba viendo. Se usa el
+  // helper compartido de moneda localizada y formatServiceTimeDisplay
+  // (src/lib/date-utils.ts) igual que formatServiceDateDisplay más abajo.
+  const formatCurrency = (n: number) => formatCurrencyLocalized(n, safeLocale);
 
   if (loading) {
     return (
@@ -174,8 +176,8 @@ function ConfirmacionContent() {
               <div>
                 <p className="text-sm text-gray-500">{t("dateTimeLabel")}</p>
                 <p className="font-medium text-brand-ink">
-                  {formatServiceDateDisplay(order.serviceDate)}{" "}
-                  {t("at")} {order.serviceTime}
+                  {formatServiceDateDisplay(order.serviceDate, safeLocale)}{" "}
+                  {t("at")} {formatServiceTimeDisplay(order.serviceTime, safeLocale)}
                 </p>
               </div>
             </div>

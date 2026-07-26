@@ -13,7 +13,29 @@
 
 import React, { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2, ShieldAlert, KeyRound, Copy, Check, AlertTriangle } from "lucide-react";
+import { Loader2, ShieldAlert, KeyRound, Copy, Check, AlertTriangle, Eye, EyeOff } from "lucide-react";
+
+// v8.3 fix (auditoría UX/UI/seguridad 2026-07-25, P0 #2): los 10 códigos se
+// mostraban en texto plano sin enmascarar -- riesgo de "shoulder surfing"
+// (alguien mirando por encima del hombro los memoriza/fotografía sin que el
+// owner_admin note nada). Se enmascaran por default y se revelan de a uno.
+function maskCode(code: string): string {
+  return code
+    .split("-")
+    .map((group) => "•".repeat(group.length))
+    .join("-");
+}
+
+// No bloquea la UI si falla (best-effort, igual que el resto del logging de
+// este archivo) -- pero si falla, se loguea a consola para no perder el
+// rastro silenciosamente.
+async function logBackupCodesAudit(action: "revealed" | "copied") {
+  try {
+    await fetch(`/api/admin/backup-codes/audit/${action}`, { method: "POST" });
+  } catch (e) {
+    console.error(`Failed to log backup_codes_${action} audit event:`, e);
+  }
+}
 
 interface Status {
   hasCodes: boolean;
@@ -33,6 +55,10 @@ export default function SeguridadPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [ackSaved, setAckSaved] = useState(false);
+  // v8.3 fix (auditoría UX/UI/seguridad 2026-07-25, P0 #2): índices de
+  // códigos revelados individualmente -- por default TODOS enmascarados,
+  // nunca "revelar todos a la vez".
+  const [revealedIndices, setRevealedIndices] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     load();
@@ -58,6 +84,7 @@ export default function SeguridadPage() {
     setError("");
     setAckSaved(false);
     setCopied(false);
+    setRevealedIndices(new Set());
     try {
       const res = await fetch("/api/admin/backup-codes", { method: "POST" });
       const json = await res.json();
@@ -72,12 +99,30 @@ export default function SeguridadPage() {
     }
   }
 
+  // v8.3 fix (auditoría UX/UI/seguridad 2026-07-25, P0 #2): revelar un
+  // código individual queda auditado (backup_codes_revealed) -- solo la
+  // primera vez que se revela cada código, para no llenar el log con
+  // duplicados si el owner_admin lo oculta/muestra varias veces.
+  function revealCode(index: number) {
+    setRevealedIndices((prev) => {
+      if (prev.has(index)) return prev;
+      const next = new Set(prev);
+      next.add(index);
+      return next;
+    });
+    void logBackupCodesAudit("revealed");
+  }
+
   async function copyAll() {
     if (!newCodes) return;
     try {
       await navigator.clipboard.writeText(newCodes.join("\n"));
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
+      // v8.3 fix (auditoría UX/UI/seguridad 2026-07-25, P0 #2): copiar TODOS
+      // los códigos de golpe es el caso de mayor riesgo (quedan en el
+      // clipboard del sistema) -- se audita siempre, no solo la primera vez.
+      void logBackupCodesAudit("copied");
     } catch {
       // Clipboard API puede no estar disponible (http, permisos) -- no es crítico,
       // los códigos siguen visibles en pantalla para copiar a mano.
@@ -186,9 +231,31 @@ export default function SeguridadPage() {
             <p className="text-sm font-semibold text-brand-ink">{t("saveCodesWarning")}</p>
           </div>
           <div className="mb-3 grid grid-cols-1 gap-1 rounded-md bg-white p-3 font-mono text-sm sm:grid-cols-2">
-            {newCodes.map((code) => (
-              <div key={code}>{code}</div>
-            ))}
+            {newCodes.map((code, index) => {
+              const isRevealed = revealedIndices.has(index);
+              return (
+                <div key={code} className="flex items-center justify-between gap-2">
+                  <span>{isRevealed ? code : maskCode(code)}</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      isRevealed
+                        ? setRevealedIndices((prev) => {
+                            const next = new Set(prev);
+                            next.delete(index);
+                            return next;
+                          })
+                        : revealCode(index)
+                    }
+                    aria-label={isRevealed ? t("hideCodeAria") : t("revealCodeAria")}
+                    className="flex items-center gap-1 rounded border border-brand-ice px-2 py-0.5 text-xs font-medium text-brand-navy hover:bg-gray-50"
+                  >
+                    {isRevealed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                    {isRevealed ? t("hideCode") : t("revealCode")}
+                  </button>
+                </div>
+              );
+            })}
           </div>
           <div className="mb-3 flex items-center gap-2">
             <button

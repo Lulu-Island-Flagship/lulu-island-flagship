@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { Loader2, Video, Award, CheckCircle2 } from "lucide-react";
+import { EmpleadoBackHeader } from "@/components/empleado/EmpleadoBackHeader";
 
 interface Feature {
   id: string;
@@ -28,6 +30,9 @@ const FEATURE_TYPES: Array<{ type: Feature["feature_type"]; label: string; descr
 ];
 
 export default function EmployeeMarketingConsentPage() {
+  const params = useParams();
+  const locale = (params?.locale as string) || "en";
+  const backHref = `/${locale}/empleado`;
   const [features, setFeatures] = useState<Feature[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyType, setBusyType] = useState<string | null>(null);
@@ -72,14 +77,19 @@ export default function EmployeeMarketingConsentPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
-      </div>
+      <main className="min-h-screen bg-brand-ice">
+        <EmpleadoBackHeader title="Marketing consent" backHref={backHref} />
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        </div>
+      </main>
     );
   }
 
   return (
-    <div className="space-y-4 max-w-lg mx-auto">
+    <main className="min-h-screen bg-brand-ice">
+      <EmpleadoBackHeader title="Marketing consent" backHref={backHref} />
+      <div className="space-y-4 max-w-lg mx-auto px-4 py-6">
       <div>
         <h1 className="text-xl font-bold text-brand-ink">Marketing consent</h1>
         <p className="text-sm text-gray-500 mt-1">
@@ -124,6 +134,7 @@ export default function EmployeeMarketingConsentPage() {
           </div>
         );
       })}
-    </div>
+      </div>
+    </main>
   );
 }

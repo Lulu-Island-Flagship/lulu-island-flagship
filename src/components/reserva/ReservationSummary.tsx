@@ -1,10 +1,11 @@
 "use client";
 
 import React from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { QuoteData } from "@/types";
 import { MapPin, Home, Calendar, DollarSign, Shield, Tag, PlusCircle } from "lucide-react";
 import { formatServiceDateDisplay } from "@/lib/date-utils";
+import { formatCurrency as formatCurrencyLocalized } from "@/lib/format";
 
 interface ReservationSummaryProps {
   quote: QuoteData;
@@ -23,11 +24,12 @@ export function ReservationSummary({
   serviceTime,
 }: ReservationSummaryProps) {
   const t = useTranslations("reserva.summary");
-  const formatCurrency = (n: number) =>
-    new Intl.NumberFormat("en-CA", {
-      style: "currency",
-      currency: "CAD",
-    }).format(n);
+  const locale = useLocale();
+  // Fix (auditoría UX 2026-07-25): antes esto formateaba SIEMPRE en "en-CA",
+  // sin importar el idioma que el cliente estaba viendo. formatCurrency de
+  // src/lib/format.ts usa el locale actual (en/fr/zh) para el formato de
+  // separadores/decimales, aunque la moneda siga siendo siempre CAD.
+  const formatCurrency = (n: number) => formatCurrencyLocalized(n, locale);
 
   const subtypeLabel =
     quote.serviceSubtype
@@ -86,7 +88,7 @@ export function ReservationSummary({
           <div className="flex items-center gap-2 text-gray-600">
             <Calendar className="w-4 h-4" />
             <span>
-              {t("dateAtTime", { date: formatServiceDateDisplay(serviceDate), time: serviceTime })}
+              {t("dateAtTime", { date: formatServiceDateDisplay(serviceDate, locale), time: serviceTime })}
             </span>
           </div>
         )}

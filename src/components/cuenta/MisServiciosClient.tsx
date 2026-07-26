@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import {
   Loader2,
   Calendar,
@@ -20,25 +20,18 @@ import { supabase } from "@/lib/supabase";
 import { StatusBanner } from "./StatusBanner";
 import { Skeleton, SkeletonServiceList } from "@/components/ui/Skeleton";
 import { AuthModal } from "@/components/cotizador/AuthModal";
-import { formatServiceDateDisplay } from "@/lib/date-utils";
+import { formatServiceDateDisplay, formatServiceTimeDisplay } from "@/lib/date-utils";
 
 // Fix (2026-07-25, auditoría UX, item 11): antes se mostraba
 // `order.service_date` crudo ("2026-08-03") concatenado con
 // `order.service_time` crudo ("14:00:00") -- ni la fecha ni la hora
-// pasaban por ningún formato legible/localizado. formatServiceDateDisplay
-// (src/lib/date-utils.ts) ya existe y se usa en ReservationSummary.tsx /
-// confirmacion/page.tsx para el mismo problema (parsea "YYYY-MM-DD" sin
-// conversión de huso horario, evitando el bug de "un día antes" documentado
-// ahí). Para la hora, service_time viene como "HH:MM:SS" (columna `time` de
-// Postgres) -- se formatea con Intl.DateTimeFormat en un Date neutro, sin
-// tocar zona horaria (la hora ya es la hora local del servicio tal como se
-// reservó, no requiere conversión).
-function formatServiceTimeDisplay(timeStr: string): string {
-  const [hh, mm] = timeStr.split(":").map(Number);
-  if (Number.isNaN(hh) || Number.isNaN(mm)) return timeStr;
-  const d = new Date(2000, 0, 1, hh, mm);
-  return new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit" }).format(d);
-}
+// pasaban por ningún formato legible/localizado. formatServiceDateDisplay /
+// formatServiceTimeDisplay (src/lib/date-utils.ts) ya existían y se usan en
+// ReservationSummary.tsx / confirmacion/page.tsx para el mismo problema
+// (parsea "YYYY-MM-DD" sin conversión de huso horario, evitando el bug de
+// "un día antes" documentado ahí). Ambos helpers ahora reciben el locale
+// actual (en/fr/zh) en vez de asumir "en-CA" fijo -- ver fix (auditoría UX
+// 2026-07-25, bug de moneda/fecha hardcodeada en en-CA).
 
 interface ClaimableZone {
   zone: string;
@@ -89,6 +82,7 @@ export default function MisServiciosClient() {
   const tCommon = useTranslations("cuenta.common");
   const tStatus = useTranslations("cuenta.orderStatus");
   const tFinalAction = useTranslations("cuenta.servicios.finalAction");
+  const locale = useLocale();
   const [orders, setOrders] = useState<ClientOrder[]>([]);
   const [claims, setClaims] = useState<WarrantyClaim[]>([]);
   const [loading, setLoading] = useState(true);
@@ -227,13 +221,13 @@ export default function MisServiciosClient() {
                     </div>
                     <div className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5" />
-                      {formatServiceDateDisplay(order.service_date, {
+                      {formatServiceDateDisplay(order.service_date, locale, {
                         weekday: "short",
                         month: "short",
                         day: "numeric",
                         year: "numeric",
                       })}{" "}
-                      · {formatServiceTimeDisplay(order.service_time)}
+                      · {formatServiceTimeDisplay(order.service_time, locale)}
                     </div>
                     {order.quotes?.address && (
                       <div className="text-xs text-gray-400 mt-1 flex items-center gap-1.5">
@@ -457,7 +451,7 @@ function ClaimForm({
         {photoFile ? (
           <div className="flex items-center gap-2 text-xs text-gray-600">
             {photoFile.name}
-            <button type="button" onClick={() => setPhotoFile(null)} aria-label="Remove photo" className="text-gray-400 hover:text-red-500">
+            <button type="button" onClick={() => setPhotoFile(null)} aria-label={t("removePhotoAriaLabel")} className="text-gray-400 hover:text-red-500">
               <X className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>

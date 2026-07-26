@@ -59,6 +59,9 @@ export function LanguageSelector() {
         <React.Fragment key={locale.code}>
           <button
             onClick={() => switchLanguage(locale.code)}
+            aria-label={`${locale.label} (${locale.code})`}
+            aria-pressed={currentLocale === locale.code}
+            lang={locale.code}
             className={`text-sm font-medium transition-colors ${
               currentLocale === locale.code
                 ? "text-brand-navy font-bold underline underline-offset-4"

@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { AlertCircle, Loader2, CheckCircle2, Upload } from "lucide-react";
+import { EmpleadoBackHeader } from "@/components/empleado/EmpleadoBackHeader";
 
 interface SickLeaveRequest {
   id: string;
@@ -31,6 +33,9 @@ function formatCad(cents: number | null): string {
  * médica -- ninguna de las dos es obligatoria sobre la otra.
  */
 export default function EnfermedadPage() {
+  const params = useParams();
+  const locale = (params?.locale as string) || "en";
+  const backHref = `/${locale}/empleado`;
   const [requests, setRequests] = useState<SickLeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -118,7 +123,9 @@ export default function EnfermedadPage() {
   }
 
   return (
-    <div className="p-4 max-w-lg mx-auto space-y-4">
+    <main className="min-h-screen bg-brand-ice">
+      <EmpleadoBackHeader title="Report a Sick Day" backHref={backHref} />
+      <div className="p-4 max-w-lg mx-auto space-y-4">
       <div className="flex items-center gap-2">
         <AlertCircle className="w-6 h-6 text-state-warning" />
         <h1 className="text-xl font-bold text-brand-ink">Report a Sick Day</h1>
@@ -233,6 +240,7 @@ export default function EnfermedadPage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </main>
   );
 }

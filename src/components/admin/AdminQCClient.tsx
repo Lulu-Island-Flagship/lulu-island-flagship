@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import {
   Loader2,
   AlertCircle,
@@ -45,6 +46,22 @@ export default function AdminQCClient() {
   const [reviewStatus, setReviewStatus] = useState<"approved" | "rejected">("approved");
   const [submitting, setSubmitting] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const lightboxRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(lightboxRef, !!lightboxUrl);
+
+  // Item 4 (auditoría 2026-07-25): el lightbox de fotos QC usaba
+  // role="button" en el fondo con onClick para cerrar -- sin focus trap ni
+  // manejo confiable de teclado, y cerraba con cualquier click accidental
+  // sobre el fondo. Ahora solo cierra con Escape o el botón de la X, y
+  // atrapa el foco mientras está abierto (useFocusTrap, arriba).
+  useEffect(() => {
+    if (!lightboxUrl) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setLightboxUrl(null);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [lightboxUrl]);
 
   useEffect(() => {
     loadReviews();
@@ -361,26 +378,21 @@ export default function AdminQCClient() {
       {/* Photo lightbox */}
       {lightboxUrl && (
         <div
+          ref={lightboxRef}
           className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4"
-          onClick={() => setLightboxUrl(null)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape" || e.key === "Enter") setLightboxUrl(null);
-          }}
-          role="button"
-          tabIndex={0}
+          role="dialog"
+          aria-modal="true"
           aria-label={t("lightbox.closeAriaLabel")}
         >
           <button
+            type="button"
             onClick={() => setLightboxUrl(null)}
             className="absolute top-4 right-4 text-white hover:text-gray-300"
             aria-label={t("lightbox.closeButtonAriaLabel")}
           >
             <X className="w-8 h-8" />
           </button>
-          <div
-            className="relative w-full h-full max-w-3xl max-h-[85vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="relative w-full h-full max-w-3xl max-h-[85vh]">
             <Image
               src={lightboxUrl}
               alt={t("lightbox.enlargedAltText")}

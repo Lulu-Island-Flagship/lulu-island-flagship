@@ -55,6 +55,32 @@ export default function PhoneBookingPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [result, setResult] = useState<any>(null);
 
+  // Item 9 (auditoría 2026-07-25): antes no se validaba formato de email,
+  // teléfono ni código postal canadiense antes de enviar -- errores tipográficos
+  // del coordinador (dictados por teléfono) llegaban directo a la API.
+  const [fieldErrors, setFieldErrors] = useState<{ clientEmail?: string; clientPhone?: string; postalCode?: string }>({});
+
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // Teléfono canadiense: 10 dígitos, con o sin +1, separadores opcionales de espacio/guion/paréntesis.
+  const CA_PHONE_REGEX = /^(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/;
+  // Código postal canadiense: A1A 1A1 (espacio opcional).
+  const CA_POSTAL_REGEX = /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/;
+
+  function validateForm(): boolean {
+    const errors: typeof fieldErrors = {};
+    if (!EMAIL_REGEX.test(form.clientEmail.trim())) {
+      errors.clientEmail = t("errorInvalidEmail");
+    }
+    if (form.clientPhone.trim() && !CA_PHONE_REGEX.test(form.clientPhone.trim())) {
+      errors.clientPhone = t("errorInvalidPhone");
+    }
+    if (!CA_POSTAL_REGEX.test(form.postalCode.trim())) {
+      errors.postalCode = t("errorInvalidPostalCode");
+    }
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
+
   const subtypes = SERVICE_SUBTYPES[form.serviceCategory];
   const mappedServiceType = subtypes.find((s) => s.key === form.serviceSubtype)?.mapsTo;
 
@@ -64,9 +90,13 @@ export default function PhoneBookingPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError("");
     setResult(null);
+    if (!validateForm()) {
+      setError(t("errorFixFields"));
+      return;
+    }
+    setLoading(true);
     try {
       const res = await fetch("/api/admin/phone-booking", {
         method: "POST",
@@ -106,11 +136,15 @@ export default function PhoneBookingPage() {
               type="email"
               required
               aria-label={t("clientEmail")}
+              aria-invalid={!!fieldErrors.clientEmail}
               placeholder={t("clientEmail")}
               value={form.clientEmail}
               onChange={(e) => update("clientEmail", e.target.value)}
-              className="w-full border rounded-lg p-2 text-sm"
+              className={`w-full border rounded-lg p-2 text-sm ${fieldErrors.clientEmail ? "border-red-400" : ""}`}
             />
+            {fieldErrors.clientEmail && (
+              <p className="text-xs text-red-600">{fieldErrors.clientEmail}</p>
+            )}
             <input
               type="text"
               aria-label={t("clientFullName")}
@@ -122,11 +156,15 @@ export default function PhoneBookingPage() {
             <input
               type="tel"
               aria-label={t("clientPhone")}
+              aria-invalid={!!fieldErrors.clientPhone}
               placeholder={t("clientPhonePlaceholder")}
               value={form.clientPhone}
               onChange={(e) => update("clientPhone", e.target.value)}
-              className="w-full border rounded-lg p-2 text-sm"
+              className={`w-full border rounded-lg p-2 text-sm ${fieldErrors.clientPhone ? "border-red-400" : ""}`}
             />
+            {fieldErrors.clientPhone && (
+              <p className="text-xs text-red-600">{fieldErrors.clientPhone}</p>
+            )}
           </fieldset>
 
           <fieldset className="grid grid-cols-2 gap-2">
@@ -217,10 +255,13 @@ export default function PhoneBookingPage() {
                 className="w-full border rounded-lg p-2 text-sm">
                 {ACTIVE_ZONES.map((z) => (<option key={z.name} value={z.name}>{z.name}</option>))}
               </select>
-              <input type="text" required aria-label={t("postalCode")} placeholder={t("postalCode")}
+              <input type="text" required aria-label={t("postalCode")} aria-invalid={!!fieldErrors.postalCode} placeholder={t("postalCode")}
                 value={form.postalCode} onChange={(e) => update("postalCode", e.target.value)}
-                className="w-full border rounded-lg p-2 text-sm" />
+                className={`w-full border rounded-lg p-2 text-sm ${fieldErrors.postalCode ? "border-red-400" : ""}`} />
             </div>
+            {fieldErrors.postalCode && (
+              <p className="text-xs text-red-600">{fieldErrors.postalCode}</p>
+            )}
           </fieldset>
 
           {form.serviceCategory === "commercial" && (

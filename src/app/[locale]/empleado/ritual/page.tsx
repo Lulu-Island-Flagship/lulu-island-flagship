@@ -229,6 +229,7 @@ export default function ShiftRitualPage() {
                   key={m}
                   type="button"
                   aria-label={`Ánimo: ${m}`}
+                  aria-pressed={mood === m}
                   onClick={() => setMood(m)}
                   className={`flex-1 py-2 rounded-lg text-lg border-2 transition-colors ${mood === m ? "border-brand-navy bg-brand-navy/5" : "border-gray-200"}`}
                 >

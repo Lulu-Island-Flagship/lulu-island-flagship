@@ -228,6 +228,7 @@ export default function AuditsPage() {
                     )}
                   </div>
                   <button
+                    type="button"
                     onClick={() => {
                       setSelectedOrder(order);
                       setAuditScore(4);
@@ -337,6 +338,7 @@ export default function AuditsPage() {
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-brand-ink">{t("modal.title")}</h2>
               <button
+                type="button"
                 onClick={() => setSelectedOrder(null)}
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -378,6 +380,7 @@ export default function AuditsPage() {
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((n) => (
                       <button
+                        type="button"
                         key={n}
                         onClick={() => setCriteria({ ...criteria, [key]: n })}
                         className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
@@ -427,6 +430,7 @@ export default function AuditsPage() {
             {error && <p className="text-sm text-red-600">{error}</p>}
 
             <button
+              type="button"
               aria-label={t("modal.submitAria")}
               onClick={submitAudit}
               disabled={submitting}

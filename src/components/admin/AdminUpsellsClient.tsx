@@ -52,14 +52,14 @@ export default function AdminUpsellsClient() {
       const res = await fetch("/api/admin/upsells", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load upsells");
+        setError(err.error || t("errorLoadFailed"));
         setLoading(false);
         return;
       }
       const data = await res.json();
       setUpsells(data.upsells || []);
     } catch {
-      setError("Network error");
+      setError(t("errorNetwork"));
     } finally {
       setLoading(false);
     }
@@ -76,7 +76,7 @@ export default function AdminUpsellsClient() {
         setUpsells((prev) => prev.filter((u) => u.id !== id));
       } else {
         const err = await res.json();
-        setError(err.error || "Failed to mark as reviewed");
+        setError(err.error || t("errorMarkReviewedFailed"));
       }
     } catch (e) {
       console.error("Review error:", e);
@@ -116,16 +116,16 @@ export default function AdminUpsellsClient() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-brand-ink">Upsells Pending Review</h1>
+        <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
         <span className="text-sm text-gray-500">
-          {upsells.length} pending
+          {t("pendingCount", { count: upsells.length })}
         </span>
       </div>
 
       {upsells.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
           <CheckCircle2 className="w-10 h-10 text-green-400 mx-auto mb-2" />
-          <p className="text-gray-500">All upsells have been reviewed.</p>
+          <p className="text-gray-500">{t("allReviewed")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -144,11 +144,11 @@ export default function AdminUpsellsClient() {
                     <span className="font-medium">${u.amount}</span>
                     {u.client_approved ? (
                       <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                        Client approved
+                        {t("clientApproved")}
                       </span>
                     ) : (
                       <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                        Pending client approval
+                        {t("pendingClientApproval")}
                       </span>
                     )}
                   </div>
@@ -162,7 +162,7 @@ export default function AdminUpsellsClient() {
 
                   <div className="flex items-center gap-2 text-sm text-gray-500">
                     <User className="w-4 h-4 text-gray-400" />
-                    <span>{u.employees?.name || "Unknown"}</span>
+                    <span>{u.employees?.name || t("unknownEmployee")}</span>
                     <span className="text-gray-300">|</span>
                     <span>{formatDate(u.created_at)}</span>
                   </div>
@@ -176,6 +176,7 @@ export default function AdminUpsellsClient() {
               </div>
 
               <button
+                type="button"
                 onClick={() => markReviewed(u.id)}
                 disabled={reviewing === u.id}
                 className="w-full py-2 bg-brand-navy text-white rounded-lg font-medium text-sm hover:bg-brand-navy/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
@@ -185,7 +186,7 @@ export default function AdminUpsellsClient() {
                 ) : (
                   <CheckCircle2 className="w-4 h-4" />
                 )}
-                Mark as Reviewed
+                {t("markAsReviewed")}
               </button>
             </div>
           ))}

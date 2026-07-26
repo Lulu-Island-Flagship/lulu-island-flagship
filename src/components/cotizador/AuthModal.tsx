@@ -114,8 +114,13 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       });
       if (error) throw error;
       // OAuth redirects, so onSuccess is called from callback page
-    } catch (err: Error | unknown) {
-      setError(err instanceof Error ? err.message : t("errors.googleFailed"));
+    } catch {
+      // Fix (auditoría UX/seguridad 2026-07-25, item 13): antes se mostraba
+      // err.message crudo de Supabase Auth directo al cliente (fuga de
+      // detalles técnicos internos: nombres de tabla, mensajes de API, etc.).
+      // Se usa siempre el mensaje genérico localizado, sin importar qué
+      // devuelva Supabase.
+      setError(t("errors.googleFailed"));
       setLoading(false);
     }
   };
@@ -132,8 +137,9 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
         },
       });
       if (error) throw error;
-    } catch (err: Error | unknown) {
-      setError(err instanceof Error ? err.message : t("errors.appleFailed"));
+    } catch {
+      // Fix (item 13): nunca mostrar err.message crudo de Supabase Auth.
+      setError(t("errors.appleFailed"));
       setLoading(false);
     }
   };
@@ -154,8 +160,9 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       });
       if (error) throw error;
       setOtpSent(true);
-    } catch (err: Error | unknown) {
-      setError(err instanceof Error ? err.message : t("errors.sendCodeFailed"));
+    } catch {
+      // Fix (item 13): nunca mostrar err.message crudo de Supabase Auth.
+      setError(t("errors.sendCodeFailed"));
     } finally {
       setLoading(false);
     }
@@ -176,8 +183,9 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       });
       if (error) throw error;
       setOtpSent(true);
-    } catch (err: Error | unknown) {
-      setError(err instanceof Error ? err.message : t("errors.sendSmsFailed"));
+    } catch {
+      // Fix (item 13): nunca mostrar err.message crudo de Supabase Auth.
+      setError(t("errors.sendSmsFailed"));
     } finally {
       setLoading(false);
     }
@@ -199,8 +207,9 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       const { error } = await supabase.auth.updateUser({ phone: normalizedPhone });
       if (error) throw error;
       setOtpSent(true);
-    } catch (err: Error | unknown) {
-      setError(err instanceof Error ? err.message : t("errors.sendSmsFailed"));
+    } catch {
+      // Fix (item 13): nunca mostrar err.message crudo de Supabase Auth.
+      setError(t("errors.sendSmsFailed"));
     } finally {
       setLoading(false);
     }
@@ -238,8 +247,9 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       }
 
       onSuccess();
-    } catch (err: Error | unknown) {
-      setError(err instanceof Error ? err.message : t("errors.invalidVerificationCode"));
+    } catch {
+      // Fix (item 13): nunca mostrar err.message crudo de Supabase Auth.
+      setError(t("errors.invalidVerificationCode"));
       setLoading(false);
     }
   };
@@ -293,8 +303,9 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       }
 
       onSuccess();
-    } catch (err: Error | unknown) {
-      setError(err instanceof Error ? err.message : t("errors.invalidVerificationCode"));
+    } catch {
+      // Fix (item 13): nunca mostrar err.message crudo de Supabase Auth.
+      setError(t("errors.invalidVerificationCode"));
       setLoading(false);
     }
   };

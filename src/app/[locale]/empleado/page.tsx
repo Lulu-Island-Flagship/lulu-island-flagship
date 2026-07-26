@@ -323,7 +323,7 @@ export default function EmpleadoPage() {
       <header className="bg-brand-navy text-white">
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-brand-gold" />
+            <Shield className="w-5 h-5 text-brand-gold-dark" />
             <div>
               <span className="font-semibold text-sm">Lulu Island Flagship</span>
               <p className="text-xs text-gray-400 capitalize">{employeeRole}</p>
@@ -495,7 +495,7 @@ export default function EmpleadoPage() {
               href={`/${safeLocale}/empleado/score`}
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
-              <Star className="w-4 h-4 text-brand-gold" />
+              <Star className="w-4 h-4 text-brand-gold-dark" />
               <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.myScore")}</span>
             </a>
             <a

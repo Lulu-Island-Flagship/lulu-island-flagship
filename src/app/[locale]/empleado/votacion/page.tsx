@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Loader2,
   AlertCircle,
@@ -9,6 +10,7 @@ import {
   CheckCircle2,
   Users,
 } from "lucide-react";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 interface Peer {
   id: string;
@@ -20,6 +22,7 @@ interface Peer {
 
 export default function EmpleadoVotacionPage() {
   const params = useParams();
+  const t = useTranslations("employee.votacion");
   // 2026-07-24: antes el href de "Back" leía window.location.pathname
   // inline, lo que causaba un hydration mismatch (SSR asumía "en", cliente
   // calculaba el locale real) -- ver auditoría externa. useParams() da el
@@ -46,7 +49,7 @@ export default function EmpleadoVotacionPage() {
       const res = await fetch("/api/empleado/votacion", { credentials: "include" });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to load peers");
+        setError(err.error || t("loadError"));
         setLoading(false);
         return;
       }
@@ -54,7 +57,7 @@ export default function EmpleadoVotacionPage() {
       setPeers(data.peers || []);
       setWeekStart(data.weekStart || "");
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setLoading(false);
     }
@@ -73,17 +76,17 @@ export default function EmpleadoVotacionPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Failed to submit vote");
+        setError(err.error || t("voteSubmitFailed"));
         setSubmitting(false);
         return;
       }
-      setSuccess("Vote submitted!");
+      setSuccess(t("voteSubmitted"));
       setVotingFor(null);
       setRating(3);
       setNote("");
       loadPeers();
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -98,14 +101,14 @@ export default function EmpleadoVotacionPage() {
       <header className="bg-brand-navy text-white">
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-brand-gold" />
-            <span className="font-semibold text-sm">Peer Voting</span>
+            <Users className="w-5 h-5 text-brand-gold-dark" />
+            <span className="font-semibold text-sm">{t("title")}</span>
           </div>
           <a
             href={`/${locale}/empleado`}
             className="text-sm text-gray-300 hover:text-white transition-colors"
           >
-            Back
+            {t("back")}
           </a>
         </div>
       </header>
@@ -114,8 +117,8 @@ export default function EmpleadoVotacionPage() {
         {/* Progress */}
         <div className="bg-white rounded-xl shadow-elevation-1 p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-brand-ink">Progress</span>
-            <span className="text-sm text-gray-500">{votedCount}/{totalPeers} voted</span>
+            <span className="text-sm font-medium text-brand-ink">{t("progress")}</span>
+            <span className="text-sm text-gray-500">{t("voted", { voted: votedCount, total: totalPeers })}</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
@@ -123,7 +126,7 @@ export default function EmpleadoVotacionPage() {
               style={{ width: totalPeers > 0 ? `${(votedCount / totalPeers) * 100}%` : "0%" }}
             />
           </div>
-          <p className="text-xs text-gray-400 mt-2">Week of {weekStart || "—"}</p>
+          <p className="text-xs text-gray-400 mt-2">{t("weekOf", { week: weekStart || "—" })}</p>
         </div>
 
         {loading ? (
@@ -170,7 +173,7 @@ export default function EmpleadoVotacionPage() {
                         }}
                         className="bg-brand-navy text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors"
                       >
-                        Vote
+                        {t("vote")}
                       </button>
                     )}
                   </div>
@@ -183,63 +186,81 @@ export default function EmpleadoVotacionPage() {
 
       {/* Vote Modal */}
       {votingFor && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-brand-ink">
-                Rate {peers.find((p) => p.id === votingFor)?.name}
-              </h2>
-              <button
-                onClick={() => setVotingFor(null)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="flex justify-center gap-2">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setRating(n)}
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
-                    rating >= n
-                      ? "bg-brand-navy text-white"
-                      : "bg-gray-100 text-gray-400"
-                  }`}
-                >
-                  <Star className="w-5 h-5 fill-current" />
-                </button>
-              ))}
-            </div>
-            <p className="text-center text-sm text-gray-500">
-              {rating === 1 && "Poor"}
-              {rating === 2 && "Fair"}
-              {rating === 3 && "Good"}
-              {rating === 4 && "Very Good"}
-              {rating === 5 && "Excellent"}
-            </p>
-
-            <textarea
-              aria-label="Nota opcional sobre la votación"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Optional note (only visible to admin)..."
-              className="w-full border rounded-lg p-3 text-sm min-h-[80px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
-            />
-
-            {error && <p className="text-sm text-red-600">{error}</p>}
-
+        <VoteDialog onClose={() => setVotingFor(null)}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-brand-ink">
+              {t("rate", { name: peers.find((p) => p.id === votingFor)?.name || "" })}
+            </h2>
             <button
-              onClick={() => submitVote(votingFor)}
-              disabled={submitting}
-              className="w-full bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
+              onClick={() => setVotingFor(null)}
+              aria-label={t("closeDialog")}
+              className="text-gray-400 hover:text-gray-600"
             >
-              {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Submit Vote"}
+              ✕
             </button>
           </div>
-        </div>
+
+          <div className="flex justify-center gap-2">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                onClick={() => setRating(n)}
+                aria-label={`${n} ${n === 1 ? "star" : "stars"}`}
+                aria-pressed={rating === n}
+                className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+                  rating >= n
+                    ? "bg-brand-navy text-white"
+                    : "bg-gray-100 text-gray-400"
+                }`}
+              >
+                <Star className="w-5 h-5 fill-current" />
+              </button>
+            ))}
+          </div>
+          <p className="text-center text-sm text-gray-500">
+            {rating === 1 && t("ratingPoor")}
+            {rating === 2 && t("ratingFair")}
+            {rating === 3 && t("ratingGood")}
+            {rating === 4 && t("ratingVeryGood")}
+            {rating === 5 && t("ratingExcellent")}
+          </p>
+
+          <textarea
+            aria-label={t("noteLabel")}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder={t("notePlaceholder")}
+            className="w-full border rounded-lg p-3 text-sm min-h-[80px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
+          />
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
+          <button
+            onClick={() => submitVote(votingFor)}
+            disabled={submitting}
+            className="w-full bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
+          >
+            {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : t("submitVote")}
+          </button>
+        </VoteDialog>
       )}
     </main>
+  );
+}
+
+/** Contenedor del modal de votación con role="dialog"/aria-modal y focus trap. */
+function VoteDialog({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  const dialogRef = useFocusTrap<HTMLDivElement>(true, onClose);
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4"
+      >
+        {children}
+      </div>
+    </div>
   );
 }

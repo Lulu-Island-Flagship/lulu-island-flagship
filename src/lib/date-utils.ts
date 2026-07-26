@@ -3,6 +3,8 @@
  * Centralizado para evitar offsets fijos (-07:00 / -08:00) que fallan al cambiar PDT/PST.
  */
 
+import { toIntlLocale } from "@/lib/format";
+
 /**
  * Devuelve el offset ISO de Vancouver para una fecha local dada (e.g. "-07:00" o "-08:00").
  */
@@ -83,10 +85,26 @@ export function getVancouverTodayMidnight(): Date {
  */
 export function formatServiceDateDisplay(
   dateOnlyStr: string,
+  locale: string = "en",
   options: Intl.DateTimeFormatOptions = { weekday: "long", year: "numeric", month: "long", day: "numeric" }
 ): string {
   const [year, month, day] = dateOnlyStr.split("-").map(Number);
   if (!year || !month || !day) return dateOnlyStr;
   const localDate = new Date(year, month - 1, day);
-  return localDate.toLocaleDateString("en-CA", options);
+  return localDate.toLocaleDateString(toIntlLocale(locale), options);
+}
+
+/**
+ * Formatea un string de solo-hora "HH:MM:SS" (service_time, tal como viene
+ * de Postgres) para mostrarlo al usuario en formato legible y localizado
+ * (ej. "2:00 PM" en inglés, "14 h 00" en francés) en vez de crudo
+ * ("14:00:00"). Se construye un Date neutro (2000-01-01) solo para poder usar
+ * Intl.DateTimeFormat -- la hora ya es la hora local del servicio tal como
+ * se reservó, no requiere ninguna conversión de huso horario.
+ */
+export function formatServiceTimeDisplay(timeStr: string, locale: string = "en"): string {
+  const [hh, mm] = timeStr.split(":").map(Number);
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return timeStr;
+  const d = new Date(2000, 0, 1, hh, mm);
+  return new Intl.DateTimeFormat(toIntlLocale(locale), { hour: "numeric", minute: "2-digit" }).format(d);
 }

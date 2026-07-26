@@ -208,7 +208,7 @@ export default function AdminContabilidadClient() {
           <label htmlFor="accounting-to" className="block text-xs text-gray-500 mb-1">{t("filters.to")}</label>
           <input id="accounting-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} className="border rounded px-2 py-1 text-sm" />
         </div>
-        <button onClick={load} className="px-3 py-1.5 bg-gray-900 text-white rounded text-sm">
+        <button type="button" onClick={load} className="px-3 py-1.5 bg-gray-900 text-white rounded text-sm">
           {t("filters.filter")}
         </button>
       </div>
@@ -264,7 +264,7 @@ export default function AdminContabilidadClient() {
           <div className="flex-1">
             {t("fixedCostsWarning.text")}
             {!showFixedCostsForm ? (
-              <button onClick={() => setShowFixedCostsForm(true)} className="ml-2 underline font-medium">
+              <button type="button" onClick={() => setShowFixedCostsForm(true)} className="ml-2 underline font-medium">
                 {t("fixedCostsWarning.setNow")}
               </button>
             ) : (

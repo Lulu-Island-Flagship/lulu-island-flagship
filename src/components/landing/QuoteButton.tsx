@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ChevronRight } from "lucide-react";
 
 interface QuoteButtonProps {
@@ -11,6 +12,9 @@ interface QuoteButtonProps {
 
 export function QuoteButton({ variant = "primary", children }: QuoteButtonProps) {
   const router = useRouter();
+  // Fix (auditoría UX 2026-07-25): aria-label estaba hardcodeado en español
+  // ("Comenzar cotización") sin importar el locale (en/fr/zh) del cliente.
+  const t = useTranslations("landing");
 
   const handleClick = () => {
     try {
@@ -53,7 +57,7 @@ export function QuoteButton({ variant = "primary", children }: QuoteButtonProps)
       : "bg-white text-brand-navy border-2 border-brand-navy hover:bg-brand-ice";
 
   return (
-    <button aria-label="Comenzar cotización" onClick={handleClick} className={`${baseClasses} ${variantClasses}`}>
+    <button aria-label={t("quoteButtonAriaLabel")} onClick={handleClick} className={`${baseClasses} ${variantClasses}`}>
       {children}
       <ChevronRight className="w-5 h-5" />
     </button>

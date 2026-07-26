@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { useTranslations } from "next-intl";
 import {
   Loader2,
@@ -54,6 +55,19 @@ export default function AdminServiciosClient() {
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [dispatchLoading, setDispatchLoading] = useState(false);
   const [dispatchError, setDispatchError] = useState("");
+
+  // Item 12 (auditoría 2026-07-25): el modal de despacho no tenía focus
+  // trap ni cierre con Escape.
+  const dispatchModalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dispatchModalRef, !!dispatchOrderId);
+  useEffect(() => {
+    if (!dispatchOrderId) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setDispatchOrderId(null);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [dispatchOrderId]);
 
   useEffect(() => {
     loadServices();
@@ -256,10 +270,11 @@ export default function AdminServiciosClient() {
       {/* Dispatch Modal */}
       {dispatchOrderId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-xl shadow-elevation-2 w-full max-w-md p-6 space-y-4">
+          <div ref={dispatchModalRef} role="dialog" aria-modal="true" className="bg-white rounded-xl shadow-elevation-2 w-full max-w-md p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-brand-ink">{t("dispatch.title")}</h2>
               <button
+                type="button"
                 onClick={() => setDispatchOrderId(null)}
                 aria-label={t("dispatch.closeDialog")}
                 className="text-gray-400 hover:text-gray-600"
