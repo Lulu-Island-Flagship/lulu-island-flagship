@@ -41,32 +41,62 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: safety-abort-escalation
-        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/safety-abort-escalation"
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/safety-abort-escalation"
       - name: wellbeing-chemical-reassign
-        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/wellbeing-chemical-reassign"
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/wellbeing-chemical-reassign"
       - name: key-escalation-check
-        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/key-escalation-check"
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/key-escalation-check"
 
   every-15-min:
     if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: no-show
-        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/no-show"
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/no-show"
       - name: dispatch-scheduler
-        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/dispatch-scheduler"
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/dispatch-scheduler"
 
   hourly:
     if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: hold-authorize
-        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/hold-authorize"
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/hold-authorize"
       - name: capture-remainder
-        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/capture-remainder"
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/capture-remainder"
       - name: cash-exposure-monitor
-        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/cash-exposure-monitor"
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/cash-exposure-monitor"
       - name: appeal-deadline-check
-        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/appeal-deadline-check"
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/appeal-deadline-check"
       - name: reconcile-payments
-        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/reconcile-payments"
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/reconcile-payments"
