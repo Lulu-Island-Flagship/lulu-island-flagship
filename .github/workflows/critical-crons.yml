@@ -1,0 +1,72 @@
+# Auditoría 2026-07-27 — crons sub-diarios críticos que vercel.json ya no
+# puede correr en Vercel Hobby (limitado a 1x/día). Ver README.md, sección
+# "Despliegue — requisito de plan Vercel (Pro, no Hobby)": estos 10 crons
+# existen por una razón real de seguridad de campo o exposición financiera y
+# el propio README dice explícitamente que NUNCA deben relajarse a 1x/día.
+#
+# Este workflow los llama por HTTP con la cadencia real que necesitan,
+# usando el mismo CRON_SECRET que ya protege estos endpoints en Vercel
+# (ver src/lib/cron/auth.ts) — el código no distingue si lo invoca el cron
+# nativo de Vercel o esto.
+#
+# Límite conocido de GitHub Actions: no garantiza el minuto exacto (puede
+# atrasarse unos minutos en momentos de carga alta de la plataforma), y no
+# corre confiablemente más seguido de ~5 min. safety-abort-escalation
+# necesita */2min idealmente; acá corre cada 5 min como mejor aproximación
+# gratuita — sigue siendo enormemente mejor que 1x/día, pero si se necesita
+# la cadencia exacta de 2 min hay que migrar a Vercel Pro o a un servicio
+# como cron-job.org que sí soporta 1 min.
+#
+# Requiere el secret CRON_SECRET configurado en este repo (Settings →
+# Secrets and variables → Actions), con el mismo valor que ya está en
+# Vercel → Project Settings → Environment Variables.
+
+name: Critical Crons (sub-daily safety/financial)
+
+on:
+  schedule:
+    # Cada 5 min: cubre safety-abort-escalation, wellbeing-chemical-reassign,
+    # key-escalation-check (los 3 más urgentes)
+    - cron: "*/5 * * * *"
+    # Cada 15 min: cubre no-show, dispatch-scheduler
+    - cron: "*/15 * * * *"
+    # Cada hora: cubre hold-authorize, capture-remainder,
+    # cash-exposure-monitor, appeal-deadline-check, reconcile-payments
+    - cron: "0 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  every-5-min:
+    if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: safety-abort-escalation
+        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/safety-abort-escalation"
+      - name: wellbeing-chemical-reassign
+        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/wellbeing-chemical-reassign"
+      - name: key-escalation-check
+        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/key-escalation-check"
+
+  every-15-min:
+    if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: no-show
+        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/no-show"
+      - name: dispatch-scheduler
+        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/dispatch-scheduler"
+
+  hourly:
+    if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: hold-authorize
+        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/hold-authorize"
+      - name: capture-remainder
+        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/capture-remainder"
+      - name: cash-exposure-monitor
+        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/cash-exposure-monitor"
+      - name: appeal-deadline-check
+        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/appeal-deadline-check"
+      - name: reconcile-payments
+        run: curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "https://luluislandflagship.ca/api/cron/reconcile-payments"
