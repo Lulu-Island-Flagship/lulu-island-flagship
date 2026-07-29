@@ -11,6 +11,7 @@ import {
   PST_RATE,
 } from "@/lib/pricing";
 import { applyPricingRules, type PricingRule, type RuleContext } from "@/lib/rules";
+import { getZoneDemand } from "@/lib/zone-demand";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -176,6 +177,11 @@ export async function POST(request: NextRequest) {
     const todayStr = new Date().toISOString().split("T")[0];
     const advanceNoticeDays = daysBetween(todayStr, serviceDate);
 
+    // Fix (auditoría externa, hallazgo confirmado): ver src/lib/zone-demand.ts.
+    // Acá SÍ hay fecha de servicio elegida (serviceDate) -- se usa la
+    // ocupación real de ESE día para la zona, no el promedio rolling.
+    const zoneDemand = await getZoneDemand(supabase, quote.zone, serviceDate);
+
     const ruleContext: RuleContext = {
       zone: quote.zone,
       dayOfWeek,
@@ -188,7 +194,7 @@ export async function POST(request: NextRequest) {
       disputesLostCount: profile?.disputes_lost_count ?? 0,
       accountType: profile?.account_type ?? "b2c",
       clientType: deriveClientType(profile?.services_count ?? 0, profile?.score ?? quote.client_score ?? 50),
-      zoneDemand: 50,
+      zoneDemand,
       organicLoad: deriveOrganicLoad(quote.pets_count, quote.pets_type, quote.residents),
       daysSinceCleaning: quote.days_since_cleaning,
       advanceNoticeDays,

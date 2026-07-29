@@ -35,6 +35,7 @@ import {
   type ServiceCategory,
   computePrintedInvoiceCharge,
 } from "@/lib/pricing";
+import { getZoneDemand } from "@/lib/zone-demand";
 // Fix 2026-07-24 (auditoría externa): captureError se usa en
 // getOrCreateClientProfile para dejar rastreable en producción el fallo
 // silencioso de creación de client_profile (ver comentario junto a esa
@@ -479,6 +480,14 @@ export async function POST(request: NextRequest) {
       isActive: r.is_active as boolean,
     }));
 
+    // Fix (auditoría externa, hallazgo confirmado): zoneDemand ya no es un
+    // placeholder fijo -- se calcula desde la ocupación real de
+    // capacity_slots (ver src/lib/zone-demand.ts). Todavía no hay fecha de
+    // servicio elegida en este punto del flujo (se elige en
+    // /api/quote/recalculate), así que se usa el promedio de ocupación de
+    // los próximos 14 días publicados para esta zona como proxy.
+    const zoneDemand = await getZoneDemand(supabase, zone!, null);
+
     const ruleContext: RuleContext = {
       zone: zone!,
       dayOfWeek: dayOfWeek ?? new Date().getDay(),
@@ -491,7 +500,7 @@ export async function POST(request: NextRequest) {
       disputesLostCount: clientProfile.disputes_lost_count || 0,
       accountType,
       clientType: deriveClientType(clientProfile.services_count || 0, clientProfile.score),
-      zoneDemand: 50, // placeholder; idealmente calculado desde capacidad real
+      zoneDemand,
       organicLoad: deriveOrganicLoad(petsCount, petsType, residents),
       daysSinceCleaning,
       advanceNoticeDays: 0, // se actualiza en /api/quote/recalculate cuando el cliente elige fecha

@@ -21,6 +21,10 @@
       "schedule": "0 4 * * *"
     },
     {
+      "path": "/api/cron/installment-second-capture",
+      "schedule": "30 4 * * *"
+    },
+    {
       "path": "/api/cron/cash-exposure-monitor",
       "schedule": "0 5 * * *"
     },

@@ -48,8 +48,23 @@ function PortalContent() {
     async function run() {
       const authError = searchParams.get("auth_error");
       if (authError) {
+        // Fix (auditoría externa, hallazgo confirmado): antes CUALQUIER
+        // valor de auth_error (provider_error, missing_code,
+        // session_exchange_failed -- ver src/app/auth/callback/route.ts)
+        // caía en el mismo mensaje genérico "Couldn't sign you in", sin
+        // distinguir "Google rechazó la solicitud" de "no se pudo
+        // intercambiar la sesión con el servidor". Cada código ya existía
+        // en el callback; solo faltaba mapearlo a un mensaje específico acá.
         if (!cancelled) {
-          setMessage(t("errors.authFailed"));
+          const specificKey =
+            authError === "provider_error"
+              ? "errors.providerError"
+              : authError === "missing_code"
+                ? "errors.missingCode"
+                : authError === "session_exchange_failed"
+                  ? "errors.sessionExchangeFailed"
+                  : "errors.authFailed";
+          setMessage(t(specificKey));
           setPhase("login");
         }
         return;
@@ -71,13 +86,28 @@ function PortalContent() {
         if (cancelled) return;
 
         if (!res.ok) {
-          // Fix (auditoría de autenticación 2026-07-25/26, item 2): antes se
-          // pintaba data.error del servidor directamente y el fallback estaba
-          // hardcodeado en español, sin pasar por next-intl. El fallback
-          // ahora está localizado; data.error (texto ya controlado por
-          // /api/staff/resolve-login, nunca un mensaje crudo de excepción) se
-          // conserva solo como mejor-esfuerzo si el servidor lo provee.
-          setMessage(data.error || t("errors.notAuthorized"));
+          // Fix (auditoría de autenticación 2026-07-25/26, item 2 + auditoría
+          // externa siguiente, hallazgo confirmado): antes se pintaba
+          // data.error del servidor directamente -- ese texto vive en
+          // src/lib/staff-login.ts (STAFF_UNAUTHORIZED_MESSAGE /
+          // STAFF_PENDING_ACTIVATION_MESSAGE) quemado en español, así que un
+          // cliente en /fr o /zh lo veía igual, en español. El servidor ahora
+          // manda `reason` (código estable: no_session, server_config_error,
+          // not_registered, pending_activation) además de `error`; se prefiere
+          // el mensaje localizado por reason, y `error`/notAuthorized quedan
+          // solo como último recurso si el servidor no manda un reason
+          // reconocido.
+          const reasonKey =
+            data.reason === "not_registered"
+              ? "errors.notRegistered"
+              : data.reason === "pending_activation"
+                ? "errors.pendingActivation"
+                : data.reason === "no_session"
+                  ? "errors.noSession"
+                  : data.reason === "server_config_error"
+                    ? "errors.serverConfigError"
+                    : null;
+          setMessage(reasonKey ? t(reasonKey) : data.error || t("errors.notAuthorized"));
           setPhase("rejected");
           return;
         }

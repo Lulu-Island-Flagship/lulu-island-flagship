@@ -811,6 +811,40 @@
   },
   "portal": {
     "staffLogin": {
+      "title": "Team Portal",
+      "subtitle": "Employees, coordinators, QC, and managers sign in here with their work Google account.",
+      "googleSignIn": "Sign in with Google",
+      "otherOptions": "Other access options",
+      "footerNotice": "This access is only for staff pre-registered by the manager. If you're a client, use the \"Sign In\" button on the homepage.",
+      "options": {
+        "useEmailCode": "Use email verification code instead",
+        "useBackupCode": "Can't use Google? Sign in with a backup code",
+        "back": "← Back"
+      },
+      "backupCode": {
+        "label": "Backup Code",
+        "hint": "Only for owner_admin. Enter one of the single-use codes generated in Admin → Security. Each code works once.",
+        "placeholder": "XXXX-XXXX-XXXX",
+        "submit": "Sign In With Backup Code",
+        "submitting": "Verifying...",
+        "ariaSignIn": "Sign in with backup code",
+        "ariaVerifying": "Verifying backup code"
+      },
+      "email": {
+        "label": "Email Address",
+        "placeholder": "you@example.com",
+        "sendButton": "Send Verification Code",
+        "sendButtonSending": "Sending...",
+        "sendButtonAria": "Send verification code",
+        "sendButtonAriaSending": "Sending verification code",
+        "otpSentMessage": "We sent a sign-in link to {email}. Open your email and click the link to continue — this page will update automatically once you're signed in.",
+        "otpAltSummary": "Got a 6-digit code instead of a link?",
+        "otpCodeAriaLabel": "6-digit verification code",
+        "verifyButton": "Verify & Sign In",
+        "verifyButtonVerifying": "Verifying...",
+        "verifyButtonAria": "Verify code and sign in",
+        "verifyButtonAriaVerifying": "Verifying code"
+      },
       "errors": {
         "googleFailed": "Google sign-in failed. Please try again.",
         "invalidEmail": "Please enter a valid email address",
@@ -827,7 +861,14 @@
       "tryAgain": "Try again",
       "errors": {
         "authFailed": "Couldn't sign you in. Please try again.",
+        "providerError": "Google rejected the sign-in request. Please try again.",
+        "missingCode": "The sign-in link is missing or expired. Please try signing in again.",
+        "sessionExchangeFailed": "We couldn't complete your sign-in with the server. Please try again.",
         "notAuthorized": "Your account is not authorized.",
+        "notRegistered": "This account isn't registered as staff. If you're an employee or part of the admin team, contact your manager.",
+        "pendingActivation": "Your employee account hasn't been activated yet. Contact your manager to complete your approval.",
+        "noSession": "No active session. Please sign in again.",
+        "serverConfigError": "Server configuration is incomplete. Please contact support.",
         "connection": "Connection error while verifying your account. Please try again."
       }
     }
@@ -881,6 +922,7 @@
       "downloadingRoute": "Downloading today's route for offline use…",
       "routeReady": "Today's route saved for offline use.",
       "routeFailed": "Couldn't save today's route for offline use — stay connected until reconnected.",
+      "vehicleTrackingFailed": "Couldn't send your vehicle location — this doesn't affect your shift, but dispatch may not see your position.",
       "loadError": "Couldn't load today's services. Check your connection and try again.",
       "clientLabel": "Client: {name}",
       "more": "More",
@@ -2619,7 +2661,7 @@
       "empty": "No payroll entries for this cycle.",
       "totals": {
         "gross": "Total gross",
-        "net": "Total estimated net"
+        "net": "Total estimated net (before income tax)"
       },
       "table": {
         "employee": "Employee",
@@ -2629,7 +2671,7 @@
         "eiEmployee": "EI (emp.)",
         "workSafeBc": "WorkSafeBC",
         "vacationPay": "Vacation Pay",
-        "estNet": "Est. Net"
+        "estNet": "Est. Net (pre-tax)"
       }
     },
     "dashboardMetrics": {

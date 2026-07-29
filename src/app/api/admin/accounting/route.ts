@@ -8,6 +8,7 @@ import {
   computeProratedFixedCostsPerOrder,
   type OrderFinancialRecord,
 } from "@/lib/operational-accounting";
+import { getCycleForDate } from "@/lib/payroll-cycle";
 
 // GET /api/admin/accounting?from=YYYY-MM-DD&to=YYYY-MM-DD
 //
@@ -59,7 +60,11 @@ export async function GET(request: NextRequest) {
 
   const [{ data: reserves }, { data: payrollEntries }, { data: assignments }, { data: fixedCostsCents }] = await Promise.all([
     supabase.from("chargeback_reserves").select("order_id, captured_amount").in("order_id", orderIds),
-    supabase.from("payroll_entries").select("order_id, employee_id, gross_amount").in("order_id", orderIds).is("deleted_at", null),
+    supabase
+      .from("payroll_entries")
+      .select("order_id, employee_id, gross_amount, created_at")
+      .in("order_id", orderIds)
+      .is("deleted_at", null),
     supabase.from("assignments").select("order_id, employee_id, employees(name)").in("order_id", orderIds),
     supabase.rpc("get_current_monthly_fixed_costs_cents"),
   ]);
@@ -103,6 +108,60 @@ export async function GET(request: NextRequest) {
     laborByOrder.set(p.order_id, (laborByOrder.get(p.order_id) || 0) + p.gross_amount);
   }
 
+  // v8.3 fix (carga patronal por orden, antes B-P3-1 "no arreglado"):
+  // payroll_cycle_deductions (052) es un snapshot por (employee_id,
+  // cycle_label), no por orden -- pero SÍ trae employer_cost_cents (CPP+CPP2
+  // patronal + EI patronal + WorkSafeBC, ver payroll-deductions.ts) y
+  // gross_cents (el bruto total de ese empleado en ese ciclo) ya calculados
+  // por el export de nómina. Con eso se puede prorratear sin inventar nada:
+  // cada entrada de payroll_entries de esta orden recibe la fracción de la
+  // carga patronal del ciclo proporcional a lo que esa entrada representa
+  // del bruto total del empleado en ese ciclo. Se agrupa por created_at
+  // (mismo criterio de ciclo que usa payroll-export.ts) porque es el campo
+  // que existe en payroll_entries -- service_date de la orden puede caer en
+  // un ciclo distinto si el pago se registró después.
+  //
+  // Si el ciclo de un empleado nunca se exportó (no hay fila en
+  // payroll_cycle_deductions todavía), esa porción queda en 0 -- igual que
+  // antes, nunca se inventa un número para un ciclo sin snapshot.
+  const employeeCycleKeys = new Set<string>();
+  const cycleLabelByEmployeeAndOrder = new Map<string, string>();
+  for (const p of payrollEntries || []) {
+    const cycleLabel = getCycleForDate(String(p.created_at).slice(0, 10)).label;
+    employeeCycleKeys.add(`${p.employee_id}|${cycleLabel}`);
+    cycleLabelByEmployeeAndOrder.set(`${p.order_id}|${p.employee_id}`, cycleLabel);
+  }
+
+  const employeeIdsForBurden = Array.from(new Set((payrollEntries || []).map((p) => p.employee_id)));
+  const cycleLabelsForBurden = Array.from(new Set(Array.from(employeeCycleKeys).map((k) => k.split("|")[1])));
+
+  const cycleDeductionsByEmployeeCycle = new Map<string, { grossCents: number; employerCostCents: number }>();
+  if (employeeIdsForBurden.length > 0 && cycleLabelsForBurden.length > 0) {
+    const { data: cycleDeductions } = await supabase
+      .from("payroll_cycle_deductions")
+      .select("employee_id, cycle_label, gross_cents, employer_cost_cents")
+      .in("employee_id", employeeIdsForBurden)
+      .in("cycle_label", cycleLabelsForBurden);
+
+    for (const d of cycleDeductions || []) {
+      cycleDeductionsByEmployeeCycle.set(`${d.employee_id}|${d.cycle_label}`, {
+        grossCents: d.gross_cents,
+        employerCostCents: d.employer_cost_cents,
+      });
+    }
+  }
+
+  const employerBurdenByOrder = new Map<string, number>();
+  for (const p of payrollEntries || []) {
+    const cycleLabel = cycleLabelByEmployeeAndOrder.get(`${p.order_id}|${p.employee_id}`);
+    const snapshot = cycleLabel ? cycleDeductionsByEmployeeCycle.get(`${p.employee_id}|${cycleLabel}`) : undefined;
+    if (!snapshot || snapshot.grossCents <= 0) {
+      continue; // sin snapshot del ciclo todavía -- queda en 0 para esta entrada, no se inventa.
+    }
+    const shareCents = Math.round((p.gross_amount / snapshot.grossCents) * snapshot.employerCostCents);
+    employerBurdenByOrder.set(p.order_id, (employerBurdenByOrder.get(p.order_id) || 0) + shareCents);
+  }
+
   type EmpJoin = { name: string } | { name: string }[] | null;
   const teamByOrder = new Map<string, string>();
   for (const a of assignments || []) {
@@ -124,14 +183,12 @@ export async function GET(request: NextRequest) {
       teamLabel: teamByOrder.get(o.id) || "(sin asignar)",
       collectedCents: collectedByOrder.get(o.id) || 0,
       laborCostCents: laborByOrder.get(o.id) || 0,
-      // NO ARREGLADO (auditoría 2026-07-21, B-P3-1, mitad no cerrada): sigue
-      // en 0 a propósito -- payroll_cycle_deductions (052) es un snapshot
-      // por (employee_id, cycle_label), no por orden, y payroll_entries no
-      // tiene ninguna ruta que la puebla (hallazgo de dominio D, fuera del
-      // alcance de este archivo). Prorratear la carga patronal por orden
-      // requeriría esa tabla poblada más una regla de reparto por orden que
-      // no existe hoy. Se deja en 0 explícito en vez de inventar un número.
-      employerBurdenCents: 0,
+      // ARREGLADO (ver bloque employerBurdenByOrder arriba): prorrateado
+      // desde payroll_cycle_deductions.employer_cost_cents proporcional al
+      // bruto de cada entrada de nómina dentro de su ciclo. Queda en 0 solo
+      // para órdenes cuyo ciclo de nómina del empleado aún no se exportó
+      // (sin snapshot todavía) -- eso sigue sin inventarse.
+      employerBurdenCents: employerBurdenByOrder.get(o.id) || 0,
       otherCostsCents: otherCostsPerOrderCents,
     };
   });

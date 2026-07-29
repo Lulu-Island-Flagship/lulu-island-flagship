@@ -811,6 +811,40 @@
   },
   "portal": {
     "staffLogin": {
+      "title": "团队门户",
+      "subtitle": "员工、协调员、质检和经理请使用工作 Google 账户在此登录。",
+      "googleSignIn": "使用 Google 登录",
+      "otherOptions": "其他登录方式",
+      "footerNotice": "此入口仅供经理预先登记的员工使用。如果您是客户,请使用主页上的“登录”按钮。",
+      "options": {
+        "useEmailCode": "改用电子邮件验证码",
+        "useBackupCode": "无法使用 Google?使用备用代码登录",
+        "back": "← 返回"
+      },
+      "backupCode": {
+        "label": "备用代码",
+        "hint": "仅限 owner_admin 使用。请输入在 Admin → 安全 中生成的一次性代码之一。每个代码只能使用一次。",
+        "placeholder": "XXXX-XXXX-XXXX",
+        "submit": "使用备用代码登录",
+        "submitting": "验证中...",
+        "ariaSignIn": "使用备用代码登录",
+        "ariaVerifying": "正在验证备用代码"
+      },
+      "email": {
+        "label": "电子邮件地址",
+        "placeholder": "you@example.com",
+        "sendButton": "发送验证码",
+        "sendButtonSending": "发送中...",
+        "sendButtonAria": "发送验证码",
+        "sendButtonAriaSending": "正在发送验证码",
+        "otpSentMessage": "我们已向 {email} 发送了登录链接。请打开您的邮箱并点击链接继续——登录成功后此页面将自动更新。",
+        "otpAltSummary": "收到的是 6 位验证码而不是链接?",
+        "otpCodeAriaLabel": "6 位验证码",
+        "verifyButton": "验证并登录",
+        "verifyButtonVerifying": "验证中...",
+        "verifyButtonAria": "验证验证码并登录",
+        "verifyButtonAriaVerifying": "正在验证验证码"
+      },
       "errors": {
         "googleFailed": "Google 登录失败,请重试。",
         "invalidEmail": "请输入有效的电子邮件地址",
@@ -827,7 +861,14 @@
       "tryAgain": "重试",
       "errors": {
         "authFailed": "无法登录,请重试。",
+        "providerError": "Google 拒绝了登录请求,请重试。",
+        "missingCode": "登录链接缺失或已过期,请重新登录。",
+        "sessionExchangeFailed": "无法与服务器完成登录,请重试。",
         "notAuthorized": "您的账户未获授权。",
+        "notRegistered": "该账户未注册为员工。如果您是员工或行政团队成员,请联系经理。",
+        "pendingActivation": "您的员工账户尚未激活。请联系经理完成审批。",
+        "noSession": "没有活动会话,请重新登录。",
+        "serverConfigError": "服务器配置不完整,请联系支持人员。",
         "connection": "验证账户时出现连接错误,请重试。"
       }
     }
@@ -881,6 +922,7 @@
       "downloadingRoute": "正在下载今日路线以供离线使用…",
       "routeReady": "今日路线已保存，可离线使用。",
       "routeFailed": "无法保存今日路线以供离线使用——请保持网络连接直至恢复。",
+      "vehicleTrackingFailed": "无法发送车辆位置——这不影响你的班次，但调度可能看不到你的位置。",
       "loadError": "无法加载今日服务，请检查网络连接后重试。",
       "clientLabel": "客户：{name}",
       "more": "更多",
@@ -2619,7 +2661,7 @@
       "empty": "此周期暂无工资记录。",
       "totals": {
         "gross": "总毛额",
-        "net": "预计净额合计"
+        "net": "预计净额合计（未扣所得税）"
       },
       "table": {
         "employee": "员工",
@@ -2629,7 +2671,7 @@
         "eiEmployee": "EI（员工）",
         "workSafeBc": "WorkSafeBC",
         "vacationPay": "假期工资",
-        "estNet": "预计净额"
+        "estNet": "预计净额（未扣税）"
       }
     },
     "dashboardMetrics": {

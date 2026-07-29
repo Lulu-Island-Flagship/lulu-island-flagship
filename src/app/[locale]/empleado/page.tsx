@@ -52,6 +52,18 @@ export default function EmpleadoPage() {
   // sesión que ocurra mientras la pestaña sigue abierta.
   const [employeeName, setEmployeeName] = useState("");
   const [employeeRole, setEmployeeRole] = useState("");
+  // Fix (auditoría externa, hallazgo confirmado): checkJornadaStatus()
+  // consultaba service_logs sin filtrar por employee_id -- un supervisor
+  // (cuyas políticas RLS le permiten leer los logs de todos los empleados)
+  // veía su propia jornada como "iniciada" si CUALQUIER empleado de la
+  // empresa había marcado inicio de jornada ese día. Se guarda el id aquí
+  // (viene de /api/empleado/servicios, antes se descartaba) para poder
+  // filtrar explícitamente en vez de depender de RLS como filtro de negocio.
+  const [employeeId, setEmployeeId] = useState<string | null>(null);
+  // Fix (auditoría externa, hallazgo confirmado): ver sendVehicleLocation()
+  // más abajo -- antes un fallo real de tracking de vehículo era
+  // indistinguible de "no tengo vehículo asignado" (mismo catch vacío).
+  const [vehicleTrackingFailed, setVehicleTrackingFailed] = useState(false);
 
   const [services, setServices] = useState<EmployeeService[]>([]);
   const [loadingServices, setLoadingServices] = useState(true);
@@ -137,12 +149,16 @@ export default function EmpleadoPage() {
         return;
       }
       const data = await res.json();
+      const currentEmployeeId: string | null = data.employee?.id || null;
       setEmployeeName(data.employee?.name || "");
       setEmployeeRole(data.employee?.role || "");
+      setEmployeeId(currentEmployeeId);
       setServices(data.services || []);
 
-      // Check if jornada was started today
-      await checkJornadaStatus();
+      // Check if jornada was started today. Se pasa el id directo por
+      // parámetro (no se lee desde el estado `employeeId`) porque setState
+      // es asíncrono -- leerlo del estado aquí todavía vería el valor viejo.
+      await checkJornadaStatus(currentEmployeeId);
     } catch (e) {
       console.error("Load employee data error:", e);
       // #8: fallo de red (offline, timeout, etc.) -- mismo tratamiento que
@@ -153,7 +169,13 @@ export default function EmpleadoPage() {
     }
   }
 
-  async function checkJornadaStatus() {
+  async function checkJornadaStatus(currentEmployeeId: string | null) {
+    if (!currentEmployeeId) {
+      // Sin id de empleado todavía (no debería pasar si loadEmployeeData
+      // tuvo éxito, pero se evita una query sin filtro por las dudas -- ver
+      // el bug que esto reemplaza en el comentario de arriba).
+      return;
+    }
     try {
       // Timestamp en Vancouver con offset explícito para comparar correctamente con TIMESTAMPTZ
       const vancouverDate = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", timeZoneName: "short" });
@@ -164,6 +186,7 @@ export default function EmpleadoPage() {
         .from("service_logs")
         .select("event_type")
         .eq("event_type", "jornada_start")
+        .eq("employee_id", currentEmployeeId)
         .gte("timestamp", `${today}T00:00:00${offset}`)
         .order("timestamp", { ascending: false })
         .limit(1);
@@ -232,7 +255,7 @@ export default function EmpleadoPage() {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: true });
       });
-      await fetch("/api/empleado/vehicle-tracking", {
+      const res = await fetch("/api/empleado/vehicle-tracking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -242,8 +265,25 @@ export default function EmpleadoPage() {
           source: "driver_app",
         }),
       });
+      // Fix (auditoría externa, hallazgo confirmado): antes este catch{} vacío
+      // se tragaba TODO fallo por igual -- "sin vehículo asignado" (esperado,
+      // la mayoría de empleados no maneja) y un fallo real de red/servidor
+      // quedaban indistinguibles. El operario creía que su ubicación se
+      // transmitía cuando en realidad el envío fallaba en silencio. La API
+      // (/api/empleado/vehicle-tracking) devuelve 400 "No vehicle assigned"
+      // para el caso esperado -- ese sí se ignora. Cualquier otro código
+      // (401/500/etc.) es un fallo real: se marca visible en la UI.
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}) as { error?: string });
+        const noVehicleAssigned = res.status === 400 && /no vehicle assigned/i.test(body?.error || "");
+        setVehicleTrackingFailed(!noVehicleAssigned);
+        return;
+      }
+      setVehicleTrackingFailed(false);
     } catch {
-      // Silencioso: el tracking de vehículo es opcional si no hay vehículo asignado
+      // Fallo real: permiso GPS denegado, timeout, sin red, etc. -- antes
+      // era indistinguible de "no tengo vehículo asignado".
+      setVehicleTrackingFailed(true);
     }
   }
 
@@ -430,6 +470,17 @@ export default function EmpleadoPage() {
           <div className="flex items-center gap-2 text-xs text-state-warning px-1">
             <AlertCircle className="w-3.5 h-3.5" />
             {t("dashboard.routeFailed")}
+          </div>
+        )}
+        {/* Fix (auditoría externa, hallazgo confirmado): antes un fallo real
+            de tracking de vehículo (GPS denegado, sin red, error del
+            servidor) era indistinguible de "no tengo vehículo asignado" --
+            el operario creía que su ubicación se transmitía cuando en
+            realidad fallaba en silencio. No bloquea nada, solo informa. */}
+        {vehicleTrackingFailed && (
+          <div className="flex items-center gap-2 text-xs text-state-warning px-1">
+            <AlertCircle className="w-3.5 h-3.5" />
+            {t("dashboard.vehicleTrackingFailed")}
           </div>
         )}
 

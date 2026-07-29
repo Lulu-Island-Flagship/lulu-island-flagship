@@ -29,13 +29,21 @@ export async function POST() {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "No hay sesión activa." }, { status: 401 });
+    // Fix (auditoría externa, hallazgo confirmado): antes este texto y los
+    // dos de abajo (server config / not_registered / pending_activation)
+    // estaban quemados en español sin pasar por next-intl -- un cliente en
+    // /fr/portal o /zh/portal los veía igual, en español, sin importar su
+    // locale. Se agrega `reason` (código estable, no texto) para que el
+    // cliente (src/app/[locale]/portal/page.tsx) elija el mensaje localizado
+    // correcto vía t(`errors.${reason}`); `error` se conserva solo como
+    // mejor-esfuerzo para quien consuma esta API sin pasar por esa pantalla.
+    return NextResponse.json({ error: "No hay sesión activa.", reason: "no_session" }, { status: 401 });
   }
 
   const serviceClient = getServiceRoleClient();
   if (!serviceClient) {
     return NextResponse.json(
-      { error: "Configuración de servidor incompleta (SUPABASE_SERVICE_ROLE_KEY)." },
+      { error: "Configuración de servidor incompleta (SUPABASE_SERVICE_ROLE_KEY).", reason: "server_config_error" },
       { status: 500 }
     );
   }
@@ -47,7 +55,7 @@ export async function POST() {
     await supabase.auth.signOut();
     const message =
       result.reason === "pending_activation" ? STAFF_PENDING_ACTIVATION_MESSAGE : STAFF_UNAUTHORIZED_MESSAGE;
-    return NextResponse.json({ error: message }, { status: 403 });
+    return NextResponse.json({ error: message, reason: result.reason }, { status: 403 });
   }
 
   return NextResponse.json({

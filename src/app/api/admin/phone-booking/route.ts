@@ -18,6 +18,7 @@ import {
   type ServiceCategory,
 } from "@/lib/pricing";
 import { applyPricingRules, type RuleContext, type PricingRule, type AppliedRule } from "@/lib/rules";
+import { getZoneDemand } from "@/lib/zone-demand";
 import { calculateAddonZonesCharge } from "@/lib/pricing";
 import { fetchAddonZoneOptions } from "@/lib/addon-zones";
 import { geocodeAddress } from "@/lib/geocode";
@@ -404,6 +405,11 @@ export async function POST(request: NextRequest) {
       isActive: r.is_active as boolean,
     }));
 
+    // Fix (auditoría externa, hallazgo confirmado): ver src/lib/zone-demand.ts.
+    // El coordinador todavía no eligió fecha en este paso -- promedio
+    // rolling de 14 días para la zona, igual que quote/route.ts.
+    const zoneDemand = await getZoneDemand(serviceRole, zone!, null);
+
     const ruleContext: RuleContext = {
       zone: zone!,
       dayOfWeek: dayOfWeek ?? new Date().getDay(),
@@ -416,7 +422,7 @@ export async function POST(request: NextRequest) {
       disputesLostCount: clientProfile.disputes_lost_count || 0,
       accountType,
       clientType: deriveClientType(clientProfile.services_count || 0, clientProfile.score),
-      zoneDemand: 50,
+      zoneDemand,
       organicLoad: deriveOrganicLoad(petsCount!, petsType!, residents!),
       daysSinceCleaning: daysSinceCleaning!,
       advanceNoticeDays: 0,

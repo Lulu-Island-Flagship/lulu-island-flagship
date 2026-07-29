@@ -17,6 +17,7 @@ import {
   type ServiceCategory,
 } from "@/lib/pricing";
 import { applyPricingRules, type RuleContext, type PricingRule } from "@/lib/rules";
+import { getZoneDemand } from "@/lib/zone-demand";
 import { calculateAddonZonesCharge } from "@/lib/pricing";
 import { fetchAddonZoneOptions } from "@/lib/addon-zones";
 import type { QuoteInput, QuoteData } from "@/types";
@@ -265,6 +266,11 @@ export async function POST(request: NextRequest) {
       isActive: r.is_active as boolean,
     }));
 
+    // Fix (auditoría externa, hallazgo confirmado): ver src/lib/zone-demand.ts.
+    // Este preview no tiene fecha de servicio todavía -- promedio rolling de
+    // 14 días para la zona.
+    const zoneDemand = await getZoneDemand(supabase, zone!, null);
+
     const ruleContext: RuleContext = {
       zone: zone!,
       dayOfWeek: dayOfWeek ?? new Date().getDay(),
@@ -277,7 +283,7 @@ export async function POST(request: NextRequest) {
       disputesLostCount: profile.disputesLostCount,
       accountType,
       clientType: deriveClientType(profile.servicesCount, profile.score),
-      zoneDemand: 50,
+      zoneDemand,
       organicLoad: deriveOrganicLoad(petsCount, petsType, residents),
       daysSinceCleaning,
       advanceNoticeDays: 0,

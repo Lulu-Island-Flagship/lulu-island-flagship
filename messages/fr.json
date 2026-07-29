@@ -811,6 +811,40 @@
   },
   "portal": {
     "staffLogin": {
+      "title": "Portail de l'équipe",
+      "subtitle": "Les employés, coordinateurs, QC et gestionnaires se connectent ici avec leur compte Google professionnel.",
+      "googleSignIn": "Se connecter avec Google",
+      "otherOptions": "Autres options de connexion",
+      "footerNotice": "Cet accès est réservé au personnel préalablement enregistré par le gestionnaire. Si vous êtes client, utilisez le bouton « Se connecter » sur la page d'accueil.",
+      "options": {
+        "useEmailCode": "Utiliser plutôt un code de vérification par e-mail",
+        "useBackupCode": "Impossible d'utiliser Google ? Connectez-vous avec un code de secours",
+        "back": "← Retour"
+      },
+      "backupCode": {
+        "label": "Code de secours",
+        "hint": "Réservé au owner_admin. Entrez l'un des codes à usage unique générés dans Admin → Sécurité. Chaque code ne fonctionne qu'une fois.",
+        "placeholder": "XXXX-XXXX-XXXX",
+        "submit": "Se connecter avec le code de secours",
+        "submitting": "Vérification...",
+        "ariaSignIn": "Se connecter avec un code de secours",
+        "ariaVerifying": "Vérification du code de secours"
+      },
+      "email": {
+        "label": "Adresse e-mail",
+        "placeholder": "vous@exemple.com",
+        "sendButton": "Envoyer le code de vérification",
+        "sendButtonSending": "Envoi...",
+        "sendButtonAria": "Envoyer le code de vérification",
+        "sendButtonAriaSending": "Envoi du code de vérification",
+        "otpSentMessage": "Nous avons envoyé un lien de connexion à {email}. Ouvrez votre e-mail et cliquez sur le lien pour continuer — cette page se mettra à jour automatiquement une fois connecté(e).",
+        "otpAltSummary": "Vous avez un code à 6 chiffres au lieu d'un lien ?",
+        "otpCodeAriaLabel": "Code de vérification à 6 chiffres",
+        "verifyButton": "Vérifier et se connecter",
+        "verifyButtonVerifying": "Vérification...",
+        "verifyButtonAria": "Vérifier le code et se connecter",
+        "verifyButtonAriaVerifying": "Vérification du code"
+      },
       "errors": {
         "googleFailed": "Échec de la connexion Google. Veuillez réessayer.",
         "invalidEmail": "Veuillez entrer une adresse e-mail valide",
@@ -827,7 +861,14 @@
       "tryAgain": "Réessayer",
       "errors": {
         "authFailed": "Impossible de vous connecter. Veuillez réessayer.",
+        "providerError": "Google a rejeté la demande de connexion. Veuillez réessayer.",
+        "missingCode": "Le lien de connexion est manquant ou expiré. Veuillez réessayer de vous connecter.",
+        "sessionExchangeFailed": "Nous n'avons pas pu finaliser votre connexion avec le serveur. Veuillez réessayer.",
         "notAuthorized": "Votre compte n'est pas autorisé.",
+        "notRegistered": "Ce compte n'est pas enregistré comme membre du personnel. Si vous êtes employé ou membre de l'équipe administrative, contactez votre gestionnaire.",
+        "pendingActivation": "Votre compte employé n'a pas encore été activé. Contactez votre gestionnaire pour finaliser votre approbation.",
+        "noSession": "Aucune session active. Veuillez vous reconnecter.",
+        "serverConfigError": "La configuration du serveur est incomplète. Veuillez contacter le support.",
         "connection": "Erreur de connexion lors de la vérification de votre compte. Veuillez réessayer."
       }
     }
@@ -881,6 +922,7 @@
       "downloadingRoute": "Téléchargement de l'itinéraire du jour pour usage hors ligne…",
       "routeReady": "Itinéraire du jour enregistré pour usage hors ligne.",
       "routeFailed": "Impossible d'enregistrer l'itinéraire du jour hors ligne — restez connecté jusqu'à nouvel ordre.",
+      "vehicleTrackingFailed": "Impossible d'envoyer la position du véhicule — cela n'affecte pas votre quart, mais le répartiteur pourrait ne pas voir votre position.",
       "loadError": "Impossible de charger les services d'aujourd'hui. Vérifiez votre connexion et réessayez.",
       "clientLabel": "Client : {name}",
       "more": "Plus",
@@ -2619,7 +2661,7 @@
       "empty": "Aucune entrée de paie pour ce cycle.",
       "totals": {
         "gross": "Total brut",
-        "net": "Total net estimé"
+        "net": "Total net estimé (avant impôt sur le revenu)"
       },
       "table": {
         "employee": "Employé",
@@ -2629,7 +2671,7 @@
         "eiEmployee": "AE (employé)",
         "workSafeBc": "WorkSafeBC",
         "vacationPay": "Indemnité de vacances",
-        "estNet": "Net estimé"
+        "estNet": "Net estimé (avant impôt)"
       }
     },
     "dashboardMetrics": {

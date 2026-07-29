@@ -9,7 +9,7 @@ import {
 } from "@/lib/payroll-export";
 import { getVancouverTodayString } from "@/lib/date-utils";
 
-// GET /api/admin/payroll-export?date=YYYY-MM-DD&format=csv|json&cycle=current|previous
+// GET/POST /api/admin/payroll-export?date=YYYY-MM-DD&format=csv|json&cycle=current|previous
 //
 // v8.3 E9 (D.9) — nómina completa exportable con desglose CPP/CPP2/EI/
 // WorkSafeBC/Vacation Pay por empleado. Actualiza payroll_ytd al final para
@@ -18,7 +18,15 @@ import { getVancouverTodayString } from "@/lib/date-utils";
 // LIMITACIÓN EXPLÍCITA: no incluye retención de impuesto federal/provincial
 // (income tax) — ver nota en payroll-deductions.ts. estimated_net_cad es un
 // neto aproximado, no el neto oficial de nómina.
-export async function GET(request: NextRequest) {
+//
+// Fix (auditoría externa, hallazgo confirmado): este endpoint SIEMPRE
+// escribía (payroll_cycle_deductions + payroll_ytd) aunque solo estuviera
+// registrado como GET -- una petición que en teoría es de solo-lectura
+// (cacheable, prefetcheable, repetible sin aviso por un proxy o un
+// escáner) tenía efectos secundarios reales de dinero. Se mantiene GET por
+// compatibilidad con quien ya lo llame así, pero se agrega POST como la
+// forma correcta -- ambos apuntan al mismo handler.
+async function handlePayrollExport(request: NextRequest) {
   const auth = await requireAdminRole("payroll", { method: request.method, url: request.url });
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -344,34 +352,20 @@ export async function GET(request: NextRequest) {
   const lines = buildCycleDeductions(summaries, ytdMap, yearsMap);
   const totals = totalCycleDeductions(lines);
 
-  // Persistir el snapshot del ciclo + actualizar YTD para el siguiente ciclo del año.
+  // Fix (auditoría externa, hallazgo confirmado -- atomicidad): antes esto
+  // hacía DOS .upsert() awaited por separado por empleado (cycle_deductions
+  // y ytd), sin transacción. Un fallo entre ambos dejaba cycle_deductions
+  // escrito pero ytd sin actualizar -- y el guard de idempotencia de abajo
+  // (alreadyProcessedThisCycle, calculado desde cycle_deductions) hacía que
+  // un reintento posterior saltara el ytd para siempre, sin ninguna señal
+  // del problema. Se reemplaza por una sola llamada RPC atómica
+  // (apply_payroll_cycle_deduction, migración 246) que hace ambos upserts en
+  // la misma transacción. También se deja de asumir éxito silencioso: cada
+  // fallo se colecciona en failedEmployeeIds y se reporta en la respuesta.
+  const failedEmployeeIds: string[] = [];
   for (const line of lines) {
     const d = line.deductions;
-
-    await supabase.from("payroll_cycle_deductions").upsert(
-      {
-        employee_id: line.employeeId,
-        cycle_label: cycle.label,
-        gross_cents: d.grossCents,
-        cpp_cents: d.cpp.baseContributionCents,
-        cpp2_cents: d.cpp.cpp2ContributionCents,
-        ei_employee_cents: d.ei.employeeCents,
-        ei_employer_cents: d.ei.employerCents,
-        worksafebc_employer_cents: d.workSafeBc.employerCents,
-        vacation_pay_accrual_cents: d.vacationPayAccrualCents,
-        estimated_net_cents: d.estimatedNetCents,
-        employer_cost_cents: d.employerCostCents,
-      },
-      { onConflict: "employee_id,cycle_label" }
-    );
-
-    // v8.3 (D-P0-5): si este ciclo YA se había procesado antes para este
-    // empleado, el YTD ya lo incluye -- no volver a sumarlo. Esta es la
-    // idempotencia real (antes format=json por defecto + recargar la
-    // página bastaba para inflar el YTD).
-    if (alreadyProcessedThisCycle.has(line.employeeId)) {
-      continue;
-    }
+    const alreadyProcessed = alreadyProcessedThisCycle.has(line.employeeId);
 
     // v8.3 (D-P0-4): estos 4 campos son ACUMULADOS del año, igual que los
     // otros tres (ytd_pensionable/insurable/assessable, que ya llegan
@@ -387,21 +381,57 @@ export async function GET(request: NextRequest) {
       vacationPayAccruedCents: 0,
     };
 
-    await supabase.from("payroll_ytd").upsert(
+    const { error: rpcError } = await supabase.rpc("apply_payroll_cycle_deduction", {
+      p_employee_id: line.employeeId,
+      p_cycle_label: cycle.label,
+      p_gross_cents: d.grossCents,
+      p_cpp_cents: d.cpp.baseContributionCents,
+      p_cpp2_cents: d.cpp.cpp2ContributionCents,
+      p_ei_employee_cents: d.ei.employeeCents,
+      p_ei_employer_cents: d.ei.employerCents,
+      p_worksafebc_employer_cents: d.workSafeBc.employerCents,
+      p_vacation_pay_accrual_cents: d.vacationPayAccrualCents,
+      p_estimated_net_cents: d.estimatedNetCents,
+      p_employer_cost_cents: d.employerCostCents,
+      // v8.3 (D-P0-5): si este ciclo YA se había procesado antes para este
+      // empleado, el YTD ya lo incluye -- no volver a sumarlo. Esta es la
+      // idempotencia real (antes format=json por defecto + recargar la
+      // página bastaba para inflar el YTD).
+      p_update_ytd: !alreadyProcessed,
+      p_calendar_year: calendarYear,
+      p_ytd_pensionable_cents: d.cpp.ytdPensionableAfterCents,
+      p_ytd_insurable_cents: d.ei.ytdInsurableAfterCents,
+      p_ytd_assessable_cents: d.workSafeBc.ytdAssessableAfterCents,
+      p_ytd_cpp_contribution_cents: priorContributions.cppContributionCents + d.cpp.baseContributionCents,
+      p_ytd_cpp2_contribution_cents: priorContributions.cpp2ContributionCents + d.cpp.cpp2ContributionCents,
+      p_ytd_ei_employee_cents: priorContributions.eiEmployeeCents + d.ei.employeeCents,
+      p_ytd_vacation_pay_accrued_cents:
+        priorContributions.vacationPayAccruedCents + d.vacationPayAccrualCents,
+    });
+
+    if (rpcError) {
+      console.error(`payroll-export: apply_payroll_cycle_deduction falló para ${line.employeeId}:`, rpcError.message);
+      failedEmployeeIds.push(line.employeeId);
+    }
+  }
+
+  if (failedEmployeeIds.length > 0) {
+    // No se aborta el request entero -- los empleados que sí se procesaron
+    // ya quedaron consistentes (cycle_deductions + ytd juntos, gracias al
+    // RPC atómico). Se reporta con claridad cuáles faltan para que el admin
+    // sepa que debe reintentar el export (es idempotente: los ya
+    // procesados no se duplican).
+    // 422 (no 207): un status en el rango 200-299 hace que fetch()'s
+    // res.ok sea true en el cliente (AdminNominaClient.tsx), que hoy solo
+    // revisa `if (!res.ok)` para decidir si mostrar el error -- un 207
+    // habría quedado enmascarado como éxito con datos incompletos.
+    return NextResponse.json(
       {
-        employee_id: line.employeeId,
-        calendar_year: calendarYear,
-        ytd_pensionable_cents: d.cpp.ytdPensionableAfterCents,
-        ytd_insurable_cents: d.ei.ytdInsurableAfterCents,
-        ytd_assessable_cents: d.workSafeBc.ytdAssessableAfterCents,
-        ytd_cpp_contribution_cents: priorContributions.cppContributionCents + d.cpp.baseContributionCents,
-        ytd_cpp2_contribution_cents: priorContributions.cpp2ContributionCents + d.cpp.cpp2ContributionCents,
-        ytd_ei_employee_cents: priorContributions.eiEmployeeCents + d.ei.employeeCents,
-        ytd_vacation_pay_accrued_cents:
-          priorContributions.vacationPayAccruedCents + d.vacationPayAccrualCents,
-        updated_at: new Date().toISOString(),
+        error: `No se pudo guardar la nómina de ${failedEmployeeIds.length} empleado(s). Los demás sí se guardaron correctamente. Reintenta el export -- es seguro repetirlo.`,
+        failedEmployeeIds,
+        cycle,
       },
-      { onConflict: "employee_id,calendar_year" }
+      { status: 422 }
     );
   }
 
@@ -452,4 +482,15 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ cycle, lines, totals }, { status: 200 });
+}
+
+// Se mantiene GET por compatibilidad con cualquier caller existente que ya
+// lo use así (ej. un <a href> directo para descargar el CSV). POST es la
+// forma correcta para la ruta que sí muta datos (ver comentario arriba).
+export async function GET(request: NextRequest) {
+  return handlePayrollExport(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handlePayrollExport(request);
 }

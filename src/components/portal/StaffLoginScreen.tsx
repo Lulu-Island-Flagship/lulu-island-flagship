@@ -173,17 +173,15 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
         <div className="w-12 h-12 bg-brand-navy/10 rounded-full flex items-center justify-center mx-auto">
           <Shield className="w-6 h-6 text-brand-navy" />
         </div>
-        <h1 className="text-xl font-bold text-brand-ink">Portal de equipo</h1>
-        <p className="text-sm text-gray-500">
-          Empleados, coordinadores, QC y manager inician sesión aquí con su cuenta de Google de trabajo.
-        </p>
+        <h1 className="text-xl font-bold text-brand-ink">{t("title")}</h1>
+        <p className="text-sm text-gray-500">{t("subtitle")}</p>
 
         {mode === "google" && (
           <>
             <button
               onClick={handleGoogleSignIn}
               disabled={isLoading}
-              aria-label="Iniciar sesión con Google"
+              aria-label={t("googleSignIn")}
               className="w-full bg-white border border-gray-300 text-brand-ink py-2.5 rounded-lg font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isLoading ? (
@@ -208,7 +206,7 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                     />
                   </svg>
-                  Iniciar sesión con Google
+                  {t("googleSignIn")}
                 </>
               )}
             </button>
@@ -220,7 +218,7 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
               onClick={() => setMode("options")}
               className="w-full text-xs text-gray-400 hover:text-gray-600 hover:underline"
             >
-              Otras opciones de acceso
+              {t("otherOptions")}
             </button>
           </>
         )}
@@ -231,19 +229,19 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
               onClick={() => setMode("email")}
               className="w-full text-sm text-brand-wave-blue hover:underline"
             >
-              Use email verification code instead
+              {t("options.useEmailCode")}
             </button>
             <button
               onClick={() => setMode("backup-code")}
               className="w-full text-sm text-gray-500 hover:text-gray-700 hover:underline"
             >
-              Can&apos;t use Google? Sign in with a backup code
+              {t("options.useBackupCode")}
             </button>
             <button
               onClick={() => setMode("google")}
               className="w-full text-sm text-gray-500 hover:text-gray-700"
             >
-              ← Back
+              {t("options.back")}
             </button>
           </>
         )}
@@ -252,28 +250,25 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
           <div className="space-y-3 text-left">
             <div>
               <label htmlFor="staff-login-backup-code" className="block text-sm font-medium text-brand-ink mb-1">
-                Backup Code
+                {t("backupCode.label")}
               </label>
-              <p className="text-xs text-gray-500 mb-2">
-                Only for owner_admin. Enter one of the single-use codes generated in
-                Admin → Seguridad. Each code works once.
-              </p>
+              <p className="text-xs text-gray-500 mb-2">{t("backupCode.hint")}</p>
               <input
                 id="staff-login-backup-code"
                 type="text"
                 value={backupCode}
                 onChange={(e) => setBackupCode(e.target.value)}
-                placeholder="XXXX-XXXX-XXXX"
+                placeholder={t("backupCode.placeholder")}
                 className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none text-center tracking-widest"
               />
             </div>
             <button
               onClick={handleBackupCodeSignIn}
               disabled={isLoading}
-              aria-label={isLoading ? "Verifying backup code" : "Sign in with backup code"}
+              aria-label={isLoading ? t("backupCode.ariaVerifying") : t("backupCode.ariaSignIn")}
               className="w-full bg-brand-navy text-white py-2.5 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
             >
-              {isLoading ? "Verifying..." : "Sign In With Backup Code"}
+              {isLoading ? t("backupCode.submitting") : t("backupCode.submit")}
             </button>
             <button
               onClick={() => {
@@ -283,7 +278,7 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
               }}
               className="w-full text-sm text-gray-500 hover:text-gray-700"
             >
-              ← Back
+              {t("options.back")}
             </button>
           </div>
         )}
@@ -292,30 +287,30 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
           <div className="space-y-3 text-left">
             <div>
               <label htmlFor="staff-login-email" className="block text-sm font-medium text-brand-ink mb-1">
-                Email Address
+                {t("email.label")}
               </label>
               <input
                 id="staff-login-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder={t("email.placeholder")}
                 className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none"
               />
             </div>
             <button
               onClick={handleEmailOtpRequest}
               disabled={isLoading}
-              aria-label={isLoading ? "Enviando código de verificación" : "Enviar código de verificación"}
+              aria-label={isLoading ? t("email.sendButtonAriaSending") : t("email.sendButtonAria")}
               className="w-full bg-brand-navy text-white py-2.5 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
             >
-              {isLoading ? "Sending..." : "Send Verification Code"}
+              {isLoading ? t("email.sendButtonSending") : t("email.sendButton")}
             </button>
             <button
               onClick={() => setMode("options")}
               className="w-full text-sm text-gray-500 hover:text-gray-700"
             >
-              ← Back
+              {t("options.back")}
             </button>
           </div>
         )}
@@ -323,18 +318,16 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
         {mode === "email" && otpSent && (
           <div className="space-y-3 text-left">
             <p className="text-sm text-brand-ink">
-              We sent a sign-in link to <strong>{email}</strong>. Open your
-              email and click the link to continue — this page will update
-              automatically once you&apos;re signed in.
+              {t("email.otpSentMessage", { email })}
             </p>
             <details className="text-xs text-gray-500">
               <summary className="cursor-pointer hover:text-gray-700">
-                Got a 6-digit code instead of a link?
+                {t("email.otpAltSummary")}
               </summary>
               <div className="mt-2 space-y-2">
                 <input
                   type="text"
-                  aria-label="Código de verificación de 6 dígitos"
+                  aria-label={t("email.otpCodeAriaLabel")}
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="123456"
@@ -343,10 +336,10 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
                 <button
                   onClick={handleVerifyOtp}
                   disabled={isLoading}
-                  aria-label={isLoading ? "Verificando código" : "Verificar código e iniciar sesión"}
+                  aria-label={isLoading ? t("email.verifyButtonAriaVerifying") : t("email.verifyButtonAria")}
                   className="w-full bg-brand-navy text-white py-2.5 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
                 >
-                  {isLoading ? "Verifying..." : "Verify & Sign In"}
+                  {isLoading ? t("email.verifyButtonVerifying") : t("email.verifyButton")}
                 </button>
               </div>
             </details>
@@ -356,10 +349,7 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
         {error && (
           <p className="text-sm text-red-600 bg-red-50 rounded-lg p-2">{error}</p>
         )}
-        <p className="text-xs text-gray-400">
-          Este acceso es solo para personal previamente registrado por el manager.
-          Si eres cliente, usa el botón &quot;Iniciar sesión&quot; en la página principal.
-        </p>
+        <p className="text-xs text-gray-400">{t("footerNotice")}</p>
       </div>
     </div>
   );
