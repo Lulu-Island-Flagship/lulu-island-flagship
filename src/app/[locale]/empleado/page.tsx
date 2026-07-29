@@ -56,10 +56,12 @@ export default function EmpleadoPage() {
   // consultaba service_logs sin filtrar por employee_id -- un supervisor
   // (cuyas políticas RLS le permiten leer los logs de todos los empleados)
   // veía su propia jornada como "iniciada" si CUALQUIER empleado de la
-  // empresa había marcado inicio de jornada ese día. Se guarda el id aquí
-  // (viene de /api/empleado/servicios, antes se descartaba) para poder
-  // filtrar explícitamente en vez de depender de RLS como filtro de negocio.
-  const [employeeId, setEmployeeId] = useState<string | null>(null);
+  // empresa había marcado inicio de jornada ese día. El id (viene de
+  // /api/empleado/servicios, antes se descartaba) se pasa directo por
+  // parámetro a checkJornadaStatus() en vez de guardarse en estado -- no
+  // hace falta un useState acá porque nada más en el componente lo lee, y
+  // evita el problema de leer un valor de estado desactualizado justo
+  // después de setState (ver el parámetro currentEmployeeId más abajo).
   // Fix (auditoría externa, hallazgo confirmado): ver sendVehicleLocation()
   // más abajo -- antes un fallo real de tracking de vehículo era
   // indistinguible de "no tengo vehículo asignado" (mismo catch vacío).
@@ -152,12 +154,11 @@ export default function EmpleadoPage() {
       const currentEmployeeId: string | null = data.employee?.id || null;
       setEmployeeName(data.employee?.name || "");
       setEmployeeRole(data.employee?.role || "");
-      setEmployeeId(currentEmployeeId);
       setServices(data.services || []);
 
-      // Check if jornada was started today. Se pasa el id directo por
-      // parámetro (no se lee desde el estado `employeeId`) porque setState
-      // es asíncrono -- leerlo del estado aquí todavía vería el valor viejo.
+      // Check if jornada was started today. currentEmployeeId se pasa
+      // directo por parámetro en vez de por estado -- ver el comentario
+      // junto a la declaración de checkJornadaStatus más abajo.
       await checkJornadaStatus(currentEmployeeId);
     } catch (e) {
       console.error("Load employee data error:", e);
