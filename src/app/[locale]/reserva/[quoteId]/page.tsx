@@ -29,6 +29,14 @@ import { getStripe } from "@/lib/stripe";
 
 const stripePromise = getStripe();
 
+// Fix (revisión 2026-07-30, punto 3): antes exigía exactamente 17 caracteres,
+// pero src/app/api/stripe/confirm/route.ts (fuente de verdad del backend)
+// acepta 12-20 alfanuméricos -- un Transaction ID real de PayPal fuera de 17
+// exactos era rechazado aquí antes de siquiera llegar al backend. Se unifica
+// al mismo regex que usa el backend.
+const PAYPAL_TRANSACTION_ID_RE = /^[A-Za-z0-9]{12,20}$/;
+const PAYPAL_TRANSACTION_ID_MAX_LENGTH = 20;
+
 export default function ReservaPage() {
   const t = useTranslations("reserva");
   const router = useRouter();
@@ -56,6 +64,17 @@ export default function ReservaPage() {
   // igual debe registrar una tarjeta de respaldo (paymentMethodId, arriba)
   // antes de poder confirmar -- ambas condiciones se exigen en handleConfirm.
   const [walletPaymentIntentId, setWalletPaymentIntentId] = useState("");
+  // Fix (auditoría 2026-07-30): Alipay diferido (y en general cualquier
+  // wallet payment con 3DS/verificación adicional) puede volver del redirect
+  // con redirect_status="processing" o "requires_action" en vez de
+  // "succeeded". Antes esos casos caían al else implícito más abajo, el
+  // querystring se limpiaba igual, y el cliente se quedaba sin
+  // walletPaymentIntentId ni ningún aviso -- no sabía si su pago se había
+  // perdido o seguía en curso. Este estado guarda ese resultado intermedio
+  // para mostrar un mensaje explícito.
+  const [walletRedirectStatus, setWalletRedirectStatus] = useState<
+    "" | "processing" | "requires_action"
+  >("");
   const [stripeClientSecret, setStripeClientSecret] = useState("");
   const [stripeCustomerId, setStripeCustomerId] = useState("");
   const [stripeSetupIntentId, setStripeSetupIntentId] = useState("");
@@ -97,12 +116,24 @@ export default function ReservaPage() {
     const params = new URLSearchParams(window.location.search);
     const returnedPi = params.get("payment_intent");
     const redirectStatus = params.get("redirect_status");
-    if (returnedPi && redirectStatus === "succeeded") {
+    if (!returnedPi || !redirectStatus) return;
+
+    if (redirectStatus === "succeeded") {
       setPaymentOption("alipay");
       setWalletPaymentIntentId(returnedPi);
-      // Limpiar el querystring para no reprocesar en un refresh posterior.
-      window.history.replaceState({}, "", window.location.pathname);
+    } else if (redirectStatus === "processing" || redirectStatus === "requires_action") {
+      // Fix (auditoría 2026-07-30): capturamos explícitamente estos estados
+      // en vez de dejarlos caer al else -- no fijamos walletPaymentIntentId
+      // (el pago NO está confirmado todavía) pero sí mostramos el aviso de
+      // "confirmando con tu proveedor" para que el cliente no crea que su
+      // pago se perdió, y ofrecemos reintentar el pago desde cero.
+      setPaymentOption("alipay");
+      setWalletRedirectStatus(redirectStatus);
     }
+    // Limpiar el querystring para no reprocesar en un refresh posterior
+    // (aplica a todo redirect_status conocido -- el resultado ya quedó
+    // capturado arriba en el estado de React).
+    window.history.replaceState({}, "", window.location.pathname);
   }, []);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -399,7 +430,7 @@ export default function ReservaPage() {
         setConfirmError(t("confirm.enterPaypalTransactionId"));
         return;
       }
-      if (paypalTransactionId.length !== 17) {
+      if (!PAYPAL_TRANSACTION_ID_RE.test(paypalTransactionId)) {
         setConfirmError(t("confirm.invalidPaypalTransactionId"));
         return;
       }
@@ -490,11 +521,13 @@ export default function ReservaPage() {
   // completado (done: true) apenas el cliente hacía click en la pestaña
   // "PayPal" -- eso solo hace setPaymentMethodId("paypal") (línea ~591), sin
   // que el cliente haya escrito todavía el Transaction ID ni pasado la
-  // validación de 17 caracteres que handleConfirm sí exige antes de dejar
+  // validación de formato que handleConfirm sí exige antes de dejar
   // confirmar (línea ~402). El indicador de progreso mentía. Para PayPal, el
   // paso solo se considera completo cuando paypalTransactionId ya tiene el
-  // largo correcto (17 caracteres) -- la misma validación que handleConfirm.
-  const paypalStepDone = paymentOption === "paypal_first_time" && paypalTransactionId.length === 17;
+  // formato correcto (12-20 alfanuméricos, igual que el backend) -- la misma
+  // validación que handleConfirm.
+  const paypalStepDone =
+    paymentOption === "paypal_first_time" && PAYPAL_TRANSACTION_ID_RE.test(paypalTransactionId);
   const stepLabels = [
     { icon: Calendar, label: t("steps.dateTime"), done: !!serviceDate && !!serviceTime },
     {
@@ -679,9 +712,11 @@ export default function ReservaPage() {
                         no los valida contra la API de PayPal). Reescribir el flujo para
                         verificar contra PayPal en tiempo real requeriría integración de
                         backend fuera de alcance de este pase; en su lugar se agrega:
-                        formato/longitud esperados, advertencia explícita de escribir el
-                        ID EXACTO (17 caracteres alfanuméricos, como aparece en el email
-                        de confirmación de PayPal), validación inline con mensajes de
+                        formato/longitud esperados (12-20 caracteres alfanuméricos, igual
+                        que valida src/app/api/stripe/confirm/route.ts en el backend --
+                        fuente de verdad, ver fix punto 3 de la revisión 2026-07-30),
+                        advertencia explícita de escribir el ID EXACTO como aparece en el
+                        email de confirmación de PayPal, validación inline con mensajes de
                         error claros antes de habilitar "Confirm", y normalización a
                         mayúsculas (el ID de PayPal siempre es mayúsculas). */}
                     <div className="bg-state-warning/10 border border-state-warning/30 rounded-lg p-3 text-xs text-state-warning">
@@ -693,24 +728,26 @@ export default function ReservaPage() {
                         type="text"
                         value={paypalTransactionId}
                         onChange={(e) =>
-                          setPaypalTransactionId(e.target.value.toUpperCase().replace(/\s/g, "").slice(0, 17))
+                          setPaypalTransactionId(
+                            e.target.value.toUpperCase().replace(/\s/g, "").slice(0, PAYPAL_TRANSACTION_ID_MAX_LENGTH)
+                          )
                         }
                         placeholder={t("payment.paypalTransactionIdPlaceholder")}
-                        maxLength={17}
+                        maxLength={PAYPAL_TRANSACTION_ID_MAX_LENGTH}
                         className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold font-mono tracking-wide ${
-                          paypalTransactionId && paypalTransactionId.length !== 17
+                          paypalTransactionId && !PAYPAL_TRANSACTION_ID_RE.test(paypalTransactionId)
                             ? "border-state-danger"
                             : ""
                         }`}
                       />
                       <p
                         className={`text-xs mt-1 ${
-                          paypalTransactionId && paypalTransactionId.length !== 17
+                          paypalTransactionId && !PAYPAL_TRANSACTION_ID_RE.test(paypalTransactionId)
                             ? "text-state-danger"
                             : "text-gray-400"
                         }`}
                       >
-                        {paypalTransactionId && paypalTransactionId.length !== 17
+                        {paypalTransactionId && !PAYPAL_TRANSACTION_ID_RE.test(paypalTransactionId)
                           ? t("payment.paypalTransactionIdInvalidLength", { count: paypalTransactionId.length })
                           : t("payment.paypalTransactionIdHint")}
                       </p>
@@ -754,6 +791,26 @@ export default function ReservaPage() {
                           method: paymentOption === "alipay" ? t("payment.alipay") : t("payment.wechatPay"),
                         })}
                       </p>
+                      {/* Fix (auditoría 2026-07-30): redirect_status "processing"/
+                          "requires_action" de vuelta de Alipay -- el pago no está
+                          confirmado, no se debe tratar como éxito, pero tampoco
+                          silenciarlo. Se ofrece reintentar (crea un PaymentIntent
+                          nuevo desde cero vía WalletPayButton). */}
+                      {walletRedirectStatus && !walletPaymentIntentId && (
+                        <div className="flex items-center justify-between gap-3 p-3 bg-amber-50 text-amber-800 rounded-lg text-sm">
+                          <span className="flex items-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+                            {t("payment.walletConfirmingWithProvider")}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setWalletRedirectStatus("")}
+                            className="underline whitespace-nowrap"
+                          >
+                            {t("payment.tryAgain")}
+                          </button>
+                        </div>
+                      )}
                       <WalletPayButton
                         walletType={paymentOption}
                         // Fix (2026-07-24): quote.id es opcional en el tipo QuoteData

@@ -53,8 +53,9 @@ export async function GET() {
 /**
  * PATCH /api/admin/pricing-settings
  *
- * Actualiza la tarifa objetivo. La fila vigente se cierra (effective_to = hoy)
- * y se crea una nueva fila vigente con la nueva tarifa y audit log.
+ * Actualiza la tarifa objetivo. La fila vigente se cierra (effective_to) y se
+ * crea una nueva fila vigente con la nueva tarifa, de forma atómica vía la
+ * función RPC set_current_pricing_settings (migración 250), más audit log.
  */
 export async function PATCH(request: NextRequest) {
   const auth = await requireAdminRole("pricing_settings", { method: request.method, url: request.url });
@@ -92,32 +93,29 @@ export async function PATCH(request: NextRequest) {
       .limit(1)
       .single();
 
-    // Cerrar fila vigente previa
-    if (previous) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split("T")[0];
-
-      await auth.supabase
-        .from("pricing_settings")
-        .update({ effective_to: yesterdayStr, updated_at: new Date().toISOString() })
-        .eq("id", previous.id);
-    }
-
-    // Crear nueva fila vigente
-    const { data: newSetting, error: insertError } = await auth.supabase
-      .from("pricing_settings")
-      .insert({
-        target_hourly_rate: targetHourlyRate,
-        effective_from: newEffectiveFrom,
-        reason: reason.trim(),
-        created_by: auth.user.id,
+    // Auditoría 2026-07-30: antes esto era un update (cerrar la fila
+    // vigente) seguido de un insert (fila nueva) en dos pasos separados --
+    // si el insert fallaba después de cerrar la anterior, no quedaba
+    // ninguna fila vigente. set_current_pricing_settings (migración 250,
+    // mismo patrón que set_current_fixed_costs en la migración 249) hace
+    // ambos pasos dentro de una sola transacción Postgres: todo o nada.
+    const { data: newSetting, error: rpcError } = await auth.supabase
+      .rpc("set_current_pricing_settings", {
+        p_target_hourly_rate: targetHourlyRate,
+        p_effective_from: newEffectiveFrom,
+        p_reason: reason.trim(),
+        p_created_by: auth.user.id,
       })
-      .select()
       .single();
 
-    if (insertError) {
-      console.error("Pricing settings insert error:", insertError);
+    if (rpcError) {
+      if (rpcError.code === "42501") {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      if (rpcError.code === "22023") {
+        return NextResponse.json({ error: rpcError.message }, { status: 400 });
+      }
+      console.error("Pricing settings RPC error:", rpcError);
       return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 

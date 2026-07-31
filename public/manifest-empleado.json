@@ -2,7 +2,7 @@
   "name": "Lulu Island Flagship — Equipo",
   "short_name": "Lulu Equipo",
   "description": "App de campo para equipos de Lulu Island Flagship",
-  "start_url": "/en/empleado",
+  "start_url": "/empleado",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

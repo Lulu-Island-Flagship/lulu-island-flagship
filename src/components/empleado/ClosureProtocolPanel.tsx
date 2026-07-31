@@ -116,6 +116,13 @@ export function ClosureProtocolPanel({ orderId, noSmartphoneFlow }: ClosureProto
   // ChecklistCierre.tsx handleItemPhoto.
   const handleSignaturePhoto = async (file: File) => {
     setUploadingSignature(true);
+    // v8.3 ROUND 4 fix (#7): un fallo de storage.upload solo hacía
+    // console.error -- el botón "Photo of signed receipt (required)" se
+    // quedaba en "Uploading..." (o volvía a su estado inicial) sin ninguna
+    // explicación visible, y como confirmAltPayment está deshabilitado sin
+    // altPaymentSignatureUrl, el empleado quedaba bloqueado sin saber por
+    // qué. Reusa el mismo ErrorBanner/saveError que ya usa save() arriba.
+    setSaveError("");
     try {
       const fileExt = file.name.split(".").pop() || "jpg";
       const fileName = `${orderId}/alt-payment-receipt/${Date.now()}.${fileExt}`;
@@ -124,12 +131,14 @@ export function ClosureProtocolPanel({ orderId, noSmartphoneFlow }: ClosureProto
         .upload(fileName, file, { contentType: file.type });
       if (uploadError) {
         console.error("Signature upload error:", uploadError);
+        setSaveError("Couldn't upload the receipt photo. Please try again.");
         return;
       }
       const { data: publicUrlData } = supabase.storage.from("service-photos").getPublicUrl(fileName);
       setAltPaymentSignatureUrl(publicUrlData.publicUrl);
     } catch (e) {
       console.error("Signature photo error:", e);
+      setSaveError("Connection error uploading the receipt photo. Please try again.");
     } finally {
       setUploadingSignature(false);
     }

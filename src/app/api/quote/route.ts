@@ -18,6 +18,7 @@ import { fetchAddonZoneOptions } from "@/lib/addon-zones";
 import type { QuoteInput } from "@/types";
 import { geocodeAddress } from "@/lib/geocode";
 import { calculateClientScore } from "@/lib/scoring";
+import { safeErrorResponse } from "@/lib/api-errors";
 import { isEligibleForInstallmentPlan, computeInstallmentSplit } from "@/lib/installment-payment";
 import { QUOTE_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
 import { isValidPreferredLanguages } from "@/lib/languages";
@@ -648,8 +649,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error("Quote insert error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return safeErrorResponse(error, 500, "Failed to create quote");
     }
 
     // v8.3 E2.10: pago fraccionado 50/50, solo informativo en esta respuesta
@@ -685,11 +685,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (err: Error | unknown) {
-    console.error("Quote API error:", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
-      { status: 500 }
-    );
+    return safeErrorResponse(err, 500, "Failed to create quote");
   }
 }
 
@@ -713,15 +709,12 @@ export async function GET(_request: NextRequest) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return safeErrorResponse(error, 500, "Failed to load quotes");
     }
 
     return NextResponse.json({ quotes: data }, { status: 200 });
   } catch (err: Error | unknown) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
-      { status: 500 }
-    );
+    return safeErrorResponse(err, 500, "Failed to load quotes");
   }
 }
 

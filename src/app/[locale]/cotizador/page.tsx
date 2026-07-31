@@ -555,7 +555,14 @@ export default function CotizadorPage() {
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-300">
             <Clock className="w-4 h-4" />
-            {priceFrozenUntil && step !== "summary" && (
+            {/* Fix (auditoría UX/seguridad 2026-07-30, BUG 1): antes este aviso
+                se ocultaba justo en el paso "summary" (`step !== "summary"`),
+                que es el único paso donde el cliente de verdad hace clic en
+                "Reserve Now" -- si el freeze vencía mientras revisaba el
+                resumen, el clic fallaba sin ningún aviso previo. Se muestra
+                también en "summary" para que la cuenta regresiva del freeze
+                siga visible hasta el final del flujo. */}
+            {priceFrozenUntil && (
               <span>
                 {t("priceLockedUntil", {
                   time: priceFrozenUntil.toLocaleTimeString("en-CA", {
@@ -738,6 +745,21 @@ export default function CotizadorPage() {
                     consents={consents}
                     onChange={setConsents}
                   />
+
+                  {/* Fix (revisión 2026-07-30, punto 4): consentPipa no bloqueaba el
+                      avance (correcto -- no es obligatorio) pero tampoco se avisaba
+                      al cliente de que declinarlo implica revisión manual adicional
+                      antes de confirmar la reserva. */}
+                  {consents.pipa === false && (
+                    <div className="p-4 bg-state-warning/10 border border-state-warning/20 rounded-lg">
+                      <p className="text-sm font-medium text-state-warning">
+                        {t("summary.pipaReviewTitle")}
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        {t("summary.pipaReviewDesc")}
+                      </p>
+                    </div>
+                  )}
                 </>
               )}
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import {
   Star,
@@ -43,6 +44,7 @@ function getVancouverDateString(): string {
 }
 
 export default function EvaluarPage() {
+  const t = useTranslations("evaluar");
   const router = useRouter();
   const params = useParams();
   const token = params?.token as string;
@@ -55,6 +57,9 @@ export default function EvaluarPage() {
 
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
+  // Fix (auditoría UX/seguridad 2026-07-30, BUG 4): segundo factor ligero
+  // además del review_token -- ver src/app/api/client/review/route.ts.
+  const [phoneLast4, setPhoneLast4] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
@@ -77,13 +82,13 @@ export default function EvaluarPage() {
         .single();
 
       if (orderError || !order) {
-        setError("Invalid or expired review link.");
+        setError(t("errors.invalidLink"));
         setLoading(false);
         return;
       }
 
       if (order.status !== "completed") {
-        setError("This service has not been completed yet.");
+        setError(t("errors.notCompleted"));
         setLoading(false);
         return;
       }
@@ -96,7 +101,7 @@ export default function EvaluarPage() {
       const deadlineStr = deadlineDate.toISOString().split("T")[0];
 
       if (vancouverToday > deadlineStr) {
-        setError("Review window expired. You can only review within 24 hours of the service date.");
+        setError(t("errors.windowExpired"));
         setLoading(false);
         return;
       }
@@ -133,7 +138,7 @@ export default function EvaluarPage() {
       });
     } catch (e) {
       console.error("Verify token error:", e);
-      setError("Something went wrong.");
+      setError(t("errors.somethingWrong"));
     } finally {
       setLoading(false);
     }
@@ -141,7 +146,16 @@ export default function EvaluarPage() {
 
   async function submitReview() {
     if (rating === 0) {
-      setError("Please select a rating.");
+      setError(t("errors.selectRating"));
+      return;
+    }
+
+    // Fix (auditoría UX/seguridad 2026-07-30, BUG 4): validar en el cliente
+    // antes de enviar -- el servidor exige este dato cuando el perfil tiene
+    // un teléfono registrado (ver route.ts), así que se pide siempre aquí
+    // para no obligar a un segundo viaje de ida y vuelta en el caso común.
+    if (phoneLast4.replace(/\D/g, "").length !== 4) {
+      setError(t("errors.phoneLast4Required"));
       return;
     }
 
@@ -152,19 +166,21 @@ export default function EvaluarPage() {
       const res = await fetch("/api/client/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, rating, comment }),
+        body: JSON.stringify({ token, rating, comment, phoneLast4 }),
       });
 
       const data = await res.json();
 
       if (res.ok) {
         setSubmitted(true);
+      } else if (res.status === 403) {
+        setError(t("errors.phoneMismatch"));
       } else {
-        setError(data.error || "Failed to submit review.");
+        setError(data.error || t("errors.submitFailed"));
       }
     } catch (e) {
       console.error("Submit review error:", e);
-      setError("Network error. Please try again.");
+      setError(t("errors.networkError"));
     } finally {
       setIsSubmitting(false);
     }
@@ -183,14 +199,14 @@ export default function EvaluarPage() {
       <main className="min-h-screen bg-brand-ice flex items-center justify-center px-4">
         <div className="bg-white rounded-xl shadow-elevation-1 p-8 max-w-sm w-full text-center">
           <MessageSquare className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <h2 className="text-lg font-bold text-brand-ink mb-2">Review Unavailable</h2>
+          <h2 className="text-lg font-bold text-brand-ink mb-2">{t("unavailable.title")}</h2>
           <p className="text-sm text-gray-500">{error}</p>
           <button
             onClick={() => router.push(`/${safeLocale}`)}
             className="mt-4 inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg font-medium"
           >
             <Home className="w-4 h-4" />
-            Go Home
+            {t("unavailable.goHome")}
           </button>
         </div>
       </main>
@@ -203,17 +219,16 @@ export default function EvaluarPage() {
       <main className="min-h-screen bg-brand-ice flex items-center justify-center px-4">
         <div className="bg-white rounded-xl shadow-elevation-1 p-8 max-w-sm w-full text-center">
           <CheckCircle2 className="w-10 h-10 text-state-success mx-auto mb-3" />
-          <h2 className="text-lg font-bold text-brand-ink mb-2">Thank You!</h2>
-          <p className="text-sm text-gray-500">Your review has been submitted.</p>
+          <h2 className="text-lg font-bold text-brand-ink mb-2">{t("thankYou.title")}</h2>
+          <p className="text-sm text-gray-500">{t("thankYou.body")}</p>
 
           {showGoogleCta && (
             <div className="mt-5 pt-5 border-t border-gray-100">
               <p className="text-sm text-brand-ink font-medium mb-1">
-                So glad you loved it! 🎉
+                {t("thankYou.googleTitle")}
               </p>
               <p className="text-xs text-gray-500 mb-3">
-                Would you mind sharing that on Google? It takes 30 seconds and helps other families
-                in Richmond find us.
+                {t("thankYou.googleBody")}
               </p>
               <a
                 href={GOOGLE_REVIEW_URL}
@@ -222,7 +237,7 @@ export default function EvaluarPage() {
                 className="inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg font-medium hover:bg-brand-navy-light transition-colors"
               >
                 <ExternalLink className="w-4 h-4" />
-                Leave a Google Review
+                {t("thankYou.googleCta")}
               </a>
             </div>
           )}
@@ -236,7 +251,7 @@ export default function EvaluarPage() {
             }`}
           >
             <Home className="w-4 h-4" />
-            Go Home
+            {t("thankYou.goHome")}
           </button>
         </div>
       </main>
@@ -248,7 +263,7 @@ export default function EvaluarPage() {
       <div className="max-w-lg mx-auto px-4 py-12">
         <div className="bg-white rounded-xl shadow-elevation-1 p-6 space-y-6">
           <div className="text-center">
-            <h1 className="text-xl font-bold text-brand-ink">How was your service?</h1>
+            <h1 className="text-xl font-bold text-brand-ink">{t("form.title")}</h1>
             {orderInfo && (
               <p className="text-sm text-gray-500 mt-1">
                 {orderInfo.address}
@@ -283,17 +298,17 @@ export default function EvaluarPage() {
           </div>
 
           <div className="text-center text-sm text-gray-500">
-            {rating === 1 && "Very dissatisfied"}
-            {rating === 2 && "Dissatisfied"}
-            {rating === 3 && "Neutral"}
-            {rating === 4 && "Satisfied"}
-            {rating === 5 && "Very satisfied"}
+            {rating === 1 && t("form.ratingLabels.1")}
+            {rating === 2 && t("form.ratingLabels.2")}
+            {rating === 3 && t("form.ratingLabels.3")}
+            {rating === 4 && t("form.ratingLabels.4")}
+            {rating === 5 && t("form.ratingLabels.5")}
           </div>
 
           {/* Comment */}
           <div>
             <label htmlFor="review-comment" className="block text-sm font-medium text-brand-ink mb-2">
-              Comments (optional)
+              {t("form.commentLabel")}
             </label>
             <textarea
               id="review-comment"
@@ -301,7 +316,27 @@ export default function EvaluarPage() {
               onChange={(e) => setComment(e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
               rows={4}
-              placeholder="Tell us about your experience..."
+              placeholder={t("form.commentPlaceholder")}
+            />
+          </div>
+
+          {/* Fix (auditoría UX/seguridad 2026-07-30, BUG 4): segundo factor
+              ligero -- confirma que quien completa el formulario tiene
+              acceso al teléfono del cliente, no solo al link. */}
+          <div>
+            <label htmlFor="review-phone-last4" className="block text-sm font-medium text-brand-ink mb-2">
+              {t("form.phoneLast4Label")}
+            </label>
+            <input
+              id="review-phone-last4"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={4}
+              value={phoneLast4}
+              onChange={(e) => { setPhoneLast4(e.target.value.replace(/\D/g, "").slice(0, 4)); setError(""); }}
+              placeholder={t("form.phoneLast4Placeholder")}
+              className="w-full border rounded-lg px-3 py-2 text-sm text-center tracking-widest focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
             />
           </div>
 
@@ -310,9 +345,9 @@ export default function EvaluarPage() {
           )}
 
           <button
-            aria-label="Enviar reseña"
+            aria-label={t("form.submitAriaLabel")}
             onClick={submitReview}
-            disabled={isSubmitting || rating === 0}
+            disabled={isSubmitting || rating === 0 || phoneLast4.length !== 4}
             className="w-full bg-brand-navy text-white py-3 rounded-xl font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isSubmitting ? (
@@ -320,13 +355,13 @@ export default function EvaluarPage() {
             ) : (
               <>
                 <Send className="w-4 h-4" />
-                Submit Review
+                {t("form.submit")}
               </>
             )}
           </button>
 
           <p className="text-xs text-gray-400 text-center">
-            This review evaluates the team and service quality. For guarantee claims, please contact us directly.
+            {t("form.disclaimer")}
           </p>
         </div>
       </div>

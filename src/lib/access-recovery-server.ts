@@ -182,6 +182,16 @@ export async function getActiveOwnerAdmins(
   return results;
 }
 
+// Código de emergencia emitido tras aprobación de recuperación de acceso --
+// vida útil mucho más corta que un backup code generado a mano
+// (BACKUP_CODE_TTL_DAYS = 90 días, src/lib/backup-codes.ts): este código se
+// manda por SMS/email en el momento y se espera que se use enseguida, así
+// que 1 hora es suficiente y limita la ventana de exposición si el mensaje
+// se intercepta. Coincide con el texto ya existente en la plantilla
+// 'access_recovery_emergency_code_issued' (203_e11_access_recovery_requests.sql):
+// "expira en 1 hora, un solo uso".
+const EMERGENCY_CODE_TTL_MS = 60 * 60 * 1000;
+
 /**
  * Emite un código de respaldo de un solo uso por cada owner_admin activo,
  * REUSANDO owner_admin_backup_codes (194_e0_owner_admin_backup_codes.sql) y
@@ -189,6 +199,16 @@ export async function getActiveOwnerAdmins(
  * el mismo mecanismo construido en paralelo para el propio owner_admin, en
  * vez de duplicar una tabla/columnas nuevas de "código temporal". El código
  * en texto plano solo existe en memoria del servidor durante esta llamada.
+ *
+ * Fix (auditoría externa 2026-07-30, BUG 2): owner_admin_backup_codes ahora
+ * tiene expires_at (migración 248_fix_owner_admin_backup_codes_expiry.sql) y
+ * la verificación (POST /api/admin/backup-codes/verify) rechaza códigos
+ * vencidos -- sin poblar expires_at aquí, todo código de emergencia quedaría
+ * NULL y sería rechazado de inmediato como vencido. Se usa una TTL propia y
+ * más corta (1h, EMERGENCY_CODE_TTL_MS) en vez de reusar
+ * backupCodeExpiryIso() (90 días, pensado para códigos generados a mano por
+ * el propio owner_admin) -- ya era la promesa hecha en la plantilla de
+ * mensaje de este flujo, simplemente nunca se había implementado.
  */
 export async function issueEmergencyAccessCodes(
   supabase: ServiceClient
@@ -200,6 +220,7 @@ export async function issueEmergencyAccessCodes(
     const { error } = await supabase.from("owner_admin_backup_codes").insert({
       user_id: admin.userId,
       code_hash: hashBackupCode(code),
+      expires_at: new Date(Date.now() + EMERGENCY_CODE_TTL_MS).toISOString(),
     });
     if (!error) {
       issued.push({ email: admin.email, code });

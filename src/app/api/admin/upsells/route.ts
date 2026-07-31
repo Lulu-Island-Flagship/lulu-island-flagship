@@ -22,6 +22,7 @@ export async function GET() {
         client_approved,
         notes,
         reviewed_by_admin,
+        approval_status,
         created_at,
         orders:order_id (
           service_date,

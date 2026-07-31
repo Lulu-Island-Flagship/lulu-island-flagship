@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
-import { generateBackupCodeSet, hashBackupCode, BACKUP_CODE_COUNT } from "@/lib/backup-codes";
+import { generateBackupCodeSet, hashBackupCode, backupCodeExpiryIso, BACKUP_CODE_COUNT } from "@/lib/backup-codes";
 
 /**
  * v8.3 E0 — Códigos de respaldo (backup codes) de owner_admin.
@@ -76,9 +76,15 @@ export async function POST(request: NextRequest) {
   }
 
   const plainCodes = generateBackupCodeSet(BACKUP_CODE_COUNT);
+  // Fix (auditoría externa 2026-07-30, BUG 2): antes no se poblaba
+  // expires_at (columna no existía) -- los códigos eran válidos para
+  // siempre mientras no se generara un set nuevo. Ver
+  // supabase/migrations/248_fix_owner_admin_backup_codes_expiry.sql.
+  const expiresAt = backupCodeExpiryIso();
   const rows = plainCodes.map((code) => ({
     user_id: auth.user!.id,
     code_hash: hashBackupCode(code),
+    expires_at: expiresAt,
   }));
 
   const { error: insertError } = await auth.supabase

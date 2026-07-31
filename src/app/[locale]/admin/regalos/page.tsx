@@ -49,6 +49,18 @@ export default function GiftsPage() {
   const [newGift, setNewGift] = useState({ clientUserId: "", monthsActive: "", firstYearValue: "", ltv: "" });
   const [newBenefit, setNewBenefit] = useState({ partnerId: "", description: "" });
 
+  const monthsActiveNum = Number(newGift.monthsActive);
+  const firstYearValueNum = parseFloat(newGift.firstYearValue);
+  const ltvNum = newGift.ltv ? parseFloat(newGift.ltv) : 0;
+  const giftFormValid =
+    newGift.clientUserId.trim().length > 0 &&
+    Number.isFinite(monthsActiveNum) &&
+    monthsActiveNum >= 0 &&
+    Number.isFinite(firstYearValueNum) &&
+    firstYearValueNum > 0 &&
+    Number.isFinite(ltvNum) &&
+    ltvNum >= 0;
+
   useEffect(() => {
     load();
   }, []);
@@ -78,7 +90,10 @@ export default function GiftsPage() {
   }
 
   async function createGift() {
-    if (!newGift.clientUserId.trim() || !newGift.monthsActive || !newGift.firstYearValue) return;
+    if (!giftFormValid) {
+      setError(t("errors.invalidGiftInput"));
+      return;
+    }
     setError("");
     try {
       const res = await fetch("/api/admin/retention-gifts", {
@@ -87,9 +102,9 @@ export default function GiftsPage() {
         credentials: "include",
         body: JSON.stringify({
           clientUserId: newGift.clientUserId.trim(),
-          monthsActive: Number(newGift.monthsActive),
-          firstYearValueCents: Math.round(parseFloat(newGift.firstYearValue) * 100),
-          ltvCents: newGift.ltv ? Math.round(parseFloat(newGift.ltv) * 100) : 0,
+          monthsActive: monthsActiveNum,
+          firstYearValueCents: Math.round(firstYearValueNum * 100),
+          ltvCents: Math.round(ltvNum * 100),
         }),
       });
       const data = await res.json();
@@ -227,7 +242,11 @@ export default function GiftsPage() {
             onChange={(e) => setNewGift({ ...newGift, ltv: e.target.value })}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
-          <button onClick={createGift} className="col-span-2 sm:col-span-1 bg-brand-navy text-white px-3 py-2 rounded-lg text-sm font-medium">
+          <button
+            onClick={createGift}
+            disabled={!giftFormValid}
+            className="col-span-2 sm:col-span-1 bg-brand-navy text-white px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+          >
             {t("residentialGifts.evaluate")}
           </button>
         </div>

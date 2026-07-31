@@ -3,6 +3,7 @@ import { requireAdminRole } from "@/lib/admin";
 import { evaluatePostForApproval, approvePost, publishPost, rejectPost } from "@/lib/blog-content";
 import { validatePositioningCoherence } from "@/lib/positioning-coherence";
 import { isFlagEnabled, type FlagClient } from "@/lib/feature-flags";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/marketing — cola de posts del blog por estado + últimas
 // validaciones PIPA (marketing_pipa_checks, log inmutable compartido por
@@ -66,7 +67,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  // Fix (auditoría 2026-07-30, item 11): request.json() sin try/catch podía
+  // tronar con una excepción no controlada (500 con fuga de stack trace) si
+  // el body no era JSON válido, y body.id se usaba sin validar que existiera
+  // (undefined pasado directo a .eq("id", ...)). Se valida explícitamente y
+  // se responde 400 genérico ante body inválido, en vez de dejar que el
+  // error suba sin control.
+  let body: { action?: string; id?: string };
+  try {
+    body = await request.json();
+  } catch (err) {
+    return safeErrorResponse(err, 400, "JSON inválido");
+  }
+  if (!body || typeof body.id !== "string" || !body.id.trim()) {
+    return NextResponse.json({ error: "id es obligatorio" }, { status: 400 });
+  }
+
   const { data: post, error: postError } = await supabase
     .from("blog_posts")
     .select("*")

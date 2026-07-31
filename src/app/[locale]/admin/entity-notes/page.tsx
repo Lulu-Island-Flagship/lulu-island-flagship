@@ -116,8 +116,18 @@ export default function EntityNotesPage() {
   }
 
   async function deleteNote(id: string) {
-    await fetch(`/api/admin/entity-notes?id=${id}`, { method: "DELETE", credentials: "include" });
-    await loadNotes();
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/entity-notes?id=${id}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setError(err.error || t("errorDeleting"));
+        return;
+      }
+      await loadNotes();
+    } catch {
+      setError(t("errorNetwork"));
+    }
   }
 
   function toggleContext(ctx: string) {

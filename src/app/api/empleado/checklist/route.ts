@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isKitchenTimerExpired } from "@/lib/kitchen-timer";
 import { ensureZoneAssignment } from "@/lib/zone-assignment";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest) {
       .order("sort_order", { ascending: true });
 
     if (checklistError) {
-      return NextResponse.json({ error: checklistError.message }, { status: 500 });
+      return safeErrorResponse(checklistError, 500, "Ocurrió un error interno");
     }
 
     // v8.3 E4 (D.7): zonas add-on (ej. Garaje) solo aparecen en el checklist
@@ -109,7 +110,7 @@ export async function GET(request: NextRequest) {
       .eq("employee_id", employee.id);
 
     if (respError) {
-      return NextResponse.json({ error: respError.message }, { status: 500 });
+      return safeErrorResponse(respError, 500, "Ocurrió un error interno");
     }
 
     // Crear mapa de respuestas por itemId
@@ -199,8 +200,7 @@ export async function GET(request: NextRequest) {
       },
     }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err, 500, "Ocurrió un error interno");
   }
 }
 
@@ -369,12 +369,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (result.error) {
-      return NextResponse.json({ error: result.error.message }, { status: 500 });
+      return safeErrorResponse(result.error, 500, "Ocurrió un error interno");
     }
 
     return NextResponse.json({ success: true, item: result.data }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err, 500, "Ocurrió un error interno");
   }
 }

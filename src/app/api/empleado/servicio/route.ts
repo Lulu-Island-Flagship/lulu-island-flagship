@@ -11,6 +11,7 @@ import { buildReviewLink, buildReviewQrSvg, hasOpenCriticalDispute } from "@/lib
 import { ensureZoneAssignment } from "@/lib/zone-assignment";
 import { haversineDistance, ARRIVAL_GEOFENCE_RADIUS_METERS } from "@/lib/geocode";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
+import { getVancouverOffset } from "@/lib/date-utils";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -553,10 +554,14 @@ export async function POST(request: NextRequest) {
 
     // Insertar log del evento con timestamp ISO explícito en Vancouver
     // toLocaleString sin timezone offset produce string ambiguo para Postgres TIMESTAMPTZ
-    // Usamos formato ISO con offset -07:00 (PST) o -08:00 (PDT) según la fecha
+    // v8.3 ROUND 4 fix (#2): antes parseaba "PDT"/"PST" de toLocaleString(), que puede
+    // devolver "GMT-7" en vez de la abreviatura según navegador/runtime. Usamos el offset
+    // numérico real vía Intl (getVancouverOffset), robusto en cualquier entorno.
     const now = new Date();
-    const vancouverOffset = now.toLocaleString("en-CA", { timeZone: "America/Vancouver", timeZoneName: "short" }).includes("PDT") ? "-07:00" : "-08:00";
-    const vancouverTimestamp = now.toLocaleString("en-CA", { timeZone: "America/Vancouver", hour12: false }).replace(", ", "T") + vancouverOffset;
+    const vancouverLocal = now.toLocaleString("en-CA", { timeZone: "America/Vancouver", hour12: false });
+    const vancouverDateOnly = vancouverLocal.split(",")[0];
+    const vancouverOffset = getVancouverOffset(vancouverDateOnly);
+    const vancouverTimestamp = vancouverLocal.replace(", ", "T") + vancouverOffset;
     const isGeofenceBypass = eventType === "t_in" && geofenceBypass === true;
     // Si no hubo foto de evidencia (isNoPhotoBypass), la justificación va al
     // frente de `notes` con una etiqueta explícita -- así queda visible para

@@ -109,6 +109,24 @@ export async function GET(
       noSmartphoneFlow = !!clientProfile?.no_smartphone_flow;
     }
 
+    // Fix auditoría 2026-07-30: este endpoint nunca devolvía datos de
+    // contacto del cliente (clientName/clientPhone), aunque el frontend
+    // (ContactInfoDisclosure en servicio/[orderId]/page.tsx) ya los lee de
+    // service.clientName/service.clientPhone -- mismo patrón exacto que
+    // /api/empleado/servicios/route.ts (join con `profiles`, no
+    // `client_profiles`, que no tiene nombre/teléfono).
+    let clientName = "";
+    let clientPhone = "";
+    if (order.user_id) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, phone")
+        .eq("id", order.user_id)
+        .maybeSingle();
+      clientName = profile?.full_name || "";
+      clientPhone = profile?.phone || "";
+    }
+
     return NextResponse.json({
       service: {
         assignmentId: assignment.id,
@@ -136,6 +154,8 @@ export async function GET(
         addressLat: order.address_lat ?? undefined,
         addressLng: order.address_lng ?? undefined,
         noSmartphoneFlow,
+        clientName,
+        clientPhone,
       },
     }, { status: 200 });
   } catch (err: Error | unknown) {

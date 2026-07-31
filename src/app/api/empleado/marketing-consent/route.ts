@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateEmployeeMarketingVisibility } from "@/lib/employee-marketing";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -72,7 +73,14 @@ export async function POST(request: NextRequest) {
   const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id);
   if (!employee) return NextResponse.json({ error: empError }, { status: empStatus });
 
-  const body = await request.json();
+  // Fix (revisión 2026-07-30, punto 11): request.json() sin try/catch --
+  // mismo patrón ya usado en src/app/api/admin/marketing/route.ts.
+  let body: { featureType?: string };
+  try {
+    body = await request.json();
+  } catch (err) {
+    return safeErrorResponse(err, 400, "JSON inválido");
+  }
   const featureType = body.featureType;
   if (!["day_in_life_reel", "public_badge_showcase"].includes(featureType)) {
     return NextResponse.json({ error: "featureType inválido" }, { status: 400 });

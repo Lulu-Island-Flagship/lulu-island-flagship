@@ -20,7 +20,7 @@
 // más abajo). cuenta/layout.tsx sigue detectando la sesión perdida vía
 // onAuthStateChange y vuelve a mostrar el AuthModal automáticamente una vez
 // que /auth/signout limpia las cookies y redirige.
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -39,6 +39,37 @@ export function CuentaNav() {
   const pathname = usePathname();
   const params = useParams();
   const locale = (params?.locale as string) || "en";
+  // Fix (revisión 2026-07-30, punto 6): el <form action="/auth/signout">
+  // (POST normal, sin JS) navegaba directo a la respuesta del endpoint --
+  // si el POST fallaba a nivel de red (offline, timeout), el usuario solo
+  // veía la pantalla de error nativa del navegador, sin ningún mensaje del
+  // producto ni forma de reintentar sin recargar todo. Se intercepta el
+  // submit para poder mostrar un error propio y dejar reintentar; el POST
+  // real sigue siendo al mismo endpoint (src/app/auth/signout/route.ts), que
+  // siempre redirige tras limpiar cookies -- solo agregamos manejo del caso
+  // en que la request ni siquiera llegue a completarse.
+  const [signoutError, setSignoutError] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function handleSignout(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSigningOut(true);
+    setSignoutError(false);
+    try {
+      const res = await fetch(`/auth/signout?locale=${locale}`, { method: "POST", redirect: "follow" });
+      // El endpoint siempre responde con un redirect exitoso (ver route.ts) --
+      // solo tratamos como error un fallo real de red/HTTP.
+      if (!res.ok) {
+        setSignoutError(true);
+        setSigningOut(false);
+        return;
+      }
+      window.location.href = res.url || `/${locale}`;
+    } catch {
+      setSignoutError(true);
+      setSigningOut(false);
+    }
+  }
 
   // Fix (auditoría de autenticación 2026-07-25/26, item 4): antes cerraba
   // sesión directo desde el navegador con supabase.auth.signOut(), distinto
@@ -72,17 +103,21 @@ export function CuentaNav() {
             </Link>
           );
         })}
-        <form action={`/auth/signout?locale=${locale}`} method="post" className="ml-auto">
+        <form action={`/auth/signout?locale=${locale}`} method="post" onSubmit={handleSignout} className="ml-auto">
           <button
             type="submit"
+            disabled={signingOut}
             aria-label={t("logout")}
-            className="flex flex-col items-center justify-center gap-1 px-4 py-2.5 min-w-[76px] shrink-0 text-xs font-medium border-b-2 border-transparent text-gray-400 hover:text-state-danger transition-colors"
+            className="flex flex-col items-center justify-center gap-1 px-4 py-2.5 min-w-[76px] shrink-0 text-xs font-medium border-b-2 border-transparent text-gray-400 hover:text-state-danger transition-colors disabled:opacity-50"
           >
             <LogOut className="w-5 h-5" />
             <span className="whitespace-nowrap">{t("logout")}</span>
           </button>
         </form>
       </div>
+      {signoutError && (
+        <p className="px-4 py-1.5 text-xs text-state-danger text-center">{t("logoutError")}</p>
+      )}
     </nav>
   );
 }

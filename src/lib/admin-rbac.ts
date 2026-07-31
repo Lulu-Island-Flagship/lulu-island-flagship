@@ -83,7 +83,12 @@ const MATRIX: Record<AdminResource, AdminRole[]> = {
 
 /** Función pura: ¿alguno de los roles del usuario permite el recurso? */
 export function roleAllows(roles: AdminRole[], resource: AdminResource): boolean {
-  const allowed = MATRIX[resource];
+  // Fix (auditoría 2026-07-30, item 9): MATRIX[resource] puede ser
+  // `undefined` si se pasa un resource que no existe en la matriz (ej. un
+  // typo o un valor no validado por TypeScript en tiempo de ejecución) --
+  // `.includes` sobre `undefined` tronaba con TypeError. `?? []` hace que un
+  // resource desconocido simplemente no autorice a nadie, en vez de romper.
+  const allowed = MATRIX[resource] ?? [];
   return roles.some((r) => allowed.includes(r));
 }
 
@@ -97,7 +102,8 @@ export function roleAllows(roles: AdminRole[], resource: AdminResource): boolean
 // coincide con el recurso, para que admin.ts lo registre en vez del CSV
 // completo.
 export function matchingRole(roles: AdminRole[], resource: AdminResource): AdminRole | null {
-  const allowed = MATRIX[resource];
+  // Mismo fix que roleAllows() arriba: resource desconocido no debe tronar.
+  const allowed = MATRIX[resource] ?? [];
   return roles.find((r) => allowed.includes(r)) ?? null;
 }
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Loader2, ChevronLeft, Check } from "lucide-react";
 import { ErrorBanner } from "@/components/empleado/ErrorBanner";
 
@@ -16,33 +17,34 @@ interface TowelLog {
   recorded_at: string;
 }
 
-const COLORS: { value: Color; label: string; swatch: string }[] = [
-  { value: "red", label: "Rojo", swatch: "bg-red-500" },
-  { value: "blue", label: "Azul", swatch: "bg-blue-500" },
-  { value: "green", label: "Verde", swatch: "bg-green-500" },
-  { value: "yellow", label: "Amarillo", swatch: "bg-yellow-400" },
-  { value: "white", label: "Blanco", swatch: "bg-gray-200 border" },
-  { value: "black", label: "Negro", swatch: "bg-gray-900" },
-];
-
-const STAGES: { value: Stage; label: string }[] = [
-  { value: "clean", label: "Limpio" },
-  { value: "in_use", label: "En uso" },
-  { value: "dirty", label: "Sucio" },
-  { value: "washing", label: "Lavado" },
-  { value: "warehouse", label: "Bodega" },
-  { value: "vehicle", label: "Vehículo" },
-];
-
 export default function PanosPage() {
   const router = useRouter();
   const params = useParams();
+  const t = useTranslations("employee.panosScreen");
   // 2026-07-24: antes leía window.location.pathname, lo que causaba un
   // hydration mismatch (SSR asumía "en", cliente calculaba el locale real) --
   // ver auditoría externa. useParams() da el mismo valor en servidor y
   // cliente porque viene del router de Next, no de window.
   const locale = (params?.locale as string) || "en";
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+
+  const COLORS: { value: Color; label: string; swatch: string }[] = [
+    { value: "red", label: t("colorRed"), swatch: "bg-red-500" },
+    { value: "blue", label: t("colorBlue"), swatch: "bg-blue-500" },
+    { value: "green", label: t("colorGreen"), swatch: "bg-green-500" },
+    { value: "yellow", label: t("colorYellow"), swatch: "bg-yellow-400" },
+    { value: "white", label: t("colorWhite"), swatch: "bg-gray-200 border" },
+    { value: "black", label: t("colorBlack"), swatch: "bg-gray-900" },
+  ];
+
+  const STAGES: { value: Stage; label: string }[] = [
+    { value: "clean", label: t("stageClean") },
+    { value: "in_use", label: t("stageInUse") },
+    { value: "dirty", label: t("stageDirty") },
+    { value: "washing", label: t("stageWashing") },
+    { value: "warehouse", label: t("stageWarehouse") },
+    { value: "vehicle", label: t("stageVehicle") },
+  ];
 
   const [logs, setLogs] = useState<TowelLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,11 +73,11 @@ export default function PanosPage() {
         setLogs(d.logs || []);
       } else {
         const err = await res.json().catch(() => ({}));
-        setLoadError(err.error || "Couldn't load today's towel logs. Please try again.");
+        setLoadError(err.error || t("loadError"));
       }
     } catch (e) {
       console.error("Panos load error:", e);
-      setLoadError("Connection error loading today's towel logs. Please try again.");
+      setLoadError(t("loadErrorNetwork"));
     } finally {
       setLoading(false);
     }
@@ -99,11 +101,11 @@ export default function PanosPage() {
         await load();
       } else {
         const err = await res.json().catch(() => ({}));
-        setSubmitError(err.error || "Couldn't save the count. Please try again.");
+        setSubmitError(err.error || t("saveError"));
       }
     } catch (e) {
       console.error("Panos submit error:", e);
-      setSubmitError("Connection error saving the count. Please try again.");
+      setSubmitError(t("saveErrorNetwork"));
     } finally {
       setSubmitting(false);
     }
@@ -116,12 +118,12 @@ export default function PanosPage() {
           <button onClick={() => router.push(`/${safeLocale}/empleado`)} className="text-white/70 hover:text-white">
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-semibold text-sm">Ciclo de Paños</h1>
+          <h1 className="font-semibold text-sm">{t("title")}</h1>
         </div>
       </header>
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
-        <p className="text-xs text-gray-500">Conteo por color, no por unidad (ej: &quot;8 rojos, 6 azules&quot;).</p>
+        <p className="text-xs text-gray-500">{t("countNote")}</p>
 
         <form onSubmit={submit} className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3">
           <div className="grid grid-cols-3 gap-2">
@@ -141,7 +143,7 @@ export default function PanosPage() {
           </div>
 
           <select
-            aria-label="Etapa del ciclo de paños"
+            aria-label={t("stageLabel")}
             value={stage}
             onChange={(e) => setStage(e.target.value as Stage)}
             className="w-full text-sm border rounded-lg px-3 py-2"
@@ -153,8 +155,8 @@ export default function PanosPage() {
 
           <input
             type="number"
-            aria-label="Cantidad de paños"
-            placeholder="Cantidad"
+            aria-label={t("countLabel")}
+            placeholder={t("countPlaceholder")}
             value={count}
             onChange={(e) => setCount(e.target.value)}
             className="w-full text-sm border rounded-lg px-3 py-2"
@@ -165,7 +167,7 @@ export default function PanosPage() {
             disabled={submitting}
             className="w-full flex items-center justify-center gap-2 bg-brand-navy text-white px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
           >
-            <Check className="w-4 h-4" /> Registrar conteo
+            <Check className="w-4 h-4" /> {t("register")}
           </button>
           <ErrorBanner message={submitError} onRetry={() => submit()} retrying={submitting} />
         </form>
@@ -176,7 +178,7 @@ export default function PanosPage() {
           <ErrorBanner message={loadError} onRetry={load} retrying={loading} />
         ) : (
           <div className="bg-white rounded-xl shadow-elevation-1 divide-y">
-            {logs.length === 0 && <p className="p-4 text-sm text-gray-500">Sin registros hoy.</p>}
+            {logs.length === 0 && <p className="p-4 text-sm text-gray-500">{t("noLogsToday")}</p>}
             {logs.map((l) => (
               <div key={l.id} className="p-3 text-sm flex justify-between">
                 <span className="capitalize">{l.color} · {l.stage}</span>

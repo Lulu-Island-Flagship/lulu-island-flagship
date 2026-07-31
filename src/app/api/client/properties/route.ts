@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -120,18 +121,30 @@ function validateOptionalPropertyFields(
 
 // GET /api/client/properties — listar propiedades del cliente autenticado
 //
-// Nota conocida (auditoría seguridad 2026-07-26): este GET, que debería ser de
-// solo lectura, llama a getOrCreateClientProfile() -- si la fila de
-// client_profiles todavía no existe para este usuario (ej. el trigger de
-// creación no corrió), esta llamada la CREA como efecto secundario de una
-// petición GET. Existe así porque varias pantallas de "Mi Cuenta" dependen de
-// poder listar propiedades apenas el usuario inicia sesión, sin garantía de
-// que el profile ya exista en ese momento; mover la creación a un punto de
-// signup/login exclusivo requeriría auditar todos los flujos de alta de
-// cuenta (Google/Apple/email/phone OTP, ver AuthModal.tsx) para asegurar que
-// SIEMPRE se ejecute antes de que cualquier pantalla de cuenta pueda montarse
-// -- un refactor más amplio que este fix puntual. Se documenta aquí para que
-// no se asuma que es un descuido.
+// Fix auditoría 2026-07-30 (ver nota histórica que sigue abajo): este GET
+// llamaba a getOrCreateClientProfile(), creando una fila en client_profiles
+// como efecto secundario de una lectura -- viola la semántica de un GET
+// (idempotente, sin escritura) y puede crear perfiles huérfanos (ej. un
+// bot/crawler autenticado que solo hace GET nunca debería dejar una fila
+// nueva). Se separa: el GET ahora solo LEE -- si no existe client_profiles
+// para este usuario, no hay perfil y por lo tanto no puede haber
+// propiedades propias, así que se devuelve `properties: []` directo, sin
+// insertar nada. La creación real de client_profiles ya ocurre en el punto
+// correcto del flujo -- POST /api/quote (getOrCreateClientProfile local a
+// ese archivo, se dispara al enviar una cotización, el primer paso real de
+// alta de cliente) -- y también queda como respaldo en los métodos de
+// escritura de este mismo archivo (POST/PATCH/DELETE de abajo, sin cambios):
+// ahí SÍ es correcto crear el perfil on-demand, porque son acciones
+// explícitas de escritura del cliente (crear/editar/borrar una propiedad),
+// no una lectura pasiva.
+//
+// Nota histórica (auditoría seguridad 2026-07-26): la creación implícita
+// existía porque varias pantallas de "Mi Cuenta" listan propiedades apenas
+// el usuario inicia sesión, sin garantía de que el profile ya exista en ese
+// momento. Verificado que esto ya no es un problema real: /api/quote ya
+// tiene su propio getOrCreateClientProfile() y se ejecuta en el primer paso
+// real de conversión (enviar cotización), antes de que el usuario pueda
+// llegar a una pantalla de cuenta con propiedades que listar.
 export async function GET() {
   const supabase = getSupabaseClient();
   const user = await getCurrentUser(supabase);
@@ -139,9 +152,17 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const profile = await getOrCreateClientProfile(supabase, user.id);
+  const { data: profile, error: profileError } = await supabase
+    .from("client_profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (profileError) {
+    return safeErrorResponse(profileError, 500, "Failed to load client profile");
+  }
   if (!profile) {
-    return NextResponse.json({ error: "Failed to load client profile" }, { status: 500 });
+    return NextResponse.json({ properties: [] }, { status: 200 });
   }
 
   const { data: properties, error } = await supabase
@@ -152,8 +173,7 @@ export async function GET() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Properties fetch error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return safeErrorResponse(error, 500, "Failed to load properties");
   }
 
   return NextResponse.json({ properties: properties || [] }, { status: 200 });
@@ -198,14 +218,12 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error("Property insert error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return safeErrorResponse(error, 500, "Failed to create property");
     }
 
     return NextResponse.json({ property }, { status: 201 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err, 500, "Failed to create property");
   }
 }
 
@@ -254,14 +272,12 @@ export async function PATCH(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error("Property update error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return safeErrorResponse(error, 500, "Failed to update property");
     }
 
     return NextResponse.json({ property }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err, 500, "Failed to update property");
   }
 }
 
@@ -294,13 +310,11 @@ export async function DELETE(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error("Property delete error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return safeErrorResponse(error, 500, "Failed to delete property");
     }
 
     return NextResponse.json({ property }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err, 500, "Failed to delete property");
   }
 }

@@ -26,6 +26,58 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder';
 
 export default async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // Fix (auditoría 2026-07-30, defensa en profundidad para /api): el
+  // `config.matcher` de este archivo excluía TODO /api/** del pipeline de
+  // middleware (por diseño -- /api/quote, /api/auth, el webhook de Stripe,
+  // los crons, etc. deben quedar fuera). El problema es que eso significa
+  // que si algún endpoint bajo /api/admin, /api/empleado o /api/client
+  // llegara a olvidar su propio chequeo de sesión (requireAdminRole /
+  // requireActiveEmployee / getUser()+401 manual, que HOY sí tiene cada uno
+  // -- se verificó leyendo una muestra representativa), quedaría
+  // completamente público sin ninguna red de seguridad adicional. Este
+  // bloque NO reemplaza esa autorización granular (rol exacto, RBAC por
+  // recurso) -- eso sigue viviendo en cada route.ts -- solo verifica que
+  // EXISTA una sesión de Supabase válida antes de dejar pasar la request,
+  // igual que ya se hace para las páginas /admin, /empleado y /cuenta más
+  // abajo. Solo corre para los tres prefijos explícitamente agregados al
+  // `config.matcher` (api/admin, api/empleado, api/client); el resto de
+  // /api sigue completamente fuera de este archivo. Se responde ANTES de
+  // invocar intlMiddleware porque next-intl no sabe rutear /api/** (no
+  // tiene locale prefix) y podría intentar redirigir estas requests.
+  const apiStaffProtectedPrefixes = ["/api/admin", "/api/empleado", "/api/client"];
+  const isApiStaffProtected = apiStaffProtectedPrefixes.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+
+  if (isApiStaffProtected) {
+    const apiResponse = NextResponse.next();
+    const supabaseApi = createServerClient(supabaseUrl, supabaseKey, {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options) {
+          apiResponse.cookies.set({ name, value, ...options });
+        },
+        remove(name: string, options) {
+          apiResponse.cookies.set({ name, value: '', ...options });
+        },
+      },
+    });
+
+    const {
+      data: { user: apiUser },
+    } = await supabaseApi.auth.getUser();
+
+    if (!apiUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    return apiResponse;
+  }
+
   const response = intlMiddleware(request) ?? NextResponse.next();
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
@@ -65,15 +117,23 @@ export default async function middleware(request: NextRequest) {
   // requireAdminRole()/resolveStaffLogin() (src/lib/admin.ts,
   // src/lib/staff-login.ts); acá solo se verifica que EXISTA sesión.
   //
-  // /cuenta queda deliberadamente fuera de este redirect: no existe una URL
-  // de login dedicada para clientes (se verificó leyendo cuenta/layout.tsx
-  // -- es un Client Component que ya bloquea el render de {children} y
-  // muestra AuthModal en la misma URL mientras no hay sesión, sin fuga de
-  // datos porque no hay Server Component de por medio). Inventar una URL de
-  // login nueva para redirigir ahí sería un cambio de UX no solicitado y
-  // fuera del alcance de este fix; si en el futuro se agrega una ruta de
-  // login real para clientes, este bloque debe extenderse para cubrirla.
-  const pathname = request.nextUrl.pathname;
+  // Fix (auditorías independientes, 2026-07-30, confirmado real): la nota
+  // anterior decía que /cuenta quedaba deliberadamente fuera de este
+  // redirect porque no hay una URL de login dedicada para clientes -- cierto,
+  // pero eso solo cubre el caso con JS: cuenta/layout.tsx es un Client
+  // Component, así que un visitante sin sesión igual recibe el HTML shell
+  // completo (200 OK) del servidor y depende de que React monte, corra el
+  // useEffect y muestre el AuthModal. Si JS falla o tarda (red lenta, error
+  // de hidratación, bloqueador de scripts), ese usuario queda atascado en el
+  // spinner de "checking" (línea ~109 de cuenta/layout.tsx) indefinidamente,
+  // sin nunca ver ni el AuthModal ni ningún error. No hace falta inventar una
+  // URL de login nueva para arreglar esto: basta con mandar al usuario sin
+  // sesión de vuelta al home (misma sección seguridad que ya usa
+  // isAllowedInternalPath), que sí es un Server Component real y no depende
+  // de JS para existir. La distinción cliente-autenticado vs
+  // staff-autenticado (AuthModal / redirect a /portal) la sigue resolviendo
+  // cuenta/layout.tsx como hasta ahora -- acá, igual que para /admin y
+  // /empleado, solo se verifica que EXISTA sesión.
   const pathnameParts = pathname.split("/").filter(Boolean);
   const localeInPath = locales.includes(pathnameParts[0] as (typeof locales)[number])
     ? pathnameParts[0]
@@ -101,6 +161,24 @@ export default async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  const clientProtectedPrefixes = ["/cuenta"];
+  const isClientProtected = clientProtectedPrefixes.some(
+    (prefix) => pathWithoutLocale === prefix || pathWithoutLocale.startsWith(`${prefix}/`)
+  );
+
+  if (isClientProtected && !user) {
+    const nextParam = `${pathname}${request.nextUrl.search}`;
+    const homeUrl = new URL(`/${localeInPath}`, request.url);
+    // Igual que arriba: se preserva `next` para uso futuro (p.ej. si se
+    // agrega una ruta de login real para clientes que lo consuma), pero el
+    // destino seguro por defecto es el home, que no requiere `next` para
+    // funcionar.
+    if (isAllowedInternalPath(nextParam)) {
+      homeUrl.searchParams.set("next", nextParam);
+    }
+    return NextResponse.redirect(homeUrl);
+  }
+
   // v8.3 fix G-5: src/app/[locale]/admin/layout.tsx necesita el pathname
   // actual (para detectar el locale y setear AdminNav/mensajes en el idioma
   // correcto) pero, al ser un Server Component, no tiene acceso directo a la
@@ -117,5 +195,16 @@ export default async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|auth|_next|.*\\..*).*)']
+  matcher: [
+    '/((?!api|auth|_next|.*\\..*).*)',
+    // Fix (auditoría 2026-07-30): estos tres prefijos SÍ deben pasar por el
+    // middleware (ver bloque isApiStaffProtected arriba) como red de
+    // seguridad adicional a la autorización que ya hace cada endpoint. El
+    // resto de /api (quote, auth, stripe, cron, public, cuenta/access-check,
+    // staff/resolve-login) queda deliberadamente excluido -- son rutas
+    // públicas, webhooks firmados, o jobs de cron con su propio secreto.
+    '/api/admin/:path*',
+    '/api/empleado/:path*',
+    '/api/client/:path*',
+  ]
 };

@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, Truck, Plus, X, MapPin, AlertTriangle, ShieldAlert } from "lucide-react";
 import { isVehicleInsuranceExpired, isVehicleInsuranceExpiringSoon } from "@/lib/vehicle-insurance";
+import { toIntlLocale } from "@/lib/format";
 
 interface Vehicle {
   id: string;
@@ -22,6 +24,10 @@ function todayIso(): string {
 
 export default function VehiclesPage() {
   const t = useTranslations("admin.vehicles");
+  const params = useParams();
+  // Fix (auditoría 2026-07-30, item 1): mismo fix que backups/page.tsx --
+  // locale fijo "en-CA" en vez de respetar el locale de la ruta.
+  const locale = toIntlLocale((params?.locale as string) || "en");
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -220,7 +226,7 @@ export default function VehiclesPage() {
               )}
               {v.last_location_at && (
                 <p className="text-xs text-gray-400">
-                  {t("lastSeen", { datetime: new Date(v.last_location_at).toLocaleString("en-CA", { timeZone: "America/Vancouver" }) })}
+                  {t("lastSeen", { datetime: new Date(v.last_location_at).toLocaleString(locale, { timeZone: "America/Vancouver" }) })}
                 </p>
               )}
 

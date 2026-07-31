@@ -66,6 +66,24 @@ export default function PhoneBookingPage() {
   // Código postal canadiense: A1A 1A1 (espacio opcional).
   const CA_POSTAL_REGEX = /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/;
 
+  // Item 9 (auditoría 2026-07-30): Number(e.target.value) da NaN cuando el
+  // campo queda vacío o con un valor parcial ("-", "."), y ese NaN se
+  // serializaba tal cual hacia el backend. numericFieldsValid se usa tanto
+  // para deshabilitar el submit como dentro de validateForm().
+  const numericFieldsValid =
+    Number.isFinite(form.bedrooms) &&
+    form.bedrooms >= 0 &&
+    Number.isFinite(form.bathrooms) &&
+    form.bathrooms >= 0 &&
+    Number.isFinite(form.squareFeet) &&
+    form.squareFeet >= 300 &&
+    Number.isFinite(form.residents) &&
+    form.residents >= 1 &&
+    Number.isFinite(form.petsCount) &&
+    form.petsCount >= 0 &&
+    Number.isFinite(form.daysSinceCleaning) &&
+    form.daysSinceCleaning >= 0;
+
   function validateForm(): boolean {
     const errors: typeof fieldErrors = {};
     if (!EMAIL_REGEX.test(form.clientEmail.trim())) {
@@ -78,7 +96,7 @@ export default function PhoneBookingPage() {
       errors.postalCode = t("errorInvalidPostalCode");
     }
     setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
+    return Object.keys(errors).length === 0 && numericFieldsValid;
   }
 
   const subtypes = SERVICE_SUBTYPES[form.serviceCategory];
@@ -298,7 +316,7 @@ export default function PhoneBookingPage() {
             </div>
           )}
 
-          <button type="submit" disabled={loading}
+          <button type="submit" disabled={loading || !numericFieldsValid}
             className="w-full bg-brand-navy text-white rounded-lg py-2.5 font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Phone className="w-4 h-4" />}
             {t("createQuote")}

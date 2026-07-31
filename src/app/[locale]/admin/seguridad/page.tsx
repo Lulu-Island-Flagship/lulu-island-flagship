@@ -12,8 +12,12 @@
  */
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Loader2, ShieldAlert, KeyRound, Copy, Check, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { Loader2, ShieldAlert, KeyRound, Copy, Check, AlertTriangle, Eye, EyeOff, Lock } from "lucide-react";
+import { useAdminRoles } from "@/lib/useAdminRoles";
+import { roleAllows } from "@/lib/admin-rbac";
 
 // v8.3 fix (auditoría UX/UI/seguridad 2026-07-25, P0 #2): los 10 códigos se
 // mostraban en texto plano sin enmascarar -- riesgo de "shoulder surfing"
@@ -47,6 +51,16 @@ interface Status {
 
 export default function SeguridadPage() {
   const t = useTranslations("admin.seguridad");
+  const tLayout = useTranslations("admin.layout");
+  const params = useParams();
+  const locale = (params?.locale as string) || "en";
+  // Fix (auditoría 2026-07-30, item 5): esta página es owner-only (API
+  // protegida por requireAdminRole("security_backup_codes"), solo
+  // owner_admin) -- antes no había chequeo explícito de rol acá, así que un
+  // no-owner veía el loader y luego un 403 crudo de la API real. Se
+  // verifica el rol del usuario ANTES de disparar el fetch real.
+  const { roles, loading: rolesLoading } = useAdminRoles();
+  const hasAccess = roleAllows(roles, "security_backup_codes");
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -61,8 +75,12 @@ export default function SeguridadPage() {
   const [revealedIndices, setRevealedIndices] = useState<Set<number>>(new Set());
 
   useEffect(() => {
+    // No dispara el fetch real hasta confirmar que el usuario tiene el rol
+    // -- evita la carrera "loader -> 403 crudo" para un no-owner.
+    if (rolesLoading || !hasAccess) return;
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rolesLoading, hasAccess]);
 
   async function load() {
     setLoading(true);
@@ -127,6 +145,32 @@ export default function SeguridadPage() {
       // Clipboard API puede no estar disponible (http, permisos) -- no es crítico,
       // los códigos siguen visibles en pantalla para copiar a mano.
     }
+  }
+
+  if (rolesLoading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-brand-navy">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!hasAccess) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center px-4">
+        <div className="bg-white rounded-xl shadow-elevation-1 p-8 max-w-md w-full text-center space-y-4">
+          <Lock className="h-8 w-8 text-brand-navy mx-auto" />
+          <h1 className="text-xl font-bold text-brand-ink">{tLayout("accessTitle")}</h1>
+          <p className="text-sm text-gray-500">{tLayout("accessDenied")}</p>
+          <Link
+            href={`/${locale}/admin`}
+            className="inline-block bg-brand-navy text-white px-4 py-2 rounded-lg font-medium"
+          >
+            {tLayout("goHome")}
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {

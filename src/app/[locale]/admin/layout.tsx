@@ -120,6 +120,16 @@ export default async function AdminLayout({
 
   const adminRoles = (roleRows ?? []).map((r) => r.role as AdminRole);
   const hasAdminAccess = !!isSupervisor || adminRoles.length > 0;
+  // Fix (auditorías independientes, 2026-07-30, confirmado real): el fallback
+  // de "qc_only" descrito arriba (Kimi-A1) deja pasar al layout a un
+  // supervisor sin fila en admin_roles a propósito -- pero AdminNav recibe
+  // adminRoles=[] y no renderiza ningún link, así que ese usuario veía una
+  // pantalla en blanco sin ninguna explicación de por qué. Se mantiene el
+  // acceso al layout (no se revierte Kimi-A1: sigue sin inventarse un
+  // fallback de rol falso) pero se le muestra un banner explícito en vez de
+  // dejarlo adivinar. Supervisores que SÍ tienen fila en admin_roles no ven
+  // este banner -- solo cambia el caso adminRoles.length === 0.
+  const supervisorWithoutRole = !!isSupervisor && adminRoles.length === 0;
 
   // Fix Kimi-A1 (auditoría externa Kimi Code, 2026-07-21, verificado y
   // confirmado real): este fallback ("is_supervisor() sin fila en
@@ -195,6 +205,12 @@ export default async function AdminLayout({
         {/* Montado a nivel de layout para cubrir las ~70 rutas de /admin sin
             tocar cada page.tsx individualmente. */}
         <AdminBreadcrumbs adminPath={adminPath} />
+        {supervisorWithoutRole && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-sm text-amber-900">
+            <p className="font-semibold">{t("supervisorNoRoleTitle")}</p>
+            <p className="mt-1">{t("supervisorNoRoleBody")}</p>
+          </div>
+        )}
         {children}
       </main>
     </div>

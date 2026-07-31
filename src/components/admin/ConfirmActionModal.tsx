@@ -19,9 +19,10 @@
  * ese mismo onConfirm, tras el await.
  */
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, AlertTriangle, X } from "lucide-react";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 
 export interface ConfirmActionField {
   key: string;
@@ -72,6 +73,23 @@ export default function ConfirmActionModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Fix (auditoría externa 2026-07-30): este modal (usado en ~11 flujos
+  // sensibles del admin, incluida revocación de roles en
+  // AdminRolesClient.tsx) no tenía focus trap ni cerraba con Escape --
+  // mismo hook ya usado en AdminNav.tsx / AdminChecklistsClient.tsx.
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, true);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && !loading) {
+        onCancel();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [loading, onCancel]);
+
   const resolvedConfirmLabel = confirmLabel ?? t("confirmDefault");
   const resolvedCancelLabel = cancelLabel ?? t("cancelDefault");
 
@@ -95,7 +113,7 @@ export default function ConfirmActionModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-elevation-3 max-w-md w-full p-6 relative">
+      <div ref={modalRef} role="dialog" aria-modal="true" className="bg-white rounded-lg shadow-elevation-3 max-w-md w-full p-6 relative">
         <button
           aria-label={t("closeAria")}
           onClick={onCancel}

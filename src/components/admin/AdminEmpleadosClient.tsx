@@ -136,7 +136,16 @@ export default function AdminEmpleadosClient() {
     }
   }
 
+  // Fix (revisión 2026-07-30, punto 8): el <select> disparaba el PATCH
+  // apenas cambiaba el valor, sin ninguna confirmación -- un click/tap
+  // desviado en el <select> (fácil en una tabla densa) cambiaba el nivel de
+  // carrera del empleado de inmediato, sin deshacer fácil. Se agrega un
+  // window.confirm() mínimo antes de aplicar (mismo patrón ya usado para
+  // "cancel" en updateContractStatus de MisServiciosClient.tsx).
   async function saveCareerLevel(employeeId: string, careerLevel: CareerLevel) {
+    if (!window.confirm(t("confirmCareerLevelChange"))) {
+      return;
+    }
     const res = await fetch(`/api/admin/empleados/${employeeId}`, {
       method: "PATCH",
       credentials: "include",

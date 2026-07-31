@@ -48,6 +48,8 @@ export default function AdminQCClient() {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const lightboxRef = useRef<HTMLDivElement>(null);
   useFocusTrap(lightboxRef, !!lightboxUrl);
+  const reviewModalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(reviewModalRef, !!selectedReview);
 
   // Item 4 (auditoría 2026-07-25): el lightbox de fotos QC usaba
   // role="button" en el fondo con onClick para cerrar -- sin focus trap ni
@@ -62,6 +64,19 @@ export default function AdminQCClient() {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [lightboxUrl]);
+
+  // Fix (auditoría 2026-07-30, item 8): el modal de aprobar/rechazar QC
+  // (selectedReview) no atrapaba el foco ni cerraba con Escape -- mismo
+  // patrón ya aplicado al lightbox arriba y a otros modales corregidos en
+  // rondas anteriores (AdminRolesClient, AdminChecklistsClient).
+  useEffect(() => {
+    if (!selectedReview) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setSelectedReview(null);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [selectedReview]);
 
   useEffect(() => {
     loadReviews();
@@ -273,9 +288,15 @@ export default function AdminQCClient() {
       {/* Review Modal */}
       {selectedReview && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4">
+          <div
+            ref={reviewModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="qc-review-modal-title"
+            className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4"
+          >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-brand-ink">{t("modal.title")}</h2>
+              <h2 id="qc-review-modal-title" className="text-lg font-bold text-brand-ink">{t("modal.title")}</h2>
               <button
                 onClick={() => setSelectedReview(null)}
                 className="text-gray-400 hover:text-gray-600"

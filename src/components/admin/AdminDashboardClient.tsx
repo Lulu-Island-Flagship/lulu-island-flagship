@@ -328,8 +328,12 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       icon: Images,
       href: `/${safeLocale}/admin/live-portfolio`,
       color: "bg-rose-50 text-rose-700",
-      // No está en AdminNav.tsx -- API usa "qc_wall" (src/app/api/admin/live-portfolio/route.ts).
-      resource: "qc_wall",
+      // Fix (auditoría externa, hallazgo confirmado): esta card usaba
+      // "qc_wall" pero la API real (src/app/api/admin/live-portfolio/route.ts
+      // y .../[id]/route.ts) exige "live_portfolio_publish" -- un usuario con
+      // rol qc_only veía la card (por tener acceso a qc_wall) pero recibía
+      // 403 al hacer clic. No está en AdminNav.tsx.
+      resource: "live_portfolio_publish",
     },
     {
       title: t("cards.seoLocal.title"),

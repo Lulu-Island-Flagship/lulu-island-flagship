@@ -21,6 +21,13 @@ export interface OrderFinancialRecord {
   collectedCents: number;
   laborCostCents: number;
   employerBurdenCents: number;
+  /**
+   * Bug #3 (auditoría 2026-07-30): true si employerBurdenCents de esta orden
+   * es una ESTIMACIÓN de respaldo (no hay snapshot en payroll_cycle_deductions
+   * porque el ciclo de nómina del empleado aún no se exportó), no una cifra
+   * confirmada.
+   */
+  employerBurdenIsEstimated?: boolean;
   otherCostsCents?: number;
 }
 
@@ -30,6 +37,8 @@ export interface AccountingGroupSummary {
   collectedCents: number;
   laborCostCents: number;
   employerBurdenCents: number;
+  /** true si AL MENOS una orden del grupo usó la estimación de respaldo de carga patronal. */
+  employerBurdenIsEstimated: boolean;
   otherCostsCents: number;
   contributionMarginCents: number;
   /** Fracción 0-1. 0 si no hubo cobro (evita división por cero). */
@@ -42,6 +51,7 @@ function summarizeGroup(key: string, records: OrderFinancialRecord[]): Accountin
   const collectedCents = records.reduce((sum, r) => sum + r.collectedCents, 0);
   const laborCostCents = records.reduce((sum, r) => sum + r.laborCostCents, 0);
   const employerBurdenCents = records.reduce((sum, r) => sum + r.employerBurdenCents, 0);
+  const employerBurdenIsEstimated = records.some((r) => r.employerBurdenIsEstimated);
   const otherCostsCents = records.reduce((sum, r) => sum + (r.otherCostsCents ?? 0), 0);
 
   const contributionMarginCents = collectedCents - laborCostCents;
@@ -53,6 +63,7 @@ function summarizeGroup(key: string, records: OrderFinancialRecord[]): Accountin
     collectedCents,
     laborCostCents,
     employerBurdenCents,
+    employerBurdenIsEstimated,
     otherCostsCents,
     contributionMarginCents,
     contributionMarginPercent: collectedCents > 0 ? contributionMarginCents / collectedCents : 0,
@@ -103,16 +114,31 @@ export function summarizeOverall(records: OrderFinancialRecord[]): AccountingGro
  * si el rango cubre varios, ni se promedia con datos inventados) y se
  * reparte en partes iguales entre todas las órdenes del rango.
  *
+ * Fix (auditoría 2026-07-30): antes devolvía un único monto escalar
+ * (Math.round(total/n)) que el caller aplicaba igual a CADA orden --
+ * total*n normalmente no coincide con totalFixedCostsCents por el
+ * redondeo (ej. $100.00 entre 3 órdenes = $33.33/orden -> suma $99.99,
+ * perdiendo 1 centavo; con más órdenes/meses el faltante crece). Ahora
+ * devuelve un array (mismo orden que `serviceDates`) calculado con el
+ * método del "residuo más grande": todas las órdenes reciben el piso
+ * entero de centavos, y el resto (0 <= resto < serviceDates.length) se
+ * reparte de a 1 centavo entre las primeras órdenes del array, así la
+ * suma exacta del array siempre es igual a totalFixedCostsCents.
+ *
  * @param monthlyFixedCostsCents costo fijo vigente (fixed_costs_settings)
  * @param serviceDates fecha de servicio (YYYY-MM-DD) de cada orden del rango
+ * @returns monto en centavos a atribuir a cada orden, en el mismo orden que `serviceDates`
  */
 export function computeProratedFixedCostsPerOrder(
   monthlyFixedCostsCents: number,
   serviceDates: string[]
-): number {
-  if (serviceDates.length === 0) return 0;
+): number[] {
+  const n = serviceDates.length;
+  if (n === 0) return [];
   const distinctMonths = new Set(serviceDates.map((d) => d.slice(0, 7)));
   const monthsInRange = Math.max(1, distinctMonths.size);
   const totalFixedCostsCents = monthlyFixedCostsCents * monthsInRange;
-  return Math.round(totalFixedCostsCents / serviceDates.length);
+  const base = Math.floor(totalFixedCostsCents / n);
+  const remainder = totalFixedCostsCents - base * n;
+  return serviceDates.map((_, i) => base + (i < remainder ? 1 : 0));
 }

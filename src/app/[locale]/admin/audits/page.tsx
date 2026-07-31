@@ -62,6 +62,18 @@ const CRITERIA_KEYS: Record<string, string> = {
   sop_compliance: "sopCompliance",
 };
 
+// Fix (auditoría 2026-07-30, item 8): sop_compliance arrancaba en 5 en el
+// estado inicial pero los dos puntos de reset del formulario usaban 4 --
+// inconsistencia entre el primer render y cualquier reset posterior. Un solo
+// valor por defecto para los 5 criterios, usado en los tres lugares.
+const DEFAULT_CRITERIA: Record<string, number> = {
+  punctuality: 4,
+  thoroughness: 4,
+  professionalism: 4,
+  client_satisfaction: 4,
+  sop_compliance: 4,
+};
+
 export default function AuditsPage() {
   const t = useTranslations("admin.audits");
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
@@ -74,13 +86,7 @@ export default function AuditsPage() {
   const [auditScore, setAuditScore] = useState(4);
   const [auditNotes, setAuditNotes] = useState("");
   const [announceToClient, setAnnounceToClient] = useState(false);
-  const [criteria, setCriteria] = useState<Record<string, number>>({
-    punctuality: 4,
-    thoroughness: 4,
-    professionalism: 4,
-    client_satisfaction: 4,
-    sop_compliance: 5,
-  });
+  const [criteria, setCriteria] = useState<Record<string, number>>({ ...DEFAULT_CRITERIA });
   const [submitting, setSubmitting] = useState(false);
 
   // v8.3 E3 fix: auditScore vive en escala 1-5 (igual que field_audits.score,
@@ -147,13 +153,7 @@ export default function AuditsPage() {
       setSelectedOrder(null);
       setAuditScore(4);
       setAuditNotes("");
-      setCriteria({
-        punctuality: 4,
-        thoroughness: 4,
-        professionalism: 4,
-        client_satisfaction: 4,
-        sop_compliance: 4,
-      });
+      setCriteria({ ...DEFAULT_CRITERIA });
       loadData();
     } catch {
       setError(t("errors.network"));
@@ -233,13 +233,7 @@ export default function AuditsPage() {
                       setSelectedOrder(order);
                       setAuditScore(4);
                       setAuditNotes("");
-                      setCriteria({
-                        punctuality: 4,
-                        thoroughness: 4,
-                        professionalism: 4,
-                        client_satisfaction: 4,
-                        sop_compliance: 4,
-                      });
+                      setCriteria({ ...DEFAULT_CRITERIA });
                       setError("");
                     }}
                     className="bg-brand-navy text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors"

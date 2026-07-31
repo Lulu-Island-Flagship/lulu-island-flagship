@@ -40,6 +40,13 @@ export default function ExperimentsPage() {
     variantWeight: "10",
   });
 
+  const weightsTotal = Number(form.controlWeight) + Number(form.variantWeight);
+  const weightsValid =
+    form.controlWeight.trim() !== "" &&
+    form.variantWeight.trim() !== "" &&
+    !Number.isNaN(weightsTotal) &&
+    weightsTotal === 100;
+
   useEffect(() => {
     load();
   }, []);
@@ -64,6 +71,10 @@ export default function ExperimentsPage() {
 
   async function submitCreate(e: React.FormEvent) {
     e.preventDefault();
+    if (!weightsValid) {
+      setError(t("weightsMismatch", { total: weightsTotal }));
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -211,19 +222,34 @@ export default function ExperimentsPage() {
             <h2 className="font-semibold text-brand-ink">{t("newExperiment")}</h2>
             <button type="button" onClick={() => setShowForm(false)} aria-label={t("closeForm")}><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
           </div>
-          <input type="text" aria-label={t("experimentName")} placeholder={t("name")} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
-          <select aria-label={t("experimentType")} value={form.experimentType} onChange={(e) => setForm((f) => ({ ...f, experimentType: e.target.value as ExperimentType }))} className="w-full border rounded-lg px-3 py-2 text-sm">
-            <option value="price">{t("types.price")}</option>
-            <option value="copy">{t("types.copy")}</option>
-            <option value="ui_ux">{t("types.uiUx")}</option>
-            <option value="batch_schedule">{t("types.batchSchedule")}</option>
-          </select>
+          <div>
+            <label htmlFor="exp-name" className="text-xs text-gray-500 block mb-1">{t("experimentName")}</label>
+            <input id="exp-name" type="text" placeholder={t("name")} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" required />
+          </div>
+          <div>
+            <label htmlFor="exp-type" className="text-xs text-gray-500 block mb-1">{t("experimentType")}</label>
+            <select id="exp-type" value={form.experimentType} onChange={(e) => setForm((f) => ({ ...f, experimentType: e.target.value as ExperimentType }))} className="w-full border rounded-lg px-3 py-2 text-sm">
+              <option value="price">{t("types.price")}</option>
+              <option value="copy">{t("types.copy")}</option>
+              <option value="ui_ux">{t("types.uiUx")}</option>
+              <option value="batch_schedule">{t("types.batchSchedule")}</option>
+            </select>
+          </div>
           <div className="grid grid-cols-2 gap-3">
-            <input type="number" aria-label={t("controlPercent")} min={80} max={99} placeholder={t("controlPercentShort")} value={form.controlWeight} onChange={(e) => setForm((f) => ({ ...f, controlWeight: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm" required />
-            <input type="number" aria-label={t("variantPercent")} min={1} max={20} placeholder={t("variantPercentShort")} value={form.variantWeight} onChange={(e) => setForm((f) => ({ ...f, variantWeight: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm" required />
+            <div>
+              <label htmlFor="exp-control-weight" className="text-xs text-gray-500 block mb-1">{t("controlPercent")}</label>
+              <input id="exp-control-weight" type="number" min={80} max={99} placeholder={t("controlPercentShort")} value={form.controlWeight} onChange={(e) => setForm((f) => ({ ...f, controlWeight: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm w-full" required />
+            </div>
+            <div>
+              <label htmlFor="exp-variant-weight" className="text-xs text-gray-500 block mb-1">{t("variantPercent")}</label>
+              <input id="exp-variant-weight" type="number" min={1} max={20} placeholder={t("variantPercentShort")} value={form.variantWeight} onChange={(e) => setForm((f) => ({ ...f, variantWeight: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm w-full" required />
+            </div>
           </div>
           <p className="text-xs text-gray-400">{t("variantHint")}</p>
-          <button type="submit" aria-label={t("createExperiment")} disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+          {!weightsValid && (form.controlWeight.trim() !== "" || form.variantWeight.trim() !== "") && (
+            <p className="text-xs text-red-600">{t("weightsMismatch", { total: Number.isNaN(weightsTotal) ? "?" : weightsTotal })}</p>
+          )}
+          <button type="submit" aria-label={t("createExperiment")} disabled={saving || !weightsValid} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
             {saving ? t("saving") : t("create")}
           </button>
         </form>
@@ -235,7 +261,10 @@ export default function ExperimentsPage() {
             <h2 className="font-semibold text-brand-ink">{t("assignClient")}</h2>
             <button type="button" onClick={() => setAssignTarget(null)} aria-label={t("closeForm")}><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
           </div>
-          <input type="text" aria-label={t("clientUserId")} placeholder={t("clientUserId")} value={assignClientId} onChange={(e) => setAssignClientId(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" required />
+          <div>
+            <label htmlFor="exp-assign-client-id" className="text-xs text-gray-500 block mb-1">{t("clientUserId")}</label>
+            <input id="exp-assign-client-id" type="text" placeholder={t("clientUserId")} value={assignClientId} onChange={(e) => setAssignClientId(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" required />
+          </div>
           <button type="submit" aria-label={t("assignClientToExperiment")} disabled={saving} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
             {saving ? t("assigning") : t("assign")}
           </button>
@@ -249,10 +278,17 @@ export default function ExperimentsPage() {
             <button type="button" onClick={() => setEvaluateTarget(null)} aria-label={t("closeForm")}><X className="w-5 h-5 text-gray-400" aria-hidden="true" /></button>
           </div>
           <p className="text-xs text-gray-500">{t("evaluateHint")}</p>
+          <div className="grid grid-cols-4 gap-2 text-xs text-gray-500" aria-hidden="true">
+            <span></span>
+            <span>{t("sampleSize")}</span>
+            <span>{t("conversionPercent")}</span>
+            <span>{t("marginPercent")}</span>
+          </div>
           {evaluateForm.map((f, idx) => (
             <div key={f.variant} className="grid grid-cols-4 gap-2 items-center">
-              <span className="text-xs font-medium text-brand-ink truncate">{f.variant}</span>
+              <label htmlFor={`exp-eval-sample-${idx}`} className="text-xs font-medium text-brand-ink truncate">{f.variant}</label>
               <input
+                id={`exp-eval-sample-${idx}`}
                 type="number"
                 aria-label={t("sampleSizeFor", { variant: f.variant })}
                 placeholder={t("sampleSize")}
@@ -291,10 +327,10 @@ export default function ExperimentsPage() {
             </div>
           ))}
           <div className="flex items-center gap-2">
-            <label className="text-xs text-gray-500 shrink-0">{t("confidencePercent")}</label>
+            <label htmlFor="exp-eval-confidence" className="text-xs text-gray-500 shrink-0">{t("confidencePercent")}</label>
             <input
+              id="exp-eval-confidence"
               type="number"
-              aria-label={t("statisticalConfidence")}
               value={confidenceInput}
               onChange={(e) => setConfidenceInput(e.target.value)}
               className="border rounded-lg px-2 py-1.5 text-sm w-24"

@@ -4,14 +4,19 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Gift, Wallet, Loader2 } from "lucide-react";
+import { toIntlLocale } from "@/lib/format";
 
 interface BenefitsResponse {
   wallet: { availableBalance: number; currency: string };
   referral: { hasPendingCredit: boolean; creditCents: number };
 }
 
-function formatCurrency(cents: number, currency: string) {
-  return new Intl.NumberFormat("en-CA", { style: "currency", currency }).format(cents / 100);
+// Fix (auditoría UX/localización): antes esto formateaba SIEMPRE en "en-CA",
+// sin importar el idioma que el cliente estaba viendo. toIntlLocale (de
+// src/lib/format.ts) traduce el locale de next-intl (en/fr/zh) al locale de
+// Intl que ya usa el resto del proyecto.
+function formatCurrency(cents: number, currency: string, locale: string) {
+  return new Intl.NumberFormat(toIntlLocale(locale), { style: "currency", currency }).format(cents / 100);
 }
 
 /**
@@ -82,7 +87,7 @@ export function CheckoutBenefitsPanel() {
             <Wallet className="w-3.5 h-3.5" /> {t("walletBalanceLabel")}
           </span>
           <span className="font-medium text-brand-navy">
-            {formatCurrency(data.wallet.availableBalance, data.wallet.currency)}
+            {formatCurrency(data.wallet.availableBalance, data.wallet.currency, safeLocale)}
           </span>
         </div>
       )}
@@ -102,7 +107,7 @@ export function CheckoutBenefitsPanel() {
         <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-100">
           <span className="text-gray-600">{t("referralCreditLabel")}</span>
           <span className="font-medium text-state-success">
-            {t("referralCreditValue", { amount: formatCurrency(data.referral.creditCents, "CAD") })}
+            {t("referralCreditValue", { amount: formatCurrency(data.referral.creditCents, "CAD", safeLocale) })}
           </span>
         </div>
       )}

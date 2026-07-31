@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import {
   Loader2,
@@ -10,7 +10,9 @@ import {
   User,
   Pencil,
   Info,
+  RefreshCw,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 interface OrderAssignment {
   assignmentId: string;
@@ -88,6 +90,15 @@ export default function AdminDispatchClient() {
   const [error, setError] = useState("");
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [editingOrder, setEditingOrder] = useState<OrderSummary | null>(null);
+  const [realtimeNotice, setRealtimeNotice] = useState<string | null>(null);
+
+  // El modal de edición se cierra desde el callback de realtime, que se
+  // suscribe una sola vez (ver useEffect de abajo) -- necesita un ref para
+  // no quedarse con un closure viejo de `editingOrder`.
+  const editingOrderRef = useRef<OrderSummary | null>(null);
+  useEffect(() => {
+    editingOrderRef.current = editingOrder;
+  }, [editingOrder]);
 
   const loadDispatch = useCallback(async () => {
     setLoading(true);
@@ -126,6 +137,47 @@ export default function AdminDispatchClient() {
     })();
   }, []);
 
+  // Bug auditoría (colisión de concurrencia en dispatch): el tablero no
+  // tenía suscripción en tiempo real -- si dos operadores lo tenían abierto
+  // y asignaban empleados distintos a la misma orden, la última petición
+  // pisaba la anterior sin avisar a nadie. Se suscribe a `assignments`
+  // (la tabla que escribe POST /api/admin/dispatch) para refrescar el
+  // tablero automáticamente y avisar si la orden que este operador tenía
+  // abierta en el modal de edición cambió por otra persona.
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-dispatch-assignments")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "assignments" },
+        (payload) => {
+          const changedOrderId =
+            (payload.new as { order_id?: string } | null)?.order_id ??
+            (payload.old as { order_id?: string } | null)?.order_id ??
+            null;
+
+          if (changedOrderId && editingOrderRef.current?.orderId === changedOrderId) {
+            // La orden que este operador estaba editando cambió por otra
+            // persona mientras tenía el modal abierto: se cierra para no
+            // arriesgar que su "Save" pise el cambio ajeno sin saberlo, y
+            // se avisa explícitamente por qué se cerró.
+            setEditingOrder(null);
+            setRealtimeNotice(t("realtimeConflictClosed"));
+          } else {
+            setRealtimeNotice(t("realtimeUpdated"));
+          }
+
+          loadDispatch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadDispatch]);
+
   const formatMinutes = (min: number) => `${(min / 60).toFixed(1)}h`;
 
   return (
@@ -147,6 +199,21 @@ export default function AdminDispatchClient() {
           {t("transitNotice")}
         </p>
       </div>
+
+      {realtimeNotice && (
+        <div className="flex items-start gap-2 bg-brand-gold/10 border border-brand-gold/30 rounded-lg p-3 text-xs text-brand-ink">
+          <RefreshCw className="w-4 h-4 text-brand-gold-dark flex-shrink-0 mt-0.5" />
+          <p className="flex-1">{realtimeNotice}</p>
+          <button
+            type="button"
+            onClick={() => setRealtimeNotice(null)}
+            aria-label="Dismiss"
+            className="text-gray-400 hover:text-gray-600 text-sm leading-none px-1"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12">

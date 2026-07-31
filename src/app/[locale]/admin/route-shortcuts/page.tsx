@@ -56,12 +56,20 @@ export default function AdminRouteShortcutsPage() {
 
   async function validate(id: string) {
     setValidatingId(id);
+    setError("");
     try {
       const res = await fetch(`/api/admin/route-shortcuts/${id}/validate`, {
         method: "PATCH",
         credentials: "include",
       });
-      if (res.ok) load();
+      if (res.ok) {
+        await load();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setError(err.error || t("errors.validateFailed"));
+      }
+    } catch {
+      setError(t("errors.network"));
     } finally {
       setValidatingId(null);
     }

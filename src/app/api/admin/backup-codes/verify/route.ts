@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServiceRoleClient } from "@/lib/admin";
+import { getServiceRoleClient, getSupabaseClient } from "@/lib/admin";
 import { hashBackupCode, normalizeBackupCode } from "@/lib/backup-codes";
 import { sendEmail } from "@/lib/email";
 
@@ -14,7 +14,7 @@ import { sendEmail } from "@/lib/email";
  * único momento en que un código nuevo se crea.
  *
  * Cómo se crea la sesión (la parte técnicamente delicada, ver también el
- * comentario en AdminLoginScreen.tsx): un código de respaldo no es una
+ * comentario en StaffLoginScreen.tsx): un código de respaldo no es una
  * credencial nativa de Supabase Auth, así que no existe un
  * `supabase.auth.signInWith...` para "entrar con este string". En vez de
  * inventar un token de sesión custom (superficie nueva, JWT propio que
@@ -22,28 +22,19 @@ import { sendEmail } from "@/lib/email";
  * mecanismo NATIVO de Supabase para login sin contraseña: genera un
  * magic-link server-side con el service role
  * (supabase.auth.admin.generateLink) para el email del owner_admin dueño
- * del código, pero en vez de mandarlo por correo (que fallaría el propósito
- * -- si perdió acceso a Google puede seguir teniendo el mismo buzón o no)
- * devuelve el `token_hash` directo en la respuesta JSON de ESTA request ya
- * autenticada-por-código. El cliente (AdminLoginScreen.tsx) lo canjea
- * inmediatamente con `supabase.auth.verifyOtp({ email, token_hash, type:
- * "magiclink" })`, que sí es un método público del SDK y crea una sesión
- * real (cookies de @supabase/ssr, mismo mecanismo que el resto del admin).
- * (verifyOtp con token_hash no necesita el email por separado -- el token
- * hash ya está ligado a esa cuenta del lado de Supabase.)
+ * del código.
  *
- * Limitación documentada: el `token_hash` viaja en texto plano en la
- * respuesta HTTPS de este endpoint (no por email) -- es efímero (expira
- * según la config de Supabase, default 1h, y de un solo uso vía verifyOtp)
- * y nunca se loguea ni se persiste, pero técnicamente es el punto más
- * sensible del flujo: quien intercepte esa única respuesta HTTPS (ej. un
- * proxy MITM en una red comprometida) podría canjearlo antes que el
- * navegador legítimo. Mitigado por HTTPS + short-lived + single-use, pero
- * es una superficie real que un magic-link por correo no tendría. Se acepta
- * este trade-off para no construir un sistema de sesión custom dentro del
- * tiempo disponible; si se necesita cerrar ese hueco por completo, la
- * siguiente iteración debería mandar el link real por email (mismo patrón
- * que signInWithOtp) en vez de devolver el token_hash en la respuesta.
+ * Fix auditoría 2026-07-30 (BUG-2 CRÍTICO): antes, el `token_hash` de ese
+ * magic-link viajaba en texto plano en la respuesta JSON de esta request, y
+ * el cliente lo canjeaba desde el navegador con
+ * `supabase.auth.verifyOtp({ token_hash, type: "magiclink" })`. Eso exponía
+ * innecesariamente un secreto de un solo uso al cliente. Ahora el canje se
+ * hace aquí mismo, server-side, con un cliente @supabase/ssr atado a las
+ * cookies de esta respuesta (mismo patrón que getSupabaseClient() en este
+ * mismo módulo): `authClient.auth.verifyOtp({ token_hash, type: "magiclink" })`
+ * establece la sesión directamente vía Set-Cookie en la respuesta de este
+ * endpoint. El cliente nunca ve el token_hash -- solo recibe un booleano de
+ * éxito y recarga la página con la sesión ya activa.
  */
 
 export async function POST(request: NextRequest) {
@@ -88,17 +79,24 @@ export async function POST(request: NextRequest) {
   const normalized = normalizeBackupCode(body.code);
   const codeHash = hashBackupCode(normalized);
 
-  // UPDATE atómico: solo marca used_at si el código sigue sin usar y sin
-  // revocar. Si dos requests llegan con el mismo código a la vez, la fila
-  // (bloqueada por el UPDATE) solo se resuelve para una -- la otra ve 0 filas
-  // afectadas y falla, así que el código nunca se puede canjear dos veces
-  // aunque lleguen en paralelo.
+  // UPDATE atómico: solo marca used_at si el código sigue sin usar, sin
+  // revocar, y no vencido (Fix auditoría 2026-07-30, BUG 2 -- ver
+  // supabase/migrations/248_fix_owner_admin_backup_codes_expiry.sql y
+  // BACKUP_CODE_TTL_DAYS en src/lib/backup-codes.ts). Un código vencido
+  // simplemente no matchea la condición `.gt("expires_at", ...)` y cae al
+  // mismo mensaje genérico de abajo -- mismo criterio de no distinguir la
+  // causa exacta ("no existe" vs "ya se usó" vs "revocado" vs "vencido") que
+  // ya aplicaba antes de este fix. Si dos requests llegan con el mismo
+  // código a la vez, la fila (bloqueada por el UPDATE) solo se resuelve para
+  // una -- la otra ve 0 filas afectadas y falla, así que el código nunca se
+  // puede canjear dos veces aunque lleguen en paralelo.
   const { data: consumed, error: consumeError } = await serviceClient
     .from("owner_admin_backup_codes")
     .update({ used_at: new Date().toISOString() })
     .eq("code_hash", codeHash)
     .is("used_at", null)
     .is("revoked_at", null)
+    .gt("expires_at", new Date().toISOString())
     .select("id, user_id")
     .maybeSingle();
 
@@ -152,6 +150,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Could not create session" }, { status: 500 });
   }
 
+  // Canjea el token_hash aquí mismo (server-side) en vez de devolverlo al
+  // cliente -- ver Fix BUG-2 arriba. getSupabaseClient() usa cookies() de
+  // next/headers, así que verifyOtp aquí escribe la cookie de sesión
+  // directamente en la respuesta HTTP de este Route Handler.
+  const authClient = getSupabaseClient();
+  const { error: sessionError } = await authClient.auth.verifyOtp({
+    token_hash: linkData.properties.hashed_token,
+    type: "magiclink",
+  });
+  if (sessionError) {
+    console.error("backup-codes verify verifyOtp error:", sessionError);
+    return NextResponse.json({ error: "Could not create session" }, { status: 500 });
+  }
+
   // Alerta de seguridad inmediata al dueño de la cuenta: si no fue él, se
   // entera ahora. Se manda SIEMPRE, incluso si el envío real de email no
   // está configurado todavía (sendEmail queda en 'not_configured' de forma
@@ -188,8 +200,7 @@ export async function POST(request: NextRequest) {
     resource: "security_backup_codes",
   });
 
-  return NextResponse.json({
-    email,
-    tokenHash: linkData.properties.hashed_token,
-  });
+  // El cliente nunca ve el token_hash ni ningún otro secreto -- la sesión ya
+  // quedó establecida vía cookie en esta misma respuesta (ver arriba).
+  return NextResponse.json({ success: true, email });
 }

@@ -67,8 +67,38 @@ export default function AdminNominaClient() {
     }
   }
 
-  function downloadCsv() {
-    window.open(`/api/admin/payroll-export?cycle=${which}&format=csv`, "_blank");
+  // Fix (auditoría externa 2026-07-30): el GET de payroll-export ya no muta
+  // datos (ver route.ts) -- el CSV oficial (el que aplica la deducción del
+  // ciclo en payroll_cycle_deductions/payroll_ytd) ahora requiere POST.
+  // window.open() solo puede hacer GET, así que se reemplaza por un
+  // fetch(POST) + descarga vía blob URL.
+  async function downloadCsv() {
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/payroll-export?cycle=${which}&format=csv`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error || t("loadError"));
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `nomina_${cycle?.label?.replace(/\s+/g, "_") || which}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      // El POST acaba de aplicar la deducción del ciclo -- refresca la
+      // previsualización para que refleje el estado ya procesado.
+      load();
+    } catch {
+      setError(t("networkError"));
+    }
   }
 
   if (loading) {

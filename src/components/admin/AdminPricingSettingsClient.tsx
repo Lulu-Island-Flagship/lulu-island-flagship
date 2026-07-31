@@ -183,7 +183,14 @@ export default function AdminPricingSettingsClient() {
   function updateHHECell(serviceType: string, index: number, value: string) {
     if (!hheTable) return;
     const num = parseFloat(value);
-    if (Number.isNaN(num) || num <= 0) return;
+    if (Number.isNaN(num) || num <= 0) {
+      // Item 10 (auditoría 2026-07-30): antes se descartaba el cambio en
+      // silencio si el valor era 0/negativo/no numérico, sin explicar por
+      // qué el input no reflejaba lo que el usuario acababa de teclear.
+      setHheError(t("errors.hheCellMustBePositive"));
+      return;
+    }
+    setHheError("");
     setHheTable({
       ...hheTable,
       [serviceType]: hheTable[serviceType].map((v, i) => (i === index ? num : v)),

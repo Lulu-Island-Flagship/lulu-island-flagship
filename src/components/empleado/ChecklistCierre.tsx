@@ -38,6 +38,17 @@ export function ChecklistCierre({
   const [zones, setZones] = useState<ChecklistZoneProgress[]>([]);
   const [myZoneCount, setMyZoneCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  // Fix auditoría 2026-07-30: el respaldo local (localStorage, ver
+  // localStorageKey abajo) usaba una clave indexada SOLO por orderId. Si dos
+  // empleados distintos comparten dispositivo/navegador para la misma orden
+  // (ej. tablet compartida del equipo), el snapshot local de uno se mezclaba
+  // con el del otro. No hay prop ni contexto de employeeId en este
+  // componente (page.tsx solo pasa orderId/serviceSubtype), pero el mismo
+  // `supabase.auth.getUser().id` que el servidor usa para resolver
+  // user_id -> employees.id (ver requireActiveEmployee) es 1:1 por empleado
+  // y está disponible client-side sin tocar props/contexto -- se usa como
+  // sufijo de la clave.
+  const [employeeAuthId, setEmployeeAuthId] = useState<string | null>(null);
   const [expandedZones, setExpandedZones] = useState<Set<string>>(new Set());
   const [uploadingItem, setUploadingItem] = useState<string | null>(null);
   const [matchModalZone, setMatchModalZone] = useState<{ zoneColor: string; zoneLabel: string } | null>(null);
@@ -64,7 +75,12 @@ export function ChecklistCierre({
   // checklist arbitrarios), así que se usa localStorage como respaldo
   // mínimo: cada cambio de `zones` se persiste, y al montar se restauran
   // los checks que el servidor aún no confirme.
-  const localStorageKey = `lulu_checklist_cierre_${orderId}`;
+  // Sin employeeAuthId todavía resuelto (primer render, antes de que
+  // resolveEmployeeAuthId corra), se usa un namespace "anon" temporal en vez
+  // de la clave sin employeeId -- nunca se lee/escribe bajo la clave vieja
+  // mezclada, y en cuanto se resuelve el id real (useEffect más abajo) se
+  // recarga con loadChecklist().
+  const localStorageKey = `lulu_checklist_cierre_${employeeAuthId ?? "anon"}_${orderId}`;
 
   function loadLocalSnapshot(): ChecklistZoneProgress[] | null {
     if (typeof window === "undefined") return null;
@@ -100,10 +116,24 @@ export function ChecklistCierre({
     }
   }
 
+  // Resuelve el id de la sesión actual una sola vez al montar -- se usa
+  // exclusivamente como sufijo de localStorageKey (ver comentario arriba),
+  // nunca se manda al servidor (el servidor ya resuelve su propio
+  // employee.id vía cookies de sesión, igual que siempre).
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) setEmployeeAuthId(data.user?.id ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     loadChecklist();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId, serviceSubtype]);
+  }, [orderId, serviceSubtype, employeeAuthId]);
 
   // Respaldo local: cualquier cambio en `zones` (toggle, foto) se guarda de
   // inmediato, así un refresh o pérdida de conexión antes del POST no borra
@@ -364,21 +394,17 @@ export function ChecklistCierre({
    * isHotSurfaceItemUnlocked() sea true (servidor lo vuelve a validar).
    */
   const handleStartHotSurfaceTimer = async (zone: ChecklistZoneProgress, itemId: string, itemLabel: string) => {
+    // v8.3 ROUND 4 fix (#3): antes esto marcaba `hotSurfaceTimerStartedAt` en
+    // el estado local ANTES de confirmar que el servidor lo guardó -- si el
+    // POST fallaba (red o rechazo), el timer quedaba "corriendo" en la UI
+    // pero el servidor nunca lo supo, desincronizando el candado real (el
+    // servidor igual lo revalida en el 409 del toggle, pero el conteo
+    // regresivo mostrado al empleado sería falso). Ahora el timer solo se
+    // marca "iniciado" tras una respuesta exitosa del servidor.
     const startedAt = new Date().toISOString();
-    setZones((prev) =>
-      prev.map((z) =>
-        z.zone !== zone.zone
-          ? z
-          : {
-              ...z,
-              items: z.items.map((i) =>
-                i.itemId === itemId ? { ...i, hotSurfaceTimerStartedAt: startedAt } : i
-              ),
-            }
-      )
-    );
+    setSaveError("");
     try {
-      await fetch("/api/empleado/checklist", {
+      const res = await fetch("/api/empleado/checklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -391,8 +417,26 @@ export function ChecklistCierre({
           startHotSurfaceTimer: true,
         }),
       });
+      if (!res.ok) {
+        console.error("Start hot surface timer rejected by server:", res.status);
+        setSaveError(`Couldn't start the timer for "${itemLabel}". Please try again.`);
+        return;
+      }
+      setZones((prev) =>
+        prev.map((z) =>
+          z.zone !== zone.zone
+            ? z
+            : {
+                ...z,
+                items: z.items.map((i) =>
+                  i.itemId === itemId ? { ...i, hotSurfaceTimerStartedAt: startedAt } : i
+                ),
+              }
+        )
+      );
     } catch (e) {
       console.error("Start hot surface timer error:", e);
+      setSaveError(`Couldn't start the timer for "${itemLabel}" -- check your connection and try again.`);
     }
   };
 

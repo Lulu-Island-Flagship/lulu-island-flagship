@@ -12,24 +12,30 @@
 // sesión.
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { AuthModal } from "@/components/cotizador/AuthModal";
 import { CuentaNav } from "@/components/cuenta/CuentaNav";
 
+// Fix (auditoría UX/seguridad 2026-07-30, BUG 3): antes `authenticated` e
+// `isStaff` eran dos booleans separados que se resolvían en momentos
+// distintos (ver checkSession/onAuthStateChange más abajo) -- entre
+// setAuthenticated(true) y el setIsStaff(staff) que llega después, había una
+// ventana de render donde authenticated=true / isStaff=false todavía, y el
+// layout ya pintaba <CuentaNav/> (navegación de cliente) para una cuenta de
+// staff, un instante antes de redirigir a /portal. Un solo status
+// consolidado nunca pasa por un estado intermedio "autenticado pero tipo
+// desconocido": se actualiza en un solo setStatus() una vez que YA se sabe
+// si es cliente o staff.
+type AccountStatus = "loading" | "client" | "staff" | "unauthenticated";
+
 export default function CuentaLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const params = useParams();
   const locale = (params?.locale as string) || "en";
-  const [checking, setChecking] = useState(true);
-  const [authenticated, setAuthenticated] = useState(false);
-  // Fix (auditoría de autenticación 2026-07-25/26, item 5): antes solo se
-  // verificaba Boolean(data.user) -- un empleado o admin autenticado veía el
-  // layout de cliente igual que un cliente real. isStaff distingue ese caso
-  // vía /api/cuenta/access-check (resolveStaffLogin del lado del servidor,
-  // ver ese archivo para el detalle -- este layout, siendo Client Component,
-  // no puede leer employees/admin_roles directamente por RLS).
-  const [isStaff, setIsStaff] = useState(false);
+  const t = useTranslations("cuenta.layout");
+  const [status, setStatus] = useState<AccountStatus>("loading");
 
   async function checkStaffStatus() {
     try {
@@ -51,15 +57,12 @@ export default function CuentaLayout({ children }: { children: React.ReactNode }
       const { data } = await supabase.auth.getUser();
       if (cancelled) return;
       if (!data.user) {
-        setAuthenticated(false);
-        setChecking(false);
+        setStatus("unauthenticated");
         return;
       }
       const staff = await checkStaffStatus();
       if (cancelled) return;
-      setIsStaff(staff);
-      setAuthenticated(true);
-      setChecking(false);
+      setStatus(staff ? "staff" : "client");
     }
 
     checkSession();
@@ -70,16 +73,12 @@ export default function CuentaLayout({ children }: { children: React.ReactNode }
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (cancelled) return;
       if (!session?.user) {
-        setAuthenticated(false);
-        setIsStaff(false);
-        setChecking(false);
+        setStatus("unauthenticated");
         return;
       }
       checkStaffStatus().then((staff) => {
         if (cancelled) return;
-        setIsStaff(staff);
-        setAuthenticated(true);
-        setChecking(false);
+        setStatus(staff ? "staff" : "client");
       });
     });
 
@@ -97,16 +96,28 @@ export default function CuentaLayout({ children }: { children: React.ReactNode }
     // la cuenta recién autenticada resulta ser de empleado/admin.
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) {
-        setAuthenticated(false);
+        setStatus("unauthenticated");
         return;
       }
       const staff = await checkStaffStatus();
-      setIsStaff(staff);
-      setAuthenticated(true);
+      setStatus(staff ? "staff" : "client");
     });
   };
 
-  if (checking) {
+  // Fix (auditoría UX/seguridad 2026-07-30, BUG 3, escenario A): antes un
+  // empleado que entraba a /cuenta veía el spinner de carga y de repente
+  // estaba en /portal, sin ninguna explicación de por qué. Se muestra un
+  // aviso localizado breve antes de redirigir, en vez de un router.replace()
+  // instantáneo y silencioso.
+  useEffect(() => {
+    if (status !== "staff") return;
+    const timer = setTimeout(() => {
+      router.replace(`/${locale}/portal`);
+    }, 1800);
+    return () => clearTimeout(timer);
+  }, [status, router, locale]);
+
+  if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <Loader2 className="w-8 h-8 text-brand-navy animate-spin" />
@@ -114,7 +125,7 @@ export default function CuentaLayout({ children }: { children: React.ReactNode }
     );
   }
 
-  if (!authenticated) {
+  if (status === "unauthenticated") {
     return (
       <div className="min-h-screen bg-brand-ice">
         <AuthModal
@@ -139,18 +150,21 @@ export default function CuentaLayout({ children }: { children: React.ReactNode }
     );
   }
 
-  if (isStaff) {
+  if (status === "staff") {
     // Fix (item 5): una cuenta de empleado/admin autenticada no debe ver el
     // área de cliente -- se manda al Portal de equipo, que resuelve su
-    // destino real (empleado/admin/qc).
-    router.replace(`/${locale}/portal`);
+    // destino real (empleado/admin/qc). El redirect real ocurre en el
+    // useEffect de arriba, después de un breve aviso (BUG 3, escenario A).
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-4 text-center px-4">
         <Loader2 className="w-8 h-8 text-brand-navy animate-spin" />
+        <p className="text-sm text-brand-ink">{t("redirectingToStaffPortal")}</p>
       </div>
     );
   }
 
+  // status === "client": único caso en que se renderiza CuentaNav (BUG 3,
+  // escenario B) -- nunca durante "loading" o antes de saber si es staff.
   return (
     <>
       <CuentaNav />

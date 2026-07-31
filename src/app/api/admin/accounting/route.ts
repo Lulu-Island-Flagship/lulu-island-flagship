@@ -9,6 +9,7 @@ import {
   type OrderFinancialRecord,
 } from "@/lib/operational-accounting";
 import { getCycleForDate } from "@/lib/payroll-cycle";
+import { calculatePayrollDeductions } from "@/lib/payroll-deductions";
 
 // GET /api/admin/accounting?from=YYYY-MM-DD&to=YYYY-MM-DD
 //
@@ -17,7 +18,10 @@ import { getCycleForDate } from "@/lib/payroll-cycle";
 // monto real capturado (chargeback_reserves.captured_amount), no el subtotal
 // cotizado. "Pagado" es el bruto de nómina (payroll_entries.gross_amount).
 // La carga patronal (CPP/EI/WorkSafeBC) se suma desde payroll_cycle_deductions
-// si ya existe un snapshot para ese ciclo; si no, queda en 0 (no se inventa).
+// si ya existe un snapshot para ese ciclo; si no, se usa una estimación de
+// respaldo (mismas tasas reales de payroll-deductions.ts) marcada como
+// employerBurdenIsEstimated/isEstimated en la respuesta (bug #3, auditoría
+// 2026-07-30) -- ya no se muestra $0 silenciosamente.
 export async function GET(request: NextRequest) {
   const auth = await requireAdminRole("finance", { method: request.method, url: request.url });
   if (auth.error) {
@@ -75,6 +79,11 @@ export async function GET(request: NextRequest) {
   // esto queda en $0 explícitamente -- nunca se simula un número que no
   // existe. Lógica pura y testeada en src/lib/operational-accounting.ts.
   const monthlyFixedCostsCents = Number(fixedCostsCents || 0);
+  // Fix (auditoría 2026-07-30): computeProratedFixedCostsPerOrder ahora
+  // devuelve un array (uno por orden, mismo índice que `orders`) en vez de
+  // un escalar aplicado a todas por igual -- así el resto de centavos que
+  // no divide exacto se reparte entre las primeras órdenes en vez de
+  // perderse (o inventarse) al multiplicar de vuelta por N.
   const otherCostsPerOrderCents = computeProratedFixedCostsPerOrder(
     monthlyFixedCostsCents,
     (orders || []).map((o) => String(o.service_date))
@@ -152,11 +161,33 @@ export async function GET(request: NextRequest) {
   }
 
   const employerBurdenByOrder = new Map<string, number>();
+  // Fix (auditoría 2026-07-30, bug #3): antes, sin snapshot en
+  // payroll_cycle_deductions (ciclo del empleado aún no exportado/cerrado),
+  // la carga patronal de esa entrada se dejaba en $0 silenciosamente --
+  // hacía ver el margen neto artificialmente alto en reportes de mitad de
+  // ciclo. Ahora se calcula una ESTIMACIÓN de respaldo con las mismas tasas
+  // reales CPP/CPP2/EI/WorkSafeBC de payroll-deductions.ts (sin YTD, porque
+  // no lo tenemos fuera de un ciclo cerrado -- aproximación, no una cifra
+  // inventada) y la orden se marca en `employerBurdenEstimatedOrders` para
+  // que la API y la UI la etiqueten explícitamente como "estimado/proyectado".
+  const employerBurdenEstimatedOrders = new Set<string>();
   for (const p of payrollEntries || []) {
     const cycleLabel = cycleLabelByEmployeeAndOrder.get(`${p.order_id}|${p.employee_id}`);
     const snapshot = cycleLabel ? cycleDeductionsByEmployeeCycle.get(`${p.employee_id}|${cycleLabel}`) : undefined;
     if (!snapshot || snapshot.grossCents <= 0) {
-      continue; // sin snapshot del ciclo todavía -- queda en 0 para esta entrada, no se inventa.
+      const estimate = calculatePayrollDeductions({
+        grossCents: p.gross_amount,
+        yearsOfService: 0,
+        ytdPensionableCents: 0,
+        ytdInsurableCents: 0,
+        ytdAssessableCents: 0,
+      });
+      employerBurdenByOrder.set(
+        p.order_id,
+        (employerBurdenByOrder.get(p.order_id) || 0) + estimate.employerCostCents
+      );
+      employerBurdenEstimatedOrders.add(p.order_id);
+      continue;
     }
     const shareCents = Math.round((p.gross_amount / snapshot.grossCents) * snapshot.employerCostCents);
     employerBurdenByOrder.set(p.order_id, (employerBurdenByOrder.get(p.order_id) || 0) + shareCents);
@@ -173,7 +204,7 @@ export async function GET(request: NextRequest) {
   }
 
   type QuoteJoin = { zone: string; service_type: string } | { zone: string; service_type: string }[] | null;
-  const records: OrderFinancialRecord[] = (orders || []).map((o) => {
+  const records: OrderFinancialRecord[] = (orders || []).map((o, i) => {
     const quoteJoin = o.quotes as QuoteJoin;
     const quote = Array.isArray(quoteJoin) ? quoteJoin[0] : quoteJoin;
     return {
@@ -185,11 +216,15 @@ export async function GET(request: NextRequest) {
       laborCostCents: laborByOrder.get(o.id) || 0,
       // ARREGLADO (ver bloque employerBurdenByOrder arriba): prorrateado
       // desde payroll_cycle_deductions.employer_cost_cents proporcional al
-      // bruto de cada entrada de nómina dentro de su ciclo. Queda en 0 solo
-      // para órdenes cuyo ciclo de nómina del empleado aún no se exportó
-      // (sin snapshot todavía) -- eso sigue sin inventarse.
+      // bruto de cada entrada de nómina dentro de su ciclo. Si el ciclo de
+      // nómina del empleado aún no se exportó (sin snapshot todavía), se usa
+      // una estimación de respaldo (ver employerBurdenEstimatedOrders) en
+      // vez de $0 -- employerBurdenIsEstimated distingue ambos casos.
       employerBurdenCents: employerBurdenByOrder.get(o.id) || 0,
-      otherCostsCents: otherCostsPerOrderCents,
+      employerBurdenIsEstimated: employerBurdenEstimatedOrders.has(o.id),
+      // Fix (auditoría 2026-07-30): índice por orden, no el mismo monto
+      // repetido -- ver computeProratedFixedCostsPerOrder.
+      otherCostsCents: otherCostsPerOrderCents[i] ?? 0,
     };
   });
 

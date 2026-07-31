@@ -50,6 +50,13 @@ const TRANSITIONS: Record<Action, { from: string; to: string }> = {
   receive: { from: "ordered", to: "received" },
 };
 
+// Fix (revisión 2026-07-30, punto 12): [id] llegaba directo a `.eq("id", id)`
+// sin validar formato -- un id no-UUID no compromete datos (Postgres rechaza
+// el tipo con un error), pero ese error de Postgrest se propagaba tal cual en
+// vez de un 400 controlado. Mismo regex ya usado en
+// src/app/api/client/wallet/apply/route.ts y src/app/api/admin/wallet/route.ts.
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -65,6 +72,9 @@ export async function POST(
 
   try {
     const { id } = await params;
+    if (!UUID_REGEX.test(id)) {
+      return NextResponse.json({ error: "id inválido" }, { status: 400 });
+    }
 
     let action: Action = "approve";
     try {
@@ -129,14 +139,67 @@ export async function POST(
       .eq("user_id", auth.user?.id)
       .single();
 
+    // Auditoría 2026-07-30 (Bug #2): "receive" ya NO usa el update genérico
+    // de abajo. Repone stock con read-modify-write en JS (propenso a lost
+    // update) y no era atómico con el cambio de estado -- si fallaba la
+    // reposición de alguna línea, la PO igual quedaba "received" y el
+    // endpoint devolvía 200 con `stockUpdateErrors`. Ahora todo el cambio
+    // de estado + reposición de stock ocurre dentro de una sola función
+    // Postgres (receive_purchase_order, migración 247): todo o nada.
+    if (action === "receive") {
+      const { data: rpcResult, error: rpcError } = await supabase
+        .rpc("receive_purchase_order", { p_po_id: id })
+        .maybeSingle();
+
+      if (rpcError) {
+        if (rpcError.code === "P0002") {
+          return NextResponse.json({ error: "Orden de compra no encontrada" }, { status: 404 });
+        }
+        if (rpcError.code === "P0001") {
+          return NextResponse.json(
+            {
+              error: `No se puede aplicar 'receive': ${rpcError.message}`,
+            },
+            { status: 409 }
+          );
+        }
+        if (rpcError.code === "42501") {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        console.error("admin/purchase-orders/[id]/approve receive_purchase_order error:", rpcError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
+
+      // Releemos la fila completa de la PO para devolver el mismo shape que
+      // el resto de las acciones (purchaseOrder completo, no solo el
+      // resumen que retorna la RPC).
+      const { data: updatedPo, error: refetchError } = await supabase
+        .from("purchase_orders")
+        .select()
+        .eq("id", id)
+        .single();
+
+      if (refetchError) {
+        console.error("admin/purchase-orders/[id]/approve refetch error:", refetchError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
+
+      return NextResponse.json(
+        {
+          purchaseOrder: updatedPo,
+          action,
+          linesUpdated: rpcResult?.lines_updated ?? 0,
+        },
+        { status: 200 }
+      );
+    }
+
     const updatePayload: Record<string, unknown> = { status: transition.to };
     if (action === "approve") {
       updatePayload.approved_by = approver?.id || null;
       updatePayload.approved_at = new Date().toISOString();
     } else if (action === "mark_ordered") {
       updatePayload.ordered_at = new Date().toISOString();
-    } else if (action === "receive") {
-      updatePayload.received_at = new Date().toISOString();
     }
 
     // Compare-and-swap real: el filtro de estado esperado va en el propio
@@ -162,53 +225,10 @@ export async function POST(
       return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
-    // E-A2: al recibir mercancía, reponer el stock real. Antes
-    // inventory_items.current_stock nunca se movía en ningún endpoint --
-    // todo el motor de reposición (computeReorderSuggestions,
-    // computeConsumptionProjections) corría sobre un número congelado.
-    const stockUpdateErrors: string[] = [];
-    if (action === "receive") {
-      const { data: lines, error: linesError } = await supabase
-        .from("purchase_order_lines")
-        .select("inventory_item_id, quantity")
-        .eq("purchase_order_id", id);
-
-      if (linesError) {
-        stockUpdateErrors.push(linesError.message);
-      } else {
-        for (const line of lines || []) {
-          if (!line.inventory_item_id || !line.quantity) continue;
-          const { data: item, error: itemError } = await supabase
-            .from("inventory_items")
-            .select("current_stock")
-            .eq("id", line.inventory_item_id)
-            .maybeSingle();
-
-          if (itemError || !item) {
-            stockUpdateErrors.push(
-              `No se pudo leer inventory_items ${line.inventory_item_id}: ${itemError?.message || "no encontrado"}`
-            );
-            continue;
-          }
-
-          const newStock = Number(item.current_stock) + Number(line.quantity);
-          const { error: stockError } = await supabase
-            .from("inventory_items")
-            .update({ current_stock: newStock })
-            .eq("id", line.inventory_item_id);
-
-          if (stockError) {
-            stockUpdateErrors.push(`No se pudo actualizar stock de ${line.inventory_item_id}: ${stockError.message}`);
-          }
-        }
-      }
-    }
-
     return NextResponse.json(
       {
         purchaseOrder: updated,
         action,
-        stockUpdateErrors: stockUpdateErrors.length > 0 ? stockUpdateErrors : undefined,
       },
       { status: 200 }
     );

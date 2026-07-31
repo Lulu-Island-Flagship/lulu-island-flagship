@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { haversineDistance, MEETING_POINT_RADIUS_METERS } from "@/lib/geocode";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
+import { getVancouverTodayString, getVancouverOffset } from "@/lib/date-utils";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -104,13 +105,7 @@ export async function POST(request: NextRequest) {
 
     if (action === "start" && typeof locationLat === "number" && typeof locationLng === "number") {
       try {
-        const vancouverDateOnly = new Date().toLocaleString("en-CA", {
-          timeZone: "America/Vancouver",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        });
-        const today = vancouverDateOnly.split(",")[0];
+        const today = getVancouverTodayString();
 
         const { data: todaysAssignments } = await supabase
           .from("assignments")
@@ -138,10 +133,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Insertar log de jornada con timestamp ISO explícito en Vancouver
+    // Insertar log de jornada con timestamp ISO explícito en Vancouver.
+    // v8.3 ROUND 4 fix (#2): antes parseaba "PDT"/"PST" de toLocaleString(), que puede
+    // devolver "GMT-7" en vez de la abreviatura según navegador/runtime. Usamos el offset
+    // numérico real vía Intl (getVancouverOffset), robusto en cualquier entorno.
     const now = new Date();
-    const vancouverOffset = now.toLocaleString("en-CA", { timeZone: "America/Vancouver", timeZoneName: "short" }).includes("PDT") ? "-07:00" : "-08:00";
-    const vancouverTimestamp = now.toLocaleString("en-CA", { timeZone: "America/Vancouver", hour12: false }).replace(", ", "T") + vancouverOffset;
+    const vancouverLocal = now.toLocaleString("en-CA", { timeZone: "America/Vancouver", hour12: false });
+    const vancouverDateOnly = vancouverLocal.split(",")[0];
+    const vancouverOffset = getVancouverOffset(vancouverDateOnly);
+    const vancouverTimestamp = vancouverLocal.replace(", ", "T") + vancouverOffset;
     const { data: log, error: logError } = await supabase
       .from("service_logs")
       .insert({

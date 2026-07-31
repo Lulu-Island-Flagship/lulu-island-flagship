@@ -80,6 +80,7 @@ export default function AdminTeamsPage() {
   }
 
   async function toggleActive(team: Team) {
+    setError("");
     try {
       const res = await fetch("/api/admin/teams", {
         method: "PATCH",
@@ -87,9 +88,14 @@ export default function AdminTeamsPage() {
         credentials: "include",
         body: JSON.stringify({ id: team.id, active: !team.active }),
       });
-      if (res.ok) load();
+      if (res.ok) {
+        await load();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setError(err.error || t("errors.updateFailed"));
+      }
     } catch {
-      // no-op, la lista simplemente no se actualiza
+      setError(t("errors.network"));
     }
   }
 

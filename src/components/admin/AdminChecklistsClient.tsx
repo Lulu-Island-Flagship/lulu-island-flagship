@@ -18,7 +18,6 @@ import {
   ListChecks,
   MoreHorizontal,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 
 interface ChecklistItem {
@@ -238,10 +237,23 @@ export default function AdminChecklistsClient() {
       return;
     }
 
-    const { data: hasHistory } = await supabase.rpc("check_item_history", {
-      p_item_id: item.id,
-      p_checklist_id: editingZone.id,
-    });
+    // Fix (auditoría externa 2026-07-30): antes se llamaba check_item_history
+    // directo desde el navegador con el cliente Supabase anon; ahora pasa por
+    // un endpoint admin autenticado (requireAdminRole + RPC del lado del
+    // servidor). Ver src/app/api/admin/checklists/history/route.ts.
+    let hasHistory = false;
+    try {
+      const histRes = await fetch(
+        `/api/admin/checklists/history?type=item&checklistId=${encodeURIComponent(editingZone.id)}&itemId=${encodeURIComponent(item.id)}`,
+        { credentials: "include" }
+      );
+      const histData = await histRes.json();
+      hasHistory = !!histData.hasHistory;
+    } catch {
+      // Si falla la verificación, se asume que SÍ hay historial (camino
+      // más seguro: solo desactivar, nunca borrar en falso positivo de red).
+      hasHistory = true;
+    }
 
     if (hasHistory) {
       setFormItems((prev) =>
@@ -340,15 +352,19 @@ export default function AdminChecklistsClient() {
   const handleDeleteZone = async (zoneId: string, zoneLabel: string) => {
     setError(""); // Limpiar error previo
     try {
-      const { data: hasHistory, error: rpcError } = await supabase.rpc(
-        "check_zone_history",
-        { p_checklist_id: zoneId }
+      // Fix (auditoría externa 2026-07-30): mismo cambio que removeItem() --
+      // check_zone_history ahora pasa por el endpoint admin autenticado en
+      // vez del cliente Supabase anon del navegador.
+      const histRes = await fetch(
+        `/api/admin/checklists/history?type=zone&checklistId=${encodeURIComponent(zoneId)}`,
+        { credentials: "include" }
       );
-
-      if (rpcError) {
+      if (!histRes.ok) {
         setError(t("errorHistoryCheckFailed"));
         return;
       }
+      const histData = await histRes.json();
+      const hasHistory = !!histData.hasHistory;
 
       if (hasHistory) {
         // Zone has usage history — only deactivation allowed

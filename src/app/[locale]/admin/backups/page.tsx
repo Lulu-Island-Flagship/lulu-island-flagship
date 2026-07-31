@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { Loader2, DatabaseBackup, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { toIntlLocale } from "@/lib/format";
 
 interface JobStatus {
   jobType: string;
@@ -29,6 +31,10 @@ const LABEL_KEYS: Record<string, string> = {
  */
 export default function BackupsPage() {
   const t = useTranslations("admin.backups");
+  const params = useParams();
+  // Fix (auditoría 2026-07-30, item 1): las fechas se formateaban con
+  // locale fijo "en-CA" sin importar el locale de la ruta (en/fr/zh).
+  const locale = toIntlLocale((params?.locale as string) || "en");
   const [jobs, setJobs] = useState<JobStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -85,7 +91,7 @@ export default function BackupsPage() {
               {j.lastSuccess ? (
                 <div className="text-xs text-gray-500">
                   {t("lastSuccess", {
-                    date: new Date(j.lastSuccess.created_at).toLocaleString("en-CA"),
+                    date: new Date(j.lastSuccess.created_at).toLocaleString(locale),
                     rows: j.lastSuccess.row_count ?? "—",
                     destination: j.lastSuccess.destination,
                     hash: j.lastSuccess.sha256_hash ? j.lastSuccess.sha256_hash.slice(0, 12) : "—",

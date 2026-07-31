@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole, getServiceRoleClient } from "@/lib/admin";
 import { evaluateEmployeeMarketingVisibility, canAdminApprove } from "@/lib/employee-marketing";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/employee-marketing — todos los features con visibilidad calculada.
 // POST /api/admin/employee-marketing — { action: "approve" | "set_asset_url", featureId, assetUrl? }
@@ -70,7 +71,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Server misconfigured (service role)" }, { status: 500 });
   }
 
-  const body = await request.json();
+  // Fix (revisión 2026-07-30, punto 11): request.json() sin try/catch --
+  // mismo patrón ya usado en src/app/api/admin/marketing/route.ts.
+  let body: { featureId?: string; action?: string; assetUrl?: string };
+  try {
+    body = await request.json();
+  } catch (err) {
+    return safeErrorResponse(err, 400, "JSON inválido");
+  }
   if (!body.featureId) {
     return NextResponse.json({ error: "featureId requerido" }, { status: 400 });
   }

@@ -43,7 +43,41 @@ export async function resolveStaffLogin(
   userId: string,
   email: string | null | undefined
 ): Promise<StaffLoginResult> {
-  // 1. ¿Ya hay una fila de employees vinculada a este user_id? (caso normal
+  // 1. Roles administrativos (owner_admin / ops_coordinator / qc_only)
+  //    PRIMERO, antes de mirar `employees` en absoluto.
+  //
+  //    Fix (auditoría externa, hallazgo confirmado): esta función solía
+  //    revisar `employees` primero y recién en tercer lugar `admin_roles`.
+  //    Eso permitía que un owner_admin cuyo email coincidiera con una fila
+  //    de `employees` invitada-pero-nunca-reclamada (user_id IS NULL) se
+  //    vinculara automáticamente como empleado en su primer login (ver
+  //    paso 3 más abajo) y quedara atrapado en /empleado para siempre --
+  //    employees.user_id ya no es NULL, así que el WHERE user_id IS NULL
+  //    del paso 3 nunca vuelve a encontrar esa fila, y como el paso 2
+  //    (employees por user_id) corría antes que este, el rol admin real
+  //    nunca se llegaba a consultar. admin_roles.user_id se asigna a mano
+  //    por un owner_admin ya existente (no hay columna email -- ver
+  //    migración 040) y nunca se crea aquí, así que consultarlo primero no
+  //    tiene ningún efecto secundario ni riesgo de auto-vinculación
+  //    indebida -- solo cambia el ORDEN de prioridad quede: admin primero.
+  const { data: roleRows } = await serviceSupabase
+    .from("admin_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .is("deleted_at", null);
+
+  const roles = new Set((roleRows ?? []).map((r: { role: string }) => r.role));
+  for (const role of ADMIN_ROLE_PRIORITY) {
+    if (roles.has(role)) {
+      return {
+        authorized: true,
+        area: role === "qc_only" ? "qc" : "admin",
+        employeeLinkedNow: false,
+      };
+    }
+  }
+
+  // 2. ¿Ya hay una fila de employees vinculada a este user_id? (caso normal
   //    tras el primer login, o empleado invitado vía
   //    supabase.auth.admin.inviteUserByEmail que ya trae user_id desde la
   //    creación -- ver POST /api/admin/empleados).
@@ -60,12 +94,16 @@ export async function resolveStaffLogin(
       : { authorized: false, reason: "pending_activation" };
   }
 
-  // 2. Primer login real de un empleado invitado cuyo user_id todavía no
+  // 3. Primer login real de un empleado invitado cuyo user_id todavía no
   //    coincide con ningún registro (ej. la cuenta invitada nunca aceptó el
   //    link de invitación y en vez de eso entró directo por "Sign in with
   //    Google" con el mismo correo, creando una identidad distinta en
   //    auth.users). Coincidencia SOLO por email exacto (normalizado),
   //    nunca por nombre ni por ninguna otra heurística.
+  //
+  //    A esta altura ya sabemos (paso 1) que este userId NO tiene ningún
+  //    admin_roles activo, así que vincularlo aquí como empleado no puede
+  //    secuestrar una cuenta admin.
   if (email) {
     const normalizedEmail = email.trim().toLowerCase();
     const { data: byEmail } = await serviceSupabase
@@ -95,28 +133,8 @@ export async function resolveStaffLogin(
           ? { authorized: true, area: "empleado", employeeLinkedNow: true }
           : { authorized: false, reason: "pending_activation" };
       }
-      // Perdió la carrera de vinculación -- sigue de largo a admin_roles y,
-      // si tampoco hay nada ahí, termina en not_registered.
-    }
-  }
-
-  // 3. Roles administrativos (owner_admin / ops_coordinator / qc_only).
-  //    admin_roles.user_id se asigna a mano por un owner_admin ya existente
-  //    (no hay columna email -- ver migración 040) y nunca se crea aquí.
-  const { data: roleRows } = await serviceSupabase
-    .from("admin_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .is("deleted_at", null);
-
-  const roles = new Set((roleRows ?? []).map((r: { role: string }) => r.role));
-  for (const role of ADMIN_ROLE_PRIORITY) {
-    if (roles.has(role)) {
-      return {
-        authorized: true,
-        area: role === "qc_only" ? "qc" : "admin",
-        employeeLinkedNow: false,
-      };
+      // Perdió la carrera de vinculación -- termina en not_registered abajo
+      // (admin_roles ya se descartó en el paso 1).
     }
   }
 

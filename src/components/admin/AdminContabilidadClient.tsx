@@ -10,6 +10,10 @@ interface GroupSummary {
   collectedCents: number;
   laborCostCents: number;
   employerBurdenCents: number;
+  // Bug #3 (auditoría 2026-07-30): true si employerBurdenCents incluye una
+  // estimación de respaldo (sin snapshot de payroll_cycle_deductions para
+  // algún empleado/orden del grupo) en vez de la cifra confirmada del ciclo.
+  employerBurdenIsEstimated: boolean;
   otherCostsCents: number;
   contributionMarginCents: number;
   contributionMarginPercent: number;
@@ -54,6 +58,7 @@ function GroupTable({ title, rows, flagLowMargin }: { title: string; rows: Group
               <th scope="col" className="px-3 py-2 text-right">{t("table.collected")}</th>
               <th scope="col" className="px-3 py-2 text-right">{t("table.paid")}</th>
               <th scope="col" className="px-3 py-2 text-right">{t("table.employerBurden")}</th>
+              <th scope="col" className="px-3 py-2 text-right">{t("table.otherCosts")}</th>
               <th scope="col" className="px-3 py-2 text-right">{t("table.contributionMargin")}</th>
               <th scope="col" className="px-3 py-2 text-right">{t("table.netMargin")}</th>
             </tr>
@@ -70,7 +75,23 @@ function GroupTable({ title, rows, flagLowMargin }: { title: string; rows: Group
                   <td className="px-3 py-2 text-right">{r.orders}</td>
                   <td className="px-3 py-2 text-right">{formatCad(r.collectedCents)}</td>
                   <td className="px-3 py-2 text-right">{formatCad(r.laborCostCents)}</td>
-                  <td className="px-3 py-2 text-right">{formatCad(r.employerBurdenCents + r.otherCostsCents)}</td>
+                  <td className="px-3 py-2 text-right">
+                    {formatCad(r.employerBurdenCents)}
+                    {r.employerBurdenIsEstimated && (
+                      <span
+                        className="ml-1.5 inline-block align-middle rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"
+                        title={t("table.employerBurdenEstimatedTooltip")}
+                      >
+                        {t("table.employerBurdenEstimatedBadge")}
+                      </span>
+                    )}
+                  </td>
+                  {/* Fix (revisión 2026-07-30, punto 9): antes esta celda sumaba
+                      employerBurdenCents + otherCostsCents bajo el encabezado
+                      "Employer burden" -- engañoso, porque otherCostsCents no es
+                      carga patronal (CPP/EI/WorkSafeBC) sino otros costos operativos.
+                      Se separan en columnas propias para que cada cifra sea exacta. */}
+                  <td className="px-3 py-2 text-right">{formatCad(r.otherCostsCents)}</td>
                   <td className="px-3 py-2 text-right">
                     <span className={isLowMargin ? "text-state-danger font-medium" : ""}>
                       {formatCad(r.contributionMarginCents)} ({formatPercent(r.contributionMarginPercent)})
@@ -87,7 +108,7 @@ function GroupTable({ title, rows, flagLowMargin }: { title: string; rows: Group
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-4 text-center text-gray-400">
+                <td colSpan={8} className="px-3 py-4 text-center text-gray-400">
                   {t("table.noData")}
                 </td>
               </tr>
@@ -131,8 +152,27 @@ export default function AdminContabilidadClient() {
   const [fixedCostsSuccess, setFixedCostsSuccess] = useState(false);
 
   async function saveFixedCosts() {
-    const dollars = parseFloat(fixedCostsInput);
-    if (isNaN(dollars) || dollars < 0 || fixedCostsReason.trim().length === 0) {
+    // Auditoría 2026-07-30 (Bug #1): el input es type="number", por lo que
+    // el navegador ya rechaza comas/separadores de miles en e.target.value
+    // (siempre "." como separador decimal, sin importar el locale de
+    // next-intl -- en/fr/zh). El escenario de parseFloat truncando
+    // "3,500.00" no es alcanzable vía esta UI. Aun así, saneamos
+    // defensivamente (por si el valor llega de otro origen, ej. paste) y
+    // validamos que sea un número finito y razonable antes de guardar --
+    // nunca guardamos silenciosamente un valor distinto al que el usuario
+    // ve en pantalla.
+    const sanitizedInput = fixedCostsInput.trim().replace(/,/g, "");
+    const dollars = parseFloat(sanitizedInput);
+    const looksTruncated =
+      sanitizedInput.length > 0 &&
+      Number.isFinite(dollars) &&
+      String(dollars).length < sanitizedInput.replace(/[^0-9]/g, "").length - 3;
+    if (
+      !Number.isFinite(dollars) ||
+      dollars < 0 ||
+      looksTruncated ||
+      fixedCostsReason.trim().length === 0
+    ) {
       setFixedCostsError(t("fixedCostsForm.invalidInput"));
       return;
     }

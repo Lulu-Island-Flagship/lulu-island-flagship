@@ -9,24 +9,32 @@ import {
 } from "@/lib/payroll-export";
 import { getVancouverTodayString } from "@/lib/date-utils";
 
-// GET/POST /api/admin/payroll-export?date=YYYY-MM-DD&format=csv|json&cycle=current|previous
+// GET /api/admin/payroll-export?date=YYYY-MM-DD&format=json&cycle=current|previous
+// POST /api/admin/payroll-export?date=YYYY-MM-DD&format=csv|json&cycle=current|previous
 //
 // v8.3 E9 (D.9) — nómina completa exportable con desglose CPP/CPP2/EI/
-// WorkSafeBC/Vacation Pay por empleado. Actualiza payroll_ytd al final para
-// que el siguiente ciclo del año siga prorrateando los topes correctamente.
+// WorkSafeBC/Vacation Pay por empleado. La mutación (payroll_cycle_deductions
+// + payroll_ytd) permite que el siguiente ciclo del año siga prorrateando
+// los topes correctamente.
 //
 // LIMITACIÓN EXPLÍCITA: no incluye retención de impuesto federal/provincial
 // (income tax) — ver nota en payroll-deductions.ts. estimated_net_cad es un
 // neto aproximado, no el neto oficial de nómina.
 //
-// Fix (auditoría externa, hallazgo confirmado): este endpoint SIEMPRE
-// escribía (payroll_cycle_deductions + payroll_ytd) aunque solo estuviera
-// registrado como GET -- una petición que en teoría es de solo-lectura
-// (cacheable, prefetcheable, repetible sin aviso por un proxy o un
-// escáner) tenía efectos secundarios reales de dinero. Se mantiene GET por
-// compatibilidad con quien ya lo llame así, pero se agrega POST como la
-// forma correcta -- ambos apuntan al mismo handler.
-async function handlePayrollExport(request: NextRequest) {
+// Fix (auditoría externa 2026-07-30, hallazgo confirmado y verificado en
+// código): este endpoint SIEMPRE escribía (payroll_cycle_deductions +
+// payroll_ytd) sin importar el método -- GET incluido. AdminNominaClient.tsx
+// llama `load()` con GET/format=json en cada montaje/cambio de ciclo (solo
+// para PREVISUALIZAR la tabla), así que con solo abrir la página de nómina
+// ya se estaban escribiendo deducciones reales. El guard de idempotencia
+// (alreadyProcessedThisCycle) evitaba inflar el YTD en recargas repetidas,
+// pero no evitaba el efecto secundario en sí -- un GET debe ser de
+// solo-lectura, punto. Se separa el flujo: GET nunca muta (mutate=false,
+// solo calcula y devuelve la previsualización, nunca format=csv), POST es
+// la única forma de aplicar la mutación real (usada por downloadCsv() en
+// AdminNominaClient.tsx, que ahora hace POST + blob download en vez de
+// window.open con GET).
+async function handlePayrollExport(request: NextRequest, mutate: boolean) {
   const auth = await requireAdminRole("payroll", { method: request.method, url: request.url });
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -363,6 +371,12 @@ async function handlePayrollExport(request: NextRequest) {
   // la misma transacción. También se deja de asumir éxito silencioso: cada
   // fallo se colecciona en failedEmployeeIds y se reporta en la respuesta.
   const failedEmployeeIds: string[] = [];
+  // Fix (auditoría externa 2026-07-30): todo este bloque escribe en la base
+  // de datos (RPC apply_payroll_cycle_deduction) -- solo debe correr cuando
+  // mutate=true (POST). Un GET (previsualización, `load()` en
+  // AdminNominaClient.tsx) se detiene aquí: ya tiene `lines`/`totals`
+  // calculados de forma pura arriba y puede devolverlos sin tocar nada.
+  if (mutate) {
   for (const line of lines) {
     const d = line.deductions;
     const alreadyProcessed = alreadyProcessedThisCycle.has(line.employeeId);
@@ -414,6 +428,7 @@ async function handlePayrollExport(request: NextRequest) {
       failedEmployeeIds.push(line.employeeId);
     }
   }
+  } // fin if (mutate)
 
   if (failedEmployeeIds.length > 0) {
     // No se aborta el request entero -- los empleados que sí se procesaron
@@ -432,6 +447,18 @@ async function handlePayrollExport(request: NextRequest) {
         cycle,
       },
       { status: 422 }
+    );
+  }
+
+  if (format === "csv" && !mutate) {
+    // Fix (auditoría externa 2026-07-30): el CSV es el export oficial que va
+    // a CRA/contabilidad -- generarlo debe ir de la mano de aplicar la
+    // deducción del ciclo (mutate=true, solo vía POST). Un GET con
+    // format=csv ya no aplica la mutación, así que no debe fingir devolver
+    // el CSV oficial tampoco.
+    return NextResponse.json(
+      { error: "format=csv requiere POST (aplica la deducción del ciclo)." },
+      { status: 400 }
     );
   }
 
@@ -484,13 +511,13 @@ async function handlePayrollExport(request: NextRequest) {
   return NextResponse.json({ cycle, lines, totals }, { status: 200 });
 }
 
-// Se mantiene GET por compatibilidad con cualquier caller existente que ya
-// lo use así (ej. un <a href> directo para descargar el CSV). POST es la
-// forma correcta para la ruta que sí muta datos (ver comentario arriba).
+// GET = solo lectura (previsualización, format=json). Nunca escribe.
+// POST = aplica la mutación real del ciclo (payroll_cycle_deductions +
+// payroll_ytd) y es la única forma de obtener format=csv.
 export async function GET(request: NextRequest) {
-  return handlePayrollExport(request);
+  return handlePayrollExport(request, false);
 }
 
 export async function POST(request: NextRequest) {
-  return handlePayrollExport(request);
+  return handlePayrollExport(request, true);
 }

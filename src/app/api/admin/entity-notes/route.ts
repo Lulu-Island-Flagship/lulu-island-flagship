@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { suggestNotesForContext, type EntityNote, type EntityType } from "@/lib/entity-notes";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/entity-notes?entityType=employee&entityId=...&context=dispatch
 //   context es opcional: si se envía, filtra por suggestNotesForContext();
@@ -65,7 +66,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  // Fix (revisión 2026-07-30, punto 11): request.json() sin try/catch --
+  // un body no-JSON tronaba con una excepción no controlada (500 con fuga de
+  // stack trace) en vez de un 400 controlado. Mismo patrón ya usado en
+  // src/app/api/admin/marketing/route.ts.
+  let body: { entityType?: string; entityId?: string; note?: string; suggestContext?: unknown };
+  try {
+    body = await request.json();
+  } catch (err) {
+    return safeErrorResponse(err, 400, "JSON inválido");
+  }
   if (!body.entityType || !body.entityId || !body.note?.trim()) {
     return NextResponse.json({ error: "entityType, entityId y note son obligatorios" }, { status: 400 });
   }

@@ -60,6 +60,12 @@ const GRANTABLE_TYPES: WalletTransactionType[] = ["credit", "promo", "refund"];
 const MAX_GRANT_AMOUNT_CENTS = 50_000; // $500.00 CAD por operación individual
 const IDEMPOTENCY_WINDOW_SECONDS = 10;
 
+// Fix auditoría 2026-07-30: userId llegaba de query params y se usaba
+// directo contra `client_wallets`/`wallet_transactions` sin validar formato
+// -- mismo patrón de regex ya usado para orderId en
+// src/app/api/client/wallet/apply/route.ts.
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function GET(request: NextRequest) {
   const auth = await requireAdminRole("finance", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase) {
@@ -69,6 +75,9 @@ export async function GET(request: NextRequest) {
   const userId = request.nextUrl.searchParams.get("userId");
   if (!userId) {
     return NextResponse.json({ error: "userId es obligatorio" }, { status: 400 });
+  }
+  if (!UUID_REGEX.test(userId)) {
+    return NextResponse.json({ error: "userId inválido" }, { status: 400 });
   }
 
   const { data: wallet, error: walletError } = await auth.supabase

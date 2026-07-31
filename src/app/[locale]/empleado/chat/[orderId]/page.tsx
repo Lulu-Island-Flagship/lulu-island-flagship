@@ -1,14 +1,55 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { Loader2, Send, MessageCircle } from "lucide-react";
+import { Loader2, Send, MessageCircle, AlertTriangle } from "lucide-react";
+import { EmpleadoBackHeader } from "@/components/empleado/EmpleadoBackHeader";
 
 interface ChatMessage {
   id: string;
   body: string;
   createdAt: string;
   senderName: string;
+}
+
+/**
+ * v8.3 ROUND 4 fix (#5): mensajes que fallaban por un error de red (no un
+ * rechazo del servidor) se perdían por completo -- no había cola de
+ * reintento. Patrón mínimo (localStorage + reintento en 'online'), análogo
+ * en espíritu a la cola offline de fotos/eventos de servicio
+ * (offline-queue.ts) pero sin requerir IndexedDB para algo tan simple como
+ * texto corto.
+ */
+interface PendingChatMessage {
+  localId: string;
+  orderId: string;
+  body: string;
+  capturedAtIso: string;
+}
+
+function pendingQueueKey(orderId: string) {
+  return `lulu_chat_pending_${orderId}`;
+}
+
+function loadPendingQueue(orderId: string): PendingChatMessage[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(pendingQueueKey(orderId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePendingQueue(orderId: string, queue: PendingChatMessage[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(pendingQueueKey(orderId), JSON.stringify(queue));
+  } catch {
+    // localStorage lleno/deshabilitado -- best-effort, no debe romper el envío.
+  }
 }
 
 const MAX_LENGTH = 160;
@@ -20,18 +61,61 @@ const MAX_LENGTH = 160;
 export default function TeamChatPage() {
   const params = useParams();
   const orderId = params?.orderId as string;
+  const locale = (params?.locale as string) || "en";
+  const backHref = `/${locale}/empleado`;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [draft, setDraft] = useState("");
+  const [pendingCount, setPendingCount] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const retryPending = useCallback(async () => {
+    if (!orderId) return;
+    const queue = loadPendingQueue(orderId);
+    if (queue.length === 0) {
+      setPendingCount(0);
+      return;
+    }
+    const stillPending: PendingChatMessage[] = [];
+    for (const item of queue) {
+      try {
+        const res = await fetch("/api/empleado/team-chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ orderId: item.orderId, body: item.body }),
+        });
+        if (!res.ok) {
+          // Rechazo explícito del servidor: no reintentar indefinidamente el
+          // mismo mensaje inválido, se descarta (igual que el patrón de
+          // servicio en submitServiceEventOrQueue).
+          continue;
+        }
+      } catch {
+        stillPending.push(item);
+      }
+    }
+    savePendingQueue(orderId, stillPending);
+    setPendingCount(stillPending.length);
+    if (stillPending.length < queue.length) {
+      await load();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId]);
 
   useEffect(() => {
     load();
+    setPendingCount(loadPendingQueue(orderId).length);
+    void retryPending();
     const interval = setInterval(load, 15000);
-    return () => clearInterval(interval);
+    window.addEventListener("online", retryPending);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("online", retryPending);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
@@ -53,6 +137,7 @@ export default function TeamChatPage() {
 
   async function send() {
     if (!draft.trim()) return;
+    const body = draft.trim();
     setSending(true);
     setError("");
     try {
@@ -60,7 +145,7 @@ export default function TeamChatPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ orderId, body: draft.trim() }),
+        body: JSON.stringify({ orderId, body }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -70,7 +155,19 @@ export default function TeamChatPage() {
       setDraft("");
       await load();
     } catch {
-      setError("Error de red");
+      // Fallo de red real (no rechazo del servidor): encolar en vez de
+      // perder el mensaje -- se reintenta solo con 'online'.
+      const queue = loadPendingQueue(orderId);
+      queue.push({
+        localId: `${orderId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        orderId,
+        body,
+        capturedAtIso: new Date().toISOString(),
+      });
+      savePendingQueue(orderId, queue);
+      setPendingCount(queue.length);
+      setDraft("");
+      setError("No connection -- your message will send automatically when you're back online.");
     } finally {
       setSending(false);
     }
@@ -78,20 +175,29 @@ export default function TeamChatPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+      <div className="min-h-screen bg-brand-ice">
+        <EmpleadoBackHeader title="Chat del equipo" backHref={backHref} icon={MessageCircle} />
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-[70vh] max-w-md mx-auto">
+    <div className="min-h-screen bg-brand-ice">
+      <EmpleadoBackHeader title="Chat del equipo" backHref={backHref} icon={MessageCircle} />
+      <div className="flex flex-col h-[70vh] max-w-md mx-auto px-4 py-4">
       <div className="mb-3">
-        <h1 className="text-lg font-bold text-brand-ink flex items-center gap-2">
-          <MessageCircle className="w-5 h-5 text-brand-wave-blue" /> Chat del equipo
-        </h1>
         <p className="text-xs text-gray-500">Solo texto, historial de 7 días. Se cierra al terminar la jornada.</p>
       </div>
+
+      {pendingCount > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-xs text-amber-800 mb-2 flex items-center gap-1.5">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+          {pendingCount} message{pendingCount === 1 ? "" : "s"} waiting to send -- will retry automatically when you're online.
+        </div>
+      )}
 
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs text-red-700 mb-2">{error}</div>}
 
@@ -133,6 +239,7 @@ export default function TeamChatPage() {
         </button>
       </div>
       <p className="text-xs text-gray-400 text-right mt-1">{draft.length}/{MAX_LENGTH}</p>
+      </div>
     </div>
   );
 }

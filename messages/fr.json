@@ -95,6 +95,8 @@
       "b2bDesc": "Cette soumission nécessite une intégration manuelle, un bon de commande et une configuration net 30 jours avant la réservation. La soumission avisera notre équipe des ventes.",
       "poLabel": "Numéro de bon de commande (PO) *",
       "poHint": "Les réservations B2B / gouvernementales nécessitent un bon de commande avant l'intégration.",
+      "pipaReviewTitle": "Consentement de confidentialité refusé",
+      "pipaReviewDesc": "Vous n'avez pas consenti au traitement des données selon la PIPA. Nous pouvons tout de même prendre votre réservation, mais elle passera par une révision manuelle supplémentaire avant d'être confirmée.",
       "retryCalculation": "Réessayer",
       "profileWarningTitle": "Nous n'avons pas pu mettre à jour votre profil entièrement",
       "profileWarningDesc": "Votre soumission a été enregistrée, mais une partie de votre profil n'a pas pu être mise à jour. Cela ne vous empêche pas de réserver, mais veuillez vérifier vos coordonnées dans Mon compte par la suite.",
@@ -270,6 +272,7 @@
       "verifying": "Vérification en cours...",
       "resendPhone": "Renvoyer le code ou utiliser un autre téléphone",
       "resendEmail": "Renvoyer le code ou utiliser un autre courriel",
+      "resendIn": "Renvoi possible dans {seconds}s",
       "continueWithGoogle": "Continuer avec Google",
       "continueWithApple": "Continuer avec Apple",
       "or": "ou",
@@ -289,6 +292,7 @@
         "sendCodeFailed": "Échec de l'envoi du code de vérification",
         "invalidPhone": "Veuillez entrer un numéro de téléphone valide",
         "sendSmsFailed": "Échec de l'envoi du code SMS",
+        "phoneAlreadyRegistered": "Ce numéro de téléphone est déjà associé à un autre compte. Veuillez vous connecter avec la méthode originale (Google, Apple ou courriel) utilisée pour ce compte.",
         "invalidCode": "Veuillez entrer le code à 6 chiffres",
         "emailRequired": "Le courriel est requis. Veuillez revenir en arrière et entrer votre courriel.",
         "phoneRequired": "Le numéro de téléphone est requis. Veuillez revenir en arrière et entrer votre téléphone.",
@@ -359,6 +363,7 @@
       "walletPayNowAlipay": "Payez le montant complet dès maintenant avec Alipay.",
       "walletPayNowWechat": "Payez le montant complet dès maintenant avec WeChat Pay.",
       "walletBackupCardNote": "Une carte de secours est tout de même requise par la suite pour couvrir tous frais supplémentaires (dommages, temps supplémentaire, annulation tardive) — vous ne serez plus jamais débité via {method}.",
+      "walletConfirmingWithProvider": "Nous confirmons encore votre paiement auprès de votre fournisseur. Cela peut prendre un instant — merci de ne pas fermer cette page. Si le statut ne se met pas à jour, vous pouvez réessayer.",
       "backupCardLabel": "Carte de secours",
       "preparingCheckout": "Préparation du paiement sécurisé...",
       "tryAgain": "Réessayer",
@@ -591,6 +596,49 @@
       ]
     }
   },
+  "evaluar": {
+    "loading": "Chargement",
+    "unavailable": {
+      "title": "Avis indisponible",
+      "goHome": "Retour à l'accueil"
+    },
+    "errors": {
+      "invalidLink": "Lien d'avis invalide ou expiré.",
+      "notCompleted": "Ce service n'a pas encore été terminé.",
+      "windowExpired": "Le délai pour laisser un avis est dépassé. Vous ne pouvez évaluer que dans les 24 heures suivant la date du service.",
+      "somethingWrong": "Une erreur est survenue.",
+      "selectRating": "Veuillez sélectionner une note.",
+      "submitFailed": "Échec de l'envoi de l'avis.",
+      "networkError": "Erreur réseau. Veuillez réessayer.",
+      "phoneLast4Required": "Veuillez entrer les 4 derniers chiffres du numéro de téléphone associé à votre compte.",
+      "phoneMismatch": "Ces chiffres ne correspondent pas à nos dossiers. Veuillez vérifier et réessayer."
+    },
+    "form": {
+      "title": "Comment s'est passé votre service?",
+      "phoneLast4Label": "Pour votre sécurité, confirmez les 4 derniers chiffres du numéro de téléphone associé à votre compte",
+      "phoneLast4Placeholder": "1234",
+      "ratingLabels": {
+        "1": "Très insatisfait",
+        "2": "Insatisfait",
+        "3": "Neutre",
+        "4": "Satisfait",
+        "5": "Très satisfait"
+      },
+      "commentLabel": "Commentaires (facultatif)",
+      "commentPlaceholder": "Parlez-nous de votre expérience...",
+      "submitAriaLabel": "Envoyer l'avis",
+      "submit": "Envoyer l'avis",
+      "disclaimer": "Cet avis évalue l'équipe et la qualité du service. Pour une réclamation liée à la garantie, veuillez nous contacter directement."
+    },
+    "thankYou": {
+      "title": "Merci!",
+      "body": "Votre avis a bien été envoyé.",
+      "googleTitle": "Ravis que ça vous ait plu! 🎉",
+      "googleBody": "Accepteriez-vous de partager votre avis sur Google? Cela prend 30 secondes et aide d'autres familles de Richmond à nous trouver.",
+      "googleCta": "Laisser un avis Google",
+      "goHome": "Retour à l'accueil"
+    }
+  },
   "cuenta": {
     "nav": {
       "ariaLabel": "Navigation du compte",
@@ -599,7 +647,11 @@
       "billetera": "Portefeuille Lulu",
       "referidos": "Ambassadeur Lulu",
       "preferencias": "Préférences",
-      "logout": "Déconnexion"
+      "logout": "Déconnexion",
+      "logoutError": "Impossible de se déconnecter. Vérifiez votre connexion et réessayez."
+    },
+    "layout": {
+      "redirectingToStaffPortal": "Cette section est réservée aux clients. Redirection vers le portail du personnel..."
     },
     "common": {
       "retry": "Réessayer",
@@ -627,6 +679,8 @@
       "defaultServiceLabel": "Service de nettoyage",
       "viewPhotosChecklist": "Voir les photos et la liste de vérification",
       "trackYourTeam": "Suivre votre équipe",
+      "amountPaid": "Montant payé : {amount}",
+      "amountHeld": "Montant retenu : {amount}",
       "reportIssue": "Signaler un problème",
       "underReview": "En cours de révision.",
       "finalAction": {
@@ -638,6 +692,8 @@
         "selectZone": "Sélectionnez une zone",
         "describeIssue": "Veuillez décrire le problème (au moins quelques mots)",
         "photoUploadFailed": "Échec du téléversement de la photo, veuillez réessayer.",
+        "photoInvalidType": "Veuillez joindre un fichier image (JPG, PNG, etc.).",
+        "photoTooLarge": "La photo est trop volumineuse. Veuillez joindre une image de moins de 5 Mo.",
         "submitFailed": "Échec de la soumission",
         "networkError": "Erreur réseau",
         "allZonesClaimed": "Toutes les zones de ce service ont déjà une réclamation ouverte.",
@@ -961,6 +1017,60 @@
       "ratingGood": "Bien",
       "ratingVeryGood": "Très bien",
       "ratingExcellent": "Excellent"
+    },
+    "checkinScreen": {
+      "title": "Liste de contrôle matinale",
+      "subtitle": "Facultatif. Personne ne voit votre réponse individuelle — pas même le propriétaire. Utilisé uniquement en agrégat pour l'équipe.",
+      "alreadyDone": "Vous avez déjà rempli votre liste de contrôle aujourd'hui. Vous pouvez la mettre à jour si vous le souhaitez.",
+      "streakBonus": "Série de 5 jours ! 5 $ crédités sur votre prochain paiement.",
+      "sleptQuestion": "Avez-vous dormi 6 heures ou plus ?",
+      "yes": "Oui",
+      "no": "Non",
+      "moodQuestion": "Comment vous sentez-vous aujourd'hui ?",
+      "moodHappy": "Bien",
+      "moodNeutral": "Moyen",
+      "moodSad": "Mal",
+      "shortcutAccept": "J'accepte le raccourci d'itinéraire suggéré aujourd'hui",
+      "shortcutNote": "Ce raccourci est examiné manuellement par votre superviseur. Si vous voulez signaler un nouveau raccourci que vous avez découvert et qui rapporte 10 $ une fois validé, utilisez « Signaler un raccourci » ci-dessous.",
+      "submit": "Envoyer la liste de contrôle",
+      "update": "Mettre à jour",
+      "saving": "Enregistrement...",
+      "saveError": "Échec de l'enregistrement",
+      "networkError": "Erreur réseau",
+      "reportShortcutTitle": "Signaler un raccourci d'itinéraire",
+      "reportShortcutBody": "Vous avez trouvé un vrai raccourci qui fait gagner du temps ? Signalez-le. Si votre superviseur le valide, vous recevez 10 $.",
+      "reportShortcutPlaceholder": "Ex : prendre la rue X au lieu de Y évite le feu, économise ~8 min",
+      "reportShortcutButton": "Signaler le raccourci",
+      "reportShortcutSubmitting": "Envoi...",
+      "reportShortcutSuccess": "Raccourci signalé. Votre superviseur va l'examiner.",
+      "reportShortcutError": "Échec du signalement",
+      "optOutTitle": "M'exclure des agrégats d'humeur/sommeil",
+      "optOutBody": "Si vous activez ceci, vos réponses d'humeur et de sommeil ne compteront plus, même dans les rapports agrégés vus par le propriétaire. Vous pouvez continuer à utiliser la liste de contrôle pour le raccourci d'itinéraire et la série."
+    },
+    "panosScreen": {
+      "title": "Cycle des serviettes",
+      "countNote": "Comptage par couleur, pas par unité (ex. « 8 rouges, 6 bleues »).",
+      "colorRed": "Rouge",
+      "colorBlue": "Bleu",
+      "colorGreen": "Vert",
+      "colorYellow": "Jaune",
+      "colorWhite": "Blanc",
+      "colorBlack": "Noir",
+      "stageClean": "Propre",
+      "stageInUse": "En cours d'utilisation",
+      "stageDirty": "Sale",
+      "stageWashing": "Lavage",
+      "stageWarehouse": "Entrepôt",
+      "stageVehicle": "Véhicule",
+      "stageLabel": "Étape du cycle des serviettes",
+      "countLabel": "Nombre de serviettes",
+      "countPlaceholder": "Quantité",
+      "register": "Enregistrer le comptage",
+      "noLogsToday": "Aucun enregistrement aujourd'hui.",
+      "loadError": "Impossible de charger les comptages du jour. Veuillez réessayer.",
+      "loadErrorNetwork": "Erreur de connexion lors du chargement des comptages du jour. Veuillez réessayer.",
+      "saveError": "Impossible d'enregistrer le comptage. Veuillez réessayer.",
+      "saveErrorNetwork": "Erreur de connexion lors de l'enregistrement du comptage. Veuillez réessayer."
     }
   },
   "survey": {
@@ -1088,7 +1198,9 @@
       "accessUserEmail": "Courriel de l'utilisateur :",
       "accessNoEmail": "aucun courriel",
       "accessDenied": "Votre compte n'a aucun rôle administrateur assigné.",
-      "goHome": "Retour à l'accueil"
+      "goHome": "Retour à l'accueil",
+      "supervisorNoRoleTitle": "Aucun rôle opérationnel assigné",
+      "supervisorNoRoleBody": "Votre compte a des permissions de superviseur mais aucun rôle opérationnel ne vous a encore été assigné dans admin_roles. Contactez un administrateur pour obtenir l'accès au menu d'administration."
     },
     "dashboard": {
       "title": "Tableau de bord administrateur",
@@ -1376,6 +1488,7 @@
       "activateInviteAria": "Activer {name} et envoyer l'invitation",
       "languagesNotSet": "Non défini",
       "careerLevelPromotionNotice": "Les promotions au niveau Chef d'équipe et plus nécessitent une certification et une recommandation que le système ne peut pas vérifier — confirmez-les manuellement avant de sélectionner.",
+      "confirmCareerLevelChange": "Modifier le niveau de carrière de cet employé? Ceci s'applique immédiatement.",
       "careerLevelSelectAria": "Niveau de carrière de l'employé",
       "careerLevelTeamMember": "Membre de l'équipe",
       "careerLevelSenior": "Senior",
@@ -1453,10 +1566,34 @@
       "markAsReviewed": "Marquer comme révisé",
       "errorLoadFailed": "Échec du chargement des ventes additionnelles",
       "errorNetwork": "Erreur réseau",
-      "errorMarkReviewedFailed": "Échec du marquage comme révisé"
+      "errorMarkReviewedFailed": "Échec du marquage comme révisé",
+      "requiresApproval": "Dépasse le plafond d'approbation automatique — nécessite votre approbation explicite",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "rejectReasonPlaceholder": "Motif du rejet (facultatif)",
+      "cancel": "Annuler",
+      "confirmReject": "Confirmer le rejet"
     },
     "monitoreoLegal": {
-      "invalidImpact": "Entrez un nombre valide pour l'impact."
+      "title": "Surveillance juridique",
+      "subtitle": "7 entités réglementaires, vérification manuelle selon leur fréquence. Un flux non vérifié depuis 30+ jours est « aveugle » et nécessite de l'attention.",
+      "blindWarning": "{count} flux sont aveugles — la surveillance juridique n'est pas à jour.",
+      "openAlerts": "Alertes de changement juridique ouvertes",
+      "detected": "Détecté le {date}",
+      "impactLabel": "impact {amount}",
+      "feedsTitle": "Flux",
+      "lastChecked": "dernière vérification {date}",
+      "never": "jamais",
+      "noChange": "Aucun changement",
+      "logChange": "Consigner un changement",
+      "changeDescriptionLabel": "Description du changement",
+      "changeDescriptionPlaceholder": "Qu'est-ce qui a changé ?",
+      "dollarImpactLabel": "Impact en dollars (optionnel)",
+      "logThisChange": "Consigner ce changement",
+      "invalidImpact": "Entrez un nombre valide pour l'impact.",
+      "failedToLoad": "Échec du chargement",
+      "failedToUpdate": "Échec de la mise à jour",
+      "networkError": "Erreur réseau"
     },
     "ajustesHhe": {
       "title": "Ajustements d'HHE suggérés",
@@ -1612,6 +1749,7 @@
       "deleteNote": "Supprimer la note",
       "errorLoading": "Échec du chargement",
       "errorNetwork": "Erreur réseau",
+      "errorDeleting": "Échec de la suppression de la note",
       "entityType": {
         "employee": "Employé",
         "clientProperty": "Propriété du client",
@@ -1660,7 +1798,8 @@
       "subtitle": "Cadeaux de fidélisation résidentiels (12 mois et plus) et avantages aux immeubles pour les gestionnaires de propriétés (jamais un cadeau personnel caché — les commissions de partenariat déclarées se trouvent sous Partenaires et commissions).",
       "errors": {
         "failed": "Échec",
-        "network": "Erreur réseau"
+        "network": "Erreur réseau",
+        "invalidGiftInput": "Entrez un ID client, un nombre de mois actifs valide et une valeur de première année supérieure à 0."
       },
       "residentialGifts": {
         "heading": "Cadeaux résidentiels",
@@ -1712,6 +1851,7 @@
       "variantPercent": "Pourcentage de variante",
       "variantPercentShort": "Variante %",
       "variantHint": "La variante doit rester sous 20 % du trafic; les pourcentages doivent totaliser 100.",
+      "weightsMismatch": "Les pourcentages du contrôle et de la variante doivent totaliser 100 % (actuellement {total} %).",
       "createExperiment": "Créer l'expérience",
       "saving": "Enregistrement...",
       "create": "Créer",
@@ -1863,7 +2003,8 @@
       "validateAction": "Valider (+10 $)",
       "errors": {
         "loadFailed": "Échec du chargement",
-        "network": "Erreur réseau"
+        "network": "Erreur réseau",
+        "validateFailed": "Échec de la validation de l'astuce"
       }
     },
     "backups": {
@@ -2403,6 +2544,7 @@
       "orderId": "ID de la commande",
       "orderValueDollars": "Valeur de la commande en dollars",
       "orderValuePlaceholder": "Valeur de la commande ($)",
+      "invalidOrderValue": "Entrez une valeur de commande valide supérieure à 0.",
       "calculateAndLog": "Calculer et enregistrer la commission",
       "calculating": "Calcul...",
       "calculateAndLogShort": "Calculer et enregistrer",
@@ -2601,6 +2743,9 @@
         "collected": "Encaissé",
         "paid": "Payé (paie)",
         "employerBurden": "Charges patronales",
+        "employerBurdenEstimatedBadge": "Estimé",
+        "employerBurdenEstimatedTooltip": "Aucun instantané de cycle de paie pour cet employé — estimation projetée (CPP/AE/WorkSafeBC), pas le chiffre confirmé final.",
+        "otherCosts": "Autres coûts",
         "contributionMargin": "Marge sur coûts variables",
         "netMargin": "Marge nette réelle",
         "noData": "Aucune donnée dans la plage sélectionnée.",
@@ -2623,6 +2768,8 @@
       "workdaySummary": "Résumé de la journée de travail",
       "noOneAssignedYet": "Personne n'est encore affecté.",
       "ordersTotal": "{count} commande(s) · {hours} au total",
+      "realtimeUpdated": "Un autre opérateur vient de modifier une affectation — ce tableau a été actualisé automatiquement.",
+      "realtimeConflictClosed": "Quelqu'un d'autre vient de mettre à jour l'affectation de cette commande pendant que vous l'aviez ouverte. Votre fenêtre d'édition a été fermée et le tableau actualisé pour éviter d'écraser son changement.",
       "languageBadge": {
         "match": "Langue correspondante",
         "no_match": "Aucune langue correspondante",
@@ -2951,7 +3098,8 @@
         "rateMustBePositive": "Le taux horaire cible doit être un nombre positif",
         "reasonRequired": "Un motif est requis pour le journal d'audit",
         "updateFailed": "Échec de la mise à jour des paramètres de tarification",
-        "hheUpdateFailed": "Échec de la mise à jour des paramètres HHE"
+        "hheUpdateFailed": "Échec de la mise à jour des paramètres HHE",
+        "hheCellMustBePositive": "Entrez un nombre supérieur à 0 pour cette cellule."
       },
       "targetRate": {
         "title": "Taux horaire cible",
@@ -3112,11 +3260,14 @@
         "message": "L'utilisateur perdra l'accès aux ressources qu'il confère.",
         "confirmLabel": "Révoquer"
       },
+      "confirmRevokeOwnerAdminExtra": "Vous êtes sur le point de révoquer le rôle ADMINISTRATEUR PROPRIÉTAIRE de {target}. Cela retire l'accès administratif complet, y compris la capacité de gérer d'autres administrateurs. Continuer?",
+      "confirmGrantOwnerAdminExtra": "Vous êtes sur le point d'attribuer le rôle ADMINISTRATEUR PROPRIÉTAIRE (accès complet) à {email}. Il s'agit du rôle avec les privilèges les plus élevés. Continuer?",
       "addModal": {
         "title": "Attribuer un rôle administratif",
         "subtitle": "Si le courriel n'a pas encore de compte, une invitation est envoyée (même procédure que l'intégration des employés).",
         "emailLabel": "Courriel",
         "emailPlaceholder": "nom@exemple.com",
+        "emailInvalid": "Entrez une adresse courriel valide",
         "roleLabel": "Rôle",
         "roleOptions": {
           "ownerAdmin": "Administrateur propriétaire — accès complet",
@@ -3414,7 +3565,8 @@
       "errors": {
         "loadFailed": "Échec du chargement",
         "network": "Erreur réseau",
-        "createFailed": "Échec de la création de l'équipe"
+        "createFailed": "Échec de la création de l'équipe",
+        "updateFailed": "Échec de la mise à jour de l'équipe"
       }
     },
     "pipeda": {

@@ -131,11 +131,11 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
   // no puede usar Google. Ver comentario extenso en
   // src/app/api/admin/backup-codes/verify/route.ts sobre cómo se crea la
   // sesión: ese endpoint valida el código (server-side, service role),
-  // marca el código como usado, y devuelve un token_hash de un magic-link
-  // nativo de Supabase generado para el email del dueño del código. Este
-  // handler solo hace el paso final -- canjear ese token_hash con el método
-  // público del SDK -- exactamente igual que un link de email real, salvo
-  // que el token llegó por esta respuesta en vez de por correo.
+  // marca el código como usado, y canjea el magic-link nativo de Supabase
+  // completamente server-side (fix BUG-2 auditoría 2026-07-30) -- la sesión
+  // queda establecida vía cookie en la propia respuesta de este fetch, así
+  // que este handler ya no recibe ni maneja ningún secreto: solo confirma
+  // éxito y recarga.
   const handleBackupCodeSignIn = async () => {
     if (!backupCode.trim()) {
       setError(t("errors.backupCodeRequired"));
@@ -149,17 +149,11 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: backupCode }),
       });
-      const json = await res.json();
       // Fix (item 1): antes se propagaba json.error (mensaje del servidor,
       // potencialmente técnico) directo al usuario vía new Error(...).message
       // más abajo. Se usa siempre el mensaje genérico localizado.
       if (!res.ok) throw new Error("backup_code_failed");
 
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        token_hash: json.tokenHash,
-        type: "magiclink",
-      });
-      if (verifyError) throw verifyError;
       window.location.reload();
     } catch {
       setError(t("errors.backupCodeFailed"));

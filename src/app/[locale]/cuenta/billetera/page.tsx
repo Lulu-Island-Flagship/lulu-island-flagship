@@ -6,6 +6,7 @@ import { Loader2, Wallet, Gift } from "lucide-react";
 import { StatusBanner } from "@/components/cuenta/StatusBanner";
 import { supabase } from "@/lib/supabase";
 import { AuthModal } from "@/components/cotizador/AuthModal";
+import { toIntlLocale } from "@/lib/format";
 
 interface WalletTransaction {
   id: string;
@@ -242,13 +243,13 @@ export default function WalletPage() {
                     {tx.description || (WALLET_TX_TYPES.includes(tx.type) ? t(`transactionType.${tx.type}`) : tx.type)}
                   </p>
                   <p className="text-xs text-gray-400">
-                    {new Date(tx.created_at).toLocaleDateString("en-CA", { timeZone: "America/Vancouver" })}
-                    {tx.expires_at && ` — ${t("expires", { date: new Date(tx.expires_at).toLocaleDateString("en-CA") })}`}
+                    {new Date(tx.created_at).toLocaleDateString(toIntlLocale(safeLocale), { timeZone: "America/Vancouver" })}
+                    {tx.expires_at && ` — ${t("expires", { date: new Date(tx.expires_at).toLocaleDateString(toIntlLocale(safeLocale)) })}`}
                   </p>
                 </div>
                 <span className={tx.type === "debit" || tx.type === "payout" ? "text-state-danger" : "text-state-success"}>
                   {tx.type === "debit" || tx.type === "payout" ? "-" : "+"}
-                  {formatDollars(tx.amount, safeLocale)}
+                  {formatDollars(Math.abs(tx.amount), safeLocale)}
                 </span>
               </div>
             ))}

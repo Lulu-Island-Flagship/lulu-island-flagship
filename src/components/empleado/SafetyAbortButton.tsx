@@ -19,7 +19,7 @@ import { useFocusTrap } from "@/hooks/useFocusTrap";
  * no solo dentro de un servicio (D.10 #7 no lo condiciona a eso).
  */
 
-type Stage = "idle" | "first" | "second" | "sending" | "sent" | "error";
+type Stage = "idle" | "first" | "second" | "sending" | "sent" | "error" | "network_fallback";
 
 // v8.3 E7 (D.10 #7) — "SOS con GPS vivo": mientras el aborto siga activo
 // (stage === "sent"), el GPS se reenvía periódicamente vía PATCH
@@ -27,6 +27,22 @@ type Stage = "idle" | "first" | "second" | "sending" | "sent" | "error";
 // componente la llamaba -- el POST inicial solo mandaba una foto fija del
 // GPS al momento de activar el SOS).
 const GPS_UPDATE_INTERVAL_MS = 20000;
+
+// Fix (auditoría 2026-07-30, bug #1): si el POST a /api/empleado/safety-abort
+// no responde en este plazo (dispositivo sin señal/datos en el momento de la
+// emergencia), se ofrece un fallback nativo tel:/sms: en vez de dejar al
+// empleado con un simple mensaje de error. Se investigó el repo buscando un
+// número de emergencia/coordinador de guardia ya configurado y reutilizable
+// (unified-alerts.ts es notificación in-app únicamente; el cron de
+// escalación de SOS no tiene integración Twilio real todavía;
+// TWILIO_HUMAN_ESCALATION_NUMBER es para la centralita telefónica general,
+// no para SOS) -- no existe ninguno. Se usa una variable de entorno pública
+// dedicada; el placeholder es obviamente inválido a propósito.
+//
+// ATENCIÓN PRODUCCIÓN: NEXT_PUBLIC_SOS_EMERGENCY_PHONE debe configurarse con
+// el número real del coordinador de guardia antes de salir a producción.
+const SOS_FETCH_TIMEOUT_MS = 2500;
+const SOS_FALLBACK_PHONE = process.env.NEXT_PUBLIC_SOS_EMERGENCY_PHONE || "+10000000000";
 
 export function SafetyAbortButton({ orderId }: { orderId?: string }) {
   const [stage, setStage] = useState<Stage>("idle");
@@ -53,7 +69,17 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
   // y el trap se activa/desactiva internamente vía el flag `active`.
   const isDialogOpen = stage !== "idle" && !(stage === "sent" && minimized);
   const dialogCloseHandler = stage === "sent" ? minimizeDialog : reset;
-  const dialogRef = useFocusTrap<HTMLDivElement>(isDialogOpen, dialogCloseHandler);
+  // v8.3 ROUND 4 fix (#10): useFocusTrap cierra el diálogo con Escape sin
+  // distinguir la etapa -- durante "first"/"second" (la doble confirmación
+  // real de una emergencia) un Escape accidental (o de alguien más cerca
+  // del teclado) cancelaba todo el SOS sin que el empleado lo pidiera. El
+  // botón X visible sigue funcionando siempre (acción explícita del
+  // empleado); solo se desactiva el atajo de teclado Escape en esas dos
+  // etapas de riesgo. Fuera de first/second (idle no muestra diálogo, sent/
+  // error/network_fallback no son "confirmación en curso"), Escape sigue
+  // funcionando normalmente.
+  const escCloseHandler = stage === "first" || stage === "second" ? undefined : dialogCloseHandler;
+  const dialogRef = useFocusTrap<HTMLDivElement>(isDialogOpen, escCloseHandler);
 
   function stopGpsUpdates() {
     if (gpsIntervalRef.current) {
@@ -120,12 +146,21 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
   async function confirmSecondAndSend() {
     setStage("sending");
     setErrorMsg("");
+    const loc = await getLocation();
+    // Fix (auditoría 2026-07-30, bug #1): timeout corto + AbortController --
+    // si el dispositivo no tiene red en el momento de la emergencia, fetch()
+    // puede quedarse colgado mucho más de lo que un empleado en peligro
+    // puede esperar. A los SOS_FETCH_TIMEOUT_MS se aborta y se ofrece el
+    // fallback tel:/sms: (stage "network_fallback") en vez de seguir
+    // esperando indefinidamente.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), SOS_FETCH_TIMEOUT_MS);
     try {
-      const loc = await getLocation();
       const res = await fetch("/api/empleado/safety-abort", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
+        signal: controller.signal,
         body: JSON.stringify({
           orderId: orderId || null,
           reason: reason.trim() || null,
@@ -135,6 +170,7 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
           gpsLng: loc?.lng,
         }),
       });
+      clearTimeout(timeoutId);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "No se pudo activar el SOS");
       const createdId = data.safetyAbort?.id as string | undefined;
@@ -144,8 +180,20 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
       }
       setStage("sent");
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "Error de red");
-      setStage("error");
+      clearTimeout(timeoutId);
+      // Falla de red real (fetch no pudo conectar) o timeout por abort():
+      // ofrece el fallback nativo tel:/sms: en vez de un simple error de
+      // "reintentar" -- una respuesta HTTP de error (res.ok === false, que
+      // llega como Error normal desde el `throw` de arriba) sí mantiene el
+      // flujo de error/reintento existente, porque ahí SÍ hubo red.
+      const isNetworkFailure =
+        err instanceof TypeError || (err instanceof DOMException && err.name === "AbortError");
+      if (isNetworkFailure) {
+        setStage("network_fallback");
+      } else {
+        setErrorMsg(err instanceof Error ? err.message : "Error de red");
+        setStage("error");
+      }
     }
   }
 
@@ -275,6 +323,43 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
                 Cancelar
               </button>
             </div>
+          </>
+        )}
+
+        {stage === "network_fallback" && (
+          <>
+            <Siren className="w-10 h-10 text-state-danger mb-3" />
+            <h2 className="text-lg font-bold text-brand-ink mb-2">Sin conexión — llama directamente</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              No pudimos enviar el SOS por internet. Usa uno de estos accesos directos para contactar de
+              inmediato al coordinador de guardia.
+            </p>
+            <div className="flex flex-col gap-2 mb-4">
+              <a
+                href={`tel:${SOS_FALLBACK_PHONE}`}
+                className="w-full bg-state-danger text-white py-3 rounded-lg font-semibold text-center"
+              >
+                Llamar ahora
+              </a>
+              <a
+                href={`sms:${SOS_FALLBACK_PHONE}?body=${encodeURIComponent(
+                  `SOS emergencia. ${reason.trim() || "Sin detalles adicionales."}`
+                )}`}
+                className="w-full border border-state-danger text-state-danger py-2.5 rounded-lg font-semibold text-center"
+              >
+                Enviar SMS de emergencia
+              </a>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStage("second")}
+              className="w-full border border-gray-300 py-2.5 rounded-lg text-sm mb-2"
+            >
+              Reintentar por internet
+            </button>
+            <button type="button" onClick={reset} className="w-full text-xs text-gray-400 py-1">
+              Cancelar
+            </button>
           </>
         )}
       </div>

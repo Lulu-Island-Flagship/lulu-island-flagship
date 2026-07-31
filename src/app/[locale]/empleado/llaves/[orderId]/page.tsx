@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Key, Loader2, ChevronLeft, AlertTriangle, Check } from "lucide-react";
+import { Key, Loader2, ChevronLeft, AlertTriangle, Check, Eye, EyeOff } from "lucide-react";
 
 type KeyMethod = "in_person" | "lockbox" | "third_party" | "problem";
 
@@ -40,6 +40,12 @@ export default function LlavesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [method, setMethod] = useState<KeyMethod>("in_person");
   const [lockboxCode, setLockboxCode] = useState("");
+  // v8.3 ROUND 4 fix (#9): el código del lockbox se mostraba en texto plano
+  // en pantalla (type="text") -- cualquiera mirando por encima del hombro
+  // del empleado, o una captura de pantalla, lo exponía. Mismo patrón
+  // Eye/EyeOff de toggle de visibilidad ya usado para los backup codes de
+  // admin (admin/seguridad/page.tsx).
+  const [showLockboxCode, setShowLockboxCode] = useState(false);
   const [confirmedReturned, setConfirmedReturned] = useState(false);
   const [error, setError] = useState("");
 
@@ -134,14 +140,24 @@ export default function LlavesPage() {
               </div>
 
               {method === "lockbox" && (
-                <input
-                  type="text"
-                  aria-label="Código del lockbox"
-                  placeholder="Código del lockbox"
-                  value={lockboxCode}
-                  onChange={(e) => setLockboxCode(e.target.value)}
-                  className="w-full text-sm border rounded-lg px-3 py-2"
-                />
+                <div className="relative">
+                  <input
+                    type={showLockboxCode ? "text" : "password"}
+                    aria-label="Código del lockbox"
+                    placeholder="Código del lockbox"
+                    value={lockboxCode}
+                    onChange={(e) => setLockboxCode(e.target.value)}
+                    className="w-full text-sm border rounded-lg px-3 py-2 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLockboxCode((v) => !v)}
+                    aria-label={showLockboxCode ? "Ocultar código del lockbox" : "Mostrar código del lockbox"}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showLockboxCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               )}
 
               {method === "in_person" && (

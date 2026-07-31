@@ -21,6 +21,7 @@ import { StatusBanner } from "./StatusBanner";
 import { Skeleton, SkeletonServiceList } from "@/components/ui/Skeleton";
 import { AuthModal } from "@/components/cotizador/AuthModal";
 import { formatServiceDateDisplay, formatServiceTimeDisplay } from "@/lib/date-utils";
+import { formatCurrency } from "@/lib/format";
 
 // Fix (2026-07-25, auditoría UX, item 11): antes se mostraba
 // `order.service_date` crudo ("2026-08-03") concatenado con
@@ -45,6 +46,9 @@ interface ClientOrder {
   status: string;
   // RAÍZ-3 (2026-07-21, migración 229): orders.total_paid_cents -- centavos, no dólares.
   total_paid_cents: number;
+  // Fix (revisión 2026-07-30, punto 5): ya venía en ORDER_CLIENT_COLUMNS
+  // (src/lib/client-visible-columns.ts) pero nunca se mostraba en esta UI.
+  hold_amount_cents: number | null;
   warranty_status: string;
   quotes: { service_category?: string; service_subtype?: string; address?: string; zone?: string } | null;
   claimableZones: ClaimableZone[];
@@ -64,6 +68,9 @@ interface WarrantyClaim {
 
 // warranty_claims.final_action — valores conocidos del backend
 const FINAL_ACTIONS = ["free_recleaning", "explain_no_action", "dismiss"];
+
+// Límite de tamaño para la foto de evidencia de un reclamo de garantía.
+const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 // orders.status CHECK constraint (migración 001_modulo1_base_schema.sql):
 // ('pending', 'confirmed', 'completed', 'cancelled', 'no_show')
@@ -235,6 +242,19 @@ export default function MisServiciosClient() {
                         {order.quotes.address}
                       </div>
                     )}
+                    {/* Fix (revisión 2026-07-30, punto 5): monto pagado/retenido no se
+                        mostraba en ninguna parte de esta tarjeta -- el cliente no tenía
+                        forma de ver cuánto se le cobró o retuvo por este servicio sin ir
+                        a buscar el correo/recibo de Stripe. */}
+                    {order.total_paid_cents > 0 ? (
+                      <div className="text-xs text-gray-500 mt-1">
+                        {t("amountPaid", { amount: formatCurrency(order.total_paid_cents / 100, locale) })}
+                      </div>
+                    ) : !!order.hold_amount_cents && order.hold_amount_cents > 0 ? (
+                      <div className="text-xs text-gray-500 mt-1">
+                        {t("amountHeld", { amount: formatCurrency(order.hold_amount_cents / 100, locale) })}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="shrink-0 flex flex-col items-end gap-2">
                     {order.status === "completed" && (
@@ -461,7 +481,32 @@ function ClaimForm({
             aria-label={t("photoInputAriaLabel")}
             type="file"
             accept="image/*"
-            onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+            onChange={(e) => {
+              const file = e.target.files?.[0] || null;
+              e.target.value = "";
+              if (!file) {
+                setPhotoFile(null);
+                return;
+              }
+              // Fix (auditoría UX/seguridad): antes se aceptaba cualquier
+              // archivo sin validar tipo/tamaño real -- el atributo
+              // `accept="image/*"` es solo una sugerencia del selector del
+              // SO y no impide seleccionar otros archivos. Se valida acá
+              // antes de guardar el File en estado (y por lo tanto antes de
+              // subirlo a Supabase Storage en handleSubmit).
+              if (!file.type.startsWith("image/")) {
+                setFormError(t("photoInvalidType"));
+                setPhotoFile(null);
+                return;
+              }
+              if (file.size > MAX_PHOTO_SIZE_BYTES) {
+                setFormError(t("photoTooLarge"));
+                setPhotoFile(null);
+                return;
+              }
+              setFormError("");
+              setPhotoFile(file);
+            }}
             className="text-xs"
           />
         )}

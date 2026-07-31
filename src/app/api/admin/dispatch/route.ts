@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { roleAllows } from "@/lib/admin-rbac";
 import { calculateTeamRequirements, getHHEForRange, type ServiceType } from "@/lib/pricing";
 import { evaluateWorkday, type WorkBlock } from "@/lib/workday";
 import { evaluateScheduleChange, classifySchedule, calculateContingencyGuaranteedPay, type ScheduleBlock } from "@/lib/schedule-7030";
@@ -430,6 +431,17 @@ export async function GET(request: NextRequest) {
     // convierte a tarifa por hora asumiendo jornada de 8h -- no existe un
     // hourly_rate propio en el esquema, y day_rate/8 es la única conversión
     // que no inventa un número nuevo.
+    //
+    // Fix auditoría 2026-07-30: el recurso RBAC de este endpoint es
+    // "dispatch" (owner_admin + ops_coordinator, ver admin-rbac.ts), no
+    // "payroll" (solo owner_admin) -- pero guaranteedContingencyPayCents es
+    // un monto en dólares derivado directamente de employees.day_rate, así
+    // que devolverlo aquí filtraba información salarial a cualquier
+    // ops_coordinator con acceso normal a dispatch. day_rate se sigue
+    // leyendo y usando server-side (línea ~310, necesario para el cálculo),
+    // pero el monto derivado solo se incluye en la respuesta si el rol que
+    // hizo la request también tiene acceso a "payroll".
+    const hasPayrollAccess = roleAllows(auth.roles, "payroll");
     const scheduleCompliance = Array.from(scheduleBlocksByEmployee.entries()).map(([employeeId, blocks]) => {
       const emp = employeeMap.get(employeeId);
       const classification = classifySchedule(blocks);
@@ -448,7 +460,7 @@ export async function GET(request: NextRequest) {
         expectedContingencyMinutes: classification.expectedContingencyMinutes,
         withinTolerance: classification.withinTolerance,
         deviationReasons: classification.deviationReasons,
-        guaranteedContingencyPayCents,
+        ...(hasPayrollAccess ? { guaranteedContingencyPayCents } : {}),
       };
     });
 

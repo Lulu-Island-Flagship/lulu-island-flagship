@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { Loader2, Handshake, Plus, X, Calculator } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { formatCurrency } from "@/lib/format";
 
 type PartnerType = "real_estate_agent" | "property_manager" | "veterinarian" | "builder";
 
@@ -23,12 +25,15 @@ interface Commission {
   partners: { name: string; partner_type: PartnerType } | null;
 }
 
-function money(cents: number) {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
 export default function PartnersPage() {
   const t = useTranslations("admin.partners");
+  const params = useParams();
+  // Fix (auditoría 2026-07-30, item 2): antes se concatenaba "$" a mano
+  // (`$${(cents / 100).toFixed(2)}`), sin usar Intl.NumberFormat -- rompía
+  // localización real (separadores, posición del símbolo) para fr/zh. Se usa
+  // el mismo helper formatCurrency() ya centralizado en src/lib/format.ts.
+  const locale = (params?.locale as string) || "en";
+  const money = (cents: number) => formatCurrency(cents / 100, locale);
   const TYPE_LABEL: Record<PartnerType, string> = {
     real_estate_agent: t("type.realEstateAgent"),
     property_manager: t("type.propertyManager"),
@@ -98,6 +103,11 @@ export default function PartnersPage() {
 
   async function submitCalc(e: React.FormEvent) {
     e.preventDefault();
+    const orderValue = Number(calcForm.orderValueDollars);
+    if (!Number.isFinite(orderValue) || orderValue <= 0) {
+      setError(t("invalidOrderValue"));
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -109,7 +119,7 @@ export default function PartnersPage() {
           action: "calculate",
           partnerId: calcForm.partnerId,
           orderId: calcForm.orderId.trim(),
-          orderValueCents: Math.round(Number(calcForm.orderValueDollars) * 100),
+          orderValueCents: Math.round(orderValue * 100),
         }),
       });
       if (!res.ok) {

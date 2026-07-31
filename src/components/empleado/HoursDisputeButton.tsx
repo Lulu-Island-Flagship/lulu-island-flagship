@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { AlertTriangle, X, CheckCircle2 } from "lucide-react";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { parseVancouverDateTime } from "@/lib/date-utils";
 
 /**
  * v8.3 ROUND 3 — hallazgo: POST /api/empleado/hours-dispute (FIX-9, RLS
@@ -38,8 +39,12 @@ export function HoursDisputeButton({
     setSubmitting(true);
     setError("");
     try {
+      // v8.3 ROUND 4 fix (#4): antes construía el Date con el string local, lo que lo
+      // interpretaba en la zona horaria del navegador del dispositivo, no la de
+      // Vancouver -- un empleado con el teléfono en otra zona reportaría una hora
+      // incorrecta. parseVancouverDateTime aplica el offset real de Vancouver.
       const claimedTimestamp = claimedTime
-        ? new Date(`${recordedTimestamp.slice(0, 10)}T${claimedTime}:00`).toISOString()
+        ? parseVancouverDateTime(recordedTimestamp.slice(0, 10), claimedTime).toISOString()
         : recordedTimestamp;
       const res = await fetch("/api/empleado/hours-dispute", {
         method: "POST",

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateCheckinStreakBonus, CHECKIN_STREAK_BONUS_CENTS } from "@/lib/wellbeing-bonus";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
+import { getVancouverTodayString } from "@/lib/date-utils";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -36,7 +37,10 @@ export async function GET() {
   }>(supabase, user.id, "id, wellbeing_opt_out");
   if (!employee) return NextResponse.json({ error: empError }, { status: empStatus });
 
-  const today = new Date().toISOString().split("T")[0];
+  // v8.3 ROUND 4 fix (#11): "hoy" en UTC puede ser el día siguiente al de
+  // Vancouver por las tardes/noches (Vancouver va detrás de UTC) -- se usa
+  // la fecha calendario real de Vancouver.
+  const today = getVancouverTodayString();
   const { data } = await supabase
     .from("daily_checkins")
     .select("checkin_date, slept_6h_plus, mood, shortcut_accepted")
@@ -92,7 +96,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "mood inválido" }, { status: 400 });
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = getVancouverTodayString();
     const { data, error } = await supabase
       .from("daily_checkins")
       .upsert(

@@ -11,6 +11,22 @@ import { Globe, Apple, Mail, Smartphone, X } from "lucide-react";
 // casos obvios que la auditoría señaló.
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Fix (auditoría externa 2026-07-30, BUG 1): antes se concatenaba "+1" a
+// ciegas (`phone.startsWith("+") ? phone : \`+1${phone}\``) sin validar que
+// el resto fuera un número norteamericano de 10 dígitos. El input de
+// teléfono ya fuerza solo dígitos (onChange hace `.replace(/\D/g, "")`), así
+// que en la práctica el "+" nunca llega desde esta UI -- pero el chequeo
+// viejo (`phone.length < 10`, un mínimo sin techo) dejaba pasar 11+ dígitos
+// (ej. el usuario tipeó el "1" del código de país a mano: "16041234567") y
+// generaba un E.164 incorrecto ("+116041234567"). Ahora exige exactamente 10
+// dígitos para el caso sin "+", devolviendo null si no cumple.
+function normalizePhone(rawPhone: string): string | null {
+  if (rawPhone.startsWith("+")) return rawPhone;
+  const digits = rawPhone.replace(/\D/g, "");
+  if (digits.length !== 10) return null;
+  return `+1${digits}`;
+}
+
 interface AuthModalProps {
   onClose: () => void;
   onSuccess: () => void;
@@ -39,6 +55,35 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
   const [error, setError] = useState(initialError || "");
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+
+  // Fix (auditoría UX/seguridad 2026-07-30, BUG 5): el botón de reenviar
+  // código no tenía cooldown ni throttle visual -- un usuario (o un script)
+  // podía volver a la pantalla de envío y disparar signInWithOtp sin límite.
+  // Nota: Supabase Auth ya aplica su propio rate limit server-side sobre el
+  // endpoint de OTP (por defecto ~60s entre envíos por email/teléfono,
+  // configurable en el proyecto de Supabase) -- esto es defensa en
+  // profundidad, no la protección real. Este cooldown es solo UX: evita que
+  // el cliente golpee el botón y reciba silenciosamente el rate-limit error
+  // de Supabase sin ningún indicio de por qué "no pasó nada".
+  const RESEND_COOLDOWN_SECONDS = 45;
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const cooldownEndRef = useRef<number | null>(null);
+
+  function startResendCooldown() {
+    cooldownEndRef.current = Date.now() + RESEND_COOLDOWN_SECONDS * 1000;
+    setResendCooldown(RESEND_COOLDOWN_SECONDS);
+  }
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const end = cooldownEndRef.current;
+      if (!end) return;
+      const remaining = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+      setResendCooldown((prev) => (prev !== remaining ? remaining : prev));
+      if (remaining <= 0) cooldownEndRef.current = null;
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Fix (auditoría externa 2026-07-24, accesibilidad): sin focus trap ni
   // foco inicial, Tab podía escapar hacia elementos de fondo mientras el
@@ -160,6 +205,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       });
       if (error) throw error;
       setOtpSent(true);
+      startResendCooldown();
     } catch {
       // Fix (item 13): nunca mostrar err.message crudo de Supabase Auth.
       setError(t("errors.sendCodeFailed"));
@@ -173,8 +219,13 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       setError(t("errors.invalidPhone"));
       return;
     }
-    // Normalizar a E.164 para Canadá/EE.UU.
-    const normalizedPhone = phone.startsWith("+") ? phone : `+1${phone}`;
+    // Fix (auditoría 2026-07-30, BUG 1): normalizar a E.164 validando formato
+    // (ver normalizePhone arriba) en vez de concatenar "+1" ciegamente.
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
+      setError(t("errors.invalidPhone"));
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -183,9 +234,20 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       });
       if (error) throw error;
       setOtpSent(true);
-    } catch {
-      // Fix (item 13): nunca mostrar err.message crudo de Supabase Auth.
-      setError(t("errors.sendSmsFailed"));
+      startResendCooldown();
+    } catch (err) {
+      // Fix (auditoría 2026-07-30, BUG 1): antes SIEMPRE se mostraba el
+      // mensaje genérico sin importar la causa real (ej. el número ya está
+      // vinculado a otra cuenta). Supabase Auth expone `code` en AuthApiError
+      // (ver node_modules/@supabase/auth-js/src/lib/error-codes.ts) --
+      // "phone_exists" es el único código con un mensaje específico útil
+      // aquí. El resto de causas se loguea a consola para debug pero
+      // mantiene el mensaje genérico como fallback -- sigue sin mostrarse
+      // err.message crudo de Supabase al cliente (mismo criterio que el
+      // resto de catch blocks de este archivo, item 13).
+      console.error("handlePhoneOtpRequest error:", err);
+      const code = (err as { code?: string } | null | undefined)?.code;
+      setError(code === "phone_exists" ? t("errors.phoneAlreadyRegistered") : t("errors.sendSmsFailed"));
     } finally {
       setLoading(false);
     }
@@ -200,16 +262,31 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       setError(t("errors.invalidPhone"));
       return;
     }
-    const normalizedPhone = phone.startsWith("+") ? phone : `+1${phone}`;
+    // Fix (auditoría 2026-07-30, BUG 1): ver normalizePhone arriba -- no
+    // concatenar "+1" ciegamente.
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
+      setError(t("errors.invalidPhone"));
+      return;
+    }
     setLoading(true);
     setError("");
     try {
       const { error } = await supabase.auth.updateUser({ phone: normalizedPhone });
       if (error) throw error;
       setOtpSent(true);
-    } catch {
-      // Fix (item 13): nunca mostrar err.message crudo de Supabase Auth.
-      setError(t("errors.sendSmsFailed"));
+      startResendCooldown();
+    } catch (err) {
+      // Fix (auditoría 2026-07-30, BUG 1): este es el caso donde el conflicto
+      // "número ya registrado en otra cuenta" es MÁS probable de los dos
+      // (updateUser intenta vincular el número a la cuenta ya autenticada por
+      // Google/Apple -- si ese número ya es el teléfono de OTRA cuenta,
+      // Supabase responde con code "phone_exists"). Mismo criterio que
+      // handlePhoneOtpRequest: loguear el error real y solo caer al mensaje
+      // genérico si no es un código reconocido.
+      console.error("handleLinkPhoneRequest error:", err);
+      const code = (err as { code?: string } | null | undefined)?.code;
+      setError(code === "phone_exists" ? t("errors.phoneAlreadyRegistered") : t("errors.sendSmsFailed"));
     } finally {
       setLoading(false);
     }
@@ -434,9 +511,10 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                     setOtpSent(false);
                     setOtpCode("");
                   }}
-                  className="w-full text-sm text-brand-wave-blue hover:underline"
+                  disabled={resendCooldown > 0}
+                  className="w-full text-sm text-brand-wave-blue hover:underline disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
                 >
-                  {t("resendPhone")}
+                  {resendCooldown > 0 ? t("resendIn", { seconds: resendCooldown }) : t("resendPhone")}
                 </button>
               </>
             )}
@@ -549,9 +627,10 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                     setOtpSent(false);
                     setOtpCode("");
                   }}
-                  className="w-full text-sm text-brand-wave-blue hover:underline"
+                  disabled={resendCooldown > 0}
+                  className="w-full text-sm text-brand-wave-blue hover:underline disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
                 >
-                  {t("resendEmail")}
+                  {resendCooldown > 0 ? t("resendIn", { seconds: resendCooldown }) : t("resendEmail")}
                 </button>
               </>
             )}
@@ -623,9 +702,10 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                     setOtpSent(false);
                     setOtpCode("");
                   }}
-                  className="w-full text-sm text-brand-wave-blue hover:underline"
+                  disabled={resendCooldown > 0}
+                  className="w-full text-sm text-brand-wave-blue hover:underline disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
                 >
-                  {t("resendPhone")}
+                  {resendCooldown > 0 ? t("resendIn", { seconds: resendCooldown }) : t("resendPhone")}
                 </button>
               </>
             )}

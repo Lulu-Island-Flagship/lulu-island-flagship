@@ -36,6 +36,13 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+// Nota (auditoría 2026-07-30): las URLs reales de la app de empleado llevan
+// locale primero (/es/empleado/*, /en/empleado/*, next-intl con
+// localePrefix: "always"). Se usa .includes() a propósito (no
+// .startsWith()) para que esto matchee sin importar el locale -- eso ya
+// estaba bien acá; lo que estaba roto era el `scope` del registro en
+// ServiceWorkerRegister.tsx ("/empleado", que el navegador nunca aplica a
+// /es/empleado/*), corregido por separado a scope "/".
 function isAppShellRequest(url) {
   return url.pathname.includes(APP_SHELL_PREFIX) && !url.pathname.startsWith("/api/");
 }

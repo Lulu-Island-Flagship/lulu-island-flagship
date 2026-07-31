@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
 interface EmpleadoBackHeaderProps {
@@ -31,13 +32,16 @@ export function EmpleadoBackHeader({ title, backHref, icon: Icon }: EmpleadoBack
           {Icon && <Icon className="w-5 h-5 text-brand-gold" />}
           <span className="font-semibold text-sm">{title}</span>
         </div>
-        <a
+        {/* v8.3 ROUND 4 fix (#8): antes era <a href>, que forzaba una recarga
+            completa de página (perdiendo el estado del SPA/PWA) en cada
+            "Back". Link de Next.js navega client-side. */}
+        <Link
           href={backHref}
           className="flex items-center gap-1 text-sm text-gray-300 hover:text-white transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
           Back
-        </a>
+        </Link>
       </div>
     </header>
   );

@@ -95,6 +95,8 @@
       "b2bDesc": "此报价需要人工开户、采购单（PO）流程及月结30天设置后方可预订。提交后我们的销售团队将收到通知。",
       "poLabel": "采购单（PO）编号 *",
       "poHint": "企业 / 政府预订在开户前需提供采购单编号。",
+      "pipaReviewTitle": "未同意隐私条款（PIPA）",
+      "pipaReviewDesc": "您尚未同意PIPA数据处理条款。我们仍可为您预订，但订单在确认前将需要额外的人工审核。",
       "retryCalculation": "重试",
       "profileWarningTitle": "您的资料未能完全更新",
       "profileWarningDesc": "您的报价已保存，但部分账户资料未能完全更新。这不会影响您预订，但请稍后在“我的账户”中核实您的联系信息。",
@@ -270,6 +272,7 @@
       "verifying": "验证中...",
       "resendPhone": "重新发送验证码或更换手机号",
       "resendEmail": "重新发送验证码或更换邮箱",
+      "resendIn": "{seconds}秒后可重新发送",
       "continueWithGoogle": "使用谷歌账号继续",
       "continueWithApple": "使用Apple账号继续",
       "or": "或",
@@ -289,6 +292,7 @@
         "sendCodeFailed": "验证码发送失败",
         "invalidPhone": "请输入有效的手机号码",
         "sendSmsFailed": "短信验证码发送失败",
+        "phoneAlreadyRegistered": "该手机号码已绑定到另一个账户。请使用该账户原来的登录方式（谷歌、Apple或邮箱）登录。",
         "invalidCode": "请输入6位验证码",
         "emailRequired": "需要提供邮箱，请返回并输入您的邮箱。",
         "phoneRequired": "需要提供手机号码，请返回并输入您的手机号。",
@@ -359,6 +363,7 @@
       "walletPayNowAlipay": "立即使用支付宝支付全款。",
       "walletPayNowWechat": "立即使用微信支付全款。",
       "walletBackupCardNote": "之后仍需登记一张备用卡，用于覆盖任何额外费用（损坏、超时、临时取消）——我们绝不会再次通过{method}向您扣款。",
+      "walletConfirmingWithProvider": "我们仍在与您的支付服务商确认付款结果，可能需要一点时间——请不要关闭此页面。如果状态一直没有更新，您可以重试。",
       "backupCardLabel": "备用卡",
       "preparingCheckout": "正在准备安全结账...",
       "tryAgain": "重试",
@@ -591,6 +596,49 @@
       ]
     }
   },
+  "evaluar": {
+    "loading": "加载中",
+    "unavailable": {
+      "title": "无法评价",
+      "goHome": "返回首页"
+    },
+    "errors": {
+      "invalidLink": "评价链接无效或已过期。",
+      "notCompleted": "该服务尚未完成。",
+      "windowExpired": "评价时限已过。您只能在服务完成后24小时内提交评价。",
+      "somethingWrong": "出现了一些问题。",
+      "selectRating": "请选择评分。",
+      "submitFailed": "评价提交失败。",
+      "networkError": "网络错误，请重试。",
+      "phoneLast4Required": "请输入您账户预留手机号码的后4位。",
+      "phoneMismatch": "输入的数字与我们的记录不符，请核对后重试。"
+    },
+    "form": {
+      "title": "您对本次服务满意吗？",
+      "phoneLast4Label": "为了您的账户安全，请确认您账户预留手机号码的后4位",
+      "phoneLast4Placeholder": "1234",
+      "ratingLabels": {
+        "1": "非常不满意",
+        "2": "不满意",
+        "3": "一般",
+        "4": "满意",
+        "5": "非常满意"
+      },
+      "commentLabel": "评论（选填）",
+      "commentPlaceholder": "请分享您的体验...",
+      "submitAriaLabel": "提交评价",
+      "submit": "提交评价",
+      "disclaimer": "此评价仅针对团队及服务质量。如有保障相关的索赔，请直接与我们联系。"
+    },
+    "thankYou": {
+      "title": "感谢您！",
+      "body": "您的评价已提交。",
+      "googleTitle": "很高兴您喜欢我们的服务！🎉",
+      "googleBody": "是否愿意在 Google 上分享您的体验？只需30秒，就能帮助里士满的其他家庭找到我们。",
+      "googleCta": "前往 Google 评价",
+      "goHome": "返回首页"
+    }
+  },
   "cuenta": {
     "nav": {
       "ariaLabel": "账户导航",
@@ -599,7 +647,11 @@
       "billetera": "Lulu钱包",
       "referidos": "Lulu大使计划",
       "preferencias": "偏好设置",
-      "logout": "退出登录"
+      "logout": "退出登录",
+      "logoutError": "退出登录失败，请检查网络连接后重试。"
+    },
+    "layout": {
+      "redirectingToStaffPortal": "此区域仅供客户使用，正在为您跳转至员工门户..."
     },
     "common": {
       "retry": "重试",
@@ -627,6 +679,8 @@
       "defaultServiceLabel": "清洁服务",
       "viewPhotosChecklist": "查看照片与核对表",
       "trackYourTeam": "追踪您的团队",
+      "amountPaid": "已付金额：{amount}",
+      "amountHeld": "预授权金额：{amount}",
       "reportIssue": "举报问题",
       "underReview": "审核中。",
       "finalAction": {
@@ -638,6 +692,8 @@
         "selectZone": "请选择一个区域",
         "describeIssue": "请描述问题（至少几个字）",
         "photoUploadFailed": "照片上传失败，请重试。",
+        "photoInvalidType": "请附上图片文件（JPG、PNG 等）。",
+        "photoTooLarge": "照片过大，请附上小于 5 MB 的图片。",
         "submitFailed": "提交失败",
         "networkError": "网络错误",
         "allZonesClaimed": "此服务的所有区域均已有待处理的举报。",
@@ -961,6 +1017,60 @@
       "ratingGood": "好",
       "ratingVeryGood": "很好",
       "ratingExcellent": "优秀"
+    },
+    "checkinScreen": {
+      "title": "早间打卡清单",
+      "subtitle": "可选。没有人能看到你的个人回答——包括老板本人。仅用于团队汇总统计。",
+      "alreadyDone": "你今天已经完成打卡清单。如果需要，可以更新。",
+      "streakBonus": "连续5天！$5已记入你的下次工资。",
+      "sleptQuestion": "你昨晚睡了6小时以上吗？",
+      "yes": "是",
+      "no": "否",
+      "moodQuestion": "你今天感觉如何？",
+      "moodHappy": "好",
+      "moodNeutral": "一般",
+      "moodSad": "不好",
+      "shortcutAccept": "我接受今天建议的路线捷径",
+      "shortcutNote": "这个捷径由你的主管人工审核。如果你想上报一个新发现且经验证后可获得$10的捷径，请使用下方的“上报路线捷径”。",
+      "submit": "提交清单",
+      "update": "更新",
+      "saving": "保存中...",
+      "saveError": "保存失败",
+      "networkError": "网络错误",
+      "reportShortcutTitle": "上报路线捷径",
+      "reportShortcutBody": "发现了一个真正省时间的捷径？上报它。如果你的主管验证通过，你将获得$10。",
+      "reportShortcutPlaceholder": "例如：走X街而不是Y街可以避开红绿灯，节省约8分钟",
+      "reportShortcutButton": "上报捷径",
+      "reportShortcutSubmitting": "上报中...",
+      "reportShortcutSuccess": "捷径已上报。你的主管将进行审核。",
+      "reportShortcutError": "上报失败",
+      "optOutTitle": "将我排除在情绪/睡眠汇总统计之外",
+      "optOutBody": "启用此项后，即使在老板看到的汇总报告中，你的情绪和睡眠回答也不再计入统计。你仍可以使用清单功能来接受路线捷径和保持连续记录。"
+    },
+    "panosScreen": {
+      "title": "毛巾循环",
+      "countNote": "按颜色计数，不按单件计数（例如：“红色8条，蓝色6条”）。",
+      "colorRed": "红色",
+      "colorBlue": "蓝色",
+      "colorGreen": "绿色",
+      "colorYellow": "黄色",
+      "colorWhite": "白色",
+      "colorBlack": "黑色",
+      "stageClean": "干净",
+      "stageInUse": "使用中",
+      "stageDirty": "脏污",
+      "stageWashing": "清洗中",
+      "stageWarehouse": "仓库",
+      "stageVehicle": "车辆",
+      "stageLabel": "毛巾循环阶段",
+      "countLabel": "毛巾数量",
+      "countPlaceholder": "数量",
+      "register": "登记数量",
+      "noLogsToday": "今天暂无记录。",
+      "loadError": "无法加载今天的毛巾记录，请重试。",
+      "loadErrorNetwork": "加载今天的毛巾记录时连接错误，请重试。",
+      "saveError": "无法保存数量，请重试。",
+      "saveErrorNetwork": "保存数量时连接错误，请重试。"
     }
   },
   "survey": {
@@ -1088,7 +1198,9 @@
       "accessUserEmail": "用户邮箱：",
       "accessNoEmail": "无邮箱",
       "accessDenied": "您的账户尚未分配管理员角色。",
-      "goHome": "返回首页"
+      "goHome": "返回首页",
+      "supervisorNoRoleTitle": "尚未分配操作角色",
+      "supervisorNoRoleBody": "您的账户拥有主管权限，但尚未在 admin_roles 中分配操作角色。请联系管理员为您分配管理菜单的访问权限。"
     },
     "dashboard": {
       "title": "管理后台首页",
@@ -1376,6 +1488,7 @@
       "activateInviteAria": "激活 {name} 并发送邀请",
       "languagesNotSet": "未设置",
       "careerLevelPromotionNotice": "晋升至团队领导及以上职级需要系统无法验证的认证和推荐——请在选择前手动确认。",
+      "confirmCareerLevelChange": "确定要更改此员工的职级吗？此操作将立即生效。",
       "careerLevelSelectAria": "员工职级",
       "careerLevelTeamMember": "组员",
       "careerLevelSenior": "高级组员",
@@ -1453,10 +1566,34 @@
       "markAsReviewed": "标记为已审核",
       "errorLoadFailed": "加载加售项目失败",
       "errorNetwork": "网络错误",
-      "errorMarkReviewedFailed": "标记为已审核失败"
+      "errorMarkReviewedFailed": "标记为已审核失败",
+      "requiresApproval": "超过自动批准上限 — 需要您的明确批准",
+      "approve": "批准",
+      "reject": "拒绝",
+      "rejectReasonPlaceholder": "拒绝原因（可选）",
+      "cancel": "取消",
+      "confirmReject": "确认拒绝"
     },
     "monitoreoLegal": {
-      "invalidImpact": "请输入有效的影响数值。"
+      "title": "法律监测",
+      "subtitle": "7 个监管机构，按各自频率手动核查。超过 30 天未核查的信息源为"盲区"，需要关注。",
+      "blindWarning": "有 {count} 个信息源处于盲区——法律监测未更新。",
+      "openAlerts": "未处理的法律变更提醒",
+      "detected": "检测于 {date}",
+      "impactLabel": "影响 {amount}",
+      "feedsTitle": "信息源",
+      "lastChecked": "上次核查 {date}",
+      "never": "从未",
+      "noChange": "无变化",
+      "logChange": "记录变更",
+      "changeDescriptionLabel": "变更描述",
+      "changeDescriptionPlaceholder": "发生了什么变化？",
+      "dollarImpactLabel": "金额影响（可选）",
+      "logThisChange": "记录此变更",
+      "invalidImpact": "请输入有效的影响数值。",
+      "failedToLoad": "加载失败",
+      "failedToUpdate": "更新失败",
+      "networkError": "网络错误"
     },
     "ajustesHhe": {
       "title": "建议的 HHE 调整",
@@ -1612,6 +1749,7 @@
       "deleteNote": "删除备注",
       "errorLoading": "加载失败",
       "errorNetwork": "网络错误",
+      "errorDeleting": "删除备注失败",
       "entityType": {
         "employee": "员工",
         "clientProperty": "客户房产",
@@ -1660,7 +1798,8 @@
       "subtitle": "面向住宅客户的12个月以上留存礼品，以及物业经理的楼宇福利（绝不是隐藏的个人礼物——已申报的合作佣金记录在“合作伙伴与佣金”下）。",
       "errors": {
         "failed": "失败",
-        "network": "网络错误"
+        "network": "网络错误",
+        "invalidGiftInput": "请输入客户 ID、有效的活跃月数，以及大于 0 的首年价值。"
       },
       "residentialGifts": {
         "heading": "住宅礼品",
@@ -1712,6 +1851,7 @@
       "variantPercent": "变体百分比",
       "variantPercentShort": "变体 %",
       "variantHint": "变体流量必须低于 20%；百分比总和必须为 100。",
+      "weightsMismatch": "对照组和变体的百分比总和必须为 100%（目前为 {total}%）。",
       "createExperiment": "创建实验",
       "saving": "保存中……",
       "create": "创建",
@@ -1863,7 +2003,8 @@
       "validateAction": "验证（+$10）",
       "errors": {
         "loadFailed": "加载失败",
-        "network": "网络错误"
+        "network": "网络错误",
+        "validateFailed": "验证快捷方式失败"
       }
     },
     "backups": {
@@ -2403,6 +2544,7 @@
       "orderId": "订单 ID",
       "orderValueDollars": "订单金额（美元）",
       "orderValuePlaceholder": "订单金额（$）",
+      "invalidOrderValue": "请输入大于 0 的有效订单金额。",
       "calculateAndLog": "计算并记录佣金",
       "calculating": "计算中……",
       "calculateAndLogShort": "计算并记录",
@@ -2601,6 +2743,9 @@
         "collected": "已收款",
         "paid": "已支付（工资）",
         "employerBurden": "雇主负担",
+        "employerBurdenEstimatedBadge": "预估",
+        "employerBurdenEstimatedTooltip": "该员工的薪资周期尚无快照数据——显示的是预估值（CPP/EI/WorkSafeBC），并非最终确认金额。",
+        "otherCosts": "其他成本",
         "contributionMargin": "边际贡献",
         "netMargin": "实际净利润",
         "noData": "所选范围内暂无数据。",
@@ -2623,6 +2768,8 @@
       "workdaySummary": "工作日汇总",
       "noOneAssignedYet": "尚未分配任何人。",
       "ordersTotal": "{count} 单 · 共 {hours}",
+      "realtimeUpdated": "另一位操作员刚刚更改了某项分配 — 此看板已自动刷新。",
+      "realtimeConflictClosed": "您正在编辑的这单分配刚被其他操作员更新。为避免覆盖对方的更改，编辑窗口已关闭并刷新了看板。",
       "languageBadge": {
         "match": "语言匹配",
         "no_match": "语言不匹配",
@@ -2951,7 +3098,8 @@
         "rateMustBePositive": "目标时薪必须为正数",
         "reasonRequired": "审计日志需要填写原因",
         "updateFailed": "更新定价设置失败",
-        "hheUpdateFailed": "更新 HHE 设置失败"
+        "hheUpdateFailed": "更新 HHE 设置失败",
+        "hheCellMustBePositive": "请为此单元格输入大于 0 的数字。"
       },
       "targetRate": {
         "title": "目标时薪",
@@ -3112,11 +3260,14 @@
         "message": "该用户将失去此角色所赋予的访问权限。",
         "confirmLabel": "撤销"
       },
+      "confirmRevokeOwnerAdminExtra": "您即将撤销 {target} 的所有者管理员权限。这将移除其完整的管理权限，包括管理其他管理员的能力。是否继续？",
+      "confirmGrantOwnerAdminExtra": "您即将授予 {email} 所有者管理员（完全访问）权限。这是最高权限角色。是否继续？",
       "addModal": {
         "title": "授予管理员角色",
         "subtitle": "如果该邮箱尚无账户，系统将发送邀请(与员工入职流程相同)。",
         "emailLabel": "邮箱",
         "emailPlaceholder": "name@example.com",
+        "emailInvalid": "请输入有效的邮箱地址",
         "roleLabel": "角色",
         "roleOptions": {
           "ownerAdmin": "所有者管理员——完全访问权限",
@@ -3414,7 +3565,8 @@
       "errors": {
         "loadFailed": "加载失败",
         "network": "网络错误",
-        "createFailed": "创建团队失败"
+        "createFailed": "创建团队失败",
+        "updateFailed": "更新团队失败"
       }
     },
     "pipeda": {

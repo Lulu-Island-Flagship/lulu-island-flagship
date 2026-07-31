@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole, getServiceRoleClient } from "@/lib/admin";
 import { computeAllGbpItemStatuses, isNapCheckOverdue, type GbpFrequency } from "@/lib/gbp-checklist";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/seo-local — checklist GBP con estado calculado + última
 // verificación NAP y si está vencida (E10.3).
@@ -84,7 +85,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Server misconfigured (service role)" }, { status: 500 });
   }
 
-  const body = await request.json();
+  // Fix (revisión 2026-07-30, punto 11): request.json() sin try/catch --
+  // mismo patrón ya usado en src/app/api/admin/marketing/route.ts.
+  let body: {
+    action?: string;
+    itemKey?: string;
+    directoriesChecked?: unknown;
+    isConsistent?: boolean;
+    inconsistenciesFound?: unknown;
+  };
+  try {
+    body = await request.json();
+  } catch (err) {
+    return safeErrorResponse(err, 400, "JSON inválido");
+  }
 
   if (body.action === "complete_item") {
     if (!body.itemKey) {

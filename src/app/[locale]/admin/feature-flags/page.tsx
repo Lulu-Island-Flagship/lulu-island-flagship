@@ -8,8 +8,12 @@
  */
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Loader2, ChevronDown, ChevronRight, Info, AlertTriangle } from "lucide-react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { Loader2, ChevronDown, ChevronRight, Info, AlertTriangle, Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useAdminRoles } from "@/lib/useAdminRoles";
+import { roleAllows } from "@/lib/admin-rbac";
 
 interface Flag {
   nombre: string;
@@ -24,6 +28,15 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default function FeatureFlagsPage() {
   const t = useTranslations("admin.featureFlags");
+  const tLayout = useTranslations("admin.layout");
+  const params = useParams();
+  const locale = (params?.locale as string) || "en";
+  // Fix (auditoría 2026-07-30, item 5): página owner-only (API protegida por
+  // requireAdminRole("feature_flags"), solo owner_admin) sin chequeo
+  // explícito de rol -- un no-owner veía el loader y luego un 403 crudo.
+  // Mismo patrón aplicado en seguridad/page.tsx.
+  const { roles, loading: rolesLoading } = useAdminRoles();
+  const hasAccess = roleAllows(roles, "feature_flags");
   const [flags, setFlags] = useState<Flag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -34,8 +47,10 @@ export default function FeatureFlagsPage() {
   const [infoOpen, setInfoOpen] = useState<string | null>(null);
 
   useEffect(() => {
+    if (rolesLoading || !hasAccess) return;
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rolesLoading, hasAccess]);
 
   async function load() {
     setLoading(true);
@@ -104,6 +119,32 @@ export default function FeatureFlagsPage() {
       ),
     [flags]
   );
+
+  if (rolesLoading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-brand-navy">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!hasAccess) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center px-4">
+        <div className="bg-white rounded-xl shadow-elevation-1 p-8 max-w-md w-full text-center space-y-4">
+          <Lock className="h-8 w-8 text-brand-navy mx-auto" />
+          <h1 className="text-xl font-bold text-brand-ink">{tLayout("accessTitle")}</h1>
+          <p className="text-sm text-gray-500">{tLayout("accessDenied")}</p>
+          <Link
+            href={`/${locale}/admin`}
+            className="inline-block bg-brand-navy text-white px-4 py-2 rounded-lg font-medium"
+          >
+            {tLayout("goHome")}
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

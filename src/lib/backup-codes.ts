@@ -23,6 +23,16 @@ const GROUPS = 3;
 const CHARS_PER_GROUP = 4;
 export const BACKUP_CODE_COUNT = 10;
 
+// Fix (auditoría externa 2026-07-30, BUG 2): antes los códigos no expiraban
+// nunca (solo se invalidaban al generar un set nuevo, vía used_at/
+// revoked_at). Ver migración 248_fix_owner_admin_backup_codes_expiry.sql.
+export const BACKUP_CODE_TTL_DAYS = 90;
+
+/** now + BACKUP_CODE_TTL_DAYS, como ISO string -- para poblar expires_at al generar un set nuevo. */
+export function backupCodeExpiryIso(nowIso: string = new Date().toISOString()): string {
+  return new Date(new Date(nowIso).getTime() + BACKUP_CODE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+}
+
 /** Un código legible tipo XXXX-XXXX-XXXX, generado con crypto.randomInt (CSPRNG). */
 export function generateBackupCode(): string {
   const groups: string[] = [];
@@ -62,6 +72,12 @@ export function hashBackupCode(code: string): string {
  * attack de comparación de string ahí, pero se deja esta utilidad para
  * cualquier comparación en memoria (ej. tests, o si se agrega caché).
  */
+/** Mismo criterio que isExpired en src/lib/access-recovery.ts -- null/ya pasado cuenta como expirado. */
+export function isBackupCodeExpired(expiresAtIso: string | null, nowIso: string = new Date().toISOString()): boolean {
+  if (!expiresAtIso) return true;
+  return new Date(nowIso).getTime() > new Date(expiresAtIso).getTime();
+}
+
 export function safeEqualHash(a: string, b: string): boolean {
   const bufA = Buffer.from(a, "hex");
   const bufB = Buffer.from(b, "hex");

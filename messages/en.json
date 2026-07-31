@@ -95,6 +95,8 @@
       "b2bDesc": "This quote requires manual onboarding, PO process, and Net-30 setup before booking. Submitting will notify our sales team.",
       "poLabel": "Purchase Order (PO) Number *",
       "poHint": "B2B / Government bookings require a PO before onboarding.",
+      "pipaReviewTitle": "Privacy consent declined",
+      "pipaReviewDesc": "You did not consent to PIPA data processing. We can still take your booking, but it will go through an additional manual review before it's confirmed.",
       "retryCalculation": "Try Again",
       "profileWarningTitle": "We couldn't fully update your profile",
       "profileWarningDesc": "Your quote was saved, but part of your account profile couldn't be updated. This won't stop you from booking, but please double-check your contact details in My Account afterwards.",
@@ -270,6 +272,7 @@
       "verifying": "Verifying...",
       "resendPhone": "Resend code or use different phone",
       "resendEmail": "Resend code or use different email",
+      "resendIn": "Resend available in {seconds}s",
       "continueWithGoogle": "Continue with Google",
       "continueWithApple": "Continue with Apple",
       "or": "or",
@@ -289,6 +292,7 @@
         "sendCodeFailed": "Failed to send verification code",
         "invalidPhone": "Please enter a valid phone number",
         "sendSmsFailed": "Failed to send SMS code",
+        "phoneAlreadyRegistered": "This phone number is already linked to another account. Please sign in using the original method (Google, Apple, or email) you used for that account.",
         "invalidCode": "Please enter the 6-digit code",
         "emailRequired": "Email is required. Please go back and enter your email.",
         "phoneRequired": "Phone number is required. Please go back and enter your phone.",
@@ -359,6 +363,7 @@
       "walletPayNowAlipay": "Pay the full amount now with Alipay.",
       "walletPayNowWechat": "Pay the full amount now with WeChat Pay.",
       "walletBackupCardNote": "A backup card is still required afterwards to cover any extra charges (damage, extra time, late cancellation) — you will never be charged again through {method}.",
+      "walletConfirmingWithProvider": "We're still confirming your payment with your provider. This can take a moment — please don't close this page. If it doesn't update, you can try again.",
       "backupCardLabel": "Backup card",
       "preparingCheckout": "Preparing secure checkout...",
       "tryAgain": "Try again",
@@ -591,6 +596,49 @@
       ]
     }
   },
+  "evaluar": {
+    "loading": "Loading",
+    "unavailable": {
+      "title": "Review Unavailable",
+      "goHome": "Go Home"
+    },
+    "errors": {
+      "invalidLink": "Invalid or expired review link.",
+      "notCompleted": "This service has not been completed yet.",
+      "windowExpired": "Review window expired. You can only review within 24 hours of the service date.",
+      "somethingWrong": "Something went wrong.",
+      "selectRating": "Please select a rating.",
+      "submitFailed": "Failed to submit review.",
+      "networkError": "Network error. Please try again.",
+      "phoneLast4Required": "Please enter the last 4 digits of the phone number on your account.",
+      "phoneMismatch": "Those digits don't match our records. Please double check and try again."
+    },
+    "form": {
+      "title": "How was your service?",
+      "phoneLast4Label": "For your security, confirm the last 4 digits of the phone number on your account",
+      "phoneLast4Placeholder": "1234",
+      "ratingLabels": {
+        "1": "Very dissatisfied",
+        "2": "Dissatisfied",
+        "3": "Neutral",
+        "4": "Satisfied",
+        "5": "Very satisfied"
+      },
+      "commentLabel": "Comments (optional)",
+      "commentPlaceholder": "Tell us about your experience...",
+      "submitAriaLabel": "Submit review",
+      "submit": "Submit Review",
+      "disclaimer": "This review evaluates the team and service quality. For guarantee claims, please contact us directly."
+    },
+    "thankYou": {
+      "title": "Thank You!",
+      "body": "Your review has been submitted.",
+      "googleTitle": "So glad you loved it! 🎉",
+      "googleBody": "Would you mind sharing that on Google? It takes 30 seconds and helps other families in Richmond find us.",
+      "googleCta": "Leave a Google Review",
+      "goHome": "Go Home"
+    }
+  },
   "cuenta": {
     "nav": {
       "ariaLabel": "Account navigation",
@@ -599,7 +647,11 @@
       "billetera": "Lulu Wallet",
       "referidos": "Lulu Ambassador",
       "preferencias": "Preferences",
-      "logout": "Log out"
+      "logout": "Log out",
+      "logoutError": "Couldn't log out. Please check your connection and try again."
+    },
+    "layout": {
+      "redirectingToStaffPortal": "This area is for clients only. Redirecting you to the Staff Portal..."
     },
     "common": {
       "retry": "Retry",
@@ -627,6 +679,8 @@
       "defaultServiceLabel": "Cleaning service",
       "viewPhotosChecklist": "View photos & checklist",
       "trackYourTeam": "Track your team",
+      "amountPaid": "Amount paid: {amount}",
+      "amountHeld": "Amount held: {amount}",
       "reportIssue": "Report an issue",
       "underReview": "Under review.",
       "finalAction": {
@@ -638,6 +692,8 @@
         "selectZone": "Select a zone",
         "describeIssue": "Please describe the issue (at least a few words)",
         "photoUploadFailed": "Failed to upload photo, please try again.",
+        "photoInvalidType": "Please attach an image file (JPG, PNG, etc.).",
+        "photoTooLarge": "Photo is too large. Please attach an image under 5 MB.",
         "submitFailed": "Failed to submit",
         "networkError": "Network error",
         "allZonesClaimed": "All zones for this service already have an open claim.",
@@ -961,6 +1017,60 @@
       "ratingGood": "Good",
       "ratingVeryGood": "Very Good",
       "ratingExcellent": "Excellent"
+    },
+    "checkinScreen": {
+      "title": "Morning Checklist",
+      "subtitle": "Optional. No one sees your individual answer — not even the owner. Only used in aggregate for the team.",
+      "alreadyDone": "You've already logged your checklist today. You can update it if you want.",
+      "streakBonus": "5-day streak! $5 credited to your next payment.",
+      "sleptQuestion": "Did you sleep 6+ hours?",
+      "yes": "Yes",
+      "no": "No",
+      "moodQuestion": "How do you feel today?",
+      "moodHappy": "Good",
+      "moodNeutral": "Okay",
+      "moodSad": "Bad",
+      "shortcutAccept": "I accept today's suggested route shortcut",
+      "shortcutNote": "This shortcut is manually reviewed by your supervisor. If you want to report a new shortcut you discovered that pays $10 when validated, use \"Report route shortcut\" below.",
+      "submit": "Submit checklist",
+      "update": "Update",
+      "saving": "Saving...",
+      "saveError": "Couldn't save",
+      "networkError": "Network error",
+      "reportShortcutTitle": "Report route shortcut",
+      "reportShortcutBody": "Found a real shortcut that saves time? Report it. If your supervisor validates it, you get paid $10.",
+      "reportShortcutPlaceholder": "E.g: taking street X instead of Y avoids the light, saves ~8 min",
+      "reportShortcutButton": "Report shortcut",
+      "reportShortcutSubmitting": "Reporting...",
+      "reportShortcutSuccess": "Shortcut reported. Your supervisor will review it.",
+      "reportShortcutError": "Couldn't report",
+      "optOutTitle": "Exclude me from mood/sleep aggregates",
+      "optOutBody": "If you enable this, your mood and sleep answers stop counting even in the aggregate reports the owner sees. You can still use the checklist for the route shortcut and streak."
+    },
+    "panosScreen": {
+      "title": "Towel Cycle",
+      "countNote": "Count by color, not by unit (e.g. \"8 red, 6 blue\").",
+      "colorRed": "Red",
+      "colorBlue": "Blue",
+      "colorGreen": "Green",
+      "colorYellow": "Yellow",
+      "colorWhite": "White",
+      "colorBlack": "Black",
+      "stageClean": "Clean",
+      "stageInUse": "In use",
+      "stageDirty": "Dirty",
+      "stageWashing": "Washing",
+      "stageWarehouse": "Warehouse",
+      "stageVehicle": "Vehicle",
+      "stageLabel": "Towel cycle stage",
+      "countLabel": "Towel count",
+      "countPlaceholder": "Count",
+      "register": "Register count",
+      "noLogsToday": "No records today.",
+      "loadError": "Couldn't load today's towel logs. Please try again.",
+      "loadErrorNetwork": "Connection error loading today's towel logs. Please try again.",
+      "saveError": "Couldn't save the count. Please try again.",
+      "saveErrorNetwork": "Connection error saving the count. Please try again."
     }
   },
   "survey": {
@@ -1088,7 +1198,9 @@
       "accessUserEmail": "User email:",
       "accessNoEmail": "no email",
       "accessDenied": "Your account does not have an admin role assigned.",
-      "goHome": "Go to Home"
+      "goHome": "Go to Home",
+      "supervisorNoRoleTitle": "No operational role assigned yet",
+      "supervisorNoRoleBody": "Your account has supervisor permissions but has not been assigned an operational role in admin_roles yet. Contact an Administrator to get access to the admin menu."
     },
     "dashboard": {
       "title": "Admin Dashboard",
@@ -1376,6 +1488,7 @@
       "activateInviteAria": "Activate {name} and send invitation",
       "languagesNotSet": "Not set",
       "careerLevelPromotionNotice": "Promotions to Team Lead+ require certification and recommendation the system can't verify — confirm those manually before selecting.",
+      "confirmCareerLevelChange": "Change this employee's career level? This applies immediately.",
       "careerLevelSelectAria": "Employee's career level",
       "careerLevelTeamMember": "Team Member",
       "careerLevelSenior": "Senior",
@@ -1453,10 +1566,34 @@
       "markAsReviewed": "Mark as Reviewed",
       "errorLoadFailed": "Failed to load upsells",
       "errorNetwork": "Network error",
-      "errorMarkReviewedFailed": "Failed to mark as reviewed"
+      "errorMarkReviewedFailed": "Failed to mark as reviewed",
+      "requiresApproval": "Over the auto-approval cap — requires your explicit approval",
+      "approve": "Approve",
+      "reject": "Reject",
+      "rejectReasonPlaceholder": "Reason for rejection (optional)",
+      "cancel": "Cancel",
+      "confirmReject": "Confirm rejection"
     },
     "monitoreoLegal": {
-      "invalidImpact": "Enter a valid number for the impact."
+      "title": "Legal Monitoring",
+      "subtitle": "7 regulatory entities, manual check-in per their frequency. A feed unchecked for 30+ days is \"blind\" and needs attention.",
+      "blindWarning": "{count} feed(s) are blind — legal monitoring is not current.",
+      "openAlerts": "Open legal change alerts",
+      "detected": "Detected {date}",
+      "impactLabel": "impact {amount}",
+      "feedsTitle": "Feeds",
+      "lastChecked": "last checked {date}",
+      "never": "never",
+      "noChange": "No change",
+      "logChange": "Log change",
+      "changeDescriptionLabel": "Change description",
+      "changeDescriptionPlaceholder": "What changed?",
+      "dollarImpactLabel": "Dollar impact (optional)",
+      "logThisChange": "Log this change",
+      "invalidImpact": "Enter a valid number for the impact.",
+      "failedToLoad": "Failed to load",
+      "failedToUpdate": "Failed to update",
+      "networkError": "Network error"
     },
     "ajustesHhe": {
       "title": "Suggested HHE Adjustments",
@@ -1612,6 +1749,7 @@
       "deleteNote": "Delete note",
       "errorLoading": "Failed to load",
       "errorNetwork": "Network error",
+      "errorDeleting": "Failed to delete note",
       "entityType": {
         "employee": "Employee",
         "clientProperty": "Client Property",
@@ -1660,7 +1798,8 @@
       "subtitle": "Residential 12+ month retention gifts, and property-manager building benefits (never a hidden personal gift — declared partnership commissions live under Partners & Commissions).",
       "errors": {
         "failed": "Failed",
-        "network": "Network error"
+        "network": "Network error",
+        "invalidGiftInput": "Enter a client ID, a valid months-active number, and a first-year value greater than 0."
       },
       "residentialGifts": {
         "heading": "Residential gifts",
@@ -1712,6 +1851,7 @@
       "variantPercent": "Variant percentage",
       "variantPercentShort": "Variant %",
       "variantHint": "Variant must stay under 20% of traffic; percentages must add to 100.",
+      "weightsMismatch": "Control and variant percentages must add up to 100% (currently {total}%).",
       "createExperiment": "Create experiment",
       "saving": "Saving...",
       "create": "Create",
@@ -1863,7 +2003,8 @@
       "validateAction": "Validate (+$10)",
       "errors": {
         "loadFailed": "Failed to load",
-        "network": "Network error"
+        "network": "Network error",
+        "validateFailed": "Failed to validate shortcut"
       }
     },
     "backups": {
@@ -2403,6 +2544,7 @@
       "orderId": "Order ID",
       "orderValueDollars": "Order value in dollars",
       "orderValuePlaceholder": "Order value ($)",
+      "invalidOrderValue": "Enter a valid order value greater than 0.",
       "calculateAndLog": "Calculate and log commission",
       "calculating": "Calculating...",
       "calculateAndLogShort": "Calculate & Log",
@@ -2553,7 +2695,7 @@
     },
     "contabilidad": {
       "title": "Operational Accounting",
-      "intro": "Collected = actual amount captured from the client. Paid = gross payroll. Contribution margin = collected − paid. Actual net margin = collected − paid − employer burden (CPP/EI/WorkSafeBC) − prorated monthly fixed costs (rent, insurance, software, owner compensation). Employer burden is shown as 0 until a payroll snapshot exists for the corresponding cycle. Fixed costs are prorated across the calendar months actually present in the selected range, split evenly per order.",
+      "intro": "Collected = actual amount captured from the client. Paid = gross payroll. Contribution margin = collected − paid. Actual net margin = collected − paid − employer burden (CPP/EI/WorkSafeBC) − prorated monthly fixed costs (rent, insurance, software, owner compensation). Employer burden uses the confirmed payroll snapshot once it exists for the corresponding cycle; until then it shows a projected estimate (flagged \"Projected\"). Fixed costs are prorated across the calendar months actually present in the selected range, split evenly per order.",
       "filters": {
         "from": "From",
         "to": "To",
@@ -2601,6 +2743,9 @@
         "collected": "Collected",
         "paid": "Paid (payroll)",
         "employerBurden": "Employer burden",
+        "employerBurdenEstimatedBadge": "Projected",
+        "employerBurdenEstimatedTooltip": "No payroll cycle snapshot yet for this employee — showing a projected estimate (CPP/EI/WorkSafeBC), not the final confirmed figure.",
+        "otherCosts": "Other costs",
         "contributionMargin": "Contribution margin",
         "netMargin": "Actual net margin",
         "noData": "No data in the selected range.",
@@ -2623,6 +2768,8 @@
       "workdaySummary": "Workday summary",
       "noOneAssignedYet": "No one assigned yet.",
       "ordersTotal": "{count} order(s) · {hours} total",
+      "realtimeUpdated": "Another operator just changed an assignment — this board was refreshed automatically.",
+      "realtimeConflictClosed": "Someone else just updated this order's assignment while you had it open. Your edit window was closed and the board refreshed so you don't overwrite their change.",
       "languageBadge": {
         "match": "Language match",
         "no_match": "No language match",
@@ -2951,7 +3098,8 @@
         "rateMustBePositive": "Target hourly rate must be a positive number",
         "reasonRequired": "Reason is required for audit log",
         "updateFailed": "Failed to update pricing settings",
-        "hheUpdateFailed": "Failed to update HHE settings"
+        "hheUpdateFailed": "Failed to update HHE settings",
+        "hheCellMustBePositive": "Enter a number greater than 0 for this cell."
       },
       "targetRate": {
         "title": "Target Hourly Rate",
@@ -3112,11 +3260,14 @@
         "message": "The user will lose access to the resources it grants.",
         "confirmLabel": "Revoke"
       },
+      "confirmRevokeOwnerAdminExtra": "You are about to revoke OWNER ADMIN from {target}. This removes full administrative access, including the ability to manage other admins. Continue?",
+      "confirmGrantOwnerAdminExtra": "You are about to grant OWNER ADMIN (full access) to {email}. This is the highest-privilege role. Continue?",
       "addModal": {
         "title": "Grant Admin Role",
         "subtitle": "If the email has no account yet, an invite is sent (same flow as employee onboarding).",
         "emailLabel": "Email",
         "emailPlaceholder": "name@example.com",
+        "emailInvalid": "Enter a valid email address",
         "roleLabel": "Role",
         "roleOptions": {
           "ownerAdmin": "Owner Admin — full access",
@@ -3414,7 +3565,8 @@
       "errors": {
         "loadFailed": "Failed to load",
         "network": "Network error",
-        "createFailed": "Failed to create team"
+        "createFailed": "Failed to create team",
+        "updateFailed": "Failed to update team"
       }
     },
     "pipeda": {

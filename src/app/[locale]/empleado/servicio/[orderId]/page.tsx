@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 import type { EmployeeService, AssignmentStatus } from "@/types";
 import { haversineDistance, ARRIVAL_GEOFENCE_RADIUS_METERS } from "@/lib/geocode";
-import { compressImageToWebP } from "@/lib/image-compress";
 import { submitServiceEventOrQueue, submitPhotoOrQueue, triggerSyncCycle } from "@/lib/offline-sync-client";
 import { getAllQueuedEvents, planSync, type QueuedServiceEvent } from "@/lib/offline-queue";
 import { ChecklistCierre } from "@/components/empleado/ChecklistCierre";
@@ -310,6 +309,19 @@ export default function ServicioPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geofenceStatus]);
 
+  // Bug auditoría (foto de bypass de geocerca sin cola offline): esta
+  // función antes subía directo a Storage con `supabase.storage.upload`,
+  // sin persistencia local ni reintento -- si fallaba la red, la foto se
+  // perdía y el empleado quedaba bloqueado (el bypass exige una foto real,
+  // ver validación server-side en /api/empleado/servicio). Ahora reutiliza
+  // submitPhotoOrQueue (src/lib/offline-sync-client.ts), el mismo mecanismo
+  // que ya usa el flujo principal de fotos pre/post servicio: si hay señal,
+  // sube igual que antes; si falla por red, la foto comprimida se guarda en
+  // IndexedDB (cola offline) y se reintenta sola (listener 'online' +
+  // respaldo cada 30s, ver attachOfflineSyncListeners) sin perder la
+  // evidencia. Metadata del bypass (categoría/razón/geolocalización) viaja
+  // igual que antes -- no se toca la lógica de negocio del bypass, solo la
+  // robustez de la subida.
   const handleBypassPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !orderId) return;
@@ -317,23 +329,36 @@ export default function ServicioPage() {
     setBypassPhotoUploading(true);
     setBypassPhotoError("");
     try {
-      let blob: Blob;
-      try {
-        const compressed = await compressImageToWebP(file);
-        blob = compressed.blob;
-      } catch {
-        blob = file;
-      }
-      const fileName = `${orderId}/geofence-bypass/${Date.now()}.webp`;
-      const { error: uploadError } = await supabase.storage
-        .from("service-photos")
-        .upload(fileName, blob, { contentType: "image/webp" });
-      if (uploadError) {
+      const loc = await getCurrentLocation();
+      const result = await submitPhotoOrQueue(orderId, file, {
+        locationLat: loc?.lat,
+        locationLng: loc?.lng,
+        geofenceBypassEvidence: true,
+        geofenceBypassCategory: bypassCategory || undefined,
+        geofenceBypassReason: bypassReason.trim() || undefined,
+      });
+
+      if (!result.ok) {
+        console.error("Bypass photo upload error:", result.error);
         setBypassPhotoError("No se pudo subir la foto. Intenta de nuevo.");
         return;
       }
-      const { data: publicUrlData } = supabase.storage.from("service-photos").getPublicUrl(fileName);
-      setBypassPhotoUrl(publicUrlData.publicUrl);
+
+      if (result.queued) {
+        // Sin señal: la foto quedó en la cola offline y se reintentará
+        // sola. El check-in de bypass sigue exigiendo una foto SUBIDA de
+        // verdad (photoUrl) antes de poder confirmarse -- eso no cambia --
+        // así que el empleado ve un aviso claro de "guardada, reintentando"
+        // en vez de perder la foto silenciosamente.
+        setBypassPhotoError(
+          "Sin conexión: la foto quedó guardada en el dispositivo y se subirá automáticamente en cuanto haya señal. Vuelve a intentar en unos momentos."
+        );
+        return;
+      }
+
+      if (result.photoUrl) {
+        setBypassPhotoUrl(result.photoUrl);
+      }
     } catch (err) {
       console.error("Bypass photo upload error:", err);
       setBypassPhotoError("No se pudo subir la foto. Intenta de nuevo.");

@@ -22,6 +22,11 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
   const t = useTranslations("cotizador.address");
   const [postalError, setPostalError] = React.useState("");
   const [savedProperties, setSavedProperties] = useState<ClientProperty[]>([]);
+  // Fix (auditoría UX 2026-07-30, BUG 2): el <select> de propiedades
+  // guardadas tenía value="" fijo -- no reflejaba la propiedad elegida, así
+  // que después de seleccionar una el control seguía mostrando el
+  // placeholder en vez de la selección real del cliente.
+  const [selectedPropertyId, setSelectedPropertyId] = useState("");
   const [bcSuggestion, setBcSuggestion] = useState<{ squareFeet: number; confidence: string } | null>(null);
   const [bcDismissed, setBcDismissed] = useState(false);
 
@@ -37,7 +42,16 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/quote/bc-assessment?address=${encodeURIComponent(address.trim())}`);
+        // Fix (auditoría UX/seguridad): la dirección viajaba como query
+        // string en una petición GET, quedando expuesta en logs de acceso
+        // (servidor, proxies, herramientas de analítica de red) igual que
+        // cualquier otro parámetro de URL. Se envía por POST con body JSON
+        // en su lugar -- ver /api/quote/bc-assessment/route.ts.
+        const res = await fetch("/api/quote/bc-assessment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address: address.trim() }),
+        });
         if (!res.ok || cancelled) return;
         const data = await res.json();
         if (data.confidence !== "unavailable" && typeof data.squareFeet === "number") {
@@ -114,9 +128,10 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
           </label>
           <select
             id="saved-property-select"
-            value=""
+            value={selectedPropertyId}
             onChange={(e) => {
               const property = savedProperties.find((p) => p.id === e.target.value);
+              setSelectedPropertyId(e.target.value);
               if (property) {
                 onChange({
                   address: property.address,

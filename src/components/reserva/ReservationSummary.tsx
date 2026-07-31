@@ -4,7 +4,7 @@ import React from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { QuoteData } from "@/types";
 import { MapPin, Home, Calendar, DollarSign, Shield, Tag, PlusCircle } from "lucide-react";
-import { formatServiceDateDisplay } from "@/lib/date-utils";
+import { formatServiceDateDisplay, formatServiceTimeDisplay } from "@/lib/date-utils";
 import { formatCurrency as formatCurrencyLocalized } from "@/lib/format";
 
 interface ReservationSummaryProps {
@@ -88,7 +88,7 @@ export function ReservationSummary({
           <div className="flex items-center gap-2 text-gray-600">
             <Calendar className="w-4 h-4" />
             <span>
-              {t("dateAtTime", { date: formatServiceDateDisplay(serviceDate, locale), time: serviceTime })}
+              {t("dateAtTime", { date: formatServiceDateDisplay(serviceDate, locale), time: formatServiceTimeDisplay(serviceTime, locale) })}
             </span>
           </div>
         )}

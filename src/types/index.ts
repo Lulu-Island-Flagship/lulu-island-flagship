@@ -93,7 +93,7 @@ export interface Order {
   stripeCustomerId?: string;
   stripePaymentMethodId?: string;
   stripeSetupIntentId?: string;
-  paymentOption: "card" | "paypal_first_time";
+  paymentOption: "card" | "paypal_first_time" | "alipay" | "wechat_pay";
   /** RAÍZ-3 (2026-07-21): orders.hold_amount_cents — centavos enteros, no dólares. */
   holdAmount: number;
   /** RAÍZ-3 (2026-07-21): orders.hold_authorized_amount_cents — centavos enteros, no dólares. */
@@ -113,6 +113,38 @@ export interface Order {
   cardAmountCharged: number;
   /** RAÍZ-3 (2026-07-21): orders.total_paid_cents — centavos enteros, no dólares. */
   totalPaid: number;
+  /**
+   * Auditoría 2026-07-30 (BUG CRÍTICO tipo Order desincronizado): columnas
+   * de migración 241 (Alipay/WeChat Pay) — cobro 100% por adelantado vía
+   * PaymentIntent, distinto del flujo Hold+Batch de card/paypal_first_time.
+   * orders.wallet_payment_intent_id — TEXT nullable, NULL para card/paypal_first_time.
+   */
+  walletPaymentIntentId?: string | null;
+  /** orders.wallet_amount_collected_cents — centavos enteros, NOT NULL DEFAULT 0. Monto real verificado contra Stripe en /api/stripe/confirm. */
+  walletAmountCollected: number;
+  /** orders.wallet_refunded_amount_cents — centavos enteros, NOT NULL DEFAULT 0. Suma de reembolsos ya emitidos contra walletPaymentIntentId. */
+  walletRefundedAmount: number;
+  /**
+   * Migraciones 152/245 — pago fraccionado 50/50 (órdenes > $500). Metadata
+   * auditable; el cobro real sigue el flujo Hold+Batch existente (ver
+   * src/lib/installment-payment.ts).
+   * orders.installment_plan_selected — BOOLEAN NOT NULL DEFAULT false.
+   */
+  installmentPlanSelected: boolean;
+  /** orders.installment_first_amount_cents — centavos enteros, nullable. */
+  installmentFirstAmount?: number | null;
+  /** orders.installment_second_amount_cents — centavos enteros, nullable. */
+  installmentSecondAmount?: number | null;
+  /** orders.installment_second_due_at — ISO datetime, nullable. */
+  installmentSecondDueAt?: string | null;
+  /** orders.installment_second_captured_at — ISO datetime, nullable hasta que el cron cobre de verdad la segunda mitad. */
+  installmentSecondCapturedAt?: string | null;
+  /** orders.installment_second_payment_intent_id — TEXT nullable, PaymentIntent del cobro de la segunda mitad. */
+  installmentSecondPaymentIntentId?: string | null;
+  /** orders.installment_second_attempts — INTEGER NOT NULL DEFAULT 0. Reintentos fallidos del cobro de la segunda mitad. */
+  installmentSecondAttempts: number;
+  /** orders.installment_second_last_error — TEXT nullable. */
+  installmentSecondLastError?: string | null;
   addressLat?: number;
   addressLng?: number;
   cancellationWindowHours: number;

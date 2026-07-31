@@ -63,13 +63,13 @@ export default function LegalMonitoringPage() {
       const res = await fetch("/api/admin/legal-monitoring", { credentials: "include" });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Failed to load");
+        setError(data.error || t("failedToLoad"));
         return;
       }
       setFeeds(data.feeds || []);
       setAlerts(data.openAlerts || []);
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setLoading(false);
     }
@@ -105,13 +105,13 @@ export default function LegalMonitoringPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Failed to update");
+        setError(data.error || t("failedToUpdate"));
         return;
       }
       setChangeForm(null);
       await load();
     } catch {
-      setError("Network error");
+      setError(t("networkError"));
     } finally {
       setCheckingId(null);
     }
@@ -131,32 +131,30 @@ export default function LegalMonitoringPage() {
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-brand-ink flex items-center gap-2">
-          <Scale className="w-6 h-6" /> Legal Monitoring
+          <Scale className="w-6 h-6" /> {t("title")}
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          7 regulatory entities, manual check-in per their frequency. A feed unchecked for 30+ days is
-          &quot;blind&quot; and needs attention.
-        </p>
+        <p className="text-sm text-gray-500 mt-1">{t("subtitle")}</p>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{error}</div>}
 
       {blindCount > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700 flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4" /> {blindCount} feed(s) are blind — legal monitoring is not current.
+          <AlertTriangle className="w-4 h-4" /> {t("blindWarning", { count: blindCount })}
         </div>
       )}
 
       {alerts.length > 0 && (
         <div>
-          <h2 className="font-semibold text-brand-ink mb-2">Open legal change alerts</h2>
+          <h2 className="font-semibold text-brand-ink mb-2">{t("openAlerts")}</h2>
           <div className="bg-white rounded-xl border divide-y">
             {alerts.map((a) => (
               <div key={a.id} className="p-3 text-sm">
                 <p className="text-brand-ink">{a.change_description}</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  Detected {new Date(a.detected_at).toLocaleDateString()}
-                  {a.dollar_impact_cents !== null && ` — impact ${currencyFormatter.format(a.dollar_impact_cents / 100)}`}
+                  {t("detected", { date: new Date(a.detected_at).toLocaleDateString() })}
+                  {a.dollar_impact_cents !== null &&
+                    ` — ${t("impactLabel", { amount: currencyFormatter.format(a.dollar_impact_cents / 100) })}`}
                 </p>
                 {a.suggested_actions.length > 0 && (
                   <ul className="mt-1 list-disc list-inside text-xs text-gray-500">
@@ -172,7 +170,7 @@ export default function LegalMonitoringPage() {
       )}
 
       <div>
-        <h2 className="font-semibold text-brand-ink mb-2">Feeds</h2>
+        <h2 className="font-semibold text-brand-ink mb-2">{t("feedsTitle")}</h2>
         <div className="bg-white rounded-xl border divide-y">
           {feeds.map((f) => (
             <div key={f.id} className="p-4 space-y-2">
@@ -183,8 +181,10 @@ export default function LegalMonitoringPage() {
                     {f.isBlind && <AlertTriangle className="w-3.5 h-3.5 text-state-danger" />}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {f.check_frequency} · last checked{" "}
-                    {f.last_checked_at ? new Date(f.last_checked_at).toLocaleDateString() : "never"}
+                    {f.check_frequency} ·{" "}
+                    {t("lastChecked", {
+                      date: f.last_checked_at ? new Date(f.last_checked_at).toLocaleDateString() : t("never"),
+                    })}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -193,7 +193,7 @@ export default function LegalMonitoringPage() {
                     disabled={checkingId === f.id}
                     className="inline-flex items-center gap-1.5 text-xs font-medium bg-brand-navy text-white px-3 py-1.5 rounded-lg disabled:opacity-50"
                   >
-                    <CheckCircle2 className="w-3.5 h-3.5" /> No change
+                    <CheckCircle2 className="w-3.5 h-3.5" /> {t("noChange")}
                   </button>
                   <button
                     onClick={() =>
@@ -203,36 +203,48 @@ export default function LegalMonitoringPage() {
                     }
                     className="text-xs font-medium text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg"
                   >
-                    Log change
+                    {t("logChange")}
                   </button>
                 </div>
               </div>
 
               {changeForm?.feedId === f.id && (
                 <div className="space-y-2 pt-2 border-t">
-                  <input
-                    type="text"
-                    aria-label="Change description"
-                    value={changeForm.description}
-                    onChange={(e) => setChangeForm({ ...changeForm, description: e.target.value })}
-                    placeholder="What changed?"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                  />
-                  <input
-                    type="number"
-                    step="0.01"
-                    aria-label="Dollar impact (optional)"
-                    value={changeForm.impact}
-                    onChange={(e) => setChangeForm({ ...changeForm, impact: e.target.value })}
-                    placeholder="Dollar impact (optional)"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                  />
+                  {/* Fix (auditoría 2026-07-30, item 6): estos inputs solo
+                      tenían aria-label, sin label visual asociada. */}
+                  <div>
+                    <label htmlFor={`legal-change-desc-${f.id}`} className="text-xs text-gray-500 block mb-1">
+                      {t("changeDescriptionLabel")}
+                    </label>
+                    <input
+                      id={`legal-change-desc-${f.id}`}
+                      type="text"
+                      value={changeForm.description}
+                      onChange={(e) => setChangeForm({ ...changeForm, description: e.target.value })}
+                      placeholder={t("changeDescriptionPlaceholder")}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor={`legal-change-impact-${f.id}`} className="text-xs text-gray-500 block mb-1">
+                      {t("dollarImpactLabel")}
+                    </label>
+                    <input
+                      id={`legal-change-impact-${f.id}`}
+                      type="number"
+                      step="0.01"
+                      value={changeForm.impact}
+                      onChange={(e) => setChangeForm({ ...changeForm, impact: e.target.value })}
+                      placeholder={t("dollarImpactLabel")}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </div>
                   <button
                     onClick={() => markChecked(f.id, true)}
                     disabled={checkingId === f.id || changeForm.description.trim().length === 0}
                     className="w-full bg-state-danger text-white py-2 rounded-lg text-sm font-medium disabled:opacity-50"
                   >
-                    Log this change
+                    {t("logThisChange")}
                   </button>
                 </div>
               )}

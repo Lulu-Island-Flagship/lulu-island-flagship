@@ -19,13 +19,35 @@ export const VERIFICATION_CODE_TTL_MINUTES = 15;
 export const MAX_VERIFICATION_ATTEMPTS = 5;
 export const MIN_REASON_LENGTH = 10;
 
-/** Código numérico de 6 dígitos, tipo OTP -- corto porque se dicta/escribe rápido bajo estrés. */
+// Fix (auditoría externa 2026-07-30, BUG 3): un código numérico de 6 dígitos
+// tiene solo 1,000,000 de combinaciones -- factible de fuerza bruta si el
+// requestId (el otro dato necesario para canjear el código, ver
+// POST /api/recovery/verify) se filtra o se adivina/enumera. El rate
+// limiting existente (5-10 intentos por IP y por requestId, ver
+// src/app/api/recovery/*/route.ts) y MAX_VERIFICATION_ATTEMPTS ya limitan
+// intentos ONLINE contra un mismo requestId, pero no compensan un espacio de
+// claves tan chico si esos límites se evaden (rotación de IP, requestId
+// distinto por ataque, etc.) -- la defensa correcta es que el código en sí
+// sea inviable de adivinar. Se sube a 8 caracteres alfanuméricos del mismo
+// alfabeto sin ambigüedad visual/auditiva usado en backup codes
+// (src/lib/backup-codes.ts: sin 0/O/1/I/L) -- 32^8 ≈ 1.1 × 10^12
+// combinaciones, siete órdenes de magnitud más grande que el anterior.
+const VERIFICATION_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // 32 símbolos, sin 0/O/1/I/L
+const VERIFICATION_CODE_LENGTH = 8;
+
+/** Código alfanumérico de 8 caracteres, tipo OTP -- se dicta/escribe bajo estrés, por eso usa un alfabeto sin caracteres ambiguos (mismo criterio que generateBackupCode en src/lib/backup-codes.ts). */
 export function generateVerificationCode(): string {
-  return String(randomInt(0, 1_000_000)).padStart(6, "0");
+  let code = "";
+  for (let i = 0; i < VERIFICATION_CODE_LENGTH; i++) {
+    code += VERIFICATION_CODE_ALPHABET[randomInt(0, VERIFICATION_CODE_ALPHABET.length)];
+  }
+  return code;
 }
 
 export function normalizeVerificationCode(raw: string): string {
-  return raw.trim().replace(/\s+/g, "");
+  // toUpperCase(): el código alfanumérico se compara sin distinguir
+  // mayúsculas/minúsculas, igual que normalizeBackupCode en backup-codes.ts.
+  return raw.trim().toUpperCase().replace(/\s+/g, "");
 }
 
 export function hashVerificationCode(code: string): string {

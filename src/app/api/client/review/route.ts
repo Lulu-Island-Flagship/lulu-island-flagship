@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { token, rating, comment } = body;
+    const { token, rating, comment, phoneLast4 } = body;
 
     if (!token || !rating || rating < 1 || rating > 5) {
       return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
@@ -106,6 +106,37 @@ export async function POST(request: NextRequest) {
 
     if (order.status !== "completed") {
       return NextResponse.json({ error: "Order not completed yet" }, { status: 400 });
+    }
+
+    // Fix (auditoría UX/seguridad 2026-07-30, BUG 4): review_token solo era
+    // el link de SMS/email -- si se filtraba (reenviado, cacheado, indexado),
+    // cualquiera con el link podía escribir la reseña en nombre del cliente.
+    // No existe en el repo ningún otro patrón reutilizable de "segundo
+    // factor" para flujos públicos por token (pre-review-survey exige
+    // sesión, que aquí es justo lo que NO se puede pedir -- ver comentario de
+    // "EXCEPCIÓN INTENCIONAL" arriba). Se agrega la verificación más simple
+    // y consistente con lo que ya se captura en el sistema: los últimos 4
+    // dígitos del teléfono del cliente (client_profiles.phone_number, mismo
+    // campo que ya usa AuthModal/verificación telefónica obligatoria). Si el
+    // perfil no tiene teléfono registrado (órdenes legacy previas a que la
+    // verificación telefónica fuera obligatoria para TODA reserva), se
+    // degrada de forma controlada al comportamiento anterior (solo token) en
+    // vez de bloquear reseñas legítimas que no tienen ese dato disponible.
+    const { data: profile } = await supabase
+      .from("client_profiles")
+      .select("phone_number")
+      .eq("user_id", order.user_id)
+      .maybeSingle();
+
+    if (profile?.phone_number) {
+      const expectedLast4 = String(profile.phone_number).replace(/\D/g, "").slice(-4);
+      const providedLast4 = typeof phoneLast4 === "string" ? phoneLast4.replace(/\D/g, "").slice(-4) : "";
+      if (!providedLast4 || providedLast4.length !== 4) {
+        return NextResponse.json({ error: "Phone verification required" }, { status: 400 });
+      }
+      if (providedLast4 !== expectedLast4) {
+        return NextResponse.json({ error: "Phone verification failed" }, { status: 403 });
+      }
     }
 
     // v8.3 auditoría 2026-07-21 (E-B7): la ventana real de "24h" se

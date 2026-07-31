@@ -33,6 +33,47 @@ function getAdminSupabase() {
   return createClient(supabaseUrl, supabaseServiceKey);
 }
 
+// Fix (auditoría externa 2026-07-30, BUG 4): supabase-js (^2.110.0, ver
+// package.json) no expone un método admin para buscar un usuario por email
+// directamente -- auth.admin.listUsers() solo soporta paginación manual
+// (page/perPage, ver node_modules/@supabase/supabase-js referencia
+// auth-admin-listusers). Antes se llamaba listUsers() UNA vez sin
+// paginar -- en un proyecto con más usuarios que el tamaño de página default
+// (50), el email buscado podía estar en una página no traída, y el código
+// caía en "usuario no encontrado" aunque la cuenta sí existiera, dejando
+// (potencialmente) un admin_roles huérfano si el resto del flujo asumiera
+// éxito. Este helper pagina explícitamente hasta encontrar el email o
+// agotar las páginas.
+const LIST_USERS_PAGE_SIZE = 1000;
+
+async function findAuthUserByEmail(
+  adminSupabase: NonNullable<ReturnType<typeof getAdminSupabase>>,
+  normalizedEmail: string
+) {
+  let page = 1;
+  // Tope de seguridad para no loopear indefinidamente si Supabase alguna vez
+  // devolviera un error transitorio sin marcarlo como `error` -- 500 páginas
+  // de 1000 = 500k usuarios, muy por encima de cualquier escala realista de
+  // este proyecto.
+  const MAX_PAGES = 500;
+  while (page <= MAX_PAGES) {
+    const { data, error } = await adminSupabase.auth.admin.listUsers({
+      page,
+      perPage: LIST_USERS_PAGE_SIZE,
+    });
+    if (error) {
+      console.error("findAuthUserByEmail listUsers error:", error);
+      return null;
+    }
+    const match = data.users.find((u) => u.email?.toLowerCase() === normalizedEmail);
+    if (match) return match;
+    if (data.users.length < LIST_USERS_PAGE_SIZE) return null; // última página, no había más
+    page++;
+  }
+  console.error("findAuthUserByEmail: se alcanzó MAX_PAGES sin encontrar el email ni agotar la lista");
+  return null;
+}
+
 // GET /api/admin/roles — lista roles administrativos activos con email del usuario.
 export async function GET() {
   const auth = await requireAdminRole("admin_roles_management");
@@ -119,19 +160,39 @@ export async function POST(request: NextRequest) {
 
     // Reutilizar la cuenta auth si ya existe; si no, crear e invitar --
     // mismo patrón que POST /api/admin/empleados.
+    //
+    // Fix (auditoría externa 2026-07-30, BUG 4): antes CUALQUIER inviteError
+    // (email ya existe, rate limit de invitaciones, SMTP no configurado,
+    // etc.) se trataba como "el usuario ya existe" y disparaba la búsqueda
+    // en listUsers() sin más chequeo -- un error real de otro tipo hacía que
+    // el endpoint devolviera 500 solo si ADEMÁS no encontraba el email en
+    // listUsers(), que además no paginaba (ver findAuthUserByEmail arriba).
+    // Ahora se distingue explícitamente el código de conflicto de cuenta
+    // existente (AuthApiError.code === "email_exists", ver
+    // node_modules/@supabase/auth-js/src/lib/error-codes.ts) de cualquier
+    // otro tipo de error, que se reporta directamente en vez de asumir el
+    // camino de "usuario existente".
     let targetUserId: string;
     const { data: inviteData, error: inviteError } = await adminSupabase.auth.admin.inviteUserByEmail(
       normalizedEmail
     );
 
     if (inviteError) {
-      const { data: existingUsers, error: listError } = await adminSupabase.auth.admin.listUsers();
-      const existingAuthUser = !listError
-        ? existingUsers.users.find((u) => u.email?.toLowerCase() === normalizedEmail)
-        : undefined;
+      const isExistingUserConflict =
+        inviteError.code === "email_exists" || /already registered|already exists/i.test(inviteError.message ?? "");
+
+      if (!isExistingUserConflict) {
+        console.error("Admin role invite error (not an existing-user conflict):", inviteError);
+        return NextResponse.json({ error: "No se pudo invitar al usuario" }, { status: 500 });
+      }
+
+      const existingAuthUser = await findAuthUserByEmail(adminSupabase, normalizedEmail);
 
       if (!existingAuthUser) {
-        console.error("Admin role invite error:", inviteError, listError);
+        console.error(
+          "Admin role invite error: Supabase reportó email_exists pero no se encontró la cuenta paginando listUsers:",
+          inviteError
+        );
         return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
       targetUserId = existingAuthUser.id;
@@ -195,6 +256,44 @@ export async function DELETE(request: NextRequest) {
     const id = request.nextUrl.searchParams.get("id");
     if (!id) {
       return NextResponse.json({ error: "id query param is required" }, { status: 400 });
+    }
+
+    // Fix (auditoría externa, hallazgo confirmado): antes de revocar, si la
+    // fila a revocar es un owner_admin, verificar que no sea el último
+    // owner_admin activo del sistema -- de lo contrario el sistema queda sin
+    // nadie con el rol de máximo privilegio y nadie puede volver a otorgar
+    // admin_roles (este mismo endpoint exige "owner_admin" vía
+    // requireAdminRole("admin_roles_management")).
+    const { data: roleToRevoke, error: fetchError } = await auth.supabase
+      .from("admin_roles")
+      .select("id, role")
+      .eq("id", id)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("admin_roles fetch-before-revoke error:", fetchError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
+
+    if (roleToRevoke?.role === "owner_admin") {
+      const { count: ownerAdminCount, error: countError } = await auth.supabase
+        .from("admin_roles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "owner_admin")
+        .is("deleted_at", null);
+
+      if (countError) {
+        console.error("admin_roles owner_admin count error:", countError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
+
+      if ((ownerAdminCount ?? 0) <= 1) {
+        return NextResponse.json(
+          { error: "No se puede revocar el último owner_admin del sistema" },
+          { status: 400 }
+        );
+      }
     }
 
     const { data: revoked, error: updateError } = await auth.supabase

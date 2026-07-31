@@ -211,6 +211,14 @@ export default function AdminWalletClient() {
               onChange={(e) => {
                 setQuery(e.target.value);
                 setSelectedClient(null);
+                // Fix (revisión 2026-07-30, punto 10): al cambiar el texto de
+                // búsqueda se limpiaba selectedClient pero no wallet/transactions
+                // -- el balance y el historial de la búsqueda anterior seguían
+                // visibles en pantalla mientras el admin escribía un nuevo
+                // nombre, con riesgo de leer/otorgar sobre el cliente
+                // equivocado antes de seleccionar uno nuevo.
+                setWallet(null);
+                setTransactions([]);
               }}
               onFocus={() => searchResults.length > 0 && setShowResults(true)}
               placeholder={t("searchPlaceholder")}
@@ -328,7 +336,7 @@ export default function AdminWalletClient() {
                 </div>
                 <span className={tx.type === "debit" || tx.type === "payout" ? "text-state-danger" : "text-state-success"}>
                   {tx.type === "debit" || tx.type === "payout" ? "-" : "+"}
-                  {formatDollars(tx.amount)}
+                  {formatDollars(Math.abs(tx.amount))}
                 </span>
               </div>
             ))}

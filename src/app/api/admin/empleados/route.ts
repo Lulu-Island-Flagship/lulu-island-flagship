@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { requireAdminRole } from "@/lib/admin";
 import { SUPPORTED_LANGUAGE_CODES } from "@/lib/languages";
 import { BC_MIN_WAGE_HOURLY, DEFAULT_SERVICE_MINUTES } from "@/lib/payroll";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // v8.3 auditoría 2026-07-21 (D-P1-8): la única validación de dayRate era
 // "> 0" -- un dayRate=50 ($50/día para una jornada de 8h) equivale a
@@ -34,9 +35,7 @@ export async function GET() {
 
     return NextResponse.json({ employees: data || [] }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Admin employees error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err, 500, "Ocurrió un error interno");
   }
 }
 
@@ -188,8 +187,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ employee, invited: !inviteError }, { status: 201 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Admin employee create error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err, 500, "Ocurrió un error interno");
   }
 }

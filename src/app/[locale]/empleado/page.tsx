@@ -28,6 +28,7 @@ import type { EmployeeService } from "@/types";
 import { downloadAndCacheDayBundle } from "@/lib/offline-day-cache";
 import { getAllQueuedEvents } from "@/lib/offline-queue";
 import { triggerSyncCycle } from "@/lib/offline-sync-client";
+import { getVancouverTodayString, getVancouverOffset } from "@/lib/date-utils";
 import { ErrorBanner } from "@/components/empleado/ErrorBanner";
 import { SkeletonServiceList } from "@/components/ui/Skeleton";
 
@@ -178,11 +179,12 @@ export default function EmpleadoPage() {
       return;
     }
     try {
-      // Timestamp en Vancouver con offset explícito para comparar correctamente con TIMESTAMPTZ
-      const vancouverDate = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", timeZoneName: "short" });
-      const today = vancouverDate.split(",")[0];
-      const isPDT = vancouverDate.includes("PDT");
-      const offset = isPDT ? "-07:00" : "-08:00";
+      // Timestamp en Vancouver con offset explícito para comparar correctamente con TIMESTAMPTZ.
+      // v8.3 ROUND 4 fix (#2): antes parseaba "PDT"/"PST" de toLocaleString(), que puede
+      // devolver "GMT-7" en vez de la abreviatura según navegador/runtime. Usamos el offset
+      // numérico real vía Intl (getVancouverOffset), robusto en cualquier entorno.
+      const today = getVancouverTodayString();
+      const offset = getVancouverOffset(today);
       const { data: logs } = await supabase
         .from("service_logs")
         .select("event_type")

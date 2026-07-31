@@ -24,8 +24,23 @@ export function ServiceWorkerRegister() {
     // necesidad de mover el archivo ni de agregar el header
     // Service-Worker-Allowed (ese header solo hace falta para pedir un scope
     // MÁS AMPLIO que el directorio del script, no más angosto).
+    //
+    // Fix (auditoría 2026-07-30, confirmado real): lo anterior asumía que
+    // las páginas de la app de empleado viven en /empleado/*, pero con
+    // next-intl (localePrefix: "always") la URL real SIEMPRE lleva el
+    // locale primero -- /es/empleado/... o /en/empleado/.... El scope
+    // "/empleado" del navegador solo controla páginas cuyo PATH empiece
+    // literalmente con "/empleado"; /es/empleado/dashboard queda fuera de
+    // ese scope y el navegador nunca deja que este service worker la
+    // controle (sw.js nunca recibe sus eventos "fetch"), así que el cacheo
+    // offline quedaba roto en silencio para el único locale que existe hoy.
+    // sw.js ya soporta el prefijo de locale correctamente (usa
+    // pathname.includes(APP_SHELL_PREFIX), no startsWith -- ver ese
+    // archivo), así que el único cambio necesario acá es volver a registrar
+    // con scope "/" (el máximo permitido, dado que el script se sirve desde
+    // la raíz) para que el control alcance a /{locale}/empleado/*.
     navigator.serviceWorker
-      .register("/sw.js", { scope: "/empleado" })
+      .register("/sw.js", { scope: "/" })
       .catch((err) => {
         console.error("SW registration failed:", err);
       });

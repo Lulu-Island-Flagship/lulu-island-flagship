@@ -1,9 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Mail, Shield, AlertCircle, UserPlus, UserMinus } from "lucide-react";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
+import { useFocusTrap } from "@/lib/useFocusTrap";
+
+// Fix (auditoría externa 2026-07-30): validación básica de formato de email
+// antes de invitar -- no reemplaza la validación real del backend, solo
+// evita el caso obvio de un typo silencioso (ej. "user@" o "usergmail.com").
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface AdminRoleRow {
   id: string;
@@ -170,7 +176,25 @@ export default function AdminRolesClient() {
                     </td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => setConfirmRevokeId(r.id)}
+                        onClick={() => {
+                          // Fix (auditoría externa 2026-07-30): revocar
+                          // owner_admin es una acción particularmente
+                          // sensible (puede dejar el sistema sin ningún
+                          // owner_admin activo) -- se agrega un paso de
+                          // confirmación explícito ADICIONAL al modal normal
+                          // de abajo, antes de siquiera abrirlo.
+                          if (
+                            r.role === "owner_admin" &&
+                            !window.confirm(
+                              t("confirmRevokeOwnerAdminExtra", {
+                                target: r.email || r.user_id,
+                              })
+                            )
+                          ) {
+                            return;
+                          }
+                          setConfirmRevokeId(r.id);
+                        }}
                         disabled={revokingId === r.id}
                         aria-label={t("revokeAriaLabel", { role: ROLE_LABEL[r.role], target: r.email || r.user_id })}
                         className="flex items-center gap-1 text-xs text-state-danger hover:opacity-80 disabled:opacity-50"
@@ -227,7 +251,35 @@ function AddRoleModal({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
 
+  // Fix (auditoría externa 2026-07-30): focus trap + cierre con Escape,
+  // mismo hook ya usado en AdminNav.tsx / AdminChecklistsClient.tsx.
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, true);
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && !saving) onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [saving, onClose]);
+
+  const trimmedEmail = email.trim();
+  const emailIsValid = trimmedEmail.length === 0 || EMAIL_RE.test(trimmedEmail);
+
   const handleCreate = async () => {
+    if (!EMAIL_RE.test(trimmedEmail)) {
+      setSaveError(t("addModal.emailInvalid"));
+      return;
+    }
+    // Fix (auditoría externa 2026-07-30): otorgar owner_admin es la acción
+    // más sensible del panel (acceso administrativo completo) -- se exige
+    // confirmación explícita adicional antes de enviar la invitación.
+    if (
+      role === "owner_admin" &&
+      !window.confirm(t("confirmGrantOwnerAdminExtra", { email: trimmedEmail }))
+    ) {
+      return;
+    }
     setSaving(true);
     setSaveError("");
     try {
@@ -235,7 +287,7 @@ function AddRoleModal({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, role }),
+        body: JSON.stringify({ email: trimmedEmail, role }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || t("addModal.grantErrorFallback"));
@@ -249,7 +301,7 @@ function AddRoleModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+      <div ref={modalRef} role="dialog" aria-modal="true" className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
         <h2 className="text-lg font-semibold text-brand-ink">{t("addModal.title")}</h2>
         <p className="text-xs text-gray-500">
           {t("addModal.subtitle")}
@@ -263,9 +315,13 @@ function AddRoleModal({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              aria-invalid={!emailIsValid}
               className="w-full border rounded-lg px-3 py-2 text-sm"
               placeholder={t("addModal.emailPlaceholder")}
             />
+            {!emailIsValid && (
+              <p className="text-xs text-state-danger mt-1">{t("addModal.emailInvalid")}</p>
+            )}
           </div>
           <div>
             <label htmlFor="add-role-role" className="text-xs text-gray-600 block mb-1">{t("addModal.roleLabel")}</label>
@@ -291,7 +347,7 @@ function AddRoleModal({
           <button
             type="button"
             onClick={handleCreate}
-            disabled={saving || !email.trim()}
+            disabled={saving || !trimmedEmail || !EMAIL_RE.test(trimmedEmail)}
             aria-label={saving ? t("addModal.grantingAriaLabel") : t("addModal.grantAriaLabel")}
             className="px-4 py-2 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light disabled:opacity-50"
           >
