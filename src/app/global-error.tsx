@@ -15,8 +15,12 @@
 // el locale layout fallaron al montar), así que NO puede usar
 // useTranslations/next-intl -- texto fijo en inglés con estilos inline
 // (sin depender de que Tailwind/globals.css hayan cargado) como red de
-// seguridad de último recurso.
+// seguridad de último recurso. BRAND de src/design/tokens.ts es una const
+// de string plano (sin CSS/Tailwind/next-intl), así que importarla aquí no
+// rompe ese aislamiento -- evita duplicar los hex a mano (guardrail de CI
+// "cero hex de marca fuera de la fuente única").
 import { useEffect } from "react";
+import { BRAND } from "@/design/tokens";
 
 export default function GlobalError({
   error,
@@ -41,7 +45,7 @@ export default function GlobalError({
           fontFamily:
             "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
           backgroundColor: "#EAF4FB",
-          color: "#1F2E3D",
+          color: BRAND.ink,
         }}
       >
         <div style={{ maxWidth: 420, width: "100%", textAlign: "center", padding: "0 16px" }}>
@@ -54,7 +58,7 @@ export default function GlobalError({
           <button
             onClick={() => reset()}
             style={{
-              backgroundColor: "#2E5C8A",
+              backgroundColor: BRAND.navy,
               color: "#FFFFFF",
               border: "none",
               borderRadius: 8,

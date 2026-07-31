@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Noto_Sans_SC } from "next/font/google";
 import { isPublicInsuredClaimReady } from "@/lib/business-insurance";
 import { locales } from "@/i18n/config";
+import { BRAND } from "@/design/tokens";
 import "../globals.css";
 
 // Dominio canónico del sitio -- mismo valor que ya se usa en el JSON-LD
@@ -16,11 +17,12 @@ const SITE_URL = "https://luluislandflagship.ca";
 // van dentro del objeto `metadata` en Next.js 14 -- generan un warning de
 // build ("Unsupported metadata viewport/themeColor") y se mueven a su propio
 // export `viewport` (API estable desde Next 14.0, confirmado por la versión
-// "next": "14.2.35" en package.json). #2E5C8A es BRAND.navy en
+// "next": "14.2.35" en package.json). Usa BRAND.navy de
 // src/design/tokens.ts (el mismo azul ya usado como color primario en toda
-// la marca "Powder Sky").
+// la marca "Powder Sky") en vez del hex literal, para el guardrail de CI
+// "cero hex de marca fuera de la fuente única".
 export const viewport: Viewport = {
-  themeColor: "#2E5C8A",
+  themeColor: BRAND.navy,
   width: "device-width",
   initialScale: 1,
 };

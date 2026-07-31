@@ -7,7 +7,12 @@
 // src/app/[locale]/not-found.tsx en vez de este archivo -- este es solo el
 // último fallback. Server Component sin next-intl a propósito, mismo motivo
 // que src/app/global-error.tsx: puede ejecutarse antes de que el locale se
-// resuelva, así que no depende de NextIntlClientProvider.
+// resuelva, así que no depende de NextIntlClientProvider. Importa BRAND de
+// src/design/tokens.ts (const de string plano, sin CSS/Tailwind/next-intl)
+// en vez de repetir los hex a mano, para que el guardrail de CI "cero hex
+// de marca fuera de la fuente única" no lo marque como duplicado.
+import { BRAND } from "@/design/tokens";
+
 export default function RootNotFound() {
   return (
     <html lang="en">
@@ -21,7 +26,7 @@ export default function RootNotFound() {
           fontFamily:
             "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
           backgroundColor: "#EAF4FB",
-          color: "#1F2E3D",
+          color: BRAND.ink,
         }}
       >
         <div style={{ maxWidth: 420, width: "100%", textAlign: "center", padding: "0 16px" }}>
@@ -35,7 +40,7 @@ export default function RootNotFound() {
             href="/en"
             style={{
               display: "inline-block",
-              backgroundColor: "#2E5C8A",
+              backgroundColor: BRAND.navy,
               color: "#FFFFFF",
               borderRadius: 8,
               padding: "12px 24px",
