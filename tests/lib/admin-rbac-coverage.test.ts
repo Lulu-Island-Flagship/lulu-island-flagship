@@ -13,10 +13,20 @@ import path from "node:path";
  *
  * Este test recorre el árbol de archivos de src/app/api/admin/ y falla si
  * encuentra un route.ts que exporte un handler HTTP (GET/POST/PUT/PATCH/
- * DELETE) sin ninguna referencia textual a "requireAdminRole" en el archivo.
- * Es una comprobación estática y deliberadamente simple: no evalúa lógica,
- * solo la presencia de la llamada al guard. Object es que este problema no
- * pueda volver a colarse en silencio en un PR futuro.
+ * DELETE) sin ninguna referencia textual a "requireAdminRole" o
+ * "getCurrentAdminRoles" en el archivo. Es una comprobación estática y
+ * deliberadamente simple: no evalúa lógica, solo la presencia de la llamada
+ * al guard. Objeto es que este problema no pueda volver a colarse en
+ * silencio en un PR futuro.
+ *
+ * getCurrentAdminRoles() (ver src/lib/admin.ts) se acepta como guard
+ * alternativo válido desde la auditoría 2026-07-30: es un segundo patrón
+ * legítimo (no un bypass) para endpoints intencionalmente de "cualquier rol
+ * admin autenticado" (ej. my-roles, operating-mode) en vez de un recurso
+ * RBAC específico -- hace su propio supabase.auth.getUser() + lee
+ * admin_roles reales, solo que no lo compara contra la matriz de recursos
+ * de requireAdminRole. Sigue siendo verificación real de sesión + rol, no
+ * texto decorativo.
  */
 
 const ADMIN_API_ROOT = path.join(__dirname, "..", "..", "src", "app", "api", "admin");
@@ -64,7 +74,7 @@ describe("RBAC coverage guardrail: src/app/api/admin/**", () => {
     );
   });
 
-  it("toda ruta admin que exporta un handler HTTP referencia requireAdminRole", () => {
+  it("toda ruta admin que exporta un handler HTTP referencia requireAdminRole o getCurrentAdminRoles", () => {
     const offenders: string[] = [];
 
     for (const file of routeFiles) {
@@ -72,7 +82,7 @@ describe("RBAC coverage guardrail: src/app/api/admin/**", () => {
       const handlers = exportedHttpMethods(source);
       if (handlers.length === 0) continue; // archivo helper sin handler exportado, no aplica
 
-      if (!source.includes("requireAdminRole")) {
+      if (!source.includes("requireAdminRole") && !source.includes("getCurrentAdminRoles")) {
         const relative = path.relative(path.join(__dirname, "..", ".."), file);
         offenders.push(`${relative} (handlers: ${handlers.join(", ")})`);
       }
@@ -81,7 +91,7 @@ describe("RBAC coverage guardrail: src/app/api/admin/**", () => {
     assert.deepStrictEqual(
       offenders,
       [],
-      `Rutas admin sin requireAdminRole encontradas:\n${offenders.join("\n")}`
+      `Rutas admin sin requireAdminRole/getCurrentAdminRoles encontradas:\n${offenders.join("\n")}`
     );
   });
 });
