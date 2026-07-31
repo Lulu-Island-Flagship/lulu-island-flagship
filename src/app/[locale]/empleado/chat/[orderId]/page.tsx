@@ -195,7 +195,7 @@ export default function TeamChatPage() {
       {pendingCount > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-xs text-amber-800 mb-2 flex items-center gap-1.5">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-          {pendingCount} message{pendingCount === 1 ? "" : "s"} waiting to send -- will retry automatically when you're online.
+          {pendingCount} message{pendingCount === 1 ? "" : "s"} waiting to send -- will retry automatically when you&apos;re online.
         </div>
       )}
 
