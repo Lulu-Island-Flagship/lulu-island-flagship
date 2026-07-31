@@ -155,7 +155,19 @@ export default function ServiceGalleryPage() {
           aria-modal="true"
           aria-label={t("photoLightboxAriaLabel")}
           className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
-          onClick={() => setLightboxIndex(null)}
+          onClick={(e) => {
+            // Fix (auditoría a11y 2026-07-30, E6-C7): cerrar solo si el clic
+            // fue directamente en el fondo (no en el contenido), y aceptar
+            // Escape para cerrar por teclado (WCAG 2.1.1) -- reemplaza el
+            // patrón anterior de un onClick+stopPropagation anidado en el
+            // div de contenido, que el escáner marcaba como no operable por
+            // teclado sin una alternativa real.
+            if (e.target === e.currentTarget) setLightboxIndex(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setLightboxIndex(null);
+          }}
+          tabIndex={-1}
         >
           <button
             aria-label={t("closeAriaLabel")}
@@ -164,7 +176,7 @@ export default function ServiceGalleryPage() {
           >
             &times;
           </button>
-          <div className="relative w-full h-full max-w-3xl max-h-[80vh]" onClick={(e) => e.stopPropagation()}>
+          <div className="relative w-full h-full max-w-3xl max-h-[80vh]">
             <Image
               src={data.photos[lightboxIndex]}
               alt={t("servicePhotoAlt", { index: lightboxIndex + 1 })}

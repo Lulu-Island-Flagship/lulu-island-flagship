@@ -198,6 +198,7 @@ export default function AdminUpsellsClient() {
                     <div className="space-y-2">
                       <input
                         type="text"
+                        aria-label={t("rejectReasonPlaceholder")}
                         value={rejectReason}
                         onChange={(e) => setRejectReason(e.target.value)}
                         placeholder={t("rejectReasonPlaceholder")}

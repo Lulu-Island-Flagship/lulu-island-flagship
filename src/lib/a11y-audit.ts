@@ -147,7 +147,17 @@ function lineOf(source: string, index: number): number {
 
 function matchesTag(tag: string): RegExp {
   // Captura la etiqueta de apertura completa, con o sin auto-cierre.
-  return new RegExp(`<${tag}\\b[^>]*?(?:/>|>)`, "g");
+  //
+  // Fix (auditoría a11y 2026-07-30, E6-C7): `[^>]*?` corta el match en el
+  // PRIMER carácter `>` que encuentre -- y una prop inline como
+  // `onClick={(e) => { ... }}` contiene un `>` real dentro de `=>`, mucho
+  // antes del `>` que realmente cierra la etiqueta JSX. Eso truncaba el
+  // texto de la etiqueta analizado, perdiendo atributos declarados después
+  // (confirmado: `tabIndex={-1}` en el <div role="dialog"> de
+  // galeria/page.tsx quedaba fuera del match y se reportaba como ausente).
+  // `(?:=>|[^>])*?` trata "=>" como una unidad que no cuenta como cierre,
+  // sin dejar de detenerse en un `>` real de cierre de etiqueta.
+  return new RegExp(`<${tag}\\b(?:=>|[^>])*?(?:/>|>)`, "g");
 }
 
 /**
@@ -215,20 +225,56 @@ const RULES: Rule[] = [
     severity: "critical",
     find(source) {
       const out: Array<{ index: number; snippet: string; message: string }> = [];
-      const buttonRe = /<button\b[^>]*?>([\s\S]*?)<\/button>/g;
+      // Mismo fix de "=>" que matchesTag (ver comentario ahí) aplicado a la
+      // porción de apertura de <button ...> antes de capturar los hijos.
+      //
+      // Fix (auditoría a11y 2026-07-30, E6-C7, segunda vuelta): la versión
+      // anterior re-derivaba `openTag` con `m[0].slice(0, m[0].indexOf(">")
+      // + 1)` -- volviendo a introducir el mismo bug de "=>" que se acababa
+      // de arreglar en el regex, porque `indexOf(">")` encuentra el `>` dentro
+      // de la flecha de un onClick inline ANTES del cierre real de la
+      // etiqueta, cortando atributos declarados después (title, aria-label).
+      // Ahora se captura el bloque de atributos directamente en un grupo del
+      // regex, con el mismo patrón "=>"-aware. También se agrega `title`
+      // como fuente válida de nombre accesible (técnica H65, ya aceptada
+      // para <input>/<select> en la regla `campo-sin-nombre-accesible` de
+      // este mismo archivo -- confirmado en código real: los botones de
+      // miniatura de foto en AdminQCClient.tsx usan `title={photo.label}`
+      // sin aria-label, y son legítimamente accesibles así).
+      const buttonRe = /<button\b((?:=>|[^>])*?)>([\s\S]*?)<\/button>/g;
       for (const m of execAll(buttonRe, source)) {
-        const openTag = m[0].slice(0, m[0].indexOf(">") + 1);
-        const inner = m[1];
-        const hasAriaLabel = /\baria-label\s*=/.test(openTag);
-        const hasAriaLabelledby = /\baria-labelledby\s*=/.test(openTag);
+        const attrs = m[1];
+        const openTag = `<button${attrs}>`;
+        const inner = m[2];
+        const hasAriaLabel = /\baria-label\s*=/.test(attrs);
+        const hasAriaLabelledby = /\baria-labelledby\s*=/.test(attrs);
+        const hasTitle = /\btitle\s*=/.test(attrs);
         // Texto visible = hay al menos una secuencia de letras/números fuera de tags.
-        const visibleText = inner.replace(/<[^>]*>/g, "").replace(/\{[^}]*\}/g, "").trim();
+        //
+        // Fix (auditoría a11y 2026-07-30, E6-C7): la versión anterior hacía
+        // `.replace(/\{[^}]*\}/g, "")`, que BORRABA por completo el contenido
+        // de cualquier expresión JSX interpolada -- incluyendo el caso más
+        // común del repo, texto traducido como `{t("form.cancel")}`. Eso
+        // dejaba `visibleText` vacío para prácticamente todo botón con texto
+        // real mostrado vía next-intl, generando falsos positivos masivos
+        // (confirmado manualmente: 41 de 45 violaciones reportadas el
+        // 2026-07-30 eran botones con texto visible real). Ahora solo se
+        // quitan las llaves `{` `}` y se conserva el contenido -- una llamada
+        // como `t("cancel")` sigue teniendo letras y se detecta como texto
+        // visible; el costo aceptado es que una expresión como `{icon}` (una
+        // variable sin texto real) puede colar como falso negativo, pero en
+        // este repo los botones genuinamente solo-ícono siempre declaran
+        // aria-label explícito (convención verificada en el código real:
+        // ver ej. el botón de cerrar en galeria/page.tsx), así que el riesgo
+        // práctico de falso negativo es bajo comparado con el de falso
+        // positivo que tenía antes.
+        const visibleText = inner.replace(/<[^>]*>/g, "").replace(/[{}]/g, " ").trim();
         const hasVisibleText = /[a-zA-Z0-9À-ɏ一-鿿]/.test(visibleText);
-        if (!hasAriaLabel && !hasAriaLabelledby && !hasVisibleText) {
+        if (!hasAriaLabel && !hasAriaLabelledby && !hasTitle && !hasVisibleText) {
           out.push({
             index: m.index ?? 0,
             snippet: openTag,
-            message: "<button> sin texto visible ni aria-label/aria-labelledby (WCAG 4.1.2 — probable botón de solo ícono sin nombre accesible).",
+            message: "<button> sin texto visible ni aria-label/aria-labelledby/title (WCAG 4.1.2 — probable botón de solo ícono sin nombre accesible).",
           });
         }
       }
@@ -298,11 +344,34 @@ const RULES: Rule[] = [
   },
 ];
 
+/**
+ * Fix (auditoría a11y 2026-07-30, E6-C7): el escaneo original corría sobre
+ * el texto fuente crudo, sin distinguir comentarios de código real -- una
+ * mención de `<select>` o `<button>` dentro de un comentario JS/TS (muy
+ * común en este repo, donde los comentarios de fix documentan el código que
+ * cambiaron citando la etiqueta) se detectaba como una etiqueta JSX real.
+ * Confirmado manualmente: esto causó 3 de los 5 falsos positivos restantes
+ * tras el fix de `boton-icono-sin-nombre` (StepAddress.tsx:25 y
+ * AdminEmpleadosClient.tsx:139/141 son comentarios, no código). Se blanquea
+ * el contenido de los comentarios (se preserva longitud y saltos de línea
+ * para no desalinear `lineOf`) antes de correr las reglas. Heurístico, no
+ * AST: no distingue comentarios `//` o de bloque dentro de un string literal, aceptable dado
+ * que el resto de este módulo ya es un escaneo basado en regex.
+ */
+function stripComments(source: string): string {
+  let out = source.replace(/\/\*[\s\S]*?\*\//g, (m) =>
+    m.replace(/[^\n]/g, " ")
+  );
+  out = out.replace(/\/\/[^\n]*/g, (m) => " ".repeat(m.length));
+  return out;
+}
+
 /** Escanea una fuente JSX/TSX y devuelve issues con línea calculada. */
 export function scanSource(source: string, file: string): A11yIssue[] {
   const issues: A11yIssue[] = [];
+  const scanTarget = stripComments(source);
   for (const rule of RULES) {
-    for (const hit of rule.find(source)) {
+    for (const hit of rule.find(scanTarget)) {
       issues.push({
         rule: rule.id,
         severity: RULES.find((r) => r.id === rule.id)!.severity,

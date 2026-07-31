@@ -64,6 +64,7 @@ const OUTCOME_KEYS: Record<string, string> = {
 
 export default function WarrantyClaimsPage() {
   const t = useTranslations("admin.warrantyClaims");
+  const tCommon = useTranslations("common");
   const [claims, setClaims] = useState<WarrantyClaim[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -290,7 +291,7 @@ export default function WarrantyClaimsPage() {
           <div className="bg-white rounded-xl max-w-3xl w-full p-6 space-y-4 my-8">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-brand-ink">{t("resolveModal.title")}</h2>
-              <button onClick={() => setSelectedClaim(null)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setSelectedClaim(null)} aria-label={tCommon("close")} className="text-gray-400 hover:text-gray-600">
                 <XCircle className="w-5 h-5" />
               </button>
             </div>

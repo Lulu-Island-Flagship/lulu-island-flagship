@@ -1,7 +1,9 @@
 {
   "common": {
     "loading": "Loading",
-    "loadingEllipsis": "Loading…"
+    "loadingEllipsis": "Loading…",
+    "close": "Close",
+    "back": "Back"
   },
   "meta": {
     "title": "Lulu Island Flagship | Cleaning Services | Richmond, BC",
@@ -2155,6 +2157,7 @@
       "subtitle": "Objectively-qualified candidates. Judge the before/after visual difference and approve with one tap. Approving starts the client's 24-hour withdrawal window.",
       "empty": "No candidates waiting for review.",
       "checklistScore": "Checklist {checklist}% · Employee score {score}",
+      "selectPhotoAriaLabel": "Select this photo",
       "approve": "Approve",
       "reject": "Reject",
       "rejectModalTitle": "Reject candidate",
@@ -2215,6 +2218,7 @@
         "expiresAria": "Certification expiry date",
         "add": "Add"
       },
+      "revokeAriaLabel": "Revoke certification",
       "revokeModal": {
         "title": "Revoke certification",
         "message": "This certification will be marked as revoked and can no longer be used to make the employee assignable to dispatch.",

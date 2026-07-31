@@ -76,6 +76,7 @@ const DEFAULT_CRITERIA: Record<string, number> = {
 
 export default function AuditsPage() {
   const t = useTranslations("admin.audits");
+  const tCommon = useTranslations("common");
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
   const [audits, setAudits] = useState<FieldAudit[]>([]);
   const [peerVotes, setPeerVotes] = useState<Record<string, PeerVoteAggregate>>({});
@@ -334,6 +335,7 @@ export default function AuditsPage() {
               <button
                 type="button"
                 onClick={() => setSelectedOrder(null)}
+                aria-label={tCommon("close")}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <XCircle className="w-5 h-5" />

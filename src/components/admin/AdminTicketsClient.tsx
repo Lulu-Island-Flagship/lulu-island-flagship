@@ -54,6 +54,7 @@ const PRIORITY_COLOR: Record<string, string> = {
 
 export default function AdminTicketsClient() {
   const t = useTranslations("admin.tickets");
+  const tCommon = useTranslations("common");
   const STATUS_LABEL: Record<string, string> = {
     open: t("statusLabels.open"),
     in_review: t("statusLabels.inReview"),
@@ -364,6 +365,7 @@ export default function AdminTicketsClient() {
               <button
                 type="button"
                 onClick={() => setSelectedTicket(null)}
+                aria-label={tCommon("close")}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <XCircle className="w-5 h-5" />

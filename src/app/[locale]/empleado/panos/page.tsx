@@ -21,6 +21,7 @@ export default function PanosPage() {
   const router = useRouter();
   const params = useParams();
   const t = useTranslations("employee.panosScreen");
+  const tCommon = useTranslations("common");
   // 2026-07-24: antes leía window.location.pathname, lo que causaba un
   // hydration mismatch (SSR asumía "en", cliente calculaba el locale real) --
   // ver auditoría externa. useParams() da el mismo valor en servidor y
@@ -115,7 +116,11 @@ export default function PanosPage() {
     <main className="min-h-screen bg-brand-ice">
       <header className="bg-brand-navy text-white">
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
-          <button onClick={() => router.push(`/${safeLocale}/empleado`)} className="text-white/70 hover:text-white">
+          <button
+            onClick={() => router.push(`/${safeLocale}/empleado`)}
+            aria-label={tCommon("back")}
+            className="text-white/70 hover:text-white"
+          >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <h1 className="font-semibold text-sm">{t("title")}</h1>

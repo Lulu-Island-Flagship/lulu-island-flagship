@@ -450,6 +450,7 @@ export default function EmpleadoScorePage() {
               <h2 className="text-lg font-bold text-brand-ink">Appeal Audit</h2>
               <button
                 onClick={() => setSelectedAudit(null)}
+                aria-label="Close"
                 className="text-gray-400 hover:text-gray-600"
               >
                 <XCircle className="w-5 h-5" />

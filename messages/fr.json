@@ -1,7 +1,9 @@
 {
   "common": {
     "loading": "Chargement",
-    "loadingEllipsis": "Chargement…"
+    "loadingEllipsis": "Chargement…",
+    "close": "Fermer",
+    "back": "Retour"
   },
   "meta": {
     "title": "Lulu Island Flagship | Services de nettoyage | Richmond, C.-B.",
@@ -2155,6 +2157,7 @@
       "subtitle": "Candidats objectivement qualifiés. Jugez la différence visuelle avant/après et approuvez d'un seul geste. L'approbation démarre la fenêtre de retrait de 24 heures du client.",
       "empty": "Aucun candidat en attente d'examen.",
       "checklistScore": "Liste de contrôle {checklist} % · Score employé {score}",
+      "selectPhotoAriaLabel": "Sélectionner cette photo",
       "approve": "Approuver",
       "reject": "Rejeter",
       "rejectModalTitle": "Rejeter le candidat",
@@ -2215,6 +2218,7 @@
         "expiresAria": "Date d'expiration de la certification",
         "add": "Ajouter"
       },
+      "revokeAriaLabel": "Révoquer la certification",
       "revokeModal": {
         "title": "Révoquer la certification",
         "message": "Cette certification sera marquée comme révoquée et ne pourra plus être utilisée pour rendre l'employé assignable à la répartition.",

@@ -194,7 +194,11 @@ export default function CertificacionesPage() {
                         status: t(`statusLabels.${c.status}`),
                       })}
                       {!c.revoked_at && (
-                        <button onClick={() => setRevokingId(c.id)} className="ml-1 hover:opacity-70">
+                        <button
+                          onClick={() => setRevokingId(c.id)}
+                          aria-label={t("revokeAriaLabel")}
+                          className="ml-1 hover:opacity-70"
+                        >
                           <XCircle className="w-3 h-3" />
                         </button>
                       )}

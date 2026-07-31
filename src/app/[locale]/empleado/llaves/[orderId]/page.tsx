@@ -101,7 +101,11 @@ export default function LlavesPage() {
     <main className="min-h-screen bg-brand-ice">
       <header className="bg-brand-navy text-white">
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
-          <button onClick={() => router.push(`/${safeLocale}/empleado/servicio/${orderId}`)} className="text-white/70 hover:text-white">
+          <button
+            onClick={() => router.push(`/${safeLocale}/empleado/servicio/${orderId}`)}
+            aria-label="Volver"
+            className="text-white/70 hover:text-white"
+          >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <h1 className="font-semibold text-sm flex items-center gap-2">

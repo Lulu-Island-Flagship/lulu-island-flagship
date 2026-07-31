@@ -126,6 +126,52 @@ describe("scanSource — boton-icono-sin-nombre", () => {
       0
     );
   });
+  // Fix (auditoría a11y 2026-07-30, E6-C7): regresión real -- texto
+  // traducido `{t("key")}` se borraba por completo al calcular texto
+  // visible, marcando como icon-only prácticamente todo botón real del
+  // repo. Ver comentario en a11y-audit.ts junto a `visibleText`.
+  it("no marca <button> con texto interpolado vía t(...) como icon-only", () => {
+    const issues = scanSource(
+      `<button onClick={f}>{t("form.cancel")}</button>`,
+      "f.tsx"
+    );
+    assert.equal(
+      issues.filter((i) => i.rule === "boton-icono-sin-nombre").length,
+      0
+    );
+  });
+  // Fix: onClick inline con flecha (`=>`) contiene un `>` real que cortaba
+  // el match de la etiqueta de apertura antes de llegar a `title`/
+  // `aria-label` declarados después en el mismo <button ...>.
+  it("no marca <button> icon-only con title declarado después de un onClick con flecha", () => {
+    const issues = scanSource(
+      `<button onClick={() => f()} title="Foto 1"><Icon /></button>`,
+      "f.tsx"
+    );
+    assert.equal(
+      issues.filter((i) => i.rule === "boton-icono-sin-nombre").length,
+      0
+    );
+  });
+  it("sigue marcando <button> icon-only con onClick de flecha y sin ningún nombre accesible", () => {
+    const issues = scanSource(
+      `<button onClick={() => f()}><Icon /></button>`,
+      "f.tsx"
+    );
+    assert.ok(issues.some((i) => i.rule === "boton-icono-sin-nombre"));
+  });
+});
+
+describe("scanSource — comentarios no se tratan como código", () => {
+  it("no marca <select>/<button> mencionados dentro de un comentario", () => {
+    const issues = scanSource(
+      `// el <select> de abajo necesita aria-label\n` +
+        `// y el <button><X/></button> también\n` +
+        `const x = 1;`,
+      "f.tsx"
+    );
+    assert.equal(issues.length, 0);
+  });
 });
 
 describe("scanSource — clic-sin-teclado", () => {

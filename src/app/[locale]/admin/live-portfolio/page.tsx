@@ -127,6 +127,7 @@ export default function LivePortfolioAdminPage() {
                     <button
                       key={url}
                       onClick={() => setSelectedPhoto((prev) => ({ ...prev, [c.id]: url }))}
+                      aria-label={t("selectPhotoAriaLabel")}
                       className={`rounded-lg overflow-hidden border-2 ${
                         (selectedPhoto[c.id] || c.candidate_photo_urls[0]) === url
                           ? "border-brand-gold"

@@ -37,6 +37,7 @@ interface QCReview {
 
 export default function AdminQCClient() {
   const t = useTranslations("admin.qc");
+  const tCommon = useTranslations("common");
   const [reviews, setReviews] = useState<QCReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -299,6 +300,7 @@ export default function AdminQCClient() {
               <h2 id="qc-review-modal-title" className="text-lg font-bold text-brand-ink">{t("modal.title")}</h2>
               <button
                 onClick={() => setSelectedReview(null)}
+                aria-label={tCommon("close")}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <XCircle className="w-5 h-5" />

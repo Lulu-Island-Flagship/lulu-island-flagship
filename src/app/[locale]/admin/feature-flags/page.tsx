@@ -221,6 +221,7 @@ export default function FeatureFlagsPage() {
                   disabled={saving}
                   role="switch"
                   aria-checked={flag.activo}
+                  aria-label={`${flag.activo ? t("turnOff") : t("turnOn")} ${flag.nombre}`}
                   className={`ml-auto relative h-6 w-11 rounded-full transition-colors ${
                     flag.activo ? "bg-state-success" : "bg-gray-300"
                   }`}

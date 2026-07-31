@@ -1,7 +1,9 @@
 {
   "common": {
     "loading": "加载中",
-    "loadingEllipsis": "加载中…"
+    "loadingEllipsis": "加载中…",
+    "close": "关闭",
+    "back": "返回"
   },
   "meta": {
     "title": "Lulu Island Flagship | 清洁服务 | 里士满，卑诗省",
@@ -2155,6 +2157,7 @@
       "subtitle": "已通过客观资格筛选的候选项。请判断前后对比的视觉差异，一键批准。批准后将启动客户 24 小时的撤回窗口期。",
       "empty": "暂无待审核的候选项。",
       "checklistScore": "清单完成度 {checklist}% · 员工评分 {score}",
+      "selectPhotoAriaLabel": "选择这张照片",
       "approve": "批准",
       "reject": "拒绝",
       "rejectModalTitle": "拒绝候选项",
@@ -2215,6 +2218,7 @@
         "expiresAria": "认证到期日期",
         "add": "添加"
       },
+      "revokeAriaLabel": "撤销认证",
       "revokeModal": {
         "title": "撤销认证",
         "message": "此认证将被标记为已撤销，且不能再用于使该员工可被派工。",
