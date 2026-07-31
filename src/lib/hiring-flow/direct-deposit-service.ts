@@ -28,6 +28,7 @@ import { getHiringFlowServiceClient } from "./settings-service";
 // ver comentario de la migración 279 para la distinción explícita frente
 // a consents/electronic_signatures.
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type BankingClient = SupabaseClient<any, "public", any>;
 
 // ---------------------------------------------------------------------------

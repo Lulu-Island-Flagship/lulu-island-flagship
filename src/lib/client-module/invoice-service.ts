@@ -29,6 +29,7 @@ import {
 // otros módulos de este repo) -- NUNCA hardcodeadas aquí ni en
 // billing-calculations.ts.
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type InvoiceServiceClient = SupabaseClient<any, "public", any>;
 
 // ---------------------------------------------------------------------------

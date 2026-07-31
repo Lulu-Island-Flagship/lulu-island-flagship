@@ -33,6 +33,7 @@ import { getHiringFlowServiceClient, getSetting } from "./settings-service";
 // endpoint HTTP, que sí corre en el navegador y tiene acceso a
 // Canvas/File) invoque esas funciones ya existentes.
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DocumentsClient = SupabaseClient<any, "public", any>;
 
 // [ASSUMPTION] -- el documento fuente real v0.4.1 con la lista exacta de

@@ -27,6 +27,7 @@ import { getHiringFlowServiceClient } from "./settings-service";
 // pudo renderizar completo (el error de renderLegalText se propaga tal
 // cual, sin atrapar).
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ConsentsClient = SupabaseClient<any, "public", any>;
 
 export interface ConsentRecord {
@@ -129,7 +130,7 @@ export async function insertConsent(
   return { consentId: (data as { id: string }).id };
 }
 
-export interface RecordConsentParams extends BuildConsentRecordParams {}
+export type RecordConsentParams = BuildConsentRecordParams;
 
 export async function recordConsent(
   params: RecordConsentParams

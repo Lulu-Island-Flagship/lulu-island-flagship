@@ -36,6 +36,7 @@ import { getHiringFlowServiceClient } from "../hiring-flow/settings-service";
 // esos otros dos servicios si Postgres puede exponer una RPC equivalente
 // para sus casos.
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PaymentsClient = SupabaseClient<any, "public", any>;
 
 export interface RecordPaymentParams {

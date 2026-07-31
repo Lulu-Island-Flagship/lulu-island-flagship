@@ -30,6 +30,7 @@ import { assertValidTransition } from "./client-lifecycle";
 //     pst_exemption_number TEXT, invoice_terms TEXT, referral_source TEXT,
 //     created_at, updated_at)
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ClientsClient = SupabaseClient<any, "public", any>;
 
 // ---------------------------------------------------------------------------

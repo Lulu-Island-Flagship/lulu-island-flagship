@@ -19,6 +19,7 @@ import { getSetting } from "./settings-service";
 //   UNIQUE(key, version); a lo sumo 1 fila activa por key (índice único
 //   parcial WHERE is_active).
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type LegalTextsClient = SupabaseClient<any, "public", any>;
 
 interface LegalTextRow {
@@ -161,7 +162,7 @@ export async function renderLegalText(
     throw new LegalTextNotFoundError(key, "no_active_version");
   }
 
-  const companyName = String(await getSetting("company_name", client as any));
+  const companyName = String(await getSetting("company_name", client));
   const finalVariables: Record<string, string> = {
     COMPANY_NAME: companyName,
     ...variables,

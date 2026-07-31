@@ -22,6 +22,7 @@ import { getSetting, getHiringFlowServiceClient } from "./settings-service";
 // valor de retorno de issueAccessCode(), para poder enviarlo por SMS/email
 // una sola vez. No se loguea, no se persiste.
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AccessCodesClient = SupabaseClient<any, "public", any>;
 
 // ---------------------------------------------------------------------------

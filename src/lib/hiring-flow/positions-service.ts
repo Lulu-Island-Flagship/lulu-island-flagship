@@ -17,6 +17,7 @@ import { getHiringFlowServiceClient } from "./settings-service";
 //     created_by UUID
 //   )
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PositionsClient = SupabaseClient<any, "public", any>;
 
 // Regla del plan: "no expongas IDs internos (UUIDs) en URLs/respuestas

@@ -29,6 +29,7 @@ import { getSetting } from "./settings-service";
 // instancia caliente), y es mejor que no tener nada mientras no se migra a
 // Redis.
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type RateLimiterClient = SupabaseClient<any, "public", any>;
 
 interface RateLimitEntry {

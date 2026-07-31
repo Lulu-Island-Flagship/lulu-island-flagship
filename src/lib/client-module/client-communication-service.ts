@@ -25,6 +25,7 @@ import type { ClientCommunication } from "./types";
 // alcanza vía markCommunicationSent(), llamado por el worker cuando el
 // proveedor confirma la entrega.
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ClientCommunicationsClient = SupabaseClient<any, "public", any>;
 
 export type CommunicationChannel = "sms" | "email";
