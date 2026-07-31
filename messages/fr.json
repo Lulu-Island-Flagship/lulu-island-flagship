@@ -41,7 +41,8 @@
     "description": "Obtenez votre soumission personnalisée en moins de 90 secondes. Aucuns frais cachés, aucune surprise."
   },
   "footer": {
-    "copyright": "© 2026 Lulu Island Flagship Cleaning Services. Richmond, C.-B., Canada."
+    "copyright": "© 2026 Lulu Island Flagship Cleaning Services. Richmond, C.-B., Canada.",
+    "workWithUs": "Travaillez avec nous"
   },
   "language": {
     "en": "EN",
@@ -929,6 +930,32 @@
         "serverConfigError": "La configuration du serveur est incomplète. Veuillez contacter le support.",
         "connection": "Erreur de connexion lors de la vérification de votre compte. Veuillez réessayer."
       }
+    }
+  },
+  "empleo": {
+    "title": "Rejoignez notre équipe",
+    "intro": "Parlez-nous un peu de vous et nous vous contacterons s'il y a un poste qui correspond à votre profil.",
+    "backHome": "Retour à l'accueil",
+    "fields": {
+      "firstNameLabel": "Prénom",
+      "lastNameLabel": "Nom de famille",
+      "emailLabel": "Adresse courriel",
+      "phoneLabel": "Numéro de téléphone",
+      "dateOfBirthLabel": "Date de naissance",
+      "consentLabel": "J'accepte que Lulu Island Flagship recueille mes renseignements personnels afin d'évaluer ma candidature."
+    },
+    "submit": "Soumettre la candidature",
+    "submitting": "Envoi en cours...",
+    "submitAriaLabel": "Soumettre la candidature d'emploi",
+    "successTitle": "Candidature reçue",
+    "successDesc": "Merci d'avoir postulé. Notre équipe examinera votre candidature et vous contactera s'il y a une correspondance.",
+    "errors": {
+      "required": "Ce champ est obligatoire",
+      "invalidEmail": "Veuillez entrer une adresse courriel valide",
+      "consentRequired": "Vous devez accepter la case de consentement pour continuer",
+      "validationFailed": "Veuillez corriger les champs indiqués et réessayer",
+      "temporarilyUnavailable": "Les candidatures sont temporairement indisponibles. Veuillez réessayer plus tard.",
+      "genericFailed": "Une erreur s'est produite lors de l'envoi de votre candidature. Veuillez réessayer."
     }
   },
   "employee": {

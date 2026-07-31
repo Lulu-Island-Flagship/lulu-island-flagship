@@ -41,7 +41,8 @@
     "description": "不到90秒即可获取专属报价。无隐藏费用,无意外惊吓。"
   },
   "footer": {
-    "copyright": "© 2026 Lulu Island Flagship Cleaning Services。里士满，卑诗省，加拿大。"
+    "copyright": "© 2026 Lulu Island Flagship Cleaning Services。里士满，卑诗省，加拿大。",
+    "workWithUs": "加入我们"
   },
   "language": {
     "en": "EN",
@@ -929,6 +930,32 @@
         "serverConfigError": "服务器配置不完整,请联系支持人员。",
         "connection": "验证账户时出现连接错误,请重试。"
       }
+    }
+  },
+  "empleo": {
+    "title": "加入我们的团队",
+    "intro": "简单介绍一下您自己，如果有合适的职位空缺，我们会与您联系。",
+    "backHome": "返回首页",
+    "fields": {
+      "firstNameLabel": "名",
+      "lastNameLabel": "姓",
+      "emailLabel": "电子邮箱",
+      "phoneLabel": "电话号码",
+      "dateOfBirthLabel": "出生日期",
+      "consentLabel": "我同意 Lulu Island Flagship 收集我的个人信息以评估我的申请。"
+    },
+    "submit": "提交申请",
+    "submitting": "正在提交...",
+    "submitAriaLabel": "提交求职申请",
+    "successTitle": "申请已收到",
+    "successDesc": "感谢您的申请。我们的团队会审核您的申请，如有合适职位会与您联系。",
+    "errors": {
+      "required": "此字段为必填项",
+      "invalidEmail": "请输入有效的电子邮箱地址",
+      "consentRequired": "您必须勾选同意选项才能继续",
+      "validationFailed": "请修正标注的字段后重试",
+      "temporarilyUnavailable": "申请功能暂时不可用，请稍后再试。",
+      "genericFailed": "提交申请时出现问题，请重试。"
     }
   },
   "employee": {

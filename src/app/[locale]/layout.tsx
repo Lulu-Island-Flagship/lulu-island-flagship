@@ -3,6 +3,7 @@ import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server
 import type { Metadata, Viewport } from "next";
 import { Inter, Noto_Sans_SC } from "next/font/google";
 import { isPublicInsuredClaimReady } from "@/lib/business-insurance";
+import { EnsureClientRegistration } from "@/components/client-module/EnsureClientRegistration";
 import { locales } from "@/i18n/config";
 import { BRAND } from "@/design/tokens";
 import "../globals.css";
@@ -123,6 +124,10 @@ export default async function LocaleLayout({
       <body className="antialiased font-sans">
         <NextIntlClientProvider messages={messages} locale={locale}>
           {children}
+          {/* Efecto de fondo, sin UI propia -- vincula la sesión de auth ya
+              establecida con el módulo de cliente (CRM). No afecta el
+              flujo de login/checkout existente. */}
+          <EnsureClientRegistration />
         </NextIntlClientProvider>
       </body>
     </html>

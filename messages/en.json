@@ -41,7 +41,8 @@
     "description": "Get your personalized quote in under 90 seconds. No hidden fees, no surprises."
   },
   "footer": {
-    "copyright": "© 2026 Lulu Island Flagship Cleaning Services. Richmond, BC, Canada."
+    "copyright": "© 2026 Lulu Island Flagship Cleaning Services. Richmond, BC, Canada.",
+    "workWithUs": "Work With Us"
   },
   "language": {
     "en": "EN",
@@ -929,6 +930,32 @@
         "serverConfigError": "Server configuration is incomplete. Please contact support.",
         "connection": "Connection error while verifying your account. Please try again."
       }
+    }
+  },
+  "empleo": {
+    "title": "Join Our Team",
+    "intro": "Tell us a bit about yourself and we'll get in touch if there's an opening that fits your profile.",
+    "backHome": "Back to home",
+    "fields": {
+      "firstNameLabel": "First name",
+      "lastNameLabel": "Last name",
+      "emailLabel": "Email address",
+      "phoneLabel": "Phone number",
+      "dateOfBirthLabel": "Date of birth",
+      "consentLabel": "I agree that Lulu Island Flagship may collect my personal information to evaluate my application."
+    },
+    "submit": "Submit Application",
+    "submitting": "Submitting...",
+    "submitAriaLabel": "Submit job application",
+    "successTitle": "Application received",
+    "successDesc": "Thank you for applying. Our team will review your application and reach out if there's a match.",
+    "errors": {
+      "required": "This field is required",
+      "invalidEmail": "Please enter a valid email address",
+      "consentRequired": "You must accept the consent checkbox to continue",
+      "validationFailed": "Please fix the highlighted fields and try again",
+      "temporarilyUnavailable": "Applications are temporarily unavailable. Please try again later.",
+      "genericFailed": "Something went wrong submitting your application. Please try again."
     }
   },
   "employee": {

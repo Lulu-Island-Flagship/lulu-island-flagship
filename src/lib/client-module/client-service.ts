@@ -240,4 +240,135 @@ export async function updateClientStatus(
   }
 }
 
+// ---------------------------------------------------------------------------
+// ensureClientForAuthUser
+// ---------------------------------------------------------------------------
+
+export interface EnsureClientForAuthUserInput {
+  authUserId: string;
+  email: string | null;
+  phone: string | null;
+}
+
+// Código de error de Postgres para "unique_violation" -- ver
+// https://www.postgresql.org/docs/current/errcodes-appendix.html. Se
+// captura específicamente este código (no cualquier error del INSERT) para
+// no enmascarar fallos reales (ej. columna inexistente, permisos) como si
+// fueran el caso esperado de carrera concurrente.
+const POSTGRES_UNIQUE_VIOLATION = "23505";
+
+// Vincula un usuario ya autenticado (Supabase Auth -- Google/Apple OAuth,
+// email OTP o phone OTP, todos vía AuthModal.tsx) con una fila de
+// `clients`, creándola si todavía no existe. NO toca `client_profiles` (la
+// tabla que ya usa el flujo de cotizador/checkout) -- este es un registro
+// nuevo y paralelo pensado para el módulo de cliente (CRM) que se está
+// construyendo ahora; unificar ambos es una decisión aparte, fuera de
+// alcance aquí.
+//
+// legal_name / display_name: en el momento en que esta función corre (justo
+// después del primer sign-in) no hay ningún dato de "nombre real" del
+// cliente todavía -- ni siquiera un formulario que lo haya pedido. Se usa
+// el email completo como placeholder (no solo la parte antes de la "@":
+// partirlo ahí perdería información y podría producir un display_name poco
+// reconocible para el cliente mismo, ej. "j.smith2019" en vez de su email
+// completo, que al menos es inequívocamente "suyo"). Es intencionalmente un
+// placeholder temporal hasta que exista un flujo de "completa tu perfil"
+// que lo reemplace con el nombre real -- ese flujo no es parte de esta
+// tarea.
+//
+// email / phone vacíos como "": Supabase Auth normalmente entrega EMAIL o
+// PHONE (según el método de login usado: OAuth/email OTP dan email, phone
+// OTP da phone), rara vez ambos ausentes a la vez -- pero el tipo de
+// entrada permite que cualquiera de los dos sea null, así que se cubre el
+// caso con "" en vez de forzar un valor inventado. clients.email/
+// phone_primary no son NOT NULL con CHECK de formato a nivel de aplicación
+// (ver validateCreateClientInput) porque ESTE flujo no pasa por esa
+// validación -- viene directo de una identidad ya autenticada por Supabase,
+// no de un formulario que un usuario pueda manipular libremente.
+//
+// Idempotencia: el SELECT inicial cubre el caso normal (llamadas repetidas
+// del mismo usuario ya vinculado). Existe una ventana de carrera teórica
+// entre el SELECT y el INSERT si dos requests concurrentes del MISMO
+// usuario llegan en su primerísimo login (ej. dos tabs abiertas a la vez) --
+// la red de seguridad real contra duplicados es el índice único parcial
+// idx_clients_auth_user_id (migración 282): si ambos requests intentan
+// INSERT, Postgres rechaza el segundo con 23505, y ese caso se captura
+// explícitamente abajo para re-consultar y devolver la fila que sí se creó,
+// en vez de propagar el error al caller.
+export async function ensureClientForAuthUser(
+  params: EnsureClientForAuthUserInput,
+  client?: ClientsClient
+): Promise<{ clientId: string; created: boolean }> {
+  const resolved = resolveClient(client);
+
+  const existing = await findClientByAuthUserId(resolved, params.authUserId);
+  if (existing) {
+    return { clientId: existing, created: false };
+  }
+
+  const email = params.email ?? "";
+  const placeholderName = email.length > 0 ? email : "";
+
+  const { data, error } = await resolved
+    .from("clients")
+    .insert({
+      client_type: "residential",
+      legal_name: placeholderName,
+      display_name: placeholderName,
+      email,
+      phone_primary: params.phone ?? "",
+      preferred_language: "en",
+      status: "lead",
+      auth_user_id: params.authUserId,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    // Carrera concurrente: otro request ya insertó la fila para este mismo
+    // auth_user_id entre nuestro SELECT y este INSERT -- el índice único
+    // parcial (282) rechazó el duplicado. No es un error real desde la
+    // perspectiva del caller: se re-consulta y se devuelve la fila
+    // ganadora en vez de propagar la excepción.
+    if (
+      (error as { code?: string }).code === POSTGRES_UNIQUE_VIOLATION
+    ) {
+      const winner = await findClientByAuthUserId(resolved, params.authUserId);
+      if (winner) {
+        return { clientId: winner, created: false };
+      }
+    }
+    throw new Error(
+      `Failed to insert client for auth user "${params.authUserId}": ${error.message}`
+    );
+  }
+
+  if (!data) {
+    throw new Error(
+      `Failed to insert client for auth user "${params.authUserId}": no data returned`
+    );
+  }
+
+  return { clientId: (data as { id: string }).id, created: true };
+}
+
+async function findClientByAuthUserId(
+  resolved: ClientsClient,
+  authUserId: string
+): Promise<string | null> {
+  const { data, error } = await resolved
+    .from("clients")
+    .select("id")
+    .eq("auth_user_id", authUserId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Failed to look up client for auth user "${authUserId}": ${error.message}`
+    );
+  }
+
+  return data ? (data as { id: string }).id : null;
+}
+
 export type { Client };

@@ -262,6 +262,18 @@ export default function HomePage() {
           >
             {t('nav.teamPortal')}
           </a>
+          {/* Nuevo: enlace público al formulario de aplicación del flujo de
+              contratación (src/app/[locale]/empleo/page.tsx). Deliberadamente
+              junto al link de Portal de equipo -- mismo estilo visual
+              discreto, no compite con el CTA principal de cotización -- pero
+              va dirigido a candidatos externos, no a staff ya contratado, por
+              lo que es un link separado con su propio texto. */}
+          <a
+            href={`/${locale}/empleo`}
+            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            {t('footer.workWithUs')}
+          </a>
         </div>
       </footer>
     </main>
