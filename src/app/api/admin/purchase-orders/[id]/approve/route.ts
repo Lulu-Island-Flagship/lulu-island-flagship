@@ -188,7 +188,8 @@ export async function POST(
         {
           purchaseOrder: updatedPo,
           action,
-          linesUpdated: rpcResult?.lines_updated ?? 0,
+          linesUpdated:
+            (rpcResult as { lines_updated?: number } | null)?.lines_updated ?? 0,
         },
         { status: 200 }
       );

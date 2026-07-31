@@ -75,14 +75,14 @@ export async function POST(request: NextRequest) {
 
   // Fix (revisión 2026-07-30, punto 11): request.json() sin try/catch --
   // mismo patrón ya usado en src/app/api/admin/marketing/route.ts.
-  let body: { featureType?: string };
+  let body: { featureType?: string; action?: string };
   try {
     body = await request.json();
   } catch (err) {
     return safeErrorResponse(err, 400, "JSON inválido");
   }
   const featureType = body.featureType;
-  if (!["day_in_life_reel", "public_badge_showcase"].includes(featureType)) {
+  if (!featureType || !["day_in_life_reel", "public_badge_showcase"].includes(featureType)) {
     return NextResponse.json({ error: "featureType inválido" }, { status: 400 });
   }
 
