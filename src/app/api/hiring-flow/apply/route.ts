@@ -7,6 +7,8 @@ import {
 import { PositionNotFoundError } from "@/lib/hiring-flow/positions-service";
 import type { Step1Input } from "@/lib/hiring-flow/step1-validator";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { sendSms, isSmsProviderConfigured } from "@/lib/sms";
+import { sendEmail } from "@/lib/email";
 
 // POST /api/hiring-flow/apply — punto de entrada público (sin auth) para el
 // Paso 1 del flujo de contratación de candidatos ("empleo" en el sitio
@@ -78,15 +80,49 @@ export async function POST(request: NextRequest) {
       client: undefined,
     });
 
-    // Limitación temporal conocida: el envío real del código de acceso por
-    // SMS/email (cola de mensajes / communications) todavía no existe para
-    // este flujo -- queda fuera de este alcance. Mientras tanto, se
-    // loguea server-side (nunca en la respuesta HTTP pública, que es
-    // sensible) para que el equipo pueda comunicárselo al candidato
-    // manualmente hasta que exista el envío automático real.
+    // Envío real del código de acceso al Paso 2. Reusa los mismos
+    // adaptadores ya en producción para el resto del sistema
+    // (src/lib/sms.ts vía Twilio, src/lib/email.ts vía Resend) -- no se
+    // reimplementa ningún cliente de proveedor nuevo aquí. Se prefiere SMS
+    // (más inmediato para un candidato que está completando el formulario
+    // en el momento) y se usa email como respaldo/complemento cuando hay
+    // dirección disponible. El código en crudo NUNCA se loguea a partir de
+    // este punto (antes se logueaba server-side como limitación temporal;
+    // ver commit anterior) -- si ambos canales fallan o no están
+    // configurados, el candidato simplemente no recibe el código todavía y
+    // el dueño debe contratar un proveedor (TWILIO_*/RESEND_API_KEY) antes
+    // de que este flujo sea utilizable en producción real. Esto es
+    // consistente con la "regla de oro de seguridad" del resto del repo:
+    // nunca se sustituye un envío real por un canal inseguro (loguear en
+    // texto plano) cuando el proveedor no está disponible.
+    const smsBody = `Tu código de acceso para continuar tu aplicación es: ${result.accessCode}. Vence en 30 minutos.`;
+    let deliveryChannel: "sms" | "email" | "none" = "none";
+
+    if (isSmsProviderConfigured() && input.phone) {
+      const smsResult = await sendSms({ phoneNumber: input.phone, body: smsBody });
+      if (smsResult.status === "sent" || smsResult.status === "queued") {
+        deliveryChannel = "sms";
+      }
+    }
+
+    if (deliveryChannel === "none" && input.email) {
+      const emailResult = await sendEmail({
+        toEmail: input.email,
+        subject: "Tu código de acceso — aplicación de empleo",
+        body: `Hola ${input.firstName},\n\nTu código de acceso para continuar tu aplicación es: ${result.accessCode}\n\nEste código vence en 30 minutos.\n\nLulu Island Flagship`,
+      });
+      if (emailResult.status === "sent" || emailResult.status === "queued") {
+        deliveryChannel = "email";
+      }
+    }
+
+    // Nunca se incluye el código en la respuesta HTTP pública (sensible).
+    // Solo se registra, server-side, si se pudo entregar y por qué canal --
+    // sin el valor del código -- para que el equipo tenga visibilidad
+    // operativa sin reintroducir el riesgo de loguear el secreto.
     console.log(
-      `[hiring-flow/apply] Access code issued for candidate ${result.candidateId} ` +
-        `(expires ${result.accessCodeExpiresAt.toISOString()}): ${result.accessCode}`
+      `[hiring-flow/apply] Access code delivery for candidate ${result.candidateId}: ` +
+        `channel=${deliveryChannel} expires=${result.accessCodeExpiresAt.toISOString()}`
     );
 
     return NextResponse.json({ success: true }, { status: 200 });

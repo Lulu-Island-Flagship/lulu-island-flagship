@@ -11,6 +11,9 @@ import {
   type DirectDepositInput,
 } from "../../src/lib/hiring-flow/direct-deposit-service";
 
+const FAKE_ENCRYPTION_KEY = "test-encryption-key-not-real";
+const getFakeEncryptionKeyFn = () => FAKE_ENCRYPTION_KEY;
+
 // ---------------------------------------------------------------------------
 // isValidTransitNumber
 // ---------------------------------------------------------------------------
@@ -123,74 +126,86 @@ test("validateDirectDepositInput: all invalid -> accumulates all three errors, d
 });
 
 // ---------------------------------------------------------------------------
-// Mock Supabase client for candidate_banking_info
+// Mock Supabase client for candidate_banking_info -- ahora mockea .rpc()
+// (set_candidate_banking_info / get_candidate_banking_info), no
+// .from().upsert()/.select(), porque el servicio real (migración 284)
+// cifra/descifra dentro de esas funciones de Postgres, nunca toca las
+// columnas directo. El mock simula el cifrado con un prefijo simple --
+// suficiente para probar la lógica de TypeScript (mapeo de filas, UPSERT
+// por candidate_id, propagación de la clave), sin reimplementar pgcrypto.
 // ---------------------------------------------------------------------------
 
-interface BankingRow {
-  id: string;
-  candidate_id: string;
-  transit_number: string;
-  institution_number: string;
-  account_number: string;
+interface StoredRow {
+  candidateId: string;
+  transit: string;
+  institution: string;
+  account: string;
+}
+
+interface RpcArgs {
+  p_candidate_id: string;
+  p_transit_number?: string;
+  p_institution_number?: string;
+  p_account_number?: string;
+  p_encryption_key: string;
 }
 
 interface MockState {
-  rows: BankingRow[];
-  upserts: any[];
+  rows: StoredRow[];
+  rpcCalls: Array<{ fn: string; args: RpcArgs }>;
 }
 
-function makeMockClient(state: MockState) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function makeMockClient(state: MockState): any {
   let nextId = 1;
   return {
-    from(table: string) {
-      assert.equal(table, "candidate_banking_info");
-      return {
-        upsert(obj: any, _opts: { onConflict: string }) {
-          state.upserts.push(obj);
-          let row = state.rows.find((r) => r.candidate_id === obj.candidate_id);
-          if (row) {
-            row.transit_number = obj.transit_number;
-            row.institution_number = obj.institution_number;
-            row.account_number = obj.account_number;
-          } else {
-            row = {
-              id: `generated-${nextId++}`,
-              candidate_id: obj.candidate_id,
-              transit_number: obj.transit_number,
-              institution_number: obj.institution_number,
-              account_number: obj.account_number,
-            };
-            state.rows.push(row);
-          }
-          return {
-            select(_cols: string) {
-              return {
-                single: async () => ({ data: { id: row!.id }, error: null }),
-              };
-            },
+    rpc(fn: string, args: RpcArgs) {
+      state.rpcCalls.push({ fn, args });
+
+      if (fn === "set_candidate_banking_info") {
+        assert.equal(args.p_encryption_key, FAKE_ENCRYPTION_KEY);
+        let row = state.rows.find((r) => r.candidateId === args.p_candidate_id);
+        if (row) {
+          row.transit = args.p_transit_number as string;
+          row.institution = args.p_institution_number as string;
+          row.account = args.p_account_number as string;
+        } else {
+          row = {
+            candidateId: args.p_candidate_id,
+            transit: args.p_transit_number as string,
+            institution: args.p_institution_number as string,
+            account: args.p_account_number as string,
           };
-        },
-        select(_cols: string) {
-          const filters: Record<string, unknown> = {};
-          const builder = {
-            eq(field: string, value: unknown) {
-              filters[field] = value;
-              return builder;
+          state.rows.push(row);
+        }
+        return Promise.resolve({ data: `generated-${nextId++}`, error: null });
+      }
+
+      if (fn === "get_candidate_banking_info") {
+        assert.equal(args.p_encryption_key, FAKE_ENCRYPTION_KEY);
+        const row = state.rows.find((r) => r.candidateId === args.p_candidate_id);
+        if (!row) {
+          return Promise.resolve({ data: [], error: null });
+        }
+        return Promise.resolve({
+          data: [
+            {
+              transit_number: row.transit,
+              institution_number: row.institution,
+              account_number: row.account,
             },
-            maybeSingle: async () => {
-              const row = state.rows.find((r) => r.candidate_id === filters.candidate_id);
-              return { data: row ?? null, error: null };
-            },
-          };
-          return builder;
-        },
-      };
+          ],
+          error: null,
+        });
+      }
+
+      throw new Error(`Unexpected RPC call in test mock: ${fn}`);
     },
-  } as any;
+  };
 }
 
 function baseState(overrides: Partial<MockState> = {}): MockState {
-  return { rows: [], upserts: [], ...overrides };
+  return { rows: [], rpcCalls: [], ...overrides };
 }
 
 // ---------------------------------------------------------------------------
@@ -208,13 +223,13 @@ test("setCandidateDirectDeposit: invalid input -> throws DirectDepositValidation
   };
 
   await assert.rejects(
-    () => setCandidateDirectDeposit("candidate-1", badInput, client),
+    () => setCandidateDirectDeposit("candidate-1", badInput, client, getFakeEncryptionKeyFn),
     DirectDepositValidationError
   );
-  assert.equal(state.upserts.length, 0, "no upsert should happen when validation fails");
+  assert.equal(state.rpcCalls.length, 0, "no RPC call should happen when validation fails");
 });
 
-test("setCandidateDirectDeposit: valid input -> upserts with onConflict candidate_id", async () => {
+test("setCandidateDirectDeposit: valid input -> calls set_candidate_banking_info RPC with the encryption key", async () => {
   const state = baseState();
   const client = makeMockClient(state);
 
@@ -224,11 +239,34 @@ test("setCandidateDirectDeposit: valid input -> upserts with onConflict candidat
     accountNumber: "1234567",
   };
 
-  const result = await setCandidateDirectDeposit("candidate-1", goodInput, client);
+  const result = await setCandidateDirectDeposit(
+    "candidate-1",
+    goodInput,
+    client,
+    getFakeEncryptionKeyFn
+  );
   assert.equal(typeof result.id, "string");
-  assert.equal(state.upserts.length, 1);
-  assert.equal(state.upserts[0].candidate_id, "candidate-1");
-  assert.equal(state.upserts[0].transit_number, "12345");
+  assert.equal(state.rpcCalls.length, 1);
+  assert.equal(state.rpcCalls[0].fn, "set_candidate_banking_info");
+  assert.equal(state.rpcCalls[0].args.p_candidate_id, "candidate-1");
+  assert.equal(state.rpcCalls[0].args.p_transit_number, "12345");
+});
+
+test("setCandidateDirectDeposit: missing encryption key -> throws HiringFlowEncryptionKeyMissingError-like error, never calls RPC", async () => {
+  const state = baseState();
+  const client = makeMockClient(state);
+
+  await assert.rejects(() =>
+    setCandidateDirectDeposit(
+      "candidate-1",
+      { transitNumber: "12345", institutionNumber: "001", accountNumber: "1234567" },
+      client,
+      () => {
+        throw new Error("HIRING_FLOW_ENCRYPTION_KEY no configurada");
+      }
+    )
+  );
+  assert.equal(state.rpcCalls.length, 0);
 });
 
 test("setCandidateDirectDeposit: second call for same candidate updates the existing row (no accumulation)", async () => {
@@ -238,37 +276,38 @@ test("setCandidateDirectDeposit: second call for same candidate updates the exis
   await setCandidateDirectDeposit(
     "candidate-1",
     { transitNumber: "12345", institutionNumber: "001", accountNumber: "1234567" },
-    client
+    client,
+    getFakeEncryptionKeyFn
   );
   await setCandidateDirectDeposit(
     "candidate-1",
     { transitNumber: "99999", institutionNumber: "002", accountNumber: "9999999" },
-    client
+    client,
+    getFakeEncryptionKeyFn
   );
 
   assert.equal(state.rows.length, 1, "a candidate should only ever have one banking info row");
-  assert.equal(state.rows[0].transit_number, "99999");
+  assert.equal(state.rows[0].transit, "99999");
 });
 
 // ---------------------------------------------------------------------------
 // getCandidateDirectDeposit
 // ---------------------------------------------------------------------------
 
-test("getCandidateDirectDeposit: existing candidate -> returns mapped fields", async () => {
+test("getCandidateDirectDeposit: existing candidate -> returns mapped, decrypted fields", async () => {
   const state = baseState({
     rows: [
       {
-        id: "b-1",
-        candidate_id: "candidate-1",
-        transit_number: "12345",
-        institution_number: "001",
-        account_number: "1234567",
+        candidateId: "candidate-1",
+        transit: "12345",
+        institution: "001",
+        account: "1234567",
       },
     ],
   });
   const client = makeMockClient(state);
 
-  const result = await getCandidateDirectDeposit("candidate-1", client);
+  const result = await getCandidateDirectDeposit("candidate-1", client, getFakeEncryptionKeyFn);
   assert.deepEqual(result, {
     transitNumber: "12345",
     institutionNumber: "001",
@@ -280,6 +319,6 @@ test("getCandidateDirectDeposit: no banking info for candidate -> null", async (
   const state = baseState();
   const client = makeMockClient(state);
 
-  const result = await getCandidateDirectDeposit("candidate-1", client);
+  const result = await getCandidateDirectDeposit("candidate-1", client, getFakeEncryptionKeyFn);
   assert.equal(result, null);
 });

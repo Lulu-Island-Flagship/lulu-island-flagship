@@ -5,28 +5,19 @@ import { getHiringFlowServiceClient } from "./settings-service";
 // flow). Fase 5.3 "Paso 3: Información Fiscal y Bancaria" -- Direct
 // Deposit.
 //
-// Tabla asumida (contrato acordado con la migración
-// 279_hiring_flow_candidate_banking_info.sql, creada junto con este
-// archivo):
-//   candidate_banking_info(
-//     id UUID,
-//     candidate_id UUID UNIQUE,
-//     transit_number TEXT,
-//     institution_number TEXT,
-//     account_number TEXT,
-//     created_at TIMESTAMPTZ,
-//     updated_at TIMESTAMPTZ
-//   )
-//
-// [WARNING] esta tabla guarda los datos bancarios en texto plano -- ver el
-// comentario de cabecera de la migración 279 para el análisis de riesgo
-// completo. Este servicio no agrega cifrado adicional; solo valida el
-// formato antes de persistir.
+// A partir de la migración 284_hiring_flow_candidate_banking_info_encrypted.sql,
+// esta tabla YA NO guarda transit/institution/account en texto plano --
+// ver el comentario de cabecera de esa migración para el diseño completo
+// (mismo patrón de pgcrypto ya usado y auditado en
+// 204_e9_employee_sin_banking_encrypted.sql para employees). Este servicio
+// nunca lee/escribe las columnas de la tabla directamente: todo pasa por
+// las funciones RPC set_candidate_banking_info()/get_candidate_banking_info(),
+// que cifran/descifran dentro de la misma transacción de Postgres.
 //
 // UNIQUE(candidate_id): un candidato tiene UNA sola fila de banking info
-// vigente, corregible vía UPDATE (UPSERT), no un histórico inmutable --
-// ver comentario de la migración 279 para la distinción explícita frente
-// a consents/electronic_signatures.
+// vigente, corregible vía UPSERT (dentro del RPC), no un histórico
+// inmutable -- ver comentario de la migración 279 para la distinción
+// explícita frente a consents/electronic_signatures.
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type BankingClient = SupabaseClient<any, "public", any>;
@@ -137,12 +128,40 @@ function resolveClient(client?: BankingClient): BankingClient {
   return resolved;
 }
 
-interface CandidateBankingInfoRow {
-  id: string;
-  candidate_id: string;
-  transit_number: string;
-  institution_number: string;
-  account_number: string;
+// Única fuente de verdad de la clave de cifrado (ver migración 284 para el
+// diseño completo -- mismo criterio que PAYROLL_ENCRYPTION_KEY para
+// employees, pero deliberadamente una variable de entorno DISTINTA: son
+// dominios de confianza separados). Nunca hardcodeada, nunca con fallback
+// silencioso -- "regla de oro de seguridad": si falta, la función que la
+// necesita debe fallar de forma segura (throw), no simular un cifrado que
+// no ocurrió.
+export class HiringFlowEncryptionKeyMissingError extends Error {
+  constructor() {
+    super(
+      "HIRING_FLOW_ENCRYPTION_KEY no configurada del lado servidor: no se pueden cifrar/descifrar datos bancarios de candidatos. Ver comentario de cabecera de la migración 284 para instrucciones de configuración."
+    );
+    this.name = "HiringFlowEncryptionKeyMissingError";
+  }
+}
+
+export type GetHiringFlowEncryptionKeyFn = () => string;
+
+function defaultGetHiringFlowEncryptionKey(): string {
+  const key = process.env.HIRING_FLOW_ENCRYPTION_KEY;
+  if (!key) {
+    throw new HiringFlowEncryptionKeyMissingError();
+  }
+  return key;
+}
+
+interface SetBankingInfoRpcRow {
+  set_candidate_banking_info: string;
+}
+
+interface GetBankingInfoRpcRow {
+  transit_number: string | null;
+  institution_number: string | null;
+  account_number: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -151,14 +170,17 @@ interface CandidateBankingInfoRow {
 
 // Valida primero (función pura, sin efectos secundarios); si falla, lanza
 // DirectDepositValidationError y NUNCA toca la DB. Solo si la validación
-// pasa se hace el UPSERT sobre candidate_banking_info -- por el
-// UNIQUE(candidate_id) de la migración 279, onConflict: 'candidate_id'
-// actualiza la fila existente en vez de acumular históricas (a diferencia
-// de consents/electronic_signatures, ver justificación en esa migración).
+// pasa se llama a la RPC set_candidate_banking_info (284), que cifra y
+// hace UPSERT dentro de la misma transacción de Postgres -- por el
+// UNIQUE(candidate_id) de la migración 279, una segunda llamada para el
+// mismo candidato actualiza la fila existente en vez de acumular
+// históricas (a diferencia de consents/electronic_signatures, ver
+// justificación en esa migración).
 export async function setCandidateDirectDeposit(
   candidateId: string,
   input: DirectDepositInput,
-  client?: BankingClient
+  client?: BankingClient,
+  getEncryptionKeyFn: GetHiringFlowEncryptionKeyFn = defaultGetHiringFlowEncryptionKey
 ): Promise<{ id: string }> {
   const fieldErrors = validateDirectDepositInput(input);
   if (fieldErrors.length > 0) {
@@ -166,31 +188,33 @@ export async function setCandidateDirectDeposit(
   }
 
   const resolved = resolveClient(client);
+  const encryptionKey = getEncryptionKeyFn();
 
-  const { data, error } = await resolved
-    .from("candidate_banking_info")
-    .upsert(
-      {
-        candidate_id: candidateId,
-        transit_number: input.transitNumber,
-        institution_number: input.institutionNumber,
-        account_number: input.accountNumber,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "candidate_id" }
-    )
-    .select("id")
-    .single();
+  const { data, error } = await resolved.rpc("set_candidate_banking_info", {
+    p_candidate_id: candidateId,
+    p_transit_number: input.transitNumber,
+    p_institution_number: input.institutionNumber,
+    p_account_number: input.accountNumber,
+    p_encryption_key: encryptionKey,
+  });
 
-  if (error || !data) {
+  if (error) {
     throw new Error(
-      `Failed to upsert direct deposit info for candidate "${candidateId}": ${
-        error?.message ?? "no data returned"
-      }`
+      `Failed to upsert encrypted direct deposit info for candidate "${candidateId}": ${error.message}`
     );
   }
 
-  return { id: (data as { id: string }).id };
+  // set_candidate_banking_info RETURNS UUID (escalar) -- llega como el
+  // valor directo, no envuelto en fila/array, a diferencia de las RPCs
+  // RETURNS TABLE de este módulo (ej. submit_step1_candidate).
+  const id = data as unknown as SetBankingInfoRpcRow["set_candidate_banking_info"] | null;
+  if (!id) {
+    throw new Error(
+      `set_candidate_banking_info RPC returned no id for candidate "${candidateId}"`
+    );
+  }
+
+  return { id };
 }
 
 // ---------------------------------------------------------------------------
@@ -199,30 +223,37 @@ export async function setCandidateDirectDeposit(
 
 export async function getCandidateDirectDeposit(
   candidateId: string,
-  client?: BankingClient
+  client?: BankingClient,
+  getEncryptionKeyFn: GetHiringFlowEncryptionKeyFn = defaultGetHiringFlowEncryptionKey
 ): Promise<DirectDepositInput | null> {
   const resolved = resolveClient(client);
+  const encryptionKey = getEncryptionKeyFn();
 
-  const { data, error } = await resolved
-    .from("candidate_banking_info")
-    .select("id, candidate_id, transit_number, institution_number, account_number")
-    .eq("candidate_id", candidateId)
-    .maybeSingle();
+  const { data, error } = await resolved.rpc("get_candidate_banking_info", {
+    p_candidate_id: candidateId,
+    p_encryption_key: encryptionKey,
+  });
 
   if (error) {
     throw new Error(
-      `Failed to fetch direct deposit info for candidate "${candidateId}": ${error.message}`
+      `Failed to fetch/decrypt direct deposit info for candidate "${candidateId}": ${error.message}`
     );
   }
 
-  if (!data) {
+  // get_candidate_banking_info RETURNS TABLE -> data llega como array de
+  // filas (0 o 1). Si el candidato no tiene banking info todavía, la RPC
+  // no devuelve ninguna fila (RETURN sin RETURN QUERY dentro del IF NOT
+  // FOUND) -- se mapea a null, igual que el comportamiento anterior con
+  // maybeSingle().
+  const rows = data as unknown as GetBankingInfoRpcRow[] | null;
+  const row = Array.isArray(rows) ? rows[0] : null;
+  if (!row || row.transit_number === null) {
     return null;
   }
 
-  const row = data as CandidateBankingInfoRow;
   return {
-    transitNumber: row.transit_number,
-    institutionNumber: row.institution_number,
-    accountNumber: row.account_number,
+    transitNumber: row.transit_number as string,
+    institutionNumber: row.institution_number as string,
+    accountNumber: row.account_number as string,
   };
 }
