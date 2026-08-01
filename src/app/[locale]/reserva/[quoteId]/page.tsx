@@ -25,7 +25,13 @@ import {
   Loader2,
 } from "lucide-react";
 
-import { getStripe } from "@/lib/stripe";
+// Fix (auditoría en vivo 2026-08-01): antes importaba getStripe desde "@/lib/stripe",
+// que también contiene el SDK de servidor de Stripe y el console.warn de STRIPE_SECRET_KEY.
+// Como esta página es "use client", Next.js empaquetaba todo ese módulo en el bundle del
+// navegador, donde STRIPE_SECRET_KEY siempre es undefined (no es NEXT_PUBLIC_) -> disparaba
+// una falsa alarma en la consola en cada carga de /reserva. Ya existía "@/lib/stripe-client"
+// (100% seguro para el cliente, solo usa la publishable key) pero nunca se conectó aquí.
+import { getStripe } from "@/lib/stripe-client";
 
 const stripePromise = getStripe();
 

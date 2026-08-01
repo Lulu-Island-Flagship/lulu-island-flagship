@@ -93,7 +93,19 @@ export async function POST(request: NextRequest) {
     console.error("auth/signout: signOut failed, redirecting home anyway", err);
   }
 
-  return NextResponse.redirect(
-    new URL(`/${locale}`, process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000")
-  );
+  // Fix (auditoría en vivo 2026-08-01, prueba E2E como cliente real): esto
+  // usaba `process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"` como
+  // base -- NEXT_PUBLIC_APP_URL nunca se configuró en Vercel (confirmado:
+  // no existe entre las variables de entorno del proyecto), así que en
+  // producción el redirect SIEMPRE apuntaba a "http://localhost:3000/...",
+  // un origen distinto al real. El fetch con `redirect: "follow"` que hace
+  // CuentaNav.tsx (handleSignout) no puede seguir un redirect a un origen
+  // inalcanzable/cross-origin desde el navegador del cliente real, así que
+  // fallaba silenciosamente y mostraba "Couldn't log out" -- aunque
+  // supabase.auth.signOut() (arriba) ya había limpiado las cookies de sesión
+  // correctamente antes de intentar el redirect. Se usa `request.url` como
+  // base, mismo patrón ya establecido en src/app/auth/callback/route.ts: la
+  // URL real que el navegador usó para llegar aquí siempre es el origen
+  // correcto, sin depender de ninguna env var adicional.
+  return NextResponse.redirect(new URL(`/${locale}`, request.url));
 }

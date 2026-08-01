@@ -1,11 +1,51 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useTranslations } from 'next-intl';
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Ship, Shield, Users, Clock, Star, MapPin, LogIn } from "lucide-react";
 import { QuoteButton } from "@/components/landing/QuoteButton";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { AuthModal } from "@/components/cotizador/AuthModal";
+import { isAllowedInternalPath } from "@/lib/safe-redirect";
+
+// Fix (auditoría en vivo 2026-08-01, prueba E2E como cliente real): middleware.ts
+// (líneas ~243-253) redirige del lado del servidor cualquier visita sin sesión a
+// /[locale]/cuenta/** de vuelta al home con "?next=<ruta original>" -- pero ese
+// param nunca se consumía. El link "Sign In" del header (líneas ~116/141 de este
+// archivo) manda ahí, así que un cliente sin sesión que hacía clic terminaba de
+// vuelta en el home sin modal, sin error, sin ninguna explicación de qué pasó.
+// Este componente lee "next", y si es una ruta interna válida (misma allowlist
+// que ya usa el middleware), abre el AuthModal real -- el mismo que ya usa el
+// flujo de cotización -- y al autenticarse redirige a esa ruta original.
+// Envuelto en <Suspense> porque useSearchParams lo exige para no sacar la página
+// entera de la renderización estática.
+function NextParamAuthGate() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const pathLocale = pathname.match(/^\/(en|zh|fr)(\/|$)/);
+  const locale = pathLocale ? pathLocale[1] : "en";
+  const nextParam = searchParams.get("next");
+  const [dismissed, setDismissed] = useState(false);
+
+  if (!nextParam || dismissed || !isAllowedInternalPath(nextParam)) return null;
+
+  return (
+    <AuthModal
+      onClose={() => {
+        // No tiene caso reintentar el destino protegido tras cerrar -- se
+        // limpia el query param y se deja al usuario en el home normal,
+        // mismo patrón que cuenta/layout.tsx usa para su propio AuthModal.
+        setDismissed(true);
+        router.replace(`/${locale}`);
+      }}
+      onSuccess={() => {
+        router.push(nextParam);
+      }}
+    />
+  );
+}
 
 function LocalBusinessSchema() {
   const schema = {
@@ -93,6 +133,9 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-white">
       <LocalBusinessSchema />
+      <Suspense fallback={null}>
+        <NextParamAuthGate />
+      </Suspense>
 
       {/* Header — v8.3 rediseño "Powder Sky": fondo claro, no bloque oscuro */}
       <header className="bg-white border-b border-brand-ice">
