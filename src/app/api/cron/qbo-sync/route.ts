@@ -3,6 +3,44 @@ import { createClient } from "@supabase/supabase-js";
 import { pushSalesReceipt } from "@/lib/qbo-adapter";
 import { decideQboSyncAction, evaluateQboDivergence, type QboSyncRetryState } from "@/lib/qbo-sync";
 import { getVancouverTodayString } from "@/lib/date-utils";
+import { stripe } from "@/lib/stripe";
+
+// Fix (auditoría externa 2026-07-31, hallazgo confirmado): el fee de Stripe
+// exportado a QBO usaba una fórmula ESTIMADA (2.9% + $0.30) en vez del fee
+// real de Stripe (balance_transaction.fee) -- ninguna ruta del sistema
+// consultaba nunca ese campo. Se intenta obtener el fee REAL sumando el de
+// cada PaymentIntent asociado a la orden (hold + saldo, si ambos existen)
+// vía expand de balance_transaction -- best-effort, nunca bloquea el export:
+// si Stripe no está configurado, si el balance_transaction todavía no
+// liquidó (puede tardar unos segundos/minutos tras el charge), o si
+// cualquier llamada falla, se cae de vuelta a la fórmula estimada (marcada
+// como tal en el log) en vez de fallar el sync completo por un dato de
+// bookkeeping secundario.
+async function getRealStripeFeeCents(
+  paymentIntentIds: (string | null)[]
+): Promise<number | null> {
+  if (!stripe) return null;
+  const ids = paymentIntentIds.filter((id): id is string => !!id);
+  if (ids.length === 0) return null;
+
+  let totalFeeCents = 0;
+  for (const id of ids) {
+    try {
+      const pi = await stripe.paymentIntents.retrieve(id, {
+        expand: ["latest_charge.balance_transaction"],
+      });
+      const charge = pi.latest_charge;
+      if (!charge || typeof charge === "string") return null;
+      const balanceTransaction = charge.balance_transaction;
+      if (!balanceTransaction || typeof balanceTransaction === "string") return null;
+      totalFeeCents += balanceTransaction.fee;
+    } catch (err) {
+      console.warn(`qbo-sync: no se pudo obtener el fee real de Stripe para PI ${id}, usando estimación:`, err);
+      return null;
+    }
+  }
+  return totalFeeCents;
+}
 
 /**
  * POST /api/cron/qbo-sync
@@ -84,14 +122,42 @@ export async function GET(request: NextRequest) {
     // orders.quote_id -> quotes.gst/pst (mismo patrón que
     // stripe/confirm/route.ts y otras rutas de esta sesión). `subtotal` se
     // quita del select -- no se usa en ningún punto de este archivo.
+    // Fix (auditoría externa 2026-07-31, hallazgo confirmado): este filtro
+    // exigía capture_captured_at >= since -- esa columna SOLO se escribe
+    // cuando hay un cobro de "saldo" vía Stripe (balance/paypal_balance,
+    // ver batch-capture/batch-capture-retry). Quedaban permanentemente
+    // fuera del export a QBO (nunca capture_captured_at, nunca elegibles):
+    //   - órdenes cubiertas 100% por el Hold (sin saldo que cobrar aparte) --
+    //     solo tienen hold_captured_at.
+    //   - segundo pago de un plan de pago fraccionado (installment_second_captured_at).
+    //   - remanente diferido tras una captura parcial por disputa
+    //     (capture_remaining_captured_at).
+    //   - Alipay/WeChat Pay: el 100% se cobra de forma síncrona al crear la
+    //     orden (wallet_payment_intent_id), sin pasar nunca por
+    //     capture_captured_at -- se usa created_at como referencia de
+    //     cuándo se cobró, igual que hace el INSERT en stripe/confirm.
+    // orders.total_paid_cents ya refleja el monto real cobrado por
+    // cualquiera de estas vías (fixes previos de esta misma auditoría en
+    // stripe/confirm y batch-capture), así que ampliar el filtro es
+    // suficiente -- no hace falta cambiar el cálculo de `gross` más abajo.
+    //
+    // [LIMITACIÓN CONOCIDA, fuera de alcance de este fix] Las líneas de
+    // reembolso (PayPal/Stripe refunds) no tienen representación en
+    // qbo_export_lines en absoluto -- no existe todavía una tabla/evento de
+    // refund con un campo de fecha para incluir aquí, ni un tipo de línea
+    // "credit_memo" en el adaptador QBO. Requiere diseño de esquema nuevo
+    // (de dónde sale la fecha/monto del refund, cómo se referencia el
+    // export original) antes de poder cerrarse -- no se inventa aquí.
     const { data: orders, error } = await supabase
       .from("orders")
       .select(
-        "id, user_id, total_paid_cents, card_amount_charged_cents, qbo_sync_attempts, qbo_last_attempt_at, quotes:quote_id ( gst, pst )"
+        "id, user_id, total_paid_cents, card_amount_charged_cents, qbo_sync_attempts, qbo_last_attempt_at, stripe_hold_payment_intent_id, stripe_capture_payment_intent_id, quotes:quote_id ( gst, pst )"
       )
       .in("qbo_export_status", ["pending", "failed"])
-      .gte("capture_captured_at", since)
-      .order("capture_captured_at", { ascending: true })
+      .or(
+        `capture_captured_at.gte.${since},hold_captured_at.gte.${since},installment_second_captured_at.gte.${since},capture_remaining_captured_at.gte.${since},and(wallet_payment_intent_id.not.is.null,created_at.gte.${since})`
+      )
+      .order("created_at", { ascending: true })
       .limit(100);
 
     if (error) {
@@ -131,7 +197,15 @@ export async function GET(request: NextRequest) {
       const gross = Math.round(order.total_paid_cents || 0);
       const gst = Math.round((quoteForTax?.gst || 0) * 100);
       const pst = Math.round((quoteForTax?.pst || 0) * 100);
-      const fee = Math.round(gross * 0.029 + 30);
+      // Fix (auditoría externa 2026-07-31): fee real de Stripe cuando está
+      // disponible (ver getRealStripeFeeCents arriba); estimación 2.9% +
+      // $0.30 CAD solo como respaldo si Stripe no está configurado o el
+      // balance_transaction aún no liquidó.
+      const realFeeCents = await getRealStripeFeeCents([
+        order.stripe_hold_payment_intent_id,
+        order.stripe_capture_payment_intent_id,
+      ]);
+      const fee = realFeeCents !== null ? realFeeCents : Math.round(gross * 0.029 + 30);
       const net = gross - fee;
 
       const pushResult = await pushSalesReceipt({
