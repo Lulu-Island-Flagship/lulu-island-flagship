@@ -1,11 +1,13 @@
 -- Módulo de Cliente -- `property_services` guarda cada servicio de
--- limpieza activo (o histórico) contratado sobre una `client_properties`
--- (270). Una propiedad puede tener varios servicios simultáneos con
--- frecuencias distintas (ej. limpieza regular semanal + limpieza de
--- alfombras mensual).
+-- limpieza activo (o histórico) contratado sobre una
+-- `client_module_properties` (270 -- nombre renombrado de
+-- `client_properties` por colisión con la tabla legacy homónima del
+-- Módulo 1, ver comentario de cabecera de 270). Una propiedad puede
+-- tener varios servicios simultáneos con frecuencias distintas (ej.
+-- limpieza regular semanal + limpieza de alfombras mensual).
 --
 -- Por qué `property_id` es ON DELETE CASCADE: igual que
--- `client_properties` -> `clients`, un servicio no tiene valor de
+-- `client_module_properties` -> `clients`, un servicio no tiene valor de
 -- auditoría independiente de la propiedad a la que pertenece -- si la
 -- propiedad se borra, sus servicios asociados dejan de tener sentido y
 -- se borran con ella.
@@ -34,7 +36,7 @@
 
 CREATE TABLE IF NOT EXISTS property_services (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  property_id UUID REFERENCES client_properties(id) ON DELETE CASCADE,
+  property_id UUID REFERENCES client_module_properties(id) ON DELETE CASCADE,
   service_type TEXT NOT NULL
     CHECK (service_type IN ('regular_cleaning', 'deep_cleaning', 'move_in_out', 'post_construction', 'carpet_cleaning')),
   frequency TEXT NOT NULL

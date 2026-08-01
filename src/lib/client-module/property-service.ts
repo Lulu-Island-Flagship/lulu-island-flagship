@@ -10,12 +10,19 @@ import {
 } from "./types";
 
 // Módulo nuevo y separado: "Módulo de Cliente". Gestión de propiedades del
-// cliente (client_properties) y de los servicios contratados sobre cada
-// propiedad (property_services).
+// cliente (client_module_properties) y de los servicios contratados sobre
+// cada propiedad (property_services).
+//
+// [FIX 2026-07-31] Tabla renombrada de `client_properties` a
+// `client_module_properties`: ya existía una tabla `client_properties`
+// completamente distinta desde la migración 001 (Módulo 1, cotizador B2C),
+// descubierto al intentar aplicar las migraciones a producción por primera
+// vez. Ver comentario de cabecera de la migración 270 para el detalle
+// completo.
 //
 // Tablas asumidas (otro agente las está creando en paralelo, contrato
 // acordado, NO se crean ni se stubean aquí):
-//   client_properties(id UUID, client_id UUID, property_name TEXT,
+//   client_module_properties(id UUID, client_id UUID, property_name TEXT,
 //     property_type TEXT, address_line1 TEXT, address_line2 TEXT,
 //     city TEXT, province TEXT, postal_code TEXT, geo_lat NUMERIC,
 //     geo_lng NUMERIC, access_instructions TEXT, cleaning_instructions TEXT,
@@ -37,14 +44,14 @@ function resolveClient(client?: PropertiesClient): PropertiesClient {
   const resolved = client ?? getHiringFlowServiceClient();
   if (!resolved) {
     throw new Error(
-      "SUPABASE_SERVICE_ROLE_KEY no configurado: no se puede acceder a client_properties / property_services"
+      "SUPABASE_SERVICE_ROLE_KEY no configurado: no se puede acceder a client_module_properties / property_services"
     );
   }
   return resolved;
 }
 
 // ---------------------------------------------------------------------------
-// client_properties: validación + creación
+// client_module_properties: validación + creación
 // ---------------------------------------------------------------------------
 
 const VALID_PROPERTY_TYPES: PropertyType[] = [
@@ -151,7 +158,7 @@ export async function createProperty(
   const resolved = resolveClient(client);
 
   const { data, error } = await resolved
-    .from("client_properties")
+    .from("client_module_properties")
     .insert({
       client_id: clientId,
       property_name: input.propertyName ?? null,

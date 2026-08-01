@@ -127,7 +127,7 @@ test("createProperty: on success inserts with the given clientId and returns pro
 
   const fakeClient = {
     from(table: string) {
-      assert.equal(table, "client_properties");
+      assert.equal(table, "client_module_properties");
       return {
         insert(row: Record<string, unknown>) {
           insertedRow = row;
