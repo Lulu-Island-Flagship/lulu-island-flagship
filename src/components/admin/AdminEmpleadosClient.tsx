@@ -62,6 +62,12 @@ export default function AdminEmpleadosClient() {
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const [activateError, setActivateError] = useState("");
   const [revealedDayRateIds, setRevealedDayRateIds] = useState<Set<string>>(new Set());
+  // Fix (auditoría externa 2026-07-31, item 11): lista densa sin
+  // búsqueda/paginación -- se agrega filtro por nombre/email/rol y
+  // paginación simple ("cargar más").
+  const [search, setSearch] = useState("");
+  const PAGE_SIZE = 25;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   function toggleDayRateReveal(employeeId: string) {
     setRevealedDayRateIds((prev) => {
@@ -193,13 +199,21 @@ export default function AdminEmpleadosClient() {
     );
   }
 
+  const searchQuery = search.trim().toLowerCase();
+  const filteredEmployees = searchQuery
+    ? employees.filter((emp) =>
+        [emp.name, emp.email, emp.role].filter(Boolean).some((f) => f.toLowerCase().includes(searchQuery))
+      )
+    : employees;
+  const visibleEmployees = filteredEmployees.slice(0, visibleCount);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-500">
-            {t("employeeCount", { count: employees.length })}
+            {t("employeeCount", { count: filteredEmployees.length })}
           </span>
           <button
             type="button"
@@ -218,10 +232,30 @@ export default function AdminEmpleadosClient() {
         </div>
       )}
 
+      {employees.length > 0 && (
+        <div className="max-w-md">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setVisibleCount(PAGE_SIZE);
+            }}
+            placeholder={t("searchPlaceholder")}
+            aria-label={t("searchAriaLabel")}
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none text-sm"
+          />
+        </div>
+      )}
+
       {employees.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
           <User className="w-10 h-10 text-gray-300 mx-auto mb-2" />
           <p className="text-gray-500">{t("noEmployeesFound")}</p>
+        </div>
+      ) : filteredEmployees.length === 0 ? (
+        <div className="bg-white rounded-xl border p-8 text-center">
+          <p className="text-gray-500">{t("searchNoResults")}</p>
         </div>
       ) : (
         <div className="bg-white rounded-xl border overflow-hidden">
@@ -240,7 +274,7 @@ export default function AdminEmpleadosClient() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {employees.map((emp) => (
+                {visibleEmployees.map((emp) => (
                   <tr key={emp.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -377,6 +411,17 @@ export default function AdminEmpleadosClient() {
               </tbody>
             </table>
           </div>
+          {filteredEmployees.length > visibleCount && (
+            <div className="text-center py-3 border-t">
+              <button
+                type="button"
+                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                className="text-sm text-brand-wave-blue hover:text-brand-navy font-medium"
+              >
+                {t("loadMore", { remaining: filteredEmployees.length - visibleCount })}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
