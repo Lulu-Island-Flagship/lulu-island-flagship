@@ -223,8 +223,19 @@ export default function AdminQCClient() {
               </div>
 
               {review.photos && review.photos.length > 0 ? (
+                (() => {
+                  // Fix (auditoría CI 2026-07-31): capturar en una const local
+                  // -- dentro del closure de onClick de abajo, TypeScript no
+                  // retiene el narrowing de `review.photos` hecho en esta
+                  // condición (limitación conocida con propiedades opcionales
+                  // de objetos capturadas en closures), así que sin esto
+                  // `review.photos[8]` sigue viéndose como posiblemente
+                  // `undefined` aunque el bloque completo ya esté detrás del
+                  // chequeo `review.photos && review.photos.length > 0`.
+                  const photos = review.photos;
+                  return (
                 <div className="grid grid-cols-4 gap-1 mb-3">
-                  {review.photos.slice(0, 8).map((photo, idx) => (
+                  {photos.slice(0, 8).map((photo, idx) => (
                     <button
                       key={`${photo.url}-${idx}`}
                       type="button"
@@ -252,17 +263,19 @@ export default function AdminQCClient() {
                       mostraban solo las primeras 8 fotos sin ningún
                       indicador de que había más -- un admin revisando
                       evidencia de campo podía creer que vio todo el set. */}
-                  {review.photos.length > 8 && (
+                  {photos.length > 8 && (
                     <button
                       type="button"
-                      onClick={() => setLightboxUrl(review.photos[8].url)}
+                      onClick={() => setLightboxUrl(photos[8].url)}
                       className="relative aspect-square rounded-md overflow-hidden border border-gray-200 bg-gray-900/80 text-white text-xs font-medium flex items-center justify-center hover:bg-gray-900"
-                      title={t("photos.more", { count: review.photos.length - 8 })}
+                      title={t("photos.more", { count: photos.length - 8 })}
                     >
-                      {t("photos.more", { count: review.photos.length - 8 })}
+                      {t("photos.more", { count: photos.length - 8 })}
                     </button>
                   )}
                 </div>
+                  );
+                })()
               ) : (
                 <div className="flex items-center gap-2 text-xs text-gray-400 mb-3">
                   <Camera className="w-4 h-4" />
