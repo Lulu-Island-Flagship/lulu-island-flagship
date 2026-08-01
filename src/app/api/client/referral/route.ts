@@ -42,14 +42,35 @@ export async function GET(_request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: profile, error: profileError } = await supabase
+  // Fix (auditoría en vivo 2026-08-01, ronda 3): mismo patrón ya corregido
+  // en POST /api/client/referral/redeem -- un cliente recién creado (sin
+  // fila en client_profiles todavía, porque solo se crea en la primera
+  // cotización) recibía 404 "Client profile not found" aquí. El frontend
+  // (referidos/page.tsx) traga ese error silenciosamente y muestra
+  // "not eligible", así que no se veía como un error visible, pero seguía
+  // siendo el mismo bug de fondo. Se crea la fila si falta, igual que en
+  // redeem/route.ts y properties/route.ts (getOrCreateClientProfile()).
+  let profile: { id: string; services_count: number | null; score: number | null; referral_code: string | null };
+  const { data: existingProfile, error: profileError } = await supabase
     .from("client_profiles")
     .select("id, services_count, score, referral_code")
     .eq("user_id", user.id)
     .maybeSingle();
-
   if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 });
-  if (!profile) return NextResponse.json({ error: "Client profile not found" }, { status: 404 });
+  if (existingProfile) {
+    profile = existingProfile;
+  } else {
+    const { data: createdProfile, error: createError } = await supabase
+      .from("client_profiles")
+      .insert({ user_id: user.id, score: 50, services_count: 0, disputes_count: 0, no_show_count: 0, account_type: "b2c" })
+      .select("id, services_count, score, referral_code")
+      .single();
+    if (createError || !createdProfile) {
+      console.error("referral GET: could not create client profile:", createError);
+      return NextResponse.json({ error: "Could not load referral status" }, { status: 500 });
+    }
+    profile = createdProfile;
+  }
 
   const eligible = isEligibleForReferralCode(profile.services_count || 0, profile.score || 0);
 
