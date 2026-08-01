@@ -145,6 +145,21 @@ function fakeGetNextInvoiceSequenceFn(sequence = 1) {
   return async () => sequence;
 }
 
+// Fix (auditoría CI 2026-08-01, bug real confirmado -- mismo patrón que
+// fakeGetNextInvoiceSequenceFn arriba): el hallazgo #5 de la auditoría
+// externa (exención de PST) agregó getClientPstExemptionFn como dependencia
+// inyectable de createInvoice; su default real hace
+// `client.from("clients").select(...)`. Estos tests siguen pasando
+// `client: {} as any` (sin `.from`), así que sin inyectar
+// getClientPstExemptionFn explícitamente caían con "client.from is not a
+// function" antes de llegar a la lógica que sí están testeando. Se inyecta
+// una función que siempre resuelve "sin exención" (PST normal), que es el
+// comportamiento previo a este hallazgo y el que ya asumen los totales
+// esperados en cada test (calculados con pstRate completo).
+function fakeGetClientPstExemptionFn(isExempt = false) {
+  return async () => isExempt;
+}
+
 test("createInvoice: happy path calls the atomic RPC once and returns totals", async () => {
   const rpcCalls: Array<Record<string, unknown>> = [];
 
@@ -159,6 +174,7 @@ test("createInvoice: happy path calls the atomic RPC once and returns totals", a
     client: {} as any,
     getSettingFn: fakeGetSettingFn({ gst: 0.05, pst: 0.07 }) as any,
     getNextInvoiceSequenceFn: fakeGetNextInvoiceSequenceFn(1),
+    getClientPstExemptionFn: fakeGetClientPstExemptionFn(),
     callCreateInvoiceRpcFn: async (params) => {
       rpcCalls.push(params as unknown as Record<string, unknown>);
       assert.equal(params.clientId, "client-1");
@@ -215,6 +231,7 @@ test("createInvoice: when the atomic RPC fails, the error propagates as-is (no m
         client: {} as any,
         getSettingFn: fakeGetSettingFn({ gst: 0.05, pst: 0.07 }) as any,
         getNextInvoiceSequenceFn: fakeGetNextInvoiceSequenceFn(3),
+        getClientPstExemptionFn: fakeGetClientPstExemptionFn(),
         callCreateInvoiceRpcFn: async () => {
           throw new InvoiceCreationError(
             "create_client_invoice_with_line_items RPC failed for client \"client-3\": boom"
@@ -236,6 +253,7 @@ test("createInvoice: never throws OrphanedInvoiceError -- that failure mode no l
         client: {} as any,
         getSettingFn: fakeGetSettingFn({ gst: 0.05, pst: 0.07 }) as any,
         getNextInvoiceSequenceFn: fakeGetNextInvoiceSequenceFn(4),
+        getClientPstExemptionFn: fakeGetClientPstExemptionFn(),
         callCreateInvoiceRpcFn: async () => {
           throw new InvoiceCreationError("RPC failed entirely -- Postgres already rolled back");
         },
@@ -263,6 +281,7 @@ test("createInvoice: passes issueDate + dueDateDays through (due date computed c
     client: {} as any,
     getSettingFn: fakeGetSettingFn({ gst: 0.05, pst: 0.07 }) as any,
     getNextInvoiceSequenceFn: fakeGetNextInvoiceSequenceFn(5),
+    getClientPstExemptionFn: fakeGetClientPstExemptionFn(),
     callCreateInvoiceRpcFn: async (params) => {
       capturedDueDate = params.dueDate;
       return "invoice-due-date-check";
@@ -271,4 +290,23 @@ test("createInvoice: passes issueDate + dueDateDays through (due date computed c
 
   assert.ok(capturedDueDate);
   assert.equal((capturedDueDate as unknown as Date).toISOString().slice(0, 10), "2026-07-16");
+});
+
+test("createInvoice: PST-exempt client gets pstAmountCents=0, GST still charged normally", async () => {
+  const result = await createInvoice({
+    clientId: "client-6",
+    lineItems: [{ description: "Commercial contract cleaning", quantity: 1, unitPriceCents: 10000 }],
+    issueDate: new Date("2026-07-30T00:00:00Z"),
+    dueDateDays: 15,
+    client: {} as any,
+    getSettingFn: fakeGetSettingFn({ gst: 0.05, pst: 0.07 }) as any,
+    getNextInvoiceSequenceFn: fakeGetNextInvoiceSequenceFn(6),
+    getClientPstExemptionFn: fakeGetClientPstExemptionFn(true),
+    callCreateInvoiceRpcFn: async () => "invoice-pst-exempt",
+  });
+
+  assert.equal(result.totals.subtotalCents, 10000);
+  assert.equal(result.totals.gstAmountCents, 500);
+  assert.equal(result.totals.pstAmountCents, 0);
+  assert.equal(result.totals.totalCents, 10500);
 });
