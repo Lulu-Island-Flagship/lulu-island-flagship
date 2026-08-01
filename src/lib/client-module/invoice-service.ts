@@ -246,6 +246,46 @@ async function defaultGetNextInvoiceSequence(
   return Number(data);
 }
 
+// Fix (auditoría externa 2026-07-31, hallazgo #5, alcance acotado): GST/PST
+// se aplicaban siempre sobre el subtotal completo, sin excepción -- un
+// cliente comercial con exención de PST real (certificado vigente ante BC)
+// recibía una factura con PST cobrado de más, e inválida como comprobante
+// fiscal para ese cliente. `clients.pst_exemption_number` (migración 269) ya
+// existe en el esquema como el campo pensado para este dato -- se usa aquí
+// tal cual: si el cliente tiene un número de exención de PST no vacío,
+// pstRate efectivo = 0 para esta factura. GST NO se exime -- no existe una
+// exención general de GST federal para servicios de limpieza comercial en
+// Canadá (el gst_number del cliente es para fines de registro/ITC del
+// propio cliente, no una exención del cobro), así que gstRate nunca se toca
+// aquí. No se valida el FORMATO/vigencia real del número ante BC (ese
+// mismo criterio ya se documentó en la migración 269 para gst_number/
+// pst_exemption_number: la validación de formato es responsabilidad de un
+// servicio aparte, no de este código) -- la responsabilidad de mantener ese
+// campo correcto es de quien administra el perfil del cliente.
+export type GetClientPstExemptionFn = (
+  clientId: string,
+  client: InvoiceServiceClient
+) => Promise<boolean>;
+
+async function defaultGetClientPstExemption(
+  clientId: string,
+  client: InvoiceServiceClient
+): Promise<boolean> {
+  const { data, error } = await client
+    .from("clients")
+    .select("pst_exemption_number")
+    .eq("id", clientId)
+    .single();
+  if (error || !data) {
+    // Fallar cerrado: si no se puede confirmar la exención, se cobra PST
+    // normal (comportamiento histórico) -- nunca se asume una exención que
+    // no se pudo verificar.
+    return false;
+  }
+  const exemptionNumber = (data as { pst_exemption_number: string | null }).pst_exemption_number;
+  return !!exemptionNumber && exemptionNumber.trim().length > 0;
+}
+
 async function buildInvoiceNumber(
   issueDate: Date,
   client: InvoiceServiceClient,
@@ -270,6 +310,7 @@ export interface CreateInvoiceParams {
   getSettingFn?: GetSettingFn;
   callCreateInvoiceRpcFn?: CallCreateInvoiceRpcFn;
   getNextInvoiceSequenceFn?: GetNextInvoiceSequenceFn;
+  getClientPstExemptionFn?: GetClientPstExemptionFn;
 }
 
 export interface CreateInvoiceResult {
@@ -294,13 +335,20 @@ export async function createInvoice(
   const getSettingImpl = params.getSettingFn ?? getSetting;
   const callCreateInvoiceRpcImpl = params.callCreateInvoiceRpcFn ?? defaultCallCreateInvoiceRpc;
   const getNextInvoiceSequenceImpl = params.getNextInvoiceSequenceFn ?? defaultGetNextInvoiceSequence;
+  const getClientPstExemptionImpl = params.getClientPstExemptionFn ?? defaultGetClientPstExemption;
 
   const resolved = resolveClient(params.client);
 
   // Tasas siempre desde system_settings, nunca hardcodeadas -- ver
   // billing-calculations.ts.
   const gstRate = (await getSettingImpl("tax_gst_rate", resolved)) as number;
-  const pstRate = (await getSettingImpl("tax_pst_rate_bc", resolved)) as number;
+  const pstRateBase = (await getSettingImpl("tax_pst_rate_bc", resolved)) as number;
+
+  // Fix (auditoría externa 2026-07-31, hallazgo #5): PST efectivo = 0 si el
+  // cliente tiene un número de exención de PST registrado -- ver comentario
+  // de defaultGetClientPstExemption más abajo. GST nunca se exime aquí.
+  const isPstExempt = await getClientPstExemptionImpl(params.clientId, resolved);
+  const pstRate = isPstExempt ? 0 : pstRateBase;
 
   const totals = calculateInvoiceTotals(params.lineItems, gstRate, pstRate);
 
