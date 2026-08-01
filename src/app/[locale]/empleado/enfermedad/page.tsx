@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { AlertCircle, Loader2, CheckCircle2, Upload } from "lucide-react";
+import { AlertCircle, Loader2, CheckCircle2, Upload, CloudUpload } from "lucide-react";
 import { EmpleadoBackHeader } from "@/components/empleado/EmpleadoBackHeader";
+import { submitGenericReportOrQueue } from "@/lib/offline-sync-client";
 
 interface SickLeaveRequest {
   id: string;
@@ -41,6 +42,14 @@ export default function EnfermedadPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  // Fix (auditoría 2026-07-31, #6): si se pierde la señal justo al enviar
+  // el reporte (después de subir la nota médica, si aplica), antes se
+  // perdía sin más que un error de red genérico. Se reutiliza la cola
+  // offline (submitGenericReportOrQueue) para el POST final -- la subida
+  // del archivo en sí sigue exigiendo red (no se puede validar
+  // ownership/tipo/tamaño de un archivo que no se ha subido, ver fix #14
+  // en la API), así que solo esa parte todavía requiere conexión activa.
+  const [queued, setQueued] = useState(false);
 
   const [absenceDate, setAbsenceDate] = useState(new Date().toISOString().slice(0, 10));
   const [reasonType, setReasonType] = useState<"self_reported" | "medical_note">("self_reported");
@@ -75,6 +84,7 @@ export default function EnfermedadPage() {
     setSubmitting(true);
     setError("");
     setSuccess("");
+    setQueued(false);
     try {
       let documentPath: string | undefined;
 
@@ -101,16 +111,20 @@ export default function EnfermedadPage() {
         setUploadingFile(false);
       }
 
-      const res = await fetch("/api/empleado/sick-leave", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ absenceDate, reasonType, reasonText: reasonText.trim(), documentPath }),
+      const result = await submitGenericReportOrQueue("/api/empleado/sick-leave", {
+        absenceDate,
+        reasonType,
+        reasonText: reasonText.trim(),
+        documentPath,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed");
+      if (!result.ok) throw new Error(result.error || "Failed");
 
-      setSuccess(`Reported — ${PAY_TYPE_LABEL[data.request.pay_type]}.`);
+      if (result.queued) {
+        setQueued(true);
+      } else {
+        const data = result.data as { request: { pay_type: string } };
+        setSuccess(`Reported — ${PAY_TYPE_LABEL[data.request.pay_type]}.`);
+      }
       setReasonText("");
       setFile(null);
       await load();
@@ -140,6 +154,12 @@ export default function EnfermedadPage() {
       {success && (
         <div className="flex items-center gap-2 text-state-success text-sm">
           <CheckCircle2 className="w-4 h-4" /> {success}
+        </div>
+      )}
+      {queued && (
+        <div className="flex items-center gap-2 text-brand-navy text-sm">
+          <CloudUpload className="w-4 h-4 flex-shrink-0" /> No connection — saved on this device, will send
+          automatically as soon as you have signal.
         </div>
       )}
 

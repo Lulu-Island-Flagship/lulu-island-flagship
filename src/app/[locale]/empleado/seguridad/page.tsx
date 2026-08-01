@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import { useParams } from "next/navigation";
-import { ShieldAlert, HeartPulse, Loader2, CheckCircle2, Siren } from "lucide-react";
+import { ShieldAlert, HeartPulse, Loader2, CheckCircle2, Siren, CloudUpload } from "lucide-react";
 import { EmpleadoBackHeader } from "@/components/empleado/EmpleadoBackHeader";
+import { submitGenericReportOrQueue } from "@/lib/offline-sync-client";
 
 /**
  * v8.3 E7 (D.10 #7) — Panel de seguridad del empleado. La activación de
@@ -52,6 +53,12 @@ function NearMissSection() {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  // Fix (auditoría 2026-07-31, #6): sin señal, este reporte se perdía
+  // silenciosamente (fetch fallaba y solo se mostraba un error genérico de
+  // red, sin persistencia local) -- un cuasi-accidente es justo el tipo de
+  // dato que D.10 excepción #1 pide nunca perder offline. Se reutiliza la
+  // cola offline existente (submitGenericReportOrQueue).
+  const [queued, setQueued] = useState(false);
   const [error, setError] = useState("");
 
   async function submit() {
@@ -62,15 +69,20 @@ function NearMissSection() {
     setSubmitting(true);
     setError("");
     try {
-      const res = await fetch("/api/empleado/near-miss", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ category, description: description.trim() || undefined, isAnonymous }),
+      const result = await submitGenericReportOrQueue("/api/empleado/near-miss", {
+        category,
+        description: description.trim() || undefined,
+        isAnonymous,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to report");
-      setSuccess(true);
+      if (!result.ok) {
+        setError(result.error || "Failed to report");
+        return;
+      }
+      if (result.queued) {
+        setQueued(true);
+      } else {
+        setSuccess(true);
+      }
       setCategory("");
       setDescription("");
     } catch (err) {
@@ -94,6 +106,11 @@ function NearMissSection() {
       {success && (
         <div className="flex items-center gap-2 text-state-success text-sm">
           <CheckCircle2 className="w-4 h-4" /> Reported. Thank you.
+        </div>
+      )}
+      {queued && (
+        <div className="flex items-center gap-2 text-brand-navy text-sm">
+          <CloudUpload className="w-4 h-4" /> No connection — saved on this device, will send automatically.
         </div>
       )}
       <select
@@ -149,6 +166,10 @@ function WorkplaceIncidentSection() {
   const [immediateActionTaken, setImmediateActionTaken] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  // Fix (auditoría 2026-07-31, #6): un reporte de lesión real ES el caso más
+  // crítico de "no perder datos offline" de toda esta página (arranca el
+  // reloj de 72h de WorkSafeBC) -- antes se perdía en silencio sin señal.
+  const [queued, setQueued] = useState(false);
   const [error, setError] = useState("");
 
   async function submit() {
@@ -159,22 +180,27 @@ function WorkplaceIncidentSection() {
     setSubmitting(true);
     setError("");
     try {
-      const res = await fetch("/api/empleado/workplace-incident", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          incidentDatetime: new Date().toISOString(),
-          injuryDescription: injuryDescription.trim(),
-          bodyPartAffected: bodyPartAffected.trim() || undefined,
-          medicalAttentionType,
-          locationDescription: locationDescription.trim() || undefined,
-          immediateActionTaken: immediateActionTaken.trim() || undefined,
-        }),
+      const result = await submitGenericReportOrQueue("/api/empleado/workplace-incident", {
+        incidentDatetime: new Date().toISOString(),
+        injuryDescription: injuryDescription.trim(),
+        bodyPartAffected: bodyPartAffected.trim() || undefined,
+        medicalAttentionType,
+        locationDescription: locationDescription.trim() || undefined,
+        immediateActionTaken: immediateActionTaken.trim() || undefined,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to report");
-      setSuccess("Reported. WorkSafeBC deadline: " + new Date(data.workplaceIncident.worksafebc_report_due_at).toLocaleString());
+      if (!result.ok) {
+        setError(result.error || "Failed to report");
+        return;
+      }
+      if (result.queued) {
+        setQueued(true);
+      } else {
+        const data = result.data as { workplaceIncident: { worksafebc_report_due_at: string } };
+        setSuccess(
+          "Reported. WorkSafeBC deadline: " +
+            new Date(data.workplaceIncident.worksafebc_report_due_at).toLocaleString()
+        );
+      }
       setInjuryDescription("");
       setBodyPartAffected("");
       setLocationDescription("");
@@ -197,6 +223,12 @@ function WorkplaceIncidentSection() {
       {success && (
         <div className="flex items-center gap-2 text-state-success text-sm">
           <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> {success}
+        </div>
+      )}
+      {queued && (
+        <div className="flex items-center gap-2 text-brand-navy text-sm">
+          <CloudUpload className="w-4 h-4 flex-shrink-0" /> No connection — saved on this device, will send
+          automatically as soon as you have signal. The WorkSafeBC clock starts once it syncs.
         </div>
       )}
       <textarea

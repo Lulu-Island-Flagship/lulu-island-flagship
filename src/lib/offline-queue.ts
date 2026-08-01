@@ -11,7 +11,18 @@
  *    requiere el navegador): solo mueve bytes, no decide nada.
  */
 
-export type QueuedEventType = "t_in" | "t_start" | "t_out" | "photo" | "note";
+// Fix (auditoría 2026-07-31, #6): "generic_report" cubre formularios que NO
+// están atados a un order (near-miss, incidente laboral, reporte de
+// enfermedad) -- antes esta cola solo servía a los eventos de un servicio
+// específico (t_in/t_start/t_out/photo/note, todos con orderId real). Estos
+// reportes usan orderId="_generic" (placeholder, ver GENERIC_QUEUE_ORDER_ID
+// abajo) porque QueuedServiceEvent.orderId es requerido mas no aplica --
+// nada en este archivo ni en offline-sync-client.ts filtra por orderId
+// salvo la pantalla de un servicio puntual (servicio/[orderId]/page.tsx),
+// que nunca ve estos eventos porque su orderId real nunca es "_generic".
+export type QueuedEventType = "t_in" | "t_start" | "t_out" | "photo" | "note" | "generic_report";
+
+export const GENERIC_QUEUE_ORDER_ID = "_generic";
 
 export interface QueuedServiceEvent {
   /** id local (uuid generado en el cliente, no el id del servidor) */
@@ -83,7 +94,7 @@ export function planSync(queue: QueuedServiceEvent[], nowIso: string): SyncPlan 
   // Orden de sync: por tipo de evento primero (t_in antes que t_out, etc.)
   // para respetar la secuencia que el servidor valida, luego por captura.
   const eventOrder: Record<QueuedEventType, number> = {
-    t_in: 0, t_start: 1, photo: 2, note: 3, t_out: 4,
+    t_in: 0, t_start: 1, photo: 2, note: 3, t_out: 4, generic_report: 5,
   };
   toSync.sort((a, b) => {
     const byOrder = eventOrder[a.eventType] - eventOrder[b.eventType];

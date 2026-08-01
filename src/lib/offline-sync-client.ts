@@ -8,6 +8,7 @@
 import {
   enqueueServiceEvent,
   runSyncCycle,
+  GENERIC_QUEUE_ORDER_ID,
   type QueuedServiceEvent,
   type QueuedEventType,
 } from "@/lib/offline-queue";
@@ -48,6 +49,23 @@ async function sendServiceEvent(
   event: QueuedServiceEvent
 ): Promise<{ ok: boolean; error?: string }> {
   try {
+    // Fix (auditoría 2026-07-31, #6): "generic_report" no pasa por
+    // /api/empleado/servicio -- son formularios standalone (near-miss,
+    // incidente laboral, enfermedad) que apuntan a su propio endpoint,
+    // guardado en payload.endpoint al encolar (ver submitGenericReportOrQueue).
+    if (event.eventType === "generic_report") {
+      const { endpoint, body } = event.payload as { endpoint: string; body: Record<string, unknown> };
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+      if (res.ok) return { ok: true };
+      const err = await res.json().catch(() => ({}));
+      return { ok: false, error: err.error || `HTTP ${res.status}` };
+    }
+
     let payload = event.payload;
 
     // Evento de foto encolado offline: el blob viaja como data URL dentro
@@ -76,6 +94,43 @@ async function sendServiceEvent(
     return { ok: false, error: err.error || `HTTP ${res.status}` };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "network error" };
+  }
+}
+
+/**
+ * Fix (auditoría 2026-07-31, #6): intenta enviar un reporte standalone (no
+ * atado a un order -- near-miss, incidente laboral, enfermedad) directo al
+ * endpoint indicado; si falla por red, lo encola (mismo mecanismo de
+ * IndexedDB + reintento con backoff que ya usa submitServiceEventOrQueue)
+ * en vez de perder el reporte. Nunca se encola un rechazo explícito del
+ * servidor (400/403/etc.) -- solo un fallo de red real.
+ */
+export async function submitGenericReportOrQueue(
+  endpoint: string,
+  body: Record<string, unknown>
+): Promise<{ queued: boolean; ok: boolean; data?: unknown; error?: string }> {
+  try {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { queued: false, ok: true, data };
+    }
+    const err = await res.json().catch(() => ({}));
+    return { queued: false, ok: false, error: err.error || `HTTP ${res.status}` };
+  } catch {
+    await enqueueServiceEvent({
+      localId: `generic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      orderId: GENERIC_QUEUE_ORDER_ID,
+      eventType: "generic_report",
+      payload: { endpoint, body },
+      capturedAtIso: new Date().toISOString(),
+    });
+    return { queued: true, ok: true };
   }
 }
 
