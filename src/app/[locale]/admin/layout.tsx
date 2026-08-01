@@ -8,6 +8,7 @@ import { getTranslations } from "next-intl/server";
 import AdminNav from "@/components/admin/AdminNav";
 import AdminBreadcrumbs from "@/components/admin/AdminBreadcrumbs";
 import type { AdminRole } from "@/lib/admin-rbac";
+import { isAllowedInternalPath } from "@/lib/safe-redirect";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -67,7 +68,22 @@ export default async function AdminLayout({
 
   // Detect locale from request headers early (needed for both auth error and nav)
   const headersList = headers();
-  const pathname = headersList.get("x-invoke-path") || headersList.get("x-pathname") || "/en/admin";
+  // Fix (auditoría 2026-07-31, hallazgo confirmado): "x-pathname" es el único
+  // de estos dos headers que un lugar CONFIABLE del pipeline realmente setea
+  // -- src/middleware.ts, línea ~192, lo escribe en la response justo antes
+  // de que Next.js la entregue. "x-invoke-path" nunca se setea desde ningún
+  // lugar del código de este proyecto (el comentario original lo agregó
+  // "por si acaso, típico de otros hostings", pero eso significa que si un
+  // cliente manda su propio header HTTP `x-invoke-path: ...` en el request
+  // (cualquiera puede -- headers() refleja los headers crudos del request,
+  // no solo los que el servidor puso), ese valor arbitrario GANABA sobre el
+  // x-pathname confiable del middleware por el orden `||` de antes. Se
+  // invierte la prioridad (x-pathname primero) y además se valida contra
+  // isAllowedInternalPath (misma allowlist que ya usan /portal y
+  // /auth/callback) antes de usarlo para nada -- incluyendo el `next=` que
+  // se arma más abajo en el redirect a /portal.
+  const rawPathname = headersList.get("x-pathname") || headersList.get("x-invoke-path") || "/en/admin";
+  const pathname = isAllowedInternalPath(rawPathname) ? rawPathname : "/en/admin";
   const locale = pathname.split("/")[1] || "en";
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
   const t = await getTranslations({ locale: safeLocale, namespace: "admin.layout" });

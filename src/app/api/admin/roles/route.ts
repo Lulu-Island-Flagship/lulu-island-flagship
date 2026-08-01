@@ -26,6 +26,12 @@ import type { AdminRole } from "@/lib/admin-rbac";
 
 const VALID_ROLES: AdminRole[] = ["owner_admin", "ops_coordinator", "qc_only"];
 
+// Fix (auditoría 2026-07-31, hallazgo confirmado): `!email.includes("@")` dejaba
+// pasar strings como "a@b" o "@@@" -- mismo problema ya identificado y arreglado
+// en src/components/cotizador/AuthModal.tsx (auditoría externa 2026-07-24).
+// Regex simple de formato, no pretende cubrir RFC 5322 completo.
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function getAdminSupabase() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -144,7 +150,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { email, role } = body as { email?: unknown; role?: unknown };
 
-    if (typeof email !== "string" || !email.trim() || !email.includes("@")) {
+    if (typeof email !== "string" || !email.trim() || !EMAIL_REGEX.test(email.trim())) {
       return NextResponse.json({ error: "A valid email is required" }, { status: 400 });
     }
     if (typeof role !== "string" || !VALID_ROLES.includes(role as AdminRole)) {

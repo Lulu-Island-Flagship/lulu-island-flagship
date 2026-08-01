@@ -5,6 +5,12 @@ import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import { Shield, Loader2 } from "lucide-react";
 
+// Fix (auditoría 2026-07-31, hallazgo confirmado): `!email.includes("@")` dejaba
+// pasar strings como "a@b" o "@@@" -- mismo problema ya identificado y arreglado
+// en src/components/cotizador/AuthModal.tsx (auditoría externa 2026-07-24).
+// Regex simple de formato, no pretende cubrir RFC 5322 completo.
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 interface StaffLoginScreenProps {
   locale: string;
   error?: string;
@@ -68,7 +74,7 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
   // que autenticarse por código no da acceso por sí solo: solo entra quien
   // ya esté en employees o admin_roles.
   const handleEmailOtpRequest = async () => {
-    if (!email || !email.includes("@")) {
+    if (!email || !EMAIL_REGEX.test(email.trim())) {
       setError(t("errors.invalidEmail"));
       return;
     }
@@ -147,6 +153,12 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
       const res = await fetch("/api/admin/backup-codes/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // credentials:"include" explícito (fetch ya lo hace por defecto en
+        // same-origin, pero se agrega por consistencia con el resto del
+        // proyecto -- ver /api/staff/resolve-login en portal/page.tsx -- y
+        // como defensa en profundidad si este fetch alguna vez se mueve a un
+        // contexto cross-origin).
+        credentials: "include",
         body: JSON.stringify({ code: backupCode }),
       });
       // Fix (item 1): antes se propagaba json.error (mensaje del servidor,

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServiceRoleClient, getSupabaseClient } from "@/lib/admin";
 import {
   resolveStaffLogin,
@@ -24,11 +24,15 @@ const AREA_TO_PATH: Record<StaffArea, string> = {
   qc: "/admin/qc",
 };
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   const supabase = getSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
+    // (el rate limit de abajo requiere serviceClient, así que ese chequeo
+    // corre después de este 401 -- perfectamente aceptable: sin sesión
+    // Supabase válida ya no hay forma de llegar a resolveStaffLogin, que es
+    // la parte costosa de este endpoint).
     // Fix (auditoría externa, hallazgo confirmado): antes este texto y los
     // dos de abajo (server config / not_registered / pending_activation)
     // estaban quemados en español sin pasar por next-intl -- un cliente en
@@ -45,6 +49,28 @@ export async function POST() {
     return NextResponse.json(
       { error: "Configuración de servidor incompleta (SUPABASE_SERVICE_ROLE_KEY).", reason: "server_config_error" },
       { status: 500 }
+    );
+  }
+
+  // Fix (auditoría 2026-07-31, hallazgo confirmado): este endpoint solo exige
+  // sesión Supabase válida (línea 29) -- CUALQUIERA con cuenta de Google puede
+  // autenticarse y llamarlo, no solo staff (el rechazo por no estar en
+  // employees/admin_roles pasa DENTRO de resolveStaffLogin). Sin límite, un
+  // atacante con una sola cuenta de Google podía golpear resolveStaffLogin en
+  // loop -- mismo RPC check_rate_limit ya usado en
+  // src/app/api/admin/backup-codes/verify/route.ts y src/app/api/quote/route.ts.
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+  const { data: rateLimitData } = await serviceClient.rpc("check_rate_limit", {
+    p_ip_address: `staff-resolve-login:${ip}`,
+    p_max_requests: 20,
+  });
+  if (rateLimitData && rateLimitData[0]?.allowed === false) {
+    return NextResponse.json(
+      { error: "Too many attempts. Try again later.", reason: "rate_limited" },
+      { status: 429 }
     );
   }
 

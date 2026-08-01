@@ -22,6 +22,18 @@ import { resolveStaffLogin } from "@/lib/staff-login";
  * hace signOut ni nada destructivo si el usuario resulta ser staff; a
  * diferencia de /api/staff/resolve-login, aquí "no autorizado como staff" es
  * el caso NORMAL y esperado para un cliente real, no un error).
+ *
+ * Fix (auditoria 2026-07-31, hallazgo confirmado): este GET, "de solo
+ * lectura" segun su propio nombre, llamaba a resolveStaffLogin() sin mas --
+ * y esa funcion, en el paso 3 (primer login de empleado invitado por
+ * coincidencia de email), ejecuta un UPDATE real sobre employees.user_id.
+ * Resultado: visitar /cuenta (el portal de CLIENTE) con la cuenta de Google
+ * de un empleado invitado-pero-nunca-reclamado bastaba para vincularlo como
+ * empleado, sin que ese fuera el flujo de login de staff en absoluto. Se usa
+ * el modo `readOnly: true` (ver src/lib/staff-login.ts) que devuelve el
+ * mismo veredicto SIN mutar nada -- la vinculacion real de verdad sigue
+ * ocurriendo unicamente en /api/staff/resolve-login (POST, parte explicita
+ * del flujo de login de staff).
  */
 export async function GET() {
   const supabase = getSupabaseClient();
@@ -35,12 +47,23 @@ export async function GET() {
 
   const serviceClient = getServiceRoleClient();
   if (!serviceClient) {
-    // Configuración de servidor incompleta -- no se puede verificar. Se
-    // conserva el comportamiento previo a este fix (no bloquear al cliente)
-    // en vez de fallar de forma disruptiva por un problema de config.
-    return NextResponse.json({ isStaff: false }, { status: 200 });
+    // Fix (auditoria 2026-07-31, hallazgo confirmado): si falta
+    // SUPABASE_SERVICE_ROLE_KEY no hay forma de verificar si este usuario es
+    // staff -- devolver `isStaff: false` en ese caso fallaba "abierto":
+    // cuenta/layout.tsx trataria a un empleado o admin real como cliente
+    // normal y le mostraria el portal de cliente (AuthModal + CuentaNav),
+    // justo el escenario que este endpoint existe para prevenir (ver
+    // comentario de cabecera). Un problema de configuracion de servidor no
+    // debe traducirse en una fuga de superficie de autorizacion: se falla
+    // cerrado con 500 explicito para que el cliente lo trate como error de
+    // verificacion, no como "confirmado: no es staff".
+    console.error("access-check: SUPABASE_SERVICE_ROLE_KEY missing, failing closed");
+    return NextResponse.json(
+      { error: "Server configuration incomplete", isStaff: null },
+      { status: 500 }
+    );
   }
 
-  const result = await resolveStaffLogin(serviceClient, user.id, user.email);
+  const result = await resolveStaffLogin(serviceClient, user.id, user.email, { readOnly: true });
   return NextResponse.json({ isStaff: result.authorized === true });
 }

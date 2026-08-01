@@ -6,6 +6,7 @@ import { ServiceWorkerRegister } from "@/components/empleado/ServiceWorkerRegist
 import { SafetyAbortButton } from "@/components/empleado/SafetyAbortButton";
 import { getServiceRoleClient, getSupabaseClient } from "@/lib/admin";
 import { resolveStaffLogin } from "@/lib/staff-login";
+import { isAllowedInternalPath } from "@/lib/safe-redirect";
 
 // Fix (auditoría UX/seguridad 2026-07-25, bug #1): las rutas de /empleado
 // deben usar el manifest PWA orientado a equipo (start_url apunta al
@@ -53,7 +54,16 @@ export default async function EmpleadoLayout({
   params: { locale: string };
 }) {
   const headersList = headers();
-  const pathname = headersList.get("x-invoke-path") || headersList.get("x-pathname") || `/${params.locale}/empleado`;
+  // Fix (auditoría 2026-07-31, hallazgo confirmado -- mismo problema y mismo
+  // arreglo que src/app/[locale]/admin/layout.tsx): "x-pathname" es el único
+  // header que src/middleware.ts realmente setea (línea ~192); "x-invoke-path"
+  // no lo setea nadie en este proyecto, así que un cliente podía mandarlo él
+  // mismo en el request y ganarle al valor confiable por el orden `||`
+  // anterior. Se invierte la prioridad y se valida con isAllowedInternalPath
+  // antes de usarlo (incluyendo el `next=` armado más abajo).
+  const rawPathname =
+    headersList.get("x-pathname") || headersList.get("x-invoke-path") || `/${params.locale}/empleado`;
+  const pathname = isAllowedInternalPath(rawPathname) ? rawPathname : `/${params.locale}/empleado`;
   const localeFromHeader = pathname.split("/")[1] || params.locale || "en";
   const safeLocale = ["en", "zh", "fr"].includes(localeFromHeader) ? localeFromHeader : "en";
   // Fix 2026-07-24 (auditoría externa, M-1 parcial): antes se mandaba

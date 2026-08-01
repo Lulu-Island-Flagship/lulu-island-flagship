@@ -122,7 +122,30 @@ export async function POST(request: NextRequest) {
     .is("deleted_at", null)
     .maybeSingle();
 
+  // Fix (auditoría 2026-07-31, bug real confirmado): a partir de acá el código
+  // ya quedó marcado `used_at` (UPDATE atómico de arriba, necesario para evitar
+  // doble canje concurrente -- ver comentario de esa sección). Pero todo lo que
+  // sigue (getUserById, generateLink, verifyOtp) puede fallar por razones ajenas
+  // al código en sí (red, Supabase Auth caído, etc.). Si eso pasa DESPUÉS de
+  // consumir el código, el owner_admin se queda sin sesión Y sin código válido
+  // -- exactamente el escenario de "perdí acceso a Google" que este endpoint
+  // existe para resolver. `refundConsumedCode()` revierte `used_at` a null para
+  // que el código siga siendo utilizable en un reintento, preservando al mismo
+  // tiempo la protección anti-doble-canje concurrente (el UPDATE original sigue
+  // siendo atómico; este reembolso solo corre en el path de error, después de
+  // que ya se confirmó que ESTA request fue la que ganó la carrera).
+  const refundConsumedCode = async () => {
+    const { error: refundError } = await serviceClient
+      .from("owner_admin_backup_codes")
+      .update({ used_at: null })
+      .eq("id", consumed.id);
+    if (refundError) {
+      console.error("backup-codes verify refund error:", refundError);
+    }
+  };
+
   if (!roleRow) {
+    await refundConsumedCode();
     return NextResponse.json(
       { error: "This account no longer has owner_admin access" },
       { status: 403 }
@@ -134,6 +157,7 @@ export async function POST(request: NextRequest) {
   );
   if (userError || !userData?.user?.email) {
     console.error("backup-codes verify getUserById error:", userError);
+    await refundConsumedCode();
     return NextResponse.json({ error: "Could not resolve account" }, { status: 500 });
   }
   const email = userData.user.email;
@@ -147,6 +171,7 @@ export async function POST(request: NextRequest) {
 
   if (linkError || !linkData?.properties?.hashed_token) {
     console.error("backup-codes verify generateLink error:", linkError);
+    await refundConsumedCode();
     return NextResponse.json({ error: "Could not create session" }, { status: 500 });
   }
 
@@ -161,6 +186,7 @@ export async function POST(request: NextRequest) {
   });
   if (sessionError) {
     console.error("backup-codes verify verifyOtp error:", sessionError);
+    await refundConsumedCode();
     return NextResponse.json({ error: "Could not create session" }, { status: 500 });
   }
 
@@ -201,6 +227,10 @@ export async function POST(request: NextRequest) {
   });
 
   // El cliente nunca ve el token_hash ni ningún otro secreto -- la sesión ya
-  // quedó establecida vía cookie en esta misma respuesta (ver arriba).
-  return NextResponse.json({ success: true, email });
+  // quedó establecida vía cookie en esta misma respuesta (ver arriba). Fix
+  // (auditoría 2026-07-31, bug real confirmado): tampoco se devuelve el email
+  // de la cuenta -- no aporta nada al flujo (el cliente ya sabe que el canje
+  // funcionó y va a recargar con la sesión activa) y filtraba innecesariamente
+  // el correo del owner_admin en la respuesta HTTP.
+  return NextResponse.json({ success: true });
 }

@@ -21,8 +21,16 @@
  * pisar el vínculo ya hecho.
  */
 
+// Fix (auditoría 2026-07-31, severidad media): antes `ServiceClient` era un
+// alias directo de `any` (perdía TODO el tipado, incluido el de los métodos
+// encadenados .from()/.select()/etc.). El resto del proyecto usa el patrón
+// `SupabaseClient<any, "public", any>` para estos casos (ver
+// src/lib/client-module/*.ts, src/lib/send-communication.ts) -- no es tipado
+// completo de schema (seguiría requiriendo los tipos generados de Supabase),
+// pero sí reconoce la forma real del cliente en vez de aceptar cualquier cosa.
+import type { SupabaseClient } from "@supabase/supabase-js";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ServiceClient = any;
+type ServiceClient = SupabaseClient<any, "public", any>;
 
 export type StaffArea = "empleado" | "admin" | "qc";
 
@@ -41,8 +49,20 @@ const ADMIN_ROLE_PRIORITY = ["owner_admin", "ops_coordinator", "qc_only"] as con
 export async function resolveStaffLogin(
   serviceSupabase: ServiceClient,
   userId: string,
-  email: string | null | undefined
+  email: string | null | undefined,
+  options?: { readOnly?: boolean }
 ): Promise<StaffLoginResult> {
+  // Fix (auditoría 2026-07-31, hallazgo confirmado): esta función SIEMPRE
+  // hacía el UPDATE de vinculación del paso 3 (employees.user_id) cuando
+  // corría la rama de "primer login por email". Eso era correcto para su
+  // caller original (/api/staff/resolve-login, un POST cuyo propósito
+  // explícito es ese), pero src/app/api/cuenta/access-check/route.ts -- un
+  // GET que solo quiere saber "¿es este usuario staff?" para decidir si
+  // mostrarle el layout de cliente -- reutilizaba esta misma función y de
+  // paso mutaba employees.user_id como efecto secundario de una simple
+  // consulta de lectura. `readOnly: true` desactiva SOLO ese UPDATE (ver
+  // paso 3 abajo); el resto de la lógica de lectura es idéntica.
+  const readOnly = options?.readOnly === true;
   // 1. Roles administrativos (owner_admin / ops_coordinator / qc_only)
   //    PRIMERO, antes de mirar `employees` en absoluto.
   //
@@ -115,6 +135,18 @@ export async function resolveStaffLogin(
       .maybeSingle();
 
     if (byEmail) {
+      if (readOnly) {
+        // Modo solo-lectura (ver comentario de cabecera de la función): se
+        // responde con el mismo veredicto que tendría la vinculación real,
+        // pero SIN ejecutar el UPDATE -- employees.user_id se queda como
+        // estaba. La vinculación real de verdad solo ocurre cuando esta
+        // función se llama desde /api/staff/resolve-login (readOnly
+        // ausente/false).
+        return byEmail.is_active
+          ? { authorized: true, area: "empleado", employeeLinkedNow: false }
+          : { authorized: false, reason: "pending_activation" };
+      }
+
       // UPDATE atómico condicionado a user_id IS NULL: si dos requests
       // concurrentes (o un segundo intento de otra cuenta con el mismo
       // email histórico) corren esta misma función, solo UNA puede ganar

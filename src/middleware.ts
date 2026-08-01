@@ -51,6 +51,19 @@ export default async function middleware(request: NextRequest) {
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
 
+  // Fix (auditoría 2026-07-31, bug real confirmado): /api/admin/backup-codes/verify
+  // es EL mecanismo de recuperación cuando un owner_admin pierde acceso a su
+  // sesión de Google -- por diseño no requiere sesión previa (ver comentario de
+  // cabecera de ese route.ts). El bloque isApiStaffProtected de abajo exige sesión
+  // Supabase válida para TODO /api/admin/**, así que sin esta excepción cualquier
+  // intento de canjear un código de respaldo moría con 401 antes de que el
+  // endpoint pudiera ejecutarse -- dejando el mecanismo de recuperación
+  // completamente inutilizable. Se excluye por pathname EXACTO (no un prefijo
+  // amplio) para no reabrir el resto de /api/admin/** a requests sin sesión.
+  if (pathname === "/api/admin/backup-codes/verify") {
+    return NextResponse.next();
+  }
+
   if (isApiStaffProtected) {
     const apiResponse = NextResponse.next();
     const supabaseApi = createServerClient(supabaseUrl, supabaseKey, {

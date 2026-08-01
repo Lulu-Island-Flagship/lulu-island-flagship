@@ -40,7 +40,28 @@ export default function CuentaLayout({ children }: { children: React.ReactNode }
   async function checkStaffStatus() {
     try {
       const res = await fetch("/api/cuenta/access-check", { credentials: "include" });
-      if (!res.ok) return false;
+      if (!res.ok) {
+        // Fix (auditoría 2026-07-31): antes CUALQUIER !res.ok (blip de red,
+        // timeout, error 500 real) caía en el mismo fail-open de abajo. Pero
+        // /api/cuenta/access-check ahora responde 500 + { isStaff: null }
+        // específicamente cuando falta SUPABASE_SERVICE_ROLE_KEY en el
+        // servidor -- un problema de configuración, no un blip transitorio --
+        // y en ESE caso el endpoint fue arreglado a propósito para fallar
+        // cerrado (ver comentario en access-check/route.ts). Si el fail-open
+        // de acá siguiera aplicando también a esa respuesta, el fix del
+        // servidor no serviría de nada: un empleado o admin real seguiría
+        // viendo el portal de cliente. Se distingue explícitamente ese caso
+        // (isStaff === null en el body) para SÍ tratarlo como staff; el resto
+        // de fallos (red, parseo, etc.) sigue siendo fail-open como hasta
+        // ahora, mismo criterio documentado en el catch de abajo.
+        try {
+          const data = await res.json();
+          if (data && data.isStaff === null) return true;
+        } catch {
+          // No se pudo leer el body -- cae al fail-open genérico.
+        }
+        return false;
+      }
       const data = await res.json();
       return Boolean(data.isStaff);
     } catch {

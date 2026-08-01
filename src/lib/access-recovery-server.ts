@@ -9,8 +9,14 @@
  * decide autorización, solo ejecuta operaciones ya autorizadas por la ruta
  * que lo llama.
  */
+// Fix (auditoría 2026-07-31, severidad media): antes `ServiceClient` era un
+// alias directo de `any`. El resto del proyecto usa el patrón
+// `SupabaseClient<any, "public", any>` para clientes sin tipos de schema
+// generados (ver src/lib/client-module/*.ts, src/lib/send-communication.ts) --
+// se alinea este módulo al mismo patrón.
+import type { SupabaseClient } from "@supabase/supabase-js";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ServiceClient = any;
+type ServiceClient = SupabaseClient<any, "public", any>;
 
 import { renderTemplate } from "./communications";
 import { sendSms, maskPhoneNumber } from "./sms";
