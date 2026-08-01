@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Loader2, Users, Copy, CheckCircle2, Gift } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { AuthModal } from "@/components/cotizador/AuthModal";
+import { formatCurrency } from "@/lib/format";
 
 interface Leader {
   id: string;
@@ -18,6 +19,7 @@ interface Leader {
  */
 export default function ReferralsPage() {
   const t = useTranslations("cuenta.referidos");
+  const locale = useLocale();
   const [loading, setLoading] = useState(true);
   const [eligible, setEligible] = useState(false);
   const [myCode, setMyCode] = useState<string | null>(null);
@@ -186,10 +188,16 @@ export default function ReferralsPage() {
               inventado mostrado como si fuera el crédito real de la cuenta
               si esa garantía cambiara. Ahora, si por lo que sea creditCents
               aún no llegó (0), se muestra copy genérico sin monto en vez de
-              inventar una cifra. */}
+              inventar una cifra.
+
+              Fix (auditoría 2026-07-31, hallazgo #9): el monto se formateaba
+              a mano con un "$" fijo (`$${(creditCents / 100).toFixed(2)}`),
+              ignorando el locale de la ruta -- en /fr y /zh mostraba el
+              formato inglés-canadiense en vez del formateo localizado que ya
+              usa el resto de "Mi Cuenta" (formatCurrency, src/lib/format.ts). */}
           <p className="text-xs text-gray-500">
             {creditCents > 0
-              ? t("shareCode", { amount: `$${(creditCents / 100).toFixed(2)}` })
+              ? t("shareCode", { amount: formatCurrency(creditCents / 100, locale) })
               : t("shareCodeGeneric")}
           </p>
         </div>
