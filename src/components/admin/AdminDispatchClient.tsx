@@ -13,6 +13,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useFocusTrap } from "@/lib/useFocusTrap";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 interface OrderAssignment {
   assignmentId: string;
@@ -359,16 +361,29 @@ function EditAssignmentModal({
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  // Fix (auditoría externa 2026-07-31): el modal de edición de asignación
+  // no tenía focus trap, ni cerraba con Escape, ni pedía confirmación
+  // antes de aplicar el cambio -- un click accidental reasignaba el
+  // equipo de una orden real sin previsualización. Se agrega focus trap +
+  // Escape (mismo patrón que ConfirmActionModal/AdminRolesClient) y un
+  // paso de confirmación con resumen de altas/bajas antes de guardar.
+  const [showConfirm, setShowConfirm] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, !showConfirm);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && !saving && !showConfirm) onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [saving, showConfirm, onClose]);
 
   const toggle = (id: string) => {
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
   const handleSave = async () => {
-    if (selected.length === 0) {
-      setSaveError(t("modal.selectAtLeastOne"));
-      return;
-    }
     setSaving(true);
     setSaveError("");
     try {
@@ -385,16 +400,30 @@ function EditAssignmentModal({
       onSaved();
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : t("modal.saveError"));
+      throw err;
     } finally {
       setSaving(false);
     }
   };
 
   const activeEmployees = employees.filter((e) => e.is_active);
+  const originalIds = order.assignments.map((a) => a.employeeId);
+  const nameOf = (id: string) => employees.find((e) => e.id === id)?.name || id;
+  const added = selected.filter((id) => !originalIds.includes(id)).map(nameOf);
+  const removed = originalIds.filter((id) => !selected.includes(id)).map(nameOf);
+
+  const handleRequestSave = () => {
+    if (selected.length === 0) {
+      setSaveError(t("modal.selectAtLeastOne"));
+      return;
+    }
+    setSaveError("");
+    setShowConfirm(true);
+  };
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+      <div ref={modalRef} role="dialog" aria-modal="true" className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[80vh] overflow-y-auto">
         <div>
           <h2 className="text-lg font-semibold text-brand-ink">
             {order.serviceTime} — {order.serviceType}
@@ -440,7 +469,7 @@ function EditAssignmentModal({
           </button>
           <button
             type="button"
-            onClick={handleSave}
+            onClick={handleRequestSave}
             disabled={saving}
             aria-label={saving ? t("modal.savingAriaLabel") : t("modal.saveAriaLabel")}
             className="px-4 py-2 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light disabled:opacity-50"
@@ -449,6 +478,34 @@ function EditAssignmentModal({
           </button>
         </div>
       </div>
+
+      {showConfirm && (
+        <ConfirmActionModal
+          title={t("modal.confirmChangeTitle")}
+          message={
+            <span>
+              {added.length === 0 && removed.length === 0 ? (
+                t("modal.confirmNoChanges")
+              ) : (
+                <>
+                  {added.length > 0 && (
+                    <span className="block text-state-success">+ {added.join(", ")}</span>
+                  )}
+                  {removed.length > 0 && (
+                    <span className="block text-state-danger">- {removed.join(", ")}</span>
+                  )}
+                </>
+              )}
+            </span>
+          }
+          confirmLabel={t("modal.saveAndLock")}
+          onCancel={() => setShowConfirm(false)}
+          onConfirm={async () => {
+            await handleSave();
+            setShowConfirm(false);
+          }}
+        />
+      )}
     </div>
   );
 }

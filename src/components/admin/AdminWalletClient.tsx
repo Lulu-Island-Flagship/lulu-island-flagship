@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Wallet, Search, User, CheckCircle2, X } from "lucide-react";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 
 interface WalletTransaction {
   id: string;
@@ -58,6 +59,11 @@ export default function AdminWalletClient() {
 
   const [grantForm, setGrantForm] = useState({ type: "credit", amountDollars: "", description: "" });
   const [showConfirm, setShowConfirm] = useState(false);
+  // Fix (auditoría externa 2026-07-31): este modal de confirmación
+  // financiera era un div "fixed inset-0" hecho a mano, sin focus trap ni
+  // cierre con Escape -- mismo patrón ya usado en ConfirmActionModal.
+  const confirmModalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(confirmModalRef, showConfirm);
 
   // Fix B (auditoría 2026-07-24): reemplaza el input de UUID crudo por un
   // buscador de nombre/email/teléfono contra /api/admin/wallet/search-client.
@@ -146,6 +152,15 @@ export default function AdminWalletClient() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!showConfirm) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && !granting) setShowConfirm(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [showConfirm, granting]);
 
   function requestGrant(e: React.FormEvent) {
     e.preventDefault();
@@ -363,7 +378,7 @@ export default function AdminWalletClient() {
       {/* Confirmation modal (fix B: no window.confirm) before applying credit */}
       {showConfirm && selectedClient && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 space-y-4">
+          <div ref={confirmModalRef} role="dialog" aria-modal="true" className="bg-white rounded-xl max-w-md w-full p-6 space-y-4">
             <h2 className="text-lg font-bold text-brand-ink">{t("confirmModal.title")}</h2>
             <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
               <p><strong>{t("confirmModal.clientLabel")}</strong> {describeClient(selectedClient, t("noNameOnFile"))}</p>
