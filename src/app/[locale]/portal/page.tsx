@@ -145,7 +145,22 @@ function PortalContent() {
         const nextAreaPath = safeNext
           ? "/" + safeNext.split("/").filter(Boolean).slice(1).join("/")
           : null;
-        const isSameArea = nextAreaPath ? nextAreaPath.startsWith(data.path) : false;
+        // Fix (auditoría 2026-07-31, hallazgo confirmado): `nextAreaPath.
+        // startsWith(data.path)` compara STRINGS, no segmentos de ruta -- para
+        // data.path = "/admin/qc" (área qc_only), un nextAreaPath hipotético
+        // como "/admin/qcxyz" también pasaría el startsWith (comparten el
+        // prefijo de caracteres "/admin/qc") aunque no sea en absoluto una
+        // subruta real de /admin/qc. Hoy no existe ninguna ruta bajo
+        // src/app/[locale]/admin/ que empiece con "qc" salvo la carpeta
+        // qc/ misma, así que no es explotable con las rutas actuales -- pero
+        // es una comparación frágil que se rompe en cuanto alguien agregue
+        // una sección nueva con ese prefijo (ej. /admin/qc-legacy). Se
+        // compara por SEGMENTOS: coincide si es exactamente igual o si el
+        // siguiente carácter tras el prefijo es "/" (límite de segmento
+        // real), nunca un prefijo de string suelto.
+        const isSameArea = nextAreaPath
+          ? nextAreaPath === data.path || nextAreaPath.startsWith(`${data.path}/`)
+          : false;
 
         router.replace(isSameArea && safeNext ? safeNext : `/${locale}${data.path}`);
       } catch {

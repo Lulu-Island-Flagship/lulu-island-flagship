@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
+import { isAllowedInternalPath } from "@/lib/safe-redirect";
 import { Shield, Loader2 } from "lucide-react";
 
 // Fix (auditoría 2026-07-31, hallazgo confirmado): `!email.includes("@")` dejaba
@@ -48,6 +49,65 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
   const [otpCode, setOtpCode] = useState("");
   const [backupCode, setBackupCode] = useState("");
 
+  // Fix (auditoría 2026-07-31, hallazgo confirmado): el rate-limit real
+  // (el que de verdad importa contra fuerza bruta) ya vive en el servidor
+  // -- ver src/app/api/admin/backup-codes/verify/route.ts -- pero la UI no
+  // tenía NINGÚN freno propio: un atacante con el formulario abierto podía
+  // enviar intento tras intento visualmente sin fricción, aunque el
+  // servidor los fuera rechazando igual. Se agrega un contador simple de
+  // intentos fallidos + cooldown puramente client-side (UX, no es la
+  // defensa de seguridad real) para desalentar el "fuerza bruta visual" y
+  // dar feedback claro en vez de dejar el botón siempre listo para el
+  // siguiente intento.
+  const BACKUP_CODE_MAX_ATTEMPTS = 5;
+  const BACKUP_CODE_COOLDOWN_MS = 30_000;
+  const [backupCodeFailures, setBackupCodeFailures] = useState(0);
+  const [backupCodeCooldownUntil, setBackupCodeCooldownUntil] = useState<number | null>(null);
+  const [backupCodeCooldownRemaining, setBackupCodeCooldownRemaining] = useState(0);
+
+  useEffect(() => {
+    if (!backupCodeCooldownUntil) return;
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((backupCodeCooldownUntil - Date.now()) / 1000));
+      setBackupCodeCooldownRemaining(remaining);
+      if (remaining <= 0) {
+        setBackupCodeCooldownUntil(null);
+        setBackupCodeFailures(0);
+      }
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [backupCodeCooldownUntil]);
+
+  const isBackupCodeInCooldown = backupCodeCooldownUntil !== null && backupCodeCooldownRemaining > 0;
+
+  // Fix (auditoría 2026-07-31, hallazgo confirmado): admin/layout.tsx y
+  // empleado/layout.tsx mandan aquí con `?next=<ruta original protegida>`
+  // (ver comentario en admin/layout.tsx, línea ~104) para que, tras
+  // autenticarse, el usuario vuelva a la página profunda que pidió en vez
+  // de aterrizar siempre en el landing genérico del área
+  // (portal/page.tsx ya sabe usar ese `next` -- ver isSameArea/safeNext ahí).
+  // Este componente ignoraba por completo ese `next` al armar `redirectTo`:
+  // el auth callback siempre volvía a `/${locale}/portal` a secas, así que
+  // portal/page.tsx nunca veía el `next` original y todo el mundo terminaba
+  // en el landing del área sin importar qué página profunda pidió primero.
+  // Se lee de window.location.search (esta pantalla vive en /portal, la
+  // misma URL que recibió el `next`), se valida con isAllowedInternalPath
+  // (misma allowlist que ya usan portal/page.tsx y auth/callback) y, si es
+  // válido, se reenvía como querystring del destino final tras el callback.
+  const getSafeNextParam = (): string | null => {
+    if (typeof window === "undefined") return null;
+    const raw = new URLSearchParams(window.location.search).get("next");
+    return isAllowedInternalPath(raw) ? raw : null;
+  };
+
+  const buildPortalRedirectTarget = (): string => {
+    const safeNext = getSafeNextParam();
+    const portalPath = `/${locale}/portal`;
+    return safeNext ? `${portalPath}?next=${encodeURIComponent(safeNext)}` : portalPath;
+  };
+
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     setError("");
@@ -55,7 +115,7 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/${locale}/portal`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(buildPortalRedirectTarget())}`,
         },
       });
       if (error) throw error;
@@ -90,7 +150,7 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/${locale}/portal`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(buildPortalRedirectTarget())}`,
           // v8.3 fix M-5 (auditoría go-live 2026-07-20): sin esto, cualquiera
           // podía hacer que Supabase creara una fila nueva en auth.users con
           // un email arbitrario con solo pedir el código -- no otorgaba
@@ -143,6 +203,7 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
   // que este handler ya no recibe ni maneja ningún secreto: solo confirma
   // éxito y recarga.
   const handleBackupCodeSignIn = async () => {
+    if (isBackupCodeInCooldown) return;
     if (!backupCode.trim()) {
       setError(t("errors.backupCodeRequired"));
       return;
@@ -168,7 +229,15 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
 
       window.location.reload();
     } catch {
-      setError(t("errors.backupCodeFailed"));
+      const nextFailures = backupCodeFailures + 1;
+      if (nextFailures >= BACKUP_CODE_MAX_ATTEMPTS) {
+        setBackupCodeCooldownUntil(Date.now() + BACKUP_CODE_COOLDOWN_MS);
+        setBackupCodeFailures(0);
+        setError(t("errors.backupCodeTooManyAttempts", { seconds: Math.ceil(BACKUP_CODE_COOLDOWN_MS / 1000) }));
+      } else {
+        setBackupCodeFailures(nextFailures);
+        setError(t("errors.backupCodeFailed"));
+      }
       setIsLoading(false);
     }
   };
@@ -270,11 +339,15 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
             </div>
             <button
               onClick={handleBackupCodeSignIn}
-              disabled={isLoading}
+              disabled={isLoading || isBackupCodeInCooldown}
               aria-label={isLoading ? t("backupCode.ariaVerifying") : t("backupCode.ariaSignIn")}
               className="w-full bg-brand-navy text-white py-2.5 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50"
             >
-              {isLoading ? t("backupCode.submitting") : t("backupCode.submit")}
+              {isBackupCodeInCooldown
+                ? t("errors.backupCodeTooManyAttempts", { seconds: backupCodeCooldownRemaining })
+                : isLoading
+                  ? t("backupCode.submitting")
+                  : t("backupCode.submit")}
             </button>
             <button
               onClick={() => {
