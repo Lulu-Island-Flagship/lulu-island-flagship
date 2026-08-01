@@ -135,8 +135,24 @@ export interface ReplayedOrderBalance {
 }
 
 export function replayOrderBalance(entries: LedgerEntryForReplay[]): ReplayedOrderBalance {
+  // Fix (auditoría externa, verificado 2026-07-31): "hold_released" NO debe
+  // tratarse como reembolso aquí. Verificado contra todos los emisores
+  // reales de hold_released_at (src/app/api/stripe/webhook/route.ts,
+  // handlePaymentIntentCancellation -- dispara solo con el evento
+  // "payment_intent.canceled", que Stripe SOLO emite para un PaymentIntent
+  // que NUNCA se capturó) y src/app/api/orders/[orderId]/cancel/route.ts
+  // (libera el hold vía .cancel(), mismo caso): "hold_released" siempre
+  // representa un Hold AUTORIZADO PERO NUNCA CAPTURADO que se libera. Ese
+  // dinero nunca se sumó a totalCollectedCents (solo "hold_captured" cuenta
+  // como colección, ver COLLECTION_EVENTS abajo y el contrato documentado
+  // arriba en este archivo) -- restarlo en netCents como si fuera un
+  // reembolso de dinero real distorsionaría el balance con un monto que
+  // nunca se contó como cobrado. (Hoy ningún caller inserta realmente una
+  // entrada "hold_released" en shadow_ledger_entries -- el tipo está
+  // declarado para cuando se conecte, ver comentario de cabecera "QUÉ DEBE
+  // LOGUEARSE" -- pero esta función debe estar correcta desde ya para ese
+  // día.)
   const REFUND_EVENTS: ShadowLedgerEventType[] = [
-    "hold_released",
     "paypal_refund",
     "warranty_refund",
     "wallet_refund",
@@ -158,8 +174,10 @@ export function replayOrderBalance(entries: LedgerEntryForReplay[]): ReplayedOrd
     } else if (REFUND_EVENTS.includes(entry.event_type)) {
       totalRefundedCents += entry.amount_cents;
     }
-    // hold_authorized y capture_failed no mueven dinero real; se ignoran
-    // en el balance (son informativos/de auditoría).
+    // hold_authorized, capture_failed y hold_released no mueven dinero real
+    // hacia/desde nosotros (hold_released es la liberación de un hold que
+    // nunca se capturó -- ver comentario arriba); se ignoran en el balance
+    // (son informativos/de auditoría).
   }
 
   return {
