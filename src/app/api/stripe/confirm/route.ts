@@ -19,8 +19,30 @@ import { isSmsProviderConfigured } from "@/lib/sms";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+// Fix (auditoría externa, verificado 2026-07-31): antes, si faltaban las
+// env vars de Supabase, se usaban valores placeholder ("https://placeholder
+// .supabase.co" / "placeholder") en SILENCIO -- el endpoint seguía
+// arrancando y fallaba más tarde con un error de red/DNS confuso (o, peor,
+// con un comportamiento indefinido) en vez de un error claro señalando la
+// causa real (config faltante). Esto es el endpoint de CONFIRMACIÓN DE
+// PAGO -- un fallo silencioso o confuso aquí es especialmente peligroso.
+// Ahora se lanza un error explícito si faltan, igual que ya hace
+// getServiceRoleClient() más abajo con SUPABASE_SERVICE_ROLE_KEY.
+function getSupabaseUrl(): string {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL no está configurado");
+  }
+  return url;
+}
+
+function getSupabaseAnonKey(): string {
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!key) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY no está configurado");
+  }
+  return key;
+}
 
 // v8.3 fix (auditoría 2026-07-15): capacity_slots solo tiene políticas RLS
 // para "is_supervisor" (SELECT solo si is_published, ALL para supervisores;
@@ -35,14 +57,14 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
 function getServiceRoleClient() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceKey) return null;
-  return createClient(supabaseUrl, serviceKey);
+  return createClient(getSupabaseUrl(), serviceKey);
 }
 
 function getSupabaseClient() {
   const cookieStore = cookies();
   return createServerClient(
-    supabaseUrl,
-    supabaseKey,
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     {
       cookies: {
         get(name: string) {
@@ -795,11 +817,43 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update quote status to reserved
-    await supabase
+    // Update quote status to reserved.
+    // Fix (auditoría externa, verificado 2026-07-31): este UPDATE no
+    // esperaba/chequeaba su resultado. La orden ya fue creada e insertada
+    // (pagada / con hold autorizado) en este punto -- si este UPDATE fallaba
+    // en silencio, la quote quedaba "pending" para siempre mientras la orden
+    // ya existía "confirmed", permitiendo que otro checkout reutilizara la
+    // misma quote y creara una SEGUNDA orden duplicada sobre el mismo
+    // presupuesto. No revertimos la orden ya creada (el pago/hold ya es
+    // real y el cliente ya tiene una reserva válida) -- en vez de eso,
+    // alertamos para intervención manual y dejamos evidencia clara en logs,
+    // igual que el patrón ya usado en este archivo para fallos no
+    // bloqueantes post-orden (shadow ledger, dispatchCommunication).
+    const { error: quoteUpdateError } = await supabase
       .from("quotes")
       .update({ status: "reserved" })
       .eq("id", quoteId);
+
+    if (quoteUpdateError) {
+      console.error(
+        `CRITICAL: fallo al marcar quote ${quoteId} como "reserved" tras crear la orden ${order.id}. ` +
+          `Riesgo de doble reserva sobre la misma quote. Error:`,
+        quoteUpdateError
+      );
+      try {
+        await publishUnifiedAlert(supabase, {
+          sourceModule: "stripe_confirm",
+          sourceTable: "quotes",
+          sourceId: quoteId,
+          tier: "respond_10min",
+          severity: "p1_urgent",
+          title: "Quote no se pudo marcar como reserved tras crear la orden — riesgo de doble reserva",
+          summary: `Orden ${order.id} fue creada con éxito para la quote ${quoteId}, pero el UPDATE de quotes.status a "reserved" falló: ${quoteUpdateError.message}. Verificar manualmente que la quote no se reutilice para otra orden.`,
+        });
+      } catch (alertErr) {
+        console.error("Fallo adicional al publicar alerta de quote no actualizada:", alertErr);
+      }
+    }
 
     // Fix 2026-07-24 (auditoría externa): el UPDATE de committed_teams con
     // optimistic lock que vivía aquí (DESPUÉS del INSERT de la orden) se

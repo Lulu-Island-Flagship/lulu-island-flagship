@@ -4,14 +4,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { assertStripe } from "@/lib/stripe";
 import type Stripe from "stripe";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+// Fix (auditoría externa, verificado 2026-07-31): antes, si faltaban las
+// env vars de Supabase, se usaban placeholders en silencio (ver mismo fix
+// en src/app/api/stripe/confirm/route.ts). Ahora se lanza un error claro.
+function getSupabaseUrl(): string {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL no está configurado");
+  }
+  return url;
+}
+
+function getSupabaseAnonKey(): string {
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!key) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY no está configurado");
+  }
+  return key;
+}
 
 function getSupabaseClient() {
   const cookieStore = cookies();
   return createServerClient(
-    supabaseUrl,
-    supabaseKey,
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     {
       cookies: {
         get(name: string) {
@@ -114,11 +130,29 @@ export async function POST(request: NextRequest) {
       customer = await stripe.customers.create(customerData);
     }
 
-    // Persistir stripe_customer_id para futuras búsquedas
-    await supabase
+    // Persistir stripe_customer_id para futuras búsquedas.
+    // Fix (auditoría externa, verificado 2026-07-31): este UPDATE no
+    // chequeaba su error. Si fallaba, el customer YA existía en Stripe pero
+    // client_profiles.stripe_customer_id quedaba desincronizado -- la
+    // próxima vez este mismo endpoint intentaría buscarlo por email de
+    // nuevo (falla silenciosa recuperable), pero mientras tanto cualquier
+    // código que lea client_profiles.stripe_customer_id directamente (ej.
+    // reconciliación, wallet, refunds) no encontraría el customer real.
+    // No abortamos la creación del SetupIntent (ya se creó y es válido;
+    // el cliente puede seguir con el pago), pero sí lo logueamos fuerte
+    // para que quede evidencia de la desincronización.
+    const { error: profileUpdateError } = await supabase
       .from("client_profiles")
       .update({ stripe_customer_id: customer.id, updated_at: new Date().toISOString() })
       .eq("user_id", user.id);
+
+    if (profileUpdateError) {
+      console.error(
+        `CRITICAL: fallo al persistir stripe_customer_id (${customer.id}) en client_profiles para user ${user.id}. ` +
+          `El customer de Stripe existe pero queda desincronizado con nuestro perfil. Error:`,
+        profileUpdateError
+      );
+    }
 
     // Create SetupIntent (tokenization, $0 charge)
     const setupIntent = await stripe.setupIntents.create({

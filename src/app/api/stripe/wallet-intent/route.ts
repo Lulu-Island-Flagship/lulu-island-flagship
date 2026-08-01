@@ -3,14 +3,31 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { assertStripe } from "@/lib/stripe";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+// Fix (auditoría externa, verificado 2026-07-31): antes, si faltaban las
+// env vars de Supabase, se usaban placeholders en silencio (ver mismo fix
+// en src/app/api/stripe/confirm/route.ts y setup-intent/route.ts). Ahora
+// se lanza un error claro.
+function getSupabaseUrl(): string {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL no está configurado");
+  }
+  return url;
+}
+
+function getSupabaseAnonKey(): string {
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!key) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY no está configurado");
+  }
+  return key;
+}
 
 function getSupabaseClient() {
   const cookieStore = cookies();
   return createServerClient(
-    supabaseUrl,
-    supabaseKey,
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     {
       cookies: {
         get(name: string) {
