@@ -129,6 +129,22 @@ function fakeGetSettingFn(rates: { gst: number; pst: number }) {
   };
 }
 
+// Fix (auditoría CI 2026-07-31, bug real confirmado): tras el retrofit a
+// secuencial atómico (migración 290, ver comentario de
+// defaultGetNextInvoiceSequence en invoice-service.ts), createInvoice ya no
+// arma el número de factura con Date.now() -- llama a
+// getNextInvoiceSequenceFn(client), cuyo default real hace
+// `client.rpc("next_client_invoice_number_sequence")`. Estos tests pasan
+// `client: {} as any` (un objeto vacío, sin .rpc), así que sin inyectar
+// getNextInvoiceSequenceFn explícitamente caían con "client.rpc is not a
+// function" antes siquiera de llegar a la RPC que sí están testeando
+// (callCreateInvoiceRpcFn). Mismo patrón de inyección de dependencia que ya
+// usa fakeGetSettingFn arriba -- no hace falta un client real ni mockear
+// .rpc, basta con proveer la función inyectable.
+function fakeGetNextInvoiceSequenceFn(sequence = 1) {
+  return async () => sequence;
+}
+
 test("createInvoice: happy path calls the atomic RPC once and returns totals", async () => {
   const rpcCalls: Array<Record<string, unknown>> = [];
 
@@ -142,6 +158,7 @@ test("createInvoice: happy path calls the atomic RPC once and returns totals", a
     dueDateDays: 15,
     client: {} as any,
     getSettingFn: fakeGetSettingFn({ gst: 0.05, pst: 0.07 }) as any,
+    getNextInvoiceSequenceFn: fakeGetNextInvoiceSequenceFn(1),
     callCreateInvoiceRpcFn: async (params) => {
       rpcCalls.push(params as unknown as Record<string, unknown>);
       assert.equal(params.clientId, "client-1");
@@ -197,6 +214,7 @@ test("createInvoice: when the atomic RPC fails, the error propagates as-is (no m
         dueDateDays: 15,
         client: {} as any,
         getSettingFn: fakeGetSettingFn({ gst: 0.05, pst: 0.07 }) as any,
+        getNextInvoiceSequenceFn: fakeGetNextInvoiceSequenceFn(3),
         callCreateInvoiceRpcFn: async () => {
           throw new InvoiceCreationError(
             "create_client_invoice_with_line_items RPC failed for client \"client-3\": boom"
@@ -217,6 +235,7 @@ test("createInvoice: never throws OrphanedInvoiceError -- that failure mode no l
         dueDateDays: 15,
         client: {} as any,
         getSettingFn: fakeGetSettingFn({ gst: 0.05, pst: 0.07 }) as any,
+        getNextInvoiceSequenceFn: fakeGetNextInvoiceSequenceFn(4),
         callCreateInvoiceRpcFn: async () => {
           throw new InvoiceCreationError("RPC failed entirely -- Postgres already rolled back");
         },
@@ -243,6 +262,7 @@ test("createInvoice: passes issueDate + dueDateDays through (due date computed c
     dueDateDays: 15,
     client: {} as any,
     getSettingFn: fakeGetSettingFn({ gst: 0.05, pst: 0.07 }) as any,
+    getNextInvoiceSequenceFn: fakeGetNextInvoiceSequenceFn(5),
     callCreateInvoiceRpcFn: async (params) => {
       capturedDueDate = params.dueDate;
       return "invoice-due-date-check";

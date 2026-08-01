@@ -7,6 +7,21 @@ import {
   LegalTextNotFoundError,
   UnrenderedPlaceholderError,
 } from "../../src/lib/hiring-flow/legal-text-service";
+// Fix (auditoría CI 2026-07-31, bug real confirmado): getSetting() en
+// settings-service.ts mantiene un cache en memoria de proceso con TTL de
+// 60s (ver comentario de cabecera de esa sección). Este archivo de test
+// llama renderLegalText() con distintos clientes mock que devuelven
+// distintos valores de "company_name" en cada test -- sin invalidar el
+// cache entre tests, el PRIMER test del proceso que resuelve
+// "company_name" deja ese valor cacheado y "gana" para todos los tests
+// siguientes que corran dentro del TTL, sin importar qué valor traiga su
+// propio mock. Ese es exactamente el patrón que ya siguen
+// hiring-flow-access-code-service.test.ts, hiring-flow-session-service.test.ts,
+// hiring-flow-settings-service.test.ts, hiring-flow-document-service.test.ts,
+// hiring-flow-td1-service.test.ts y hiring-flow-rate-limiter.test.ts (todos
+// llaman invalidateSettingsCache() al inicio de cada test) -- este archivo
+// simplemente no lo hacía todavía.
+import { invalidateSettingsCache } from "../../src/lib/hiring-flow/settings-service";
 
 // ---------------------------------------------------------------------------
 // extractPlaceholders — pure, no DB
@@ -169,6 +184,7 @@ function makeMockClient(legalRows: FakeLegalTextRow[], settingRows: FakeSettingR
 // ---------------------------------------------------------------------------
 
 test("renderLegalText: key never existed -> LegalTextNotFoundError (no_such_key)", async () => {
+  invalidateSettingsCache();
   const client = makeMockClient([], [{ key: "company_name", value: "Lulu Island", value_type: "string" }]);
 
   await assert.rejects(
@@ -182,6 +198,7 @@ test("renderLegalText: key never existed -> LegalTextNotFoundError (no_such_key)
 });
 
 test("renderLegalText: key exists but no active version -> LegalTextNotFoundError (no_active_version)", async () => {
+  invalidateSettingsCache();
   const client = makeMockClient(
     [
       {
@@ -206,6 +223,7 @@ test("renderLegalText: key exists but no active version -> LegalTextNotFoundErro
 });
 
 test("renderLegalText: resolves [COMPANY_NAME] automatically via getSetting('company_name')", async () => {
+  invalidateSettingsCache();
   const client = makeMockClient(
     [
       {
@@ -226,6 +244,7 @@ test("renderLegalText: resolves [COMPANY_NAME] automatically via getSetting('com
 });
 
 test("renderLegalText: caller-provided variables can override COMPANY_NAME default", async () => {
+  invalidateSettingsCache();
   const client = makeMockClient(
     [
       {
@@ -248,6 +267,7 @@ test("renderLegalText: caller-provided variables can override COMPANY_NAME defau
 // por is_active -- ver comentario de isCurrentlyEffective en
 // legal-text-service.ts.
 test("renderLegalText: active row with effective_from in the future -> LegalTextNotFoundError (no_active_version)", async () => {
+  invalidateSettingsCache();
   const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   const client = makeMockClient(
     [
@@ -274,6 +294,7 @@ test("renderLegalText: active row with effective_from in the future -> LegalText
 });
 
 test("renderLegalText: active row with effective_until already passed -> LegalTextNotFoundError (no_active_version)", async () => {
+  invalidateSettingsCache();
   const past = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const client = makeMockClient(
     [
@@ -300,6 +321,7 @@ test("renderLegalText: active row with effective_until already passed -> LegalTe
 });
 
 test("renderLegalText: active row within effective window -> resolves normally", async () => {
+  invalidateSettingsCache();
   const past = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   const client = makeMockClient(
@@ -322,6 +344,7 @@ test("renderLegalText: active row within effective window -> resolves normally",
 });
 
 test("renderLegalText: unknown placeholder left in content -> UnrenderedPlaceholderError, propagated as-is", async () => {
+  invalidateSettingsCache();
   const client = makeMockClient(
     [
       {

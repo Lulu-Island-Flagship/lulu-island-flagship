@@ -136,44 +136,29 @@ test("addPaymentMethod: throws PaymentMethodValidationError and never touches th
   assert.equal(fromCalled, false);
 });
 
-test("addPaymentMethod: isDefault=true first unmarks other active defaults, then inserts", async () => {
-  const callOrder: string[] = [];
-  let unsetFilters: Record<string, unknown> = {};
-  let insertedRow: Record<string, unknown> | null = null;
+// Fix (auditoría CI 2026-07-31, bug real confirmado): tras el retrofit a
+// RPC atómica (migración 289, ver comentario de cabecera de
+// addPaymentMethod en payment-method-service.ts), desmarcar el default
+// anterior + insertar el nuevo método ya NO son dos llamadas separadas del
+// lado de TypeScript (.update() + .insert()) -- ambas ocurren dentro de una
+// sola función RPC SECURITY DEFINER (`add_client_payment_method_atomic`)
+// en una única transacción de Postgres. Estos dos tests mockeaban el
+// flujo viejo de dos pasos; con el fakeClient de abajo, `resolved.rpc` no
+// existía y fallaban con "resolved.rpc is not a function" antes de llegar
+// a ninguna aserción real. Se reescriben para mockear `.rpc(...)`
+// directamente y verificar que `p_is_default` viaja con el valor correcto
+// -- la garantía de atomicidad/orden ("desmarcar antes de insertar") ahora
+// vive en la función de Postgres (289), no en este servicio TS, así que ya
+// no hay "orden de llamadas" que testear desde acá.
+test("addPaymentMethod: isDefault=true calls the atomic RPC with p_is_default=true", async () => {
+  let rpcName: string | null = null;
+  let rpcParams: Record<string, unknown> | null = null;
 
   const fakeClient = {
-    from(table: string) {
-      assert.equal(table, "client_payment_methods");
-      return {
-        update(row: Record<string, unknown>) {
-          callOrder.push("update");
-          assert.deepEqual(row, { is_default: false });
-          return {
-            eq(field: string, value: unknown) {
-              unsetFilters[field] = value;
-              return {
-                eq(field2: string, value2: unknown) {
-                  unsetFilters[field2] = value2;
-                  return { error: null };
-                },
-              };
-            },
-          };
-        },
-        insert(row: Record<string, unknown>) {
-          callOrder.push("insert");
-          insertedRow = row;
-          return {
-            select() {
-              return {
-                async single() {
-                  return { data: { id: "pm-1" }, error: null };
-                },
-              };
-            },
-          };
-        },
-      };
+    async rpc(name: string, params: Record<string, unknown>) {
+      rpcName = name;
+      rpcParams = params;
+      return { data: { id: "pm-1" }, error: null };
     },
   };
 
@@ -183,42 +168,27 @@ test("addPaymentMethod: isDefault=true first unmarks other active defaults, then
   );
 
   assert.equal(paymentMethodId, "pm-1");
-  assert.deepEqual(callOrder, ["update", "insert"]);
-  assert.equal(unsetFilters.client_id, "client-1");
-  assert.equal(unsetFilters.status, "active");
-  assert.ok(insertedRow);
-  assert.equal((insertedRow as any).is_default, true);
+  assert.equal(rpcName, "add_client_payment_method_atomic");
+  assert.ok(rpcParams);
+  assert.equal((rpcParams as any).p_client_id, "client-1");
+  assert.equal((rpcParams as any).p_is_default, true);
 });
 
-test("addPaymentMethod: isDefault=false (or omitted) never calls update to unset defaults", async () => {
-  let updateCalled = false;
+test("addPaymentMethod: isDefault=false (or omitted) calls the atomic RPC with p_is_default=false", async () => {
+  let rpcParams: Record<string, unknown> | null = null;
 
   const fakeClient = {
-    from(table: string) {
-      assert.equal(table, "client_payment_methods");
-      return {
-        update() {
-          updateCalled = true;
-          throw new Error("update should not be called when isDefault is falsy");
-        },
-        insert(row: Record<string, unknown>) {
-          return {
-            select() {
-              return {
-                async single() {
-                  return { data: { id: "pm-2" }, error: null };
-                },
-              };
-            },
-          };
-        },
-      };
+    async rpc(name: string, params: Record<string, unknown>) {
+      assert.equal(name, "add_client_payment_method_atomic");
+      rpcParams = params;
+      return { data: { id: "pm-2" }, error: null };
     },
   };
 
   const { paymentMethodId } = await addPaymentMethod(validInput(), fakeClient as any);
   assert.equal(paymentMethodId, "pm-2");
-  assert.equal(updateCalled, false);
+  assert.ok(rpcParams);
+  assert.equal((rpcParams as any).p_is_default, false);
 });
 
 // ---------------------------------------------------------------------------
