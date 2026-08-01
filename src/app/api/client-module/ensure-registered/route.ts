@@ -2,6 +2,8 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { ensureClientForAuthUser } from "@/lib/client-module/client-service";
+import { getServiceRoleClient } from "@/lib/admin";
+import { resolveStaffLogin } from "@/lib/staff-login";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -51,6 +53,32 @@ export async function POST() {
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Fix (auditoría 2026-07-31, hallazgo confirmado): este endpoint se llama
+  // en segundo plano tras CUALQUIER SIGNED_IN (ver
+  // EnsureClientRegistration.tsx), incluyendo el login de un admin/empleado
+  // en /portal -- que también establece una sesión de Supabase Auth normal.
+  // Sin este chequeo, cada login de staff creaba/vinculaba una fila en
+  // `clients`, contaminando el CRM con cuentas de equipo. Se reutiliza
+  // resolveStaffLogin() -- misma fuente de verdad que /api/cuenta/access-check
+  // -- en modo readOnly (nunca debe mutar employees.user_id desde aquí, ese
+  // efecto secundario le pertenece únicamente a /api/staff/resolve-login).
+  const serviceClient = getServiceRoleClient();
+  if (!serviceClient) {
+    // No hay forma de verificar si es staff. Este endpoint es puramente
+    // aditivo/no-crítico (ver comentario de cabecera) -- ante la duda, se
+    // prefiere NO crear la fila en `clients` (evita contaminar el CRM) en
+    // vez de fallar cerrado con un error ruidoso que el caller ya ignora.
+    console.error(
+      "ensure-registered: SUPABASE_SERVICE_ROLE_KEY missing, skipping client-row creation to avoid mis-registering possible staff account"
+    );
+    return NextResponse.json({ clientId: null, created: false, skipped: "staff_check_unavailable" }, { status: 200 });
+  }
+
+  const staffResult = await resolveStaffLogin(serviceClient, user.id, user.email, { readOnly: true });
+  if (staffResult.authorized) {
+    return NextResponse.json({ clientId: null, created: false, skipped: "staff_account" }, { status: 200 });
   }
 
   try {
