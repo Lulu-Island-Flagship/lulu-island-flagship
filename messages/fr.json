@@ -2863,7 +2863,13 @@
         "previous": "Cycle précédent (à payer)",
         "current": "Cycle en cours"
       },
-      "csvButton": "CSV",
+      "csvButton": "Traiter le cycle et télécharger le CSV",
+      "closeCycleConfirm": {
+        "title": "Traiter ce cycle de paie ?",
+        "message": "Ceci appliquera officiellement les retenues CPP, EI et WorkSafeBC pour ce cycle et les enregistrera dans le cumul annuel de chaque employé avant de générer le CSV.",
+        "notice": "Cette action ne peut pas être annulée depuis cet écran. Ne continuez que si vous souhaitez clôturer ce cycle de paie maintenant.",
+        "confirmLabel": "Traiter le cycle et télécharger"
+      },
       "loadError": "Échec du chargement",
       "networkError": "Erreur réseau",
       "empty": "Aucune entrée de paie pour ce cycle.",

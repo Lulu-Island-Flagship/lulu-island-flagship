@@ -2863,9 +2863,15 @@
         "previous": "Previous cycle (to pay)",
         "current": "Current cycle"
       },
-      "csvButton": "CSV",
+      "csvButton": "Process cycle & download CSV",
       "loadError": "Failed to load",
       "networkError": "Network error",
+      "closeCycleConfirm": {
+        "title": "Process this payroll cycle?",
+        "message": "This will officially apply the CPP, EI, and WorkSafeBC deductions for this cycle and record them in each employee's year-to-date totals before generating the CSV.",
+        "notice": "This action cannot be undone from this screen. Only proceed if you intend to close this payroll cycle now.",
+        "confirmLabel": "Process cycle & download"
+      },
       "empty": "No payroll entries for this cycle.",
       "totals": {
         "gross": "Total gross",

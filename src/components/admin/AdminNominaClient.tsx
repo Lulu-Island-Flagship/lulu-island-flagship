@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Wallet, Download } from "lucide-react";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 interface PayrollLine {
   employeeId: string;
@@ -42,6 +43,13 @@ export default function AdminNominaClient() {
   const [which, setWhich] = useState<"previous" | "current">("previous");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Fix (auditoría externa 2026-07-31): el botón decía solo "CSV" pero en
+  // realidad dispara un POST que APLICA de forma real las deducciones del
+  // ciclo (CPP/EI/WorkSafeBC) en payroll_cycle_deductions/payroll_ytd --
+  // un admin podía cerrar un ciclo de nómina real creyendo que solo
+  // descargaba un archivo. Se agrega un paso de confirmación explícito
+  // antes del POST, y el label del botón deja de decir solo "CSV".
+  const [showCloseCycleConfirm, setShowCloseCycleConfirm] = useState(false);
 
   useEffect(() => {
     load();
@@ -134,7 +142,7 @@ export default function AdminNominaClient() {
             <option value="current">{t("cycleOptions.current")}</option>
           </select>
           <button
-            onClick={downloadCsv}
+            onClick={() => setShowCloseCycleConfirm(true)}
             className="inline-flex items-center gap-1.5 bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium"
           >
             <Download className="w-4 h-4" /> {t("csvButton")}
@@ -143,6 +151,21 @@ export default function AdminNominaClient() {
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{error}</div>}
+
+      {showCloseCycleConfirm && (
+        <ConfirmActionModal
+          title={t("closeCycleConfirm.title")}
+          message={t("closeCycleConfirm.message")}
+          noticeText={t("closeCycleConfirm.notice")}
+          confirmLabel={t("closeCycleConfirm.confirmLabel")}
+          danger
+          onCancel={() => setShowCloseCycleConfirm(false)}
+          onConfirm={async () => {
+            await downloadCsv();
+            setShowCloseCycleConfirm(false);
+          }}
+        />
+      )}
 
       {lines.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center text-sm text-gray-500">

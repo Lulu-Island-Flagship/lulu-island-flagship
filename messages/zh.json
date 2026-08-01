@@ -2863,7 +2863,13 @@
         "previous": "上一周期（待支付）",
         "current": "本周期"
       },
-      "csvButton": "CSV",
+      "csvButton": "处理周期并下载CSV",
+      "closeCycleConfirm": {
+        "title": "确定要处理此薪资周期吗？",
+        "message": "此操作将正式应用本周期的CPP、EI和WorkSafeBC扣款，并记录到每位员工的年度累计中，然后生成CSV。",
+        "notice": "此操作在此屏幕上无法撤销。仅在您确实要立即结束此薪资周期时才继续。",
+        "confirmLabel": "处理周期并下载"
+      },
       "loadError": "加载失败",
       "networkError": "网络错误",
       "empty": "此周期暂无工资记录。",
