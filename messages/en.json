@@ -1258,6 +1258,10 @@
     },
     "dashboard": {
       "title": "Admin Dashboard",
+      "searchPlaceholder": "Search dashboard cards...",
+      "searchAriaLabel": "Search dashboard cards",
+      "searchNoResults": "No cards match your search.",
+      "otherGroup": "Other",
       "cards": {
         "alertInbox": {
           "title": "Alert Inbox",

@@ -1,9 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { Search } from "lucide-react";
+import { buildGroups } from "./AdminNav";
 import {
   ClipboardList,
   Users,
@@ -61,6 +63,7 @@ import { roleAllows, type AdminRole, type AdminResource } from "@/lib/admin-rbac
 // por tarjeta más abajo para las que no están en AdminNav.tsx).
 export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) {
   const t = useTranslations("admin.dashboard");
+  const tNav = useTranslations("admin.nav");
   // Item 8 (auditoría 2026-07-25): antes se leía el locale con
   // window.location.pathname.split("/")[1], lo que rendería distinto en
   // servidor (SSR, "en" fijo) vs cliente (locale real) -- riesgo de
@@ -482,6 +485,49 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
 
   const visibleCards = cards.filter((card) => roleAllows(roles, card.resource));
 
+  // Fix (auditoría externa 2026-07-31, item 10): ~45 tarjetas sin buscador
+  // ni agrupación visual eran difíciles de escanear. En vez de inventar
+  // categorías nuevas, se reusan los grupos que YA existen en
+  // AdminNav.tsx (buildGroups) -- son la misma taxonomía que el propio
+  // dueño definió para el menú de navegación. Las tarjetas cuyo href no
+  // tiene un link equivalente en el nav (la mayoría de las ~30 "No está en
+  // AdminNav.tsx" de arriba) caen en un grupo "Otros" al final.
+  const [search, setSearch] = useState("");
+  const navGroups = buildGroups(`/${safeLocale}/admin`, tNav);
+  const hrefToGroupLabel = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const group of navGroups) {
+      for (const link of group.links) {
+        map.set(link.href, group.label);
+      }
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [safeLocale]);
+
+  const query = search.trim().toLowerCase();
+  const filteredCards = query
+    ? visibleCards.filter(
+        (card) =>
+          card.title.toLowerCase().includes(query) || card.description.toLowerCase().includes(query)
+      )
+    : visibleCards;
+
+  const otherGroupLabel = t("otherGroup");
+  const groupedCards = new Map<string, typeof filteredCards>();
+  for (const card of filteredCards) {
+    const groupLabel = hrefToGroupLabel.get(card.href) || otherGroupLabel;
+    const existing = groupedCards.get(groupLabel) || [];
+    existing.push(card);
+    groupedCards.set(groupLabel, existing);
+  }
+  // Orden estable: primero los grupos en el mismo orden que AdminNav.tsx,
+  // "Otros" al final.
+  const orderedGroupLabels = [
+    ...navGroups.map((g) => g.label).filter((label) => groupedCards.has(label)),
+    ...(groupedCards.has(otherGroupLabel) ? [otherGroupLabel] : []),
+  ];
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
@@ -490,27 +536,57 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
 
       {roleAllows(roles, "finance") && <DashboardMetricsPanel />}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {visibleCards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <Link
-              key={card.title}
-              href={card.href}
-              className="bg-white rounded-xl border p-5 text-left hover:shadow-md transition-shadow group block"
-            >
-              <div className="flex items-start justify-between">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${card.color}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-brand-navy transition-colors" />
-              </div>
-              <h2 className="mt-3 font-semibold text-brand-ink">{card.title}</h2>
-              <p className="mt-1 text-sm text-gray-500">{card.description}</p>
-            </Link>
-          );
-        })}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("searchPlaceholder")}
+          aria-label={t("searchAriaLabel")}
+          className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none text-sm"
+        />
       </div>
+
+      {filteredCards.length === 0 ? (
+        <p className="text-sm text-gray-500">{t("searchNoResults")}</p>
+      ) : (
+        <div className="space-y-6">
+          {orderedGroupLabels.map((groupLabel) => {
+            const groupCards = groupedCards.get(groupLabel) || [];
+            return (
+              <details key={groupLabel} open className="group/section">
+                <summary className="cursor-pointer select-none text-sm font-semibold text-brand-ink mb-3 flex items-center gap-2">
+                  <ChevronRight className="w-4 h-4 text-gray-400 transition-transform group-open/section:rotate-90" aria-hidden="true" />
+                  {groupLabel}
+                  <span className="text-xs font-normal text-gray-400">({groupCards.length})</span>
+                </summary>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {groupCards.map((card) => {
+                    const Icon = card.icon;
+                    return (
+                      <Link
+                        key={card.title}
+                        href={card.href}
+                        className="bg-white rounded-xl border p-5 text-left hover:shadow-md transition-shadow group block"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${card.color}`}>
+                            <Icon className="w-5 h-5" />
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-brand-navy transition-colors" />
+                        </div>
+                        <h2 className="mt-3 font-semibold text-brand-ink">{card.title}</h2>
+                        <p className="mt-1 text-sm text-gray-500">{card.description}</p>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </details>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

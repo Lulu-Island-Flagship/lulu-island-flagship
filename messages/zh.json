@@ -1258,6 +1258,10 @@
     },
     "dashboard": {
       "title": "管理后台首页",
+      "searchPlaceholder": "搜索面板卡片...",
+      "searchAriaLabel": "搜索面板卡片",
+      "searchNoResults": "没有匹配的卡片。",
+      "otherGroup": "其他",
       "cards": {
         "alertInbox": {
           "title": "警报收件箱",
