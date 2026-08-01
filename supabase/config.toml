@@ -250,6 +250,16 @@ otp_expiry = 3600
 subject = "Your verification code"
 content_path = "./supabase/templates/magic_link.html"
 
+# Fix (auditoría en vivo 2026-08-01, ronda 2, confirmado por prueba E2E
+# real): un cliente NUEVO (primera vez que ese email llama a
+# signInWithOtp()) recibe la plantilla "Confirm signup" de Supabase, NO la
+# de "Magic Link" de arriba -- son plantillas distintas. El correo real
+# recibido tenía subject "Confirm your email address" y type=signup. Mismo
+# fix: {{ .Token }} en vez del link por defecto.
+[auth.email.template.confirmation]
+subject = "Your verification code"
+content_path = "./supabase/templates/confirmation.html"
+
 # Use a production-ready SMTP server
 # [auth.email.smtp]
 # enabled = true
