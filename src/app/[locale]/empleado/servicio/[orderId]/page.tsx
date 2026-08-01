@@ -197,14 +197,14 @@ export default function ServicioPage() {
     }
   }
 
-  async function loadService() {
-    setLoading(true);
+  async function loadService(opts: { background?: boolean } = {}) {
+    if (!opts.background) setLoading(true);
     try {
       // Usar endpoint directo para evitar cargar todos los servicios
       const res = await fetch(`/api/empleado/servicio/${orderId}`, { credentials: "include" });
       if (!res.ok) {
         if (res.status === 401) router.push(empleadoPath);
-        setLoading(false);
+        if (!opts.background) setLoading(false);
         return;
       }
       const data = await res.json();
@@ -215,9 +215,26 @@ export default function ServicioPage() {
     } catch (e) {
       console.error("Load service error:", e);
     } finally {
-      setLoading(false);
+      if (!opts.background) setLoading(false);
     }
   }
+
+  // Fix (auditoría 2026-07-31, #15): loadService solo corría al montar --
+  // si un compañero de equipo cerraba la orden (T_out, checklist, etc.)
+  // mientras este empleado seguía en la pantalla, no había forma de
+  // enterarse sin salir y volver a entrar manualmente. Polling simple cada
+  // 20s en segundo plano (sin activar el loading/skeleton de pantalla
+  // completa) -- no se usa Supabase realtime porque no se encontró ese
+  // patrón ya en uso en ninguna otra pantalla de /empleado (se prefiere
+  // reutilizar un patrón existente antes que introducir uno nuevo).
+  useEffect(() => {
+    if (!orderId) return;
+    const interval = setInterval(() => {
+      void loadService({ background: true });
+    }, 20000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId]);
 
   async function loadLogs() {
     if (!orderId) return;
