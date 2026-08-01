@@ -109,6 +109,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "name es requerido" }, { status: 400 });
     }
 
+    // Fix (auditoría externa 2026-07-31, item 15): el cliente ya clampa a
+    // Math.max(0, ...), pero eso no protege nada si alguien llama al
+    // endpoint directamente -- se valida también en el servidor.
+    if (currentStock !== undefined && (typeof currentStock !== "number" || currentStock < 0)) {
+      return NextResponse.json({ error: "currentStock no puede ser negativo" }, { status: 400 });
+    }
+    if (reorderThreshold !== undefined && (typeof reorderThreshold !== "number" || reorderThreshold < 0)) {
+      return NextResponse.json({ error: "reorderThreshold no puede ser negativo" }, { status: 400 });
+    }
+
     const { data, error } = await supabase
       .from("inventory_items")
       .insert({

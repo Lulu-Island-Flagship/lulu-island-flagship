@@ -1618,7 +1618,20 @@
       "errorCreateFailed": "创建员工失败"
     },
     "inventario": {
-      "purchaseOrderFailed": "无法生成采购订单。"
+      "purchaseOrderFailed": "无法生成采购订单。",
+      "pageTitle": "库存和供应商",
+      "pageSubtitle": "结构已就绪——请在此输入您的实际产品和供应商。",
+      "confirmGeneratePO": {
+        "title": "确定要生成采购订单吗？",
+        "message": "此操作将为以下 {count} 个当前低于补货阈值的产品生成采购订单：",
+        "confirmLabel": "生成采购订单"
+      },
+      "confirmApprovePO": {
+        "title": "确定要批准此采购订单吗？",
+        "message": "此操作将批准日期为 {date} 的采购订单，包含以下明细：",
+        "confirmLabel": "批准"
+      },
+      "stockCannotBeNegative": "当前库存不能为负数。"
     },
     "upsells": {
       "reviewError": "审核该加售项目时出现错误，请重试。",

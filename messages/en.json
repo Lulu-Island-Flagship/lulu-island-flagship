@@ -1618,7 +1618,20 @@
       "errorCreateFailed": "Failed to create employee"
     },
     "inventario": {
-      "purchaseOrderFailed": "Could not generate the purchase order."
+      "purchaseOrderFailed": "Could not generate the purchase order.",
+      "pageTitle": "Inventory and Suppliers",
+      "pageSubtitle": "Structure ready — enter your real products and suppliers here.",
+      "confirmGeneratePO": {
+        "title": "Generate purchase order?",
+        "message": "This will create a purchase order for the {count} product(s) currently below their reorder threshold:",
+        "confirmLabel": "Generate purchase order"
+      },
+      "confirmApprovePO": {
+        "title": "Approve purchase order?",
+        "message": "This will approve the purchase order dated {date} with the following line items:",
+        "confirmLabel": "Approve"
+      },
+      "stockCannotBeNegative": "Current stock can't be negative."
     },
     "upsells": {
       "reviewError": "Something went wrong while reviewing this upsell. Please try again.",

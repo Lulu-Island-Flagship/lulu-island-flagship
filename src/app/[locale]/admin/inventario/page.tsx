@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Package, Truck, Plus, Loader2, AlertTriangle, ShoppingCart, Check, Calendar, Tag } from "lucide-react";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 interface Supplier {
   id: string;
@@ -88,6 +89,14 @@ export default function InventarioPage() {
   const [reservationError, setReservationError] = useState<string | null>(null);
   const [catalogForm, setCatalogForm] = useState({ supplierId: "", inventoryItemId: "", unitPrice: "" });
   const [saving, setSaving] = useState(false);
+  // Fix (auditoría externa 2026-07-31, items 13/14/15): generatePO y
+  // approvePO no pedían confirmación antes de generar/aprobar una orden de
+  // compra real -- se agregan modales de confirmación que muestran
+  // productos/montos. El título/subtítulo del encabezado estaba hardcodeado
+  // en inglés -- ahora usa useTranslations. El stock actual del formulario
+  // de alta de producto no tenía piso en 0.
+  const [showGeneratePoConfirm, setShowGeneratePoConfirm] = useState(false);
+  const [confirmApprovePo, setConfirmApprovePo] = useState<PurchaseOrder | null>(null);
 
   useEffect(() => {
     load();
@@ -189,8 +198,9 @@ export default function InventarioPage() {
       const res = await fetch("/api/admin/purchase-orders", { method: "POST", credentials: "include" });
       const d = await res.json();
       if (!res.ok) {
-        setPoError(d.error || t("purchaseOrderFailed"));
-        return;
+        const message = d.error || t("purchaseOrderFailed");
+        setPoError(message);
+        throw new Error(message);
       }
       await load();
     } finally {
@@ -202,7 +212,11 @@ export default function InventarioPage() {
     setPoBusy(true);
     try {
       const res = await fetch(`/api/admin/purchase-orders/${id}/approve`, { method: "POST", credentials: "include" });
-      if (res.ok) await load();
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || t("purchaseOrderFailed"));
+      }
+      await load();
     } finally {
       setPoBusy(false);
     }
@@ -221,8 +235,8 @@ export default function InventarioPage() {
           name: itemForm.name,
           category: itemForm.category,
           unit: itemForm.unit,
-          currentStock: parseFloat(itemForm.currentStock) || 0,
-          reorderThreshold: parseFloat(itemForm.reorderThreshold) || 0,
+          currentStock: Math.max(0, parseFloat(itemForm.currentStock) || 0),
+          reorderThreshold: Math.max(0, parseFloat(itemForm.reorderThreshold) || 0),
         }),
       });
       if (res.ok) {
@@ -263,9 +277,9 @@ export default function InventarioPage() {
   return (
     <main className="min-h-screen bg-brand-ice">
       <div className="max-w-2xl mx-auto px-4 py-8">
-        <h1 className="text-xl font-bold text-brand-ink mb-1">Inventory and Suppliers</h1>
+        <h1 className="text-xl font-bold text-brand-ink mb-1">{t("pageTitle")}</h1>
         <p className="text-sm text-gray-600 mb-6">
-          Structure ready — enter your real products and suppliers here.
+          {t("pageSubtitle")}
         </p>
 
         <div className="flex gap-2 mb-4">
@@ -302,7 +316,7 @@ export default function InventarioPage() {
                 <AlertTriangle className="w-4 h-4" /> {suggestions.length} product(s) below threshold
               </div>
               <button
-                onClick={generatePO}
+                onClick={() => setShowGeneratePoConfirm(true)}
                 disabled={poBusy}
                 className="flex items-center gap-1 bg-brand-navy text-white px-2.5 py-1 rounded-lg text-xs font-medium disabled:opacity-50"
               >
@@ -331,7 +345,7 @@ export default function InventarioPage() {
                 </div>
                 {po.status === "pending_approval" && (
                   <button
-                    onClick={() => approvePO(po.id)}
+                    onClick={() => setConfirmApprovePo(po)}
                     disabled={poBusy}
                     className="flex items-center gap-1 bg-state-success text-white px-2.5 py-1 rounded-lg text-xs font-medium disabled:opacity-50 flex-shrink-0"
                   >
@@ -370,12 +384,12 @@ export default function InventarioPage() {
                   className="text-sm border rounded-lg px-3 py-2"
                 />
                 <input
-                  type="number" aria-label="Stock actual" placeholder="Current stock" value={itemForm.currentStock}
+                  type="number" min="0" aria-label="Stock actual" placeholder="Current stock" value={itemForm.currentStock}
                   onChange={(e) => setItemForm({ ...itemForm, currentStock: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />
                 <input
-                  type="number" aria-label="Umbral de reorden" placeholder="Reorder threshold" value={itemForm.reorderThreshold}
+                  type="number" min="0" aria-label="Umbral de reorden" placeholder="Reorder threshold" value={itemForm.reorderThreshold}
                   onChange={(e) => setItemForm({ ...itemForm, reorderThreshold: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />
@@ -538,6 +552,57 @@ export default function InventarioPage() {
           </>
         )}
       </div>
+
+      {showGeneratePoConfirm && (
+        <ConfirmActionModal
+          title={t("confirmGeneratePO.title")}
+          message={
+            <span>
+              {t("confirmGeneratePO.message", { count: suggestions.length })}
+              <span className="block mt-2 space-y-0.5">
+                {suggestions.map((s) => (
+                  <span key={s.itemId} className="block text-xs font-mono">
+                    {s.itemName}: {s.currentStock} / {s.reorderThreshold} (deficit {s.deficit})
+                  </span>
+                ))}
+              </span>
+            </span>
+          }
+          confirmLabel={t("confirmGeneratePO.confirmLabel")}
+          onCancel={() => setShowGeneratePoConfirm(false)}
+          onConfirm={async () => {
+            await generatePO();
+            setShowGeneratePoConfirm(false);
+          }}
+        />
+      )}
+
+      {confirmApprovePo && (
+        <ConfirmActionModal
+          title={t("confirmApprovePO.title")}
+          message={
+            <span>
+              {t("confirmApprovePO.message", { date: new Date(confirmApprovePo.created_at).toLocaleDateString("en-CA") })}
+              <span className="block mt-2 space-y-0.5">
+                {confirmApprovePo.purchase_order_lines.map((line) => {
+                  const item = items.find((i) => i.id === line.inventory_item_id);
+                  return (
+                    <span key={line.id} className="block text-xs font-mono">
+                      {item?.name || line.inventory_item_id}: {line.quantity} {item?.unit || ""}
+                    </span>
+                  );
+                })}
+              </span>
+            </span>
+          }
+          confirmLabel={t("confirmApprovePO.confirmLabel")}
+          onCancel={() => setConfirmApprovePo(null)}
+          onConfirm={async () => {
+            await approvePO(confirmApprovePo.id);
+            setConfirmApprovePo(null);
+          }}
+        />
+      )}
     </main>
   );
 }

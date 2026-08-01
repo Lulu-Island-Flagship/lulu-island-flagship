@@ -1618,7 +1618,20 @@
       "errorCreateFailed": "Échec de la création de l'employé"
     },
     "inventario": {
-      "purchaseOrderFailed": "Impossible de générer le bon de commande."
+      "purchaseOrderFailed": "Impossible de générer le bon de commande.",
+      "pageTitle": "Inventaire et fournisseurs",
+      "pageSubtitle": "Structure prête — entrez ici vos produits et fournisseurs réels.",
+      "confirmGeneratePO": {
+        "title": "Générer un bon de commande ?",
+        "message": "Ceci créera un bon de commande pour les {count} produit(s) actuellement sous leur seuil de réapprovisionnement :",
+        "confirmLabel": "Générer le bon de commande"
+      },
+      "confirmApprovePO": {
+        "title": "Approuver le bon de commande ?",
+        "message": "Ceci approuvera le bon de commande daté du {date} avec les lignes suivantes :",
+        "confirmLabel": "Approuver"
+      },
+      "stockCannotBeNegative": "Le stock actuel ne peut pas être négatif."
     },
     "upsells": {
       "reviewError": "Une erreur s'est produite lors de la révision de cette vente additionnelle. Veuillez réessayer.",
