@@ -51,8 +51,20 @@ export interface AssignmentResult {
 }
 
 /**
- * Valida que la configuración de variantes respete "variante <20% del control".
- * Asume que la primera variante de la lista es el control.
+ * Valida que la configuración de variantes respete "variante <20% del control"
+ * (regla ética dura del spec, docs/vigente/v8.3_PLAN_DE_CONSTRUCCION.md línea
+ * 662 y docs/historico/v8.2_CONSOLIDADO_COMPLETO.md líneas 506/1879: "variante
+ * <20% del control", ej. la división de referencia 80/10/10 -- 0.1 es ~12.5%
+ * de 0.8, bien por debajo de 20%). Asume que la primera variante de la lista
+ * es el control.
+ *
+ * Fix (auditoría 2026-07-31, item 6): la validación anterior solo rechazaba
+ * una variante si `v.weight >= control.weight` (ej. control=0.5, variant_a=
+ * 0.49 pasaba la validación, aunque 0.49 es ~98% del control, muy por encima
+ * del 20% que exige el spec). El propio mensaje de error ya decía "Máximo
+ * permitido: variante < 20%..." pero el código nunca comprobaba ese 20% --
+ * ahora sí: cada variante debe ser < 20% del peso del control, no solo menor
+ * que el control.
  */
 export function validateVariantWeights(variants: VariantConfig[]): { valid: boolean; reason?: string } {
   if (variants.length < 2) {
@@ -63,11 +75,12 @@ export function validateVariantWeights(variants: VariantConfig[]): { valid: bool
   if (Math.abs(totalWeight - 1) > 0.001) {
     return { valid: false, reason: `Los pesos deben sumar 1.0 (suman ${totalWeight}).` };
   }
+  const maxVariantWeight = control.weight * 0.2;
   for (const v of variants.slice(1)) {
-    if (v.weight >= control.weight) {
+    if (v.weight >= maxVariantWeight) {
       return {
         valid: false,
-        reason: `Variante '${v.name}' (${v.weight}) no puede ser >= al control '${control.name}' (${control.weight}). Máximo permitido: variante < 20% de tráfico total, control siempre mayoría.`,
+        reason: `Variante '${v.name}' (${v.weight}) debe ser < 20% del control '${control.name}' (${control.weight}), es decir < ${maxVariantWeight.toFixed(4)}. Regla ética dura del spec: el control siempre debe ser la mayoría abrumadora del tráfico.`,
       };
     }
   }

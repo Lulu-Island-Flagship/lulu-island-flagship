@@ -40,9 +40,14 @@ describe("validateVariantWeights", () => {
 });
 
 describe("assignVariant", () => {
+  // Fix (auditoría 2026-07-31, item 6): 0.8/0.2 ya no es una config válida
+  // tras el fix de validateVariantWeights (variante debe ser <20% DEL
+  // CONTROL, no <20% del total ni simplemente < control) -- 0.2 es 25% de
+  // 0.8. Se usa 0.9/0.1 (0.1 es ~11% de 0.9) para seguir probando
+  // asignación real en vez de exclusión por config inválida.
   const variants = [
-    { name: "control", weight: 0.8 },
-    { name: "b", weight: 0.2 },
+    { name: "control", weight: 0.9 },
+    { name: "b", weight: 0.1 },
   ];
 
   it("cliente recurrente SIEMPRE queda excluido, sin excepcion", () => {
@@ -99,9 +104,11 @@ describe("isProtectedRecurringClient", () => {
 });
 
 describe("assignVariant + isProtectedRecurringClient integrados", () => {
+  // Ver comentario en describe("assignVariant") más arriba: 0.9/0.1 en vez
+  // de 0.8/0.2 para seguir siendo una config válida tras el fix del item 6.
   const variants = [
-    { name: "control", weight: 0.8 },
-    { name: "b", weight: 0.2 },
+    { name: "control", weight: 0.9 },
+    { name: "b", weight: 0.1 },
   ];
 
   it("cliente VIP sin contrato activo queda excluido del experimento (no solo isRecurring por contrato)", () => {
