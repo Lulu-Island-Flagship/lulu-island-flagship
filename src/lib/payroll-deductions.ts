@@ -17,7 +17,21 @@
  * pieza, que se deja explícitamente en cero/fuera de alcance.
  */
 
-export const PAY_PERIODS_PER_YEAR = 26; // quincenal (invariante B.1)
+/**
+ * v8.3 fix auditoría E9 (fiscal): el ciclo de nómina real (ver
+ * payroll-cycle.ts, invariante B.1) es SEMI-MENSUAL (día 1-15 / día 16-fin
+ * de mes), NO quincenal cada 14 días. Un ciclo semi-mensual tiene SIEMPRE
+ * exactamente 24 períodos por año calendario -- a diferencia de un ciclo
+ * quincenal real (cada 14 días desde una fecha ancla), que sí varía entre
+ * 26 y 27 períodos según el año. Como este sistema nunca usa el ciclo de
+ * 14 días, ese caso de 26/27 no aplica aquí; el valor correcto y estable
+ * es 24, no 26. Antes de este fix, usar 26 subestimaba la exención básica
+ * de CPP prorrateada por período (3500/26=$134.62 vs 3500/24=$145.83),
+ * causando una retención de CPP ligeramente MAYOR a la que exige CRA en
+ * cada período (sobre-retención, no sub-retención -- pero igual es un
+ * error de cálculo que debe corregirse).
+ */
+export const PAY_PERIODS_PER_YEAR = 24; // semi-mensual (invariante B.1), NUNCA 26/27
 
 // ---- CPP 2026 (CRA) ----
 export const CPP_RATE_2026 = 0.0595;
