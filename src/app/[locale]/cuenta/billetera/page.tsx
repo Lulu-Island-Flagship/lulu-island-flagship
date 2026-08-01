@@ -6,7 +6,7 @@ import { Loader2, Wallet, Gift } from "lucide-react";
 import { StatusBanner } from "@/components/cuenta/StatusBanner";
 import { supabase } from "@/lib/supabase";
 import { AuthModal } from "@/components/cotizador/AuthModal";
-import { toIntlLocale } from "@/lib/format";
+import { toIntlLocale, formatCurrency } from "@/lib/format";
 import { formatServiceDateDisplay } from "@/lib/date-utils";
 
 interface WalletTransaction {
@@ -57,11 +57,14 @@ function creditToApply(order: UnpaidOrder, availableBalanceCents: number): numbe
 // para no introducir un patrón nuevo. La MONEDA sigue siendo CAD siempre
 // (single-currency business, ver B.2.11) -- solo cambia el locale de
 // formato usado por Intl.NumberFormat.
-const CURRENCY_LOCALE: Record<string, string> = { en: "en-CA", fr: "fr-CA", zh: "zh-CN" };
-
+// Fix (auditoría 2026-07-31, hallazgo #7): este mapa local usaba "zh-CN"
+// (locale de China continental, región distinta de donde opera el negocio)
+// en vez de reusar toIntlLocale/formatCurrency de src/lib/format.ts, que ya
+// usan "zh-Hans-CA" (fix auditoría 2026-07-31, item 17 -- ver format.ts) y
+// ya estaban importados en este mismo archivo para fechas. Se elimina el
+// mapa duplicado y se delega en formatCurrency (recibe dólares, no centavos).
 function formatDollars(cents: number, locale: string): string {
-  const intlLocale = CURRENCY_LOCALE[locale] || "en-CA";
-  return new Intl.NumberFormat(intlLocale, { style: "currency", currency: "CAD" }).format(cents / 100);
+  return formatCurrency(cents / 100, locale);
 }
 
 // orders.status CHECK constraint (migración 001_modulo1_base_schema.sql):
