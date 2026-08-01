@@ -11,6 +11,7 @@ import {
   XCircle,
   ThumbsUp,
   ThumbsDown,
+  RotateCcw,
   User,
   Calendar,
   Camera,
@@ -44,7 +45,7 @@ export default function AdminQCClient() {
   const [statusFilter, setStatusFilter] = useState("pending");
   const [selectedReview, setSelectedReview] = useState<QCReview | null>(null);
   const [reviewNote, setReviewNote] = useState("");
-  const [reviewStatus, setReviewStatus] = useState<"approved" | "rejected">("approved");
+  const [reviewStatus, setReviewStatus] = useState<"approved" | "rejected" | "rework">("approved");
   const [submitting, setSubmitting] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const lightboxRef = useRef<HTMLDivElement>(null);
@@ -400,7 +401,28 @@ export default function AdminQCClient() {
                 <ThumbsDown className="w-4 h-4" />
                 {t("modal.rejectButton")}
               </button>
+              {/* Fix (auditoría externa 2026-07-31, item 16): el backend
+                  (POST /api/admin/qc/[orderId]/review) ya soporta status
+                  "rework" desde v8.3 E5 -- con protección de piso salarial
+                  BC y ventana de rework por empleado -- pero la UI de admin
+                  nunca exponía un botón para elegirlo, solo aprobar/rechazar. */}
+              <button
+                onClick={() => setReviewStatus("rework")}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                  reviewStatus === "rework"
+                    ? "bg-amber-100 text-amber-700 border-2 border-amber-300"
+                    : "bg-gray-100 text-gray-600 border-2 border-transparent"
+                }`}
+              >
+                <RotateCcw className="w-4 h-4" />
+                {t("modal.reworkButton")}
+              </button>
             </div>
+            {reviewStatus === "rework" && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                {t("modal.reworkNotice")}
+              </p>
+            )}
 
             <textarea
               aria-label={t("modal.noteAriaLabel")}

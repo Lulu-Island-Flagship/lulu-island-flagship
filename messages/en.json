@@ -3272,6 +3272,8 @@
         "noPhotosForService": "No photo evidence uploaded for this service.",
         "approveButton": "Approve",
         "rejectButton": "Reject",
+        "reworkButton": "Require rework",
+        "reworkNotice": "The employee gets a limited rework window (protected against dropping below BC minimum wage) to fix and resubmit before this expires automatically.",
         "noteAriaLabel": "Quality control review note",
         "notePlaceholder": "Review note (required)...",
         "submitButton": "Submit Review"

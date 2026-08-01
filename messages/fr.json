@@ -3272,6 +3272,8 @@
         "noPhotosForService": "Aucune photo justificative téléversée pour ce service.",
         "approveButton": "Approuver",
         "rejectButton": "Rejeter",
+        "reworkButton": "Exiger une reprise",
+        "reworkNotice": "L'employé dispose d'une fenêtre limitée de reprise (protégée contre un taux horaire sous le salaire minimum de la C.-B.) pour corriger et soumettre à nouveau avant l'expiration automatique.",
         "noteAriaLabel": "Note d'évaluation du contrôle qualité",
         "notePlaceholder": "Note d'évaluation (obligatoire)...",
         "submitButton": "Soumettre l'évaluation"

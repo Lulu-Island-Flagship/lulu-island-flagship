@@ -3272,6 +3272,8 @@
         "noPhotosForService": "此服务未上传照片证据。",
         "approveButton": "批准",
         "rejectButton": "拒绝",
+        "reworkButton": "要求返工",
+        "reworkNotice": "员工将获得有限的返工时间窗口（已针对不低于BC省最低工资进行保护），需要在自动过期前完成修正并重新提交。",
         "noteAriaLabel": "质量控制审核备注",
         "notePlaceholder": "审核备注（必填）...",
         "submitButton": "提交审核"
