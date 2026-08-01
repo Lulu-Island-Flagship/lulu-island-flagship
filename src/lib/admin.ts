@@ -181,8 +181,22 @@ export async function requireAdminRole(
     });
     if (logError) {
       console.error("admin_action_logs insert failed:", logError);
+      // Fix (auditoría externa 2026-07-31, item 18): investigado el flujo
+      // completo -- este insert de auditoría ocurre ANTES de cualquier
+      // mutación real, y cuando falla se devuelve supabase: null. Todos los
+      // route handlers que usan requireAdminRole() siguen el mismo patrón
+      // (`if (auth.error) return NextResponse.json(...)` ANTES de tocar
+      // datos), así que la mutación real nunca llega a ejecutarse -- no hay
+      // riesgo de aplicación parcial. El problema real que señala la
+      // auditoría es que el mensaje era genérico y no traía un código que
+      // el frontend pudiera usar para distinguir "esto es un fallo de
+      // infraestructura de auditoría, tu cambio NO se aplicó" de cualquier
+      // otro 500. Se agrega `code: "AUDIT_LOG_FAILURE"` (los handlers que no
+      // lo leen simplemente lo ignoran, no rompe nada existente) y se
+      // aclara el mensaje.
       return {
-        error: "Audit log failed - action blocked for security",
+        error: "Audit log failed - no change was applied. Please retry; if this persists, contact an administrator.",
+        code: "AUDIT_LOG_FAILURE" as const,
         status: 500 as const,
         supabase: null,
         user: null,
