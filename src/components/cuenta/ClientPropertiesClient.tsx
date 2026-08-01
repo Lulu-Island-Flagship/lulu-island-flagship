@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import Link from "next/link";
+import { useTranslations, useLocale } from "next-intl";
 import {
   Loader2,
   Home,
@@ -41,6 +42,7 @@ const emptyForm: PropertyFormData = {
 export default function ClientPropertiesClient() {
   const t = useTranslations("cuenta.propiedades");
   const tCommon = useTranslations("cuenta.common");
+  const locale = useLocale();
   const [properties, setProperties] = useState<ClientProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -229,9 +231,14 @@ export default function ClientPropertiesClient() {
       <div className="text-center">
         <h1 className="text-3xl font-bold text-brand-ink mb-2">{t("title")}</h1>
         <p className="text-gray-600">{t("subtitle")}</p>
-        <a href="../servicios" className="inline-block mt-2 text-xs text-brand-wave-blue hover:text-brand-navy underline">
+        {/* Fix (auditoría 2026-07-31, hallazgo #10): <a href="../servicios">
+            era navegación relativa con recarga completa de página (pierde
+            estado de React, vuelve a descargar todo el JS) -- se usa
+            next/link con la misma ruta absoluta con locale que el resto de
+            "Mi Cuenta" (ver MisServiciosClient.tsx). */}
+        <Link href={`/${locale}/cuenta/servicios`} className="inline-block mt-2 text-xs text-brand-wave-blue hover:text-brand-navy underline">
           {t("viewServiceHistory")}
-        </a>
+        </Link>
       </div>
 
       <StatusBanner
