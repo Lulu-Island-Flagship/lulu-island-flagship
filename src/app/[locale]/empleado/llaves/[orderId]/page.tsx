@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Key, Loader2, ChevronLeft, AlertTriangle, Check, Eye, EyeOff } from "lucide-react";
+import { Key, Loader2, ChevronLeft, AlertTriangle, Check, Eye, EyeOff, Camera } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 type KeyMethod = "in_person" | "lockbox" | "third_party" | "problem";
 
@@ -48,6 +49,18 @@ export default function LlavesPage() {
   const [showLockboxCode, setShowLockboxCode] = useState(false);
   const [confirmedReturned, setConfirmedReturned] = useState(false);
   const [error, setError] = useState("");
+  // Fix (auditoría 2026-07-31, #13): el método "Tercero" (third_party) no
+  // capturaba ninguna evidencia -- pero el servidor (validateKeyLog en
+  // src/lib/key-handling.ts, vía requirementsForMethod) SIEMPRE exige
+  // signatureUrl para este método. Sin esta captura, cualquier submit con
+  // method="third_party" fallaba en el servidor con "Faltan campos
+  // requeridos: signatureUrl", dejando este método totalmente inutilizable.
+  // Se reutiliza el mismo patrón de "foto como evidencia firmada" que ya
+  // usa ClosureProtocolPanel.tsx para el recibo de pago alternativo (sube a
+  // Storage, bucket service-photos).
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+  const [uploadingSignature, setUploadingSignature] = useState(false);
+  const [signatureError, setSignatureError] = useState("");
 
   useEffect(() => {
     if (orderId) load();
@@ -66,6 +79,30 @@ export default function LlavesPage() {
     }
   }
 
+  async function handleSignaturePhoto(file: File) {
+    setUploadingSignature(true);
+    setSignatureError("");
+    try {
+      const fileExt = file.name.split(".").pop() || "jpg";
+      const fileName = `${orderId}/key-handoff-signature/${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from("service-photos")
+        .upload(fileName, file, { contentType: file.type });
+      if (uploadError) {
+        console.error("Signature upload error:", uploadError);
+        setSignatureError("No se pudo subir la evidencia. Intenta de nuevo.");
+        return;
+      }
+      const { data: publicUrlData } = supabase.storage.from("service-photos").getPublicUrl(fileName);
+      setSignatureUrl(publicUrlData.publicUrl);
+    } catch (e) {
+      console.error("Signature photo error:", e);
+      setSignatureError("Error de conexión al subir la evidencia. Intenta de nuevo.");
+    } finally {
+      setUploadingSignature(false);
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
@@ -80,6 +117,7 @@ export default function LlavesPage() {
           method,
           lockboxCode: method === "lockbox" ? lockboxCode : undefined,
           confirmedReturned: method === "in_person" ? confirmedReturned : undefined,
+          signatureUrl: method === "third_party" ? signatureUrl : undefined,
         }),
       });
       const d = await res.json();
@@ -89,11 +127,14 @@ export default function LlavesPage() {
       }
       setLockboxCode("");
       setConfirmedReturned(false);
+      setSignatureUrl(null);
       await load();
     } finally {
       setSubmitting(false);
     }
   }
+
+  const canSubmitThirdParty = method !== "third_party" || !!signatureUrl;
 
   const pendingProblem = logs.find((l) => l.method === "problem" && l.escalation_resolved_as === "pending");
 
@@ -177,6 +218,42 @@ export default function LlavesPage() {
                 </label>
               )}
 
+              {method === "third_party" && (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-500">
+                    Requiere evidencia: foto de la nota/recibo firmado por el tercero que entregó o recibió las
+                    llaves.
+                  </p>
+                  {signatureUrl ? (
+                    <div className="flex items-center gap-2 text-xs text-state-success">
+                      <Check className="w-4 h-4" /> Evidencia subida
+                    </div>
+                  ) : (
+                    <label className="flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-lg px-3 py-3 text-sm text-gray-500 cursor-pointer">
+                      {uploadingSignature ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Camera className="w-4 h-4" />
+                      )}
+                      {uploadingSignature ? "Subiendo..." : "Tomar/adjuntar foto de la evidencia firmada"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        disabled={uploadingSignature}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) void handleSignaturePhoto(file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
+                  {signatureError && <p className="text-xs text-red-600">{signatureError}</p>}
+                </div>
+              )}
+
               {method === "problem" && (
                 <p className="text-xs text-gray-500">
                   Esto notifica al admin de inmediato. Si no hay respuesta en 15 min, se escala automáticamente.
@@ -187,7 +264,7 @@ export default function LlavesPage() {
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || !canSubmitThirdParty}
                 className="w-full flex items-center justify-center gap-2 bg-brand-navy text-white px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
               >
                 <Check className="w-4 h-4" /> Registrar
