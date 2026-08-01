@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
           id: paymentIntent.id,
           amountReceivedCents: paymentIntent.amount_received ?? paymentIntent.amount ?? 0,
           orderId: paymentIntent.metadata?.order_id,
+          chargeType: paymentIntent.metadata?.charge_type,
         });
         if (result.updated) {
           console.log(`[stripe/webhook] Reconciled capture for order ${result.orderId}: ${result.reason}`);

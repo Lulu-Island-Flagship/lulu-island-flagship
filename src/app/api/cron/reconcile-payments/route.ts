@@ -117,6 +117,7 @@ export async function GET(request: NextRequest) {
             id: pi.id,
             amountReceivedCents: pi.amount_received ?? pi.amount ?? 0,
             orderId: pi.metadata?.order_id ?? order.id,
+            chargeType: pi.metadata?.charge_type,
           });
           if (reconciled.updated) {
             results.reconciled++;

@@ -33,7 +33,47 @@ export interface ReconcilablePaymentIntent {
   amountReceivedCents: number;
   /** metadata.order_id del PaymentIntent -- todas las creaciones de PI de este proyecto la setean. */
   orderId: string | null | undefined;
+  /**
+   * metadata.charge_type del PaymentIntent, si existe. Ver fix (auditoría
+   * externa, verificado 2026-07-31) más abajo en BALANCE_CAPTURE_CHARGE_TYPES
+   * -- necesario para que Caso 2 no confunda un PI que NO es un cobro de
+   * saldo estándar (ej. installment_second_payment, force_full_capture,
+   * penalizaciones) con uno que sí lo es.
+   */
+  chargeType?: string | null;
 }
+
+// Fix (auditoría externa, verificado 2026-07-31, hallazgo real y de mayor
+// alcance de lo reportado): Caso 2 (más abajo) trataba CUALQUIER PaymentIntent
+// exitoso que no fuera el hold como "cobro de saldo", sumándolo a
+// total_paid_cents/card_amount_charged_cents y marcando capture_captured_at.
+// Pero solo DOS rutas (cron/batch-capture y cron/batch-capture-retry, charge_type
+// "balance"/"paypal_balance"/"balance_retry_10pm"/"paypal_balance_retry_10pm")
+// escriben esos DOS campos de forma síncrona -- son las únicas para las que
+// esta reconciliación es un respaldo legítimo de "se perdió la respuesta
+// pero el cobro sí ocurrió".
+//
+// Todas las demás rutas que crean un PaymentIntent con metadata.order_id
+// (force-full-capture, capture-remainder, installment-second-capture,
+// no-show penalty, cancel penalty) tienen SUS PROPIOS campos dedicados
+// (installment_second_captured_at, capture_force_full_at, etc.) y NUNCA
+// tocan capture_captured_at. Como ese campo se queda permanentemente NULL
+// para esas órdenes, Caso 2 se ejecutaba SIEMPRE que el webhook
+// payment_intent.succeeded llegara para uno de esos PIs -- no solo en el
+// caso raro de "se perdió la respuesta", sino en el camino feliz normal --
+// duplicando el monto ya sumado por la escritura síncrona de la ruta
+// original. Esto es un doble conteo contable real y rutinario, no un
+// edge case.
+//
+// Se restringe Caso 2 a la allowlist real de charge_types que SÍ
+// pertenecen a la familia "balance capture" tal como la escriben
+// batch-capture/batch-capture-retry.
+const BALANCE_CAPTURE_CHARGE_TYPES = new Set([
+  "balance",
+  "paypal_balance",
+  "balance_retry_10pm",
+  "paypal_balance_retry_10pm",
+]);
 
 export interface ReconcileResult {
   /** true si esta llamada efectivamente escribió algo en `orders`. */
@@ -146,11 +186,30 @@ export async function reconcileCapturedPaymentIntent(
     return { updated: true, orderId: order.id, reason: "hold_captured_at reconciliado" };
   }
 
-  // Caso 2: el PI que tuvo éxito es el cobro de saldo/excedente (balance,
-  // paypal_balance, partial_capture_excess -- todos creados con
-  // confirm:true, off_session, y metadata.order_id). El campo que marca "ya
-  // reflejado" es capture_captured_at -- mismo campo que escriben esos call
-  // sites tras un PaymentIntent de saldo exitoso.
+  // Caso 2: el PI que tuvo éxito es el cobro de saldo estándar (charge_type
+  // "balance" / "paypal_balance" / sus reintentos 10PM -- las únicas rutas
+  // que escriben capture_captured_at de forma síncrona: cron/batch-capture
+  // y cron/batch-capture-retry). El campo que marca "ya reflejado" es
+  // capture_captured_at -- mismo campo que escriben esas rutas tras un
+  // PaymentIntent de saldo exitoso.
+  //
+  // Fix (auditoría externa, verificado 2026-07-31): antes CUALQUIER PI no-hold
+  // con metadata.order_id caía aquí (force_full_capture, capture-remainder,
+  // installment_second_payment, penalizaciones de no-show/late-cancel,
+  // partial_capture_excess...) y, como esas rutas NUNCA tocan
+  // capture_captured_at (tienen sus propios campos dedicados), este bloque
+  // se ejecutaba SIEMPRE que su webhook payment_intent.succeeded llegara --
+  // no solo en el caso de recuperación de un write perdido -- duplicando el
+  // monto ya sumado por la escritura síncrona original. Ver
+  // BALANCE_CAPTURE_CHARGE_TYPES arriba para el detalle completo.
+  if (!paymentIntent.chargeType || !BALANCE_CAPTURE_CHARGE_TYPES.has(paymentIntent.chargeType)) {
+    return {
+      updated: false,
+      orderId: order.id,
+      reason: `PaymentIntent no es del hold ni de charge_type de saldo reconocido (charge_type=${paymentIntent.chargeType ?? "ninguno"}) -- no se reconcilia aquí, tiene su propio campo de tracking en su ruta de origen`,
+    };
+  }
+
   if (order.capture_captured_at) {
     return { updated: false, orderId: order.id, reason: "capture_captured_at ya seteado" };
   }
