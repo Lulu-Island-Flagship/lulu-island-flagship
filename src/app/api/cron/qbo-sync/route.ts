@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { pushSalesReceipt } from "@/lib/qbo-adapter";
 import { decideQboSyncAction, evaluateQboDivergence, type QboSyncRetryState } from "@/lib/qbo-sync";
 import { getVancouverTodayString } from "@/lib/date-utils";
+import { requireCronAuth } from "@/lib/cron-auth";
 import { stripe } from "@/lib/stripe";
 
 // Fix (auditoría externa 2026-07-31, hallazgo confirmado): el fee de Stripe
@@ -62,10 +63,8 @@ async function getRealStripeFeeCents(
  */
 
 export async function GET(request: NextRequest) {
-  const cronSecret = request.headers.get("authorization")?.replace("Bearer ", "");
-  if (cronSecret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

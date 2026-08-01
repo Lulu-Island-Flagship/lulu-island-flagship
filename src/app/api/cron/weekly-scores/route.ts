@@ -7,6 +7,7 @@ import {
 } from "@/lib/peer-vote-integrity";
 import { evaluateLowScoreStreak, type WeeklyScoreRecord } from "@/lib/low-score-streak";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
+import { requireCronAuth } from "@/lib/cron-auth";
 
 /** v8.3 E5: cuántas semanas anteriores hace falta mirar para detectar una racha de 3. */
 const STREAK_LOOKBACK_WEEKS = 2;
@@ -52,10 +53,8 @@ function getSupabaseClient() {
 // GET /api/cron/weekly-scores — recalcular scores semanales de todos los empleados
 // Protegido por CRON_SECRET
 export async function GET(request: NextRequest) {
-  const cronSecret = request.headers.get("authorization")?.replace("Bearer ", "");
-  if (cronSecret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json(
       { error: "Supabase service credentials not configured" },

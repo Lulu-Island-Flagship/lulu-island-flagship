@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { calculateTeamRequirements, getHHEForRange, type ServiceType } from "@/lib/pricing";
 import { buildTeam, enforceMaxTeamSize, type DispatchCandidate } from "@/lib/dispatch-team";
 import { evaluateWorkday } from "@/lib/workday";
+import { requireCronAuth } from "@/lib/cron-auth";
 import { isVehicleInsuranceExpired } from "@/lib/vehicle-insurance";
 import { isEmployeeAssignableByCertification, type CertificationLevel } from "@/lib/certifications";
 import { hasMinimumRestBetweenShifts } from "@/lib/shift-rest";
@@ -547,10 +548,8 @@ async function persistAssignments(
 
 // GET /api/cron/dispatch-scheduler
 export async function GET(request: NextRequest) {
-  const cronSecret = request.headers.get("authorization")?.replace("Bearer ", "");
-  if (cronSecret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json(
       { error: "Supabase service credentials not configured" },

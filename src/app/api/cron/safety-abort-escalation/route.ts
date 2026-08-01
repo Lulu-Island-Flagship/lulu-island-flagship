@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateSafetyAbortEscalation, type SafetyAbortStage } from "@/lib/safety-abort";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
+import { requireCronAuth } from "@/lib/cron-auth";
 
 /**
  * v8.3 ROUND 2 — hallazgo crítico de seguridad: esta ruta usaba
@@ -36,10 +37,8 @@ function getSupabaseClient() {
 // Cuando ese adaptador exista, este cron es el punto exacto donde debe
 // dispararse la notificación al cruzar cada umbral.
 export async function GET(request: NextRequest) {
-  const cronSecret = request.headers.get("authorization")?.replace("Bearer ", "");
-  if (cronSecret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json(
       { error: "Supabase service credentials not configured" },

@@ -3,6 +3,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { MAX_TRACKED_COMPETITORS, detectCompetitorAlerts, type CompetitorSnapshot } from "@/lib/competitor-tracking";
 import { scrapeCompetitor, type ScrapeConfig } from "@/lib/competitor-scraper";
+import { requireCronAuth } from "@/lib/cron-auth";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -46,10 +47,8 @@ function getSupabaseClient() {
 // el error en competitors.last_scrape_error para que un humano lo revise, y
 // se sigue con el siguiente competidor.
 export async function GET(request: NextRequest) {
-  const cronSecret = request.headers.get("authorization")?.replace("Bearer ", "");
-  if (cronSecret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   try {
     const supabase = getSupabaseClient();

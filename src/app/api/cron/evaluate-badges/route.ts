@@ -7,6 +7,7 @@ import {
   isEligibleForDetailMaster,
   isEligibleForPromotionReady,
 } from "@/lib/badges";
+import { requireCronAuth } from "@/lib/cron-auth";
 
 /**
  * GET /api/cron/evaluate-badges — v8.3 E8 (D.11).
@@ -22,10 +23,8 @@ import {
  * corre server-to-server sin sesión de usuario, RLS bloquearía is_supervisor(NULL)).
  */
 export async function GET(request: NextRequest) {
-  const cronSecret = request.headers.get("authorization")?.replace("Bearer ", "");
-  if (cronSecret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

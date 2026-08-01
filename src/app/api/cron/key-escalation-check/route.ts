@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isKeyProblemEscalationDue, KEY_PROBLEM_ESCALATION_MINUTES } from "@/lib/key-handling";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
+import { requireCronAuth } from "@/lib/cron-auth";
 
 /**
  * GET /api/cron/key-escalation-check — v8.3 E7 fix de auditoría.
@@ -29,10 +30,8 @@ import { publishUnifiedAlert } from "@/lib/unified-alerts";
  * silenciosamente.
  */
 export async function GET(request: NextRequest) {
-  const cronSecret = request.headers.get("authorization")?.replace("Bearer ", "");
-  if (cronSecret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

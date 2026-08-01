@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isChemicalAlertTimerExpired, resolveChemicalReassignment } from "@/lib/wellbeing";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
+import { requireCronAuth } from "@/lib/cron-auth";
 
 // GET /api/cron/wellbeing-chemical-reassign — v8.3 E8 regla dura: timer de
 // 10 min sin respuesta admin => reasignación REAL, no solo detección.
@@ -29,10 +30,8 @@ import { publishUnifiedAlert } from "@/lib/unified-alerts";
 // (auth.uid()) evaluaba NULL y la RLS de wellbeing_chemical_alerts
 // bloqueaba silenciosamente cualquier UPDATE.
 export async function GET(request: NextRequest) {
-  const cronSecret = request.headers.get("authorization")?.replace("Bearer ", "");
-  if (cronSecret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
