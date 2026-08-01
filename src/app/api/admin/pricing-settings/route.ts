@@ -119,8 +119,18 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
-    // Audit log
-    await auth.supabase.from("pricing_settings_audit_logs").insert({
+    // Audit log.
+    // Fix (auditoría externa, verificado 2026-07-31): este INSERT no
+    // chequeaba su error. El cambio de tarifa real YA SE APLICÓ de forma
+    // atómica arriba (set_current_pricing_settings, RPC transaccional) --
+    // en este punto no es seguro ni honesto revertirlo/fallar la respuesta
+    // con 500 (el admin creería que el cambio no se aplicó y podría
+    // reintentar, duplicando la fila de tarifa vigente). Se loguea fuerte
+    // en vez de fallar la operación, mismo patrón que el resto del sistema
+    // usa para escrituras de auditoría posteriores a un cambio de negocio
+    // ya confirmado (ver shadow_ledger_entries en stripe/confirm y
+    // cron/paypal-refunds).
+    const { error: auditLogError } = await auth.supabase.from("pricing_settings_audit_logs").insert({
       previous_rate: previous?.target_hourly_rate ?? null,
       new_rate: targetHourlyRate,
       previous_effective_from: previous?.effective_from ?? null,
@@ -128,6 +138,12 @@ export async function PATCH(request: NextRequest) {
       reason: reason.trim(),
       changed_by: auth.user.id,
     });
+    if (auditLogError) {
+      console.error(
+        `CRITICAL: pricing rate change to ${targetHourlyRate} (by ${auth.user.id}) succeeded but audit log insert failed:`,
+        auditLogError
+      );
+    }
 
     return NextResponse.json(
       {

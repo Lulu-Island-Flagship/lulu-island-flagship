@@ -280,7 +280,22 @@ export async function DELETE(request: NextRequest) {
       .eq("id", id)
       .single();
 
-    const { error } = await auth.supabase.from("pricing_rules").delete().eq("id", id);
+    // Fix (auditoría externa, verificado 2026-07-31): este era un DELETE
+    // físico, aunque el resto de este mismo archivo (GET/PATCH de arriba,
+    // y la lectura de "previous" un poco más arriba en este mismo handler)
+    // filtra consistentemente por `deleted_at IS NULL` -- confirmando que
+    // pricing_rules usa soft-delete como convención establecida. Un borrado
+    // físico rompe esa invariante: cualquier simulación histórica o
+    // auditoría que necesite recuperar la regla por id (más allá del
+    // snapshot JSONB `previous_rule` guardado en rule_audit_logs, que no
+    // sirve para "aplicar de nuevo" ni para joins) la encontraría
+    // inexistente. Se cambia a soft-delete, mismo patrón que el resto del
+    // sistema.
+    const { error } = await auth.supabase
+      .from("pricing_rules")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id)
+      .is("deleted_at", null);
 
     if (error) {
       console.error("Pricing rule delete error:", error);
