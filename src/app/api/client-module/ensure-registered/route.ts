@@ -5,8 +5,24 @@ import { ensureClientForAuthUser } from "@/lib/client-module/client-service";
 import { getServiceRoleClient } from "@/lib/admin";
 import { resolveStaffLogin } from "@/lib/staff-login";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+// Fix (auditoría 2026-07-31, hallazgo confirmado): mismo criterio que
+// src/lib/admin.ts -- throw en tiempo de ejecución (dentro de las funciones
+// de abajo), nunca a nivel de módulo, para no arriesgar el build estático.
+function getSupabaseUrl(): string {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL no está configurado");
+  }
+  return url;
+}
+
+function getSupabaseAnonKey(): string {
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!key) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY no está configurado");
+  }
+  return key;
+}
 
 // Mismo patrón exacto que getSupabaseClient() en src/lib/admin.ts: cliente
 // anon + cookies de la request vía @supabase/ssr, para leer la sesión ya
@@ -15,7 +31,7 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
 // LEE el usuario ya autenticado, nunca inicia ni modifica sesión.
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;

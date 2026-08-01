@@ -2,8 +2,39 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient, type User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+// Fix (auditoría 2026-07-31, hallazgo confirmado): antes, si faltaban las
+// env vars de Supabase en producción (misconfiguración real), se usaban
+// valores placeholder ("https://placeholder.supabase.co" / "placeholder")
+// EN SILENCIO -- getSupabaseClient() seguía "funcionando" (no lanzaba nada)
+// pero cualquier auth.getUser()/query contra ese host inexistente fallaba
+// de forma confusa (error de red/DNS) en vez de señalar la causa real. Esto
+// alimenta requireAdminRole/requireSupervisor/getCurrentAdminRoles -- la
+// base de TODO el RBAC del panel admin -- así que un fallo silencioso aquí
+// es especialmente peligroso. Se lanza un error explícito, pero SOLO dentro
+// de las funciones getSupabaseUrl()/getSupabaseAnonKey() de abajo (se
+// evalúan en tiempo de EJECUCIÓN, cuando algo realmente llama a
+// getSupabaseClient()) -- nunca al importar este módulo. Next.js analiza
+// estáticamente los imports en build time; un throw a nivel de módulo (como
+// hacía el placeholder original al definirse como constante top-level)
+// puede romper el build aunque las env vars sí estén configuradas en el
+// entorno de ejecución real (solo faltan en el entorno de build). Mismo
+// patrón ya aplicado en src/app/api/stripe/confirm/route.ts,
+// setup-intent/route.ts y wallet-intent/route.ts (commit d34b1cc).
+function getSupabaseUrl(): string {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL no está configurado");
+  }
+  return url;
+}
+
+function getSupabaseAnonKey(): string {
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!key) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY no está configurado");
+  }
+  return key;
+}
 
 // v8.3 E11 (auditoría 2026-07-18): varias tablas admin-only (ej.
 // financial_stress_scenario_runs, legacy_migration_checklist_items,
@@ -21,14 +52,14 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
 export function getServiceRoleClient() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceKey) return null;
-  return createClient(supabaseUrl, serviceKey);
+  return createClient(getSupabaseUrl(), serviceKey);
 }
 
 export function getSupabaseClient() {
   const cookieStore = cookies();
   return createServerClient(
-    supabaseUrl,
-    supabaseKey,
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     {
       cookies: {
         get(name: string) {

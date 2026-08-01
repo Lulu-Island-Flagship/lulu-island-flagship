@@ -1,5 +1,6 @@
 import createIntlMiddleware from 'next-intl/middleware';
 import { createServerClient } from '@supabase/ssr';
+import type { User } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
 import { locales, defaultLocale } from './i18n/config';
 import { isAllowedInternalPath } from './lib/safe-redirect';
@@ -22,8 +23,37 @@ const intlMiddleware = createIntlMiddleware({
   localePrefix: 'always',
 });
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder';
+// Fix (auditoría 2026-07-31, hallazgo confirmado): antes se usaban
+// placeholders silenciosos ("https://placeholder.supabase.co" / "placeholder")
+// si faltaban las env vars de Supabase -- este middleware corre en TODA
+// request de página y en los tres prefijos /api protegidos; un fallo
+// silencioso acá significa que auth.getUser() nunca resuelve un usuario
+// real y todo el pipeline de auth queda roto sin ningún indicio de por qué
+// (parece simplemente "nadie tiene sesión"). El throw vive dentro de estas
+// funciones -- evaluadas en tiempo de EJECUCIÓN, la primera vez que el
+// middleware maneja una request real -- nunca a nivel de módulo, porque
+// Next.js sí analiza/empaqueta middleware.ts en build time y un throw al
+// importar podría romper el build aunque las env vars estén bien en
+// runtime. Mismo patrón que src/lib/admin.ts y los route handlers de auth
+// (commit d34b1cc y siguientes). Los call sites de abajo (dentro de
+// `middleware()`) ahora están envueltos en try/catch (ver fix de "Auth caído
+// no debe tirar 500" más abajo) así que un throw aquí se degrada a un
+// redirect seguro en vez de tumbar la respuesta completa.
+function getSupabaseUrl(): string {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) {
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL no está configurado');
+  }
+  return url;
+}
+
+function getSupabaseAnonKey(): string {
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!key) {
+    throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY no está configurado');
+  }
+  return key;
+}
 
 export default async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -66,23 +96,40 @@ export default async function middleware(request: NextRequest) {
 
   if (isApiStaffProtected) {
     const apiResponse = NextResponse.next();
-    const supabaseApi = createServerClient(supabaseUrl, supabaseKey, {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
-        },
-        set(name: string, value: string, options) {
-          apiResponse.cookies.set({ name, value, ...options });
-        },
-        remove(name: string, options) {
-          apiResponse.cookies.set({ name, value: '', ...options });
-        },
-      },
-    });
 
-    const {
-      data: { user: apiUser },
-    } = await supabaseApi.auth.getUser();
+    // Fix (auditoría 2026-07-31, hallazgo confirmado): `await
+    // supabase.auth.getUser()` no tenía try/catch -- si Supabase Auth está
+    // caído, con timeout, o (tras el fix de arriba) las env vars faltan, la
+    // excepción quedaba sin manejar y Next.js respondía con un 500 genérico
+    // para TODO /api/admin, /api/empleado y /api/client. Se falla cerrado
+    // (401) en vez de crashear: sigue siendo la postura de seguridad
+        // correcta (sin poder verificar sesión, no se deja pasar la request) y
+    // el caller ya maneja 401 normalmente, a diferencia de un 500 sin
+    // cuerpo interpretable.
+    let apiUser: User | null = null;
+    try {
+      const supabaseApi = createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
+        cookies: {
+          get(name: string) {
+            return request.cookies.get(name)?.value;
+          },
+          set(name: string, value: string, options) {
+            apiResponse.cookies.set({ name, value, ...options });
+          },
+          remove(name: string, options) {
+            apiResponse.cookies.set({ name, value: '', ...options });
+          },
+        },
+      });
+
+      const {
+        data: { user },
+      } = await supabaseApi.auth.getUser();
+      apiUser = user;
+    } catch (err) {
+      console.error("middleware: auth.getUser() failed for API staff-protected route", err);
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     if (!apiUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -93,26 +140,40 @@ export default async function middleware(request: NextRequest) {
 
   const response = intlMiddleware(request) ?? NextResponse.next();
 
-  const supabase = createServerClient(supabaseUrl, supabaseKey, {
-    cookies: {
-      get(name: string) {
-        return request.cookies.get(name)?.value;
+  // Fix (auditoría 2026-07-31, hallazgo confirmado): mismo criterio que
+  // arriba -- si Supabase Auth está caído, este bloque cubre TODA página
+  // del sitio (matcher por defecto), así que un throw sin manejar acá
+  // tumbaría el sitio entero. Se degrada a "sin sesión" (user = null) en vez
+  // de 500: el resto del pipeline ya sabe tratar a un visitante sin sesión
+  // (redirect a /portal o al home según la sección, o simplemente deja
+  // pasar si la ruta es pública) -- es la misma UX que ya existe hoy para
+  // cualquier visitante anónimo, en vez de una pantalla de error genérica.
+  let user: User | null = null;
+  try {
+    const supabase = createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options) {
+          response.cookies.set({ name, value, ...options });
+        },
+        remove(name: string, options) {
+          response.cookies.set({ name, value: '', ...options });
+        },
       },
-      set(name: string, value: string, options) {
-        response.cookies.set({ name, value, ...options });
-      },
-      remove(name: string, options) {
-        response.cookies.set({ name, value: '', ...options });
-      },
-    },
-  });
+    });
 
-  // getUser() (no getSession()) fuerza la validación/refresh contra Auth,
-  // no solo lee el cookie local -- es la llamada que Supabase recomienda
-  // acá específicamente para que el refresh de token ocurra de verdad.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    // getUser() (no getSession()) fuerza la validación/refresh contra Auth,
+    // no solo lee el cookie local -- es la llamada que Supabase recomienda
+    // acá específicamente para que el refresh de token ocurra de verdad.
+    const {
+      data: { user: resolvedUser },
+    } = await supabase.auth.getUser();
+    user = resolvedUser;
+  } catch (err) {
+    console.error("middleware: auth.getUser() failed, degrading to unauthenticated", err);
+  }
 
   // Fix 2026-07-23 (auditoría de autenticación en middleware): confirmado
   // leyendo el archivo completo que este middleware SOLO hacía ruteo de
