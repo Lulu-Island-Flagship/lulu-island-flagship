@@ -51,6 +51,14 @@ export default function AdminServiciosClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Fix (auditoría externa 2026-07-31, item 11): lista densa sin
+  // búsqueda/paginación -- se agrega filtro por texto (empleado,
+  // dirección, zona, tipo de servicio) y paginación simple ("cargar más")
+  // para no renderizar cientos de tarjetas de una sola vez.
+  const [search, setSearch] = useState("");
+  const PAGE_SIZE = 20;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
   const [dispatchOrderId, setDispatchOrderId] = useState<string | null>(null);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [dispatchLoading, setDispatchLoading] = useState(false);
@@ -192,23 +200,53 @@ export default function AdminServiciosClient() {
     );
   }
 
+  const searchQuery = search.trim().toLowerCase();
+  const filteredServices = searchQuery
+    ? services.filter((s) =>
+        [s.employeeName, s.address, s.zone, s.serviceSubtype, s.serviceType]
+          .filter(Boolean)
+          .some((field) => field.toLowerCase().includes(searchQuery))
+      )
+    : services;
+  const visibleServices = filteredServices.slice(0, visibleCount);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
         <span className="text-sm text-gray-500">
-          {t("serviceCount", { count: services.length })}
+          {t("serviceCount", { count: filteredServices.length })}
         </span>
       </div>
+
+      {services.length > 0 && (
+        <div className="max-w-md">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setVisibleCount(PAGE_SIZE);
+            }}
+            placeholder={t("searchPlaceholder")}
+            aria-label={t("searchAriaLabel")}
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none text-sm"
+          />
+        </div>
+      )}
 
       {services.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
           <CheckCircle2 className="w-10 h-10 text-gray-300 mx-auto mb-2" />
           <p className="text-gray-500">{t("noServicesToday")}</p>
         </div>
+      ) : filteredServices.length === 0 ? (
+        <div className="bg-white rounded-xl border p-8 text-center">
+          <p className="text-gray-500">{t("searchNoResults")}</p>
+        </div>
       ) : (
         <div className="space-y-3">
-          {services.map((s) => (
+          {visibleServices.map((s) => (
             <div
               key={s.orderId}
               className="w-full bg-white rounded-xl border p-4 text-left hover:shadow-md transition-shadow"
@@ -275,6 +313,17 @@ export default function AdminServiciosClient() {
               </div>
             </div>
           ))}
+          {filteredServices.length > visibleCount && (
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                className="text-sm text-brand-wave-blue hover:text-brand-navy font-medium"
+              >
+                {t("loadMore", { remaining: filteredServices.length - visibleCount })}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

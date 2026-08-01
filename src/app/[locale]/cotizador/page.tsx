@@ -297,7 +297,20 @@ export default function CotizadorPage() {
           /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTVWXYZ]\s?\d[ABCEGHJ-NPRSTVWXYZ]\d$/i.test(input.postalCode)
         );
       case "summary":
-        return consents.tc && !!acquisitionChannel && (!b2bReviewRequired || purchaseOrder.trim().length > 0);
+        // Fix (auditoría 2026-07-31, hallazgo #4): no comprobaba que el
+        // preview del precio (`quote`) ya existiera ni que hubiera
+        // terminado de cargar/fallado -- el botón "Reservar ahora" quedaba
+        // habilitado mientras fetchPreviewQuote todavía estaba en vuelo, o
+        // incluso si había fallado y `quote` era null, permitiendo enviar
+        // handleSubmit() sin una cotización sellada real.
+        return (
+          consents.tc &&
+          !!acquisitionChannel &&
+          (!b2bReviewRequired || purchaseOrder.trim().length > 0) &&
+          !!quote &&
+          !previewLoading &&
+          !previewError
+        );
       default:
         return false;
     }
