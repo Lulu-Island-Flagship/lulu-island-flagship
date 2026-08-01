@@ -491,7 +491,23 @@ export async function POST(request: NextRequest) {
 
     const ruleContext: RuleContext = {
       zone: zone!,
-      dayOfWeek: dayOfWeek ?? new Date().getDay(),
+      // Fix (auditoría 2026-07-31, hallazgo #5): antes se usaba
+      // `new Date().getDay()` (día real de HOY en el servidor) cuando el
+      // cliente todavía no eligió fecha de servicio (paso "summary" del
+      // cotizador) -- si hoy resultaba ser sábado/domingo, cualquier regla
+      // de pricing_rules condicionada por `dayOfWeek` (ej. recargo de fin de
+      // semana) podía disparar en el preview aunque el cliente termine
+      // eligiendo un día de semana en /reserva, y viceversa. Esto es
+      // independiente del recargo logístico fijo de calculatePrice (que ya
+      // recibe dayOfWeek/isPreferredDay = undefined en este punto y por lo
+      // tanto NO aplica ningún recargo). El día de servicio real recién se
+      // conoce y se usa para el cálculo AUTORITATIVO en
+      // /api/quote/recalculate (dayOfWeek = selectedDate.getDay()). Antes de
+      // elegir fecha, se usa un lunes (día de semana neutro, consistente con
+      // `isPreferredDay: true`) para que ninguna regla de fin de semana
+      // dispare por accidente basada en la fecha del calendario del
+      // SERVIDOR en vez de la fecha que el cliente elija.
+      dayOfWeek: dayOfWeek ?? 1,
       isPreferredDay: isPreferredDay ?? true,
       serviceType: serviceType!,
       serviceSubtype: serviceSubtype!,

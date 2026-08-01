@@ -273,7 +273,17 @@ export async function POST(request: NextRequest) {
 
     const ruleContext: RuleContext = {
       zone: zone!,
-      dayOfWeek: dayOfWeek ?? new Date().getDay(),
+      // Fix (auditoría 2026-07-31, hallazgo #5): ver el mismo fix y
+      // explicación en /api/quote/route.ts -- usar el día real de HOY del
+      // servidor como default hacía que reglas de pricing_rules
+      // condicionadas por `dayOfWeek` (ej. recargo de fin de semana)
+      // pudieran disparar de forma inconsistente en el preview según qué
+      // día de la semana sea "hoy", sin relación con la fecha de servicio
+      // que el cliente vaya a elegir después en /reserva (donde
+      // /api/quote/recalculate SÍ calcula el dayOfWeek real y autoritativo
+      // a partir de la fecha elegida). Se usa un lunes neutro, consistente
+      // con `isPreferredDay: true`.
+      dayOfWeek: dayOfWeek ?? 1,
       isPreferredDay: isPreferredDay ?? true,
       serviceType: serviceType!,
       serviceSubtype: serviceSubtype!,
