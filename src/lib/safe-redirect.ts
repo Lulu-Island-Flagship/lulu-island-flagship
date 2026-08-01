@@ -65,8 +65,19 @@ export function isAllowedInternalPath(path: string | null | undefined): path is 
 
   if (!ALLOWED_INTERNAL_PATH_RE.test(basePath)) return false;
   // Defensa en profundidad: el query string/hash no debe poder colar un
-  // "//" (protocol-relative) ni un "@" (userinfo, usado para disfrazar el
-  // host real en algunos parsers de URL laxos).
-  if (/\/\/|@/.test(queryAndHash)) return false;
+  // "//" (protocol-relative), el vector real de un parser laxo
+  // reinterpretando esto como otro origen.
+  //
+  // Fix (auditoría 2026-07-31, item 20): antes se rechazaba CUALQUIER "@" en
+  // el query string/hash, incluyendo usos legítimos como
+  // "/en/cuenta?email=user@example.com". El ataque real de userinfo
+  // ("https://sitio-legitimo.com@sitio-malicioso.com") SOLO funciona si el
+  // string completo empieza con un esquema o "//" (autoridad) seguido de
+  // "user@host" -- y `path` ya está obligado a empezar con un único "/" (la
+  // línea de arriba rechaza "//"), y el propio queryAndHash ya rechaza
+  // cualquier "//" incrustado. Sin "//" en ningún punto del string, un "@"
+  // suelto no puede reinterpretarse como userinfo en ningún parser de URL
+  // estándar -- por eso ahora solo se bloquea "//", nunca "@" a solas.
+  if (/\/\//.test(queryAndHash)) return false;
   return true;
 }

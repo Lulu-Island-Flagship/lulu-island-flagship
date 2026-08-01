@@ -56,6 +56,22 @@ export async function generateMetadata({ params }: { params: { locale: string } 
   // src/app/sitemap.ts (fix item 4) -- ambos apuntan a SITE_URL/{locale}/,
   // la home de cada idioma, porque este layout es compartido por TODAS las
   // páginas bajo [locale] y no conoce la sub-ruta actual aquí.
+  //
+  // LIMITACIÓN CONOCIDA, documentada a propósito (auditoría 2026-07-31, item
+  // 21): esto significa que, para una página profunda (ej. /en/cotizador),
+  // el hreflang que Google ve sigue apuntando a la HOME de /fr y /zh, no a
+  // /fr/cotizador ni /zh/cotizador -- impreciso pero no roto (nunca apunta a
+  // un locale ajeno ni a una URL rota). Existe un patrón ya probado en el
+  // proyecto para leer el pathname real dentro de un Server Component
+  // (headers().get("x-pathname"), seteado por middleware.ts, usado hoy en
+  // src/app/[locale]/admin/layout.tsx), pero `headers()` es una API dinámica
+  // de Next -- usarla aquí forzaría renderizado dinámico en TODAS las
+  // páginas bajo este layout, deshaciendo la optimización de renderizado
+  // estático que generateStaticParams (abajo) y setRequestLocale (en el
+  // layout, ver comentario ahí) existen específicamente para habilitar. Es
+  // un trade-off real de rendimiento/SEO que le corresponde decidir al
+  // dueño del producto, no algo para cambiar unilateralmente en un fix
+  // quirúrgico.
   const languageAlternates: Record<string, string> = {};
   for (const l of locales) {
     languageAlternates[l] = `${SITE_URL}/${l}`;
