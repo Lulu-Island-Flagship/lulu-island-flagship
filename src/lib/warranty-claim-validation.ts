@@ -28,6 +28,29 @@ export interface WarrantyClaimInput {
 // Se mueve aquí, al módulo de validación hermano que route.ts ya importaba.
 export const WARRANTY_CLAIM_WINDOW_DAYS = 7;
 
+// Fix (auditoría 2026-07-31, hallazgo #10): la validación de la ventana de
+// 7 días YA se aplicaba correctamente en el route handler
+// (src/app/api/client/warranty-claims/route.ts, POST) usando esta misma
+// constante -- el hallazgo de que "WARRANTY_CLAIM_WINDOW_DAYS se exporta
+// pero nunca se valida" no era cierto para el flujo real (la ventana sí se
+// hacía cumplir). Lo que faltaba era una función PURA y testeable para ese
+// cálculo -- vivía inline en el route handler, sin poder probarse sin
+// montar un request HTTP completo. Se extrae aquí, mismo criterio que
+// validateWarrantyClaimInput (pura, sin I/O) -- el route handler sigue
+// siendo responsable de decidir qué hacer si `orderServiceDate` es null
+// (ver hallazgo #5: se rechaza, nunca se admite sin poder determinar la
+// ventana).
+export function isWarrantyClaimEligible(
+  orderServiceDate: string,
+  now: Date = new Date()
+): boolean {
+  const deadline = new Date(
+    new Date(`${orderServiceDate}T00:00:00Z`).getTime() +
+      WARRANTY_CLAIM_WINDOW_DAYS * 24 * 60 * 60 * 1000
+  );
+  return now.getTime() <= deadline.getTime();
+}
+
 const MIN_REASON_LENGTH = 3;
 const MAX_REASON_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 2000;

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import {
@@ -179,16 +180,21 @@ export default function MisServiciosClient() {
       <div className="text-center">
         <h1 className="text-3xl font-bold text-brand-ink mb-2">{t("title")}</h1>
         <p className="text-gray-600">{t("subtitle")}</p>
+        {/* Fix (auditoría 2026-07-31, hallazgo #11): estos eran <a> normales
+            -- cada clic recargaba la página completa (pierde el estado de
+            React, vuelve a descargar todo el JS) en vez de la navegación
+            client-side de next/link. Se usa el mismo patrón de rutas
+            absolutas con locale que CuentaNav.tsx (`/${locale}/cuenta/...`). */}
         <div className="flex items-center justify-center gap-3 mt-2">
-          <a href="../propiedades" className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
+          <Link href={`/${locale}/cuenta/propiedades`} className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
             {t("manageProperties")}
-          </a>
-          <a href="../billetera" className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
+          </Link>
+          <Link href={`/${locale}/cuenta/billetera`} className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
             {t("luluWallet")}
-          </a>
-          <a href="../referidos" className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
+          </Link>
+          <Link href={`/${locale}/cuenta/referidos`} className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
             {t("referFriend")}
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -258,20 +264,20 @@ export default function MisServiciosClient() {
                   </div>
                   <div className="shrink-0 flex flex-col items-end gap-2">
                     {order.status === "completed" && (
-                      <a
-                        href={`servicios/${order.id}/galeria`}
+                      <Link
+                        href={`/${locale}/cuenta/servicios/${order.id}/galeria`}
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-navy hover:underline"
                       >
                         {t("viewPhotosChecklist")}
-                      </a>
+                      </Link>
                     )}
                     {order.status === "confirmed" && (
-                      <a
-                        href={`servicios/${order.id}/tracking`}
+                      <Link
+                        href={`/${locale}/cuenta/servicios/${order.id}/tracking`}
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-navy hover:underline"
                       >
                         {t("trackYourTeam")}
-                      </a>
+                      </Link>
                     )}
                     {order.status === "completed" && order.claimableZones.length > 0 && (
                       <button

@@ -100,6 +100,8 @@ interface FakeLegalTextRow {
   version: string;
   content: string;
   is_active: boolean;
+  effective_from?: string | null;
+  effective_until?: string | null;
 }
 
 interface FakeSettingRow {
@@ -124,6 +126,8 @@ function makeMockClient(legalRows: FakeLegalTextRow[], settingRows: FakeSettingR
                     version: r.version,
                     content: r.content,
                     is_active: r.is_active,
+                    effective_from: r.effective_from ?? null,
+                    effective_until: r.effective_until ?? null,
                   })),
                   error: null,
                 });
@@ -237,6 +241,84 @@ test("renderLegalText: caller-provided variables can override COMPANY_NAME defau
 
   const result = await renderLegalText("crc_consent", { COMPANY_NAME: "Override Co" }, client);
   assert.equal(result.text, "Override Co requests your consent.");
+});
+
+// Fix (auditoría externa, hallazgo confirmado): renderLegalText ahora
+// también filtra por vigencia (effective_from/effective_until), no solo
+// por is_active -- ver comentario de isCurrentlyEffective en
+// legal-text-service.ts.
+test("renderLegalText: active row with effective_from in the future -> LegalTextNotFoundError (no_active_version)", async () => {
+  const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const client = makeMockClient(
+    [
+      {
+        id: "id-5",
+        key: "pipa_step1",
+        version: "v2.0",
+        content: "Welcome to [COMPANY_NAME].",
+        is_active: true,
+        effective_from: future,
+      },
+    ],
+    [{ key: "company_name", value: "Lulu Island", value_type: "string" }]
+  );
+
+  await assert.rejects(
+    () => renderLegalText("pipa_step1", {}, client),
+    (err: unknown) => {
+      assert.ok(err instanceof LegalTextNotFoundError);
+      assert.equal(err.reason, "no_active_version");
+      return true;
+    }
+  );
+});
+
+test("renderLegalText: active row with effective_until already passed -> LegalTextNotFoundError (no_active_version)", async () => {
+  const past = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const client = makeMockClient(
+    [
+      {
+        id: "id-6",
+        key: "pipa_step1",
+        version: "v1.0",
+        content: "Welcome to [COMPANY_NAME].",
+        is_active: true,
+        effective_until: past,
+      },
+    ],
+    [{ key: "company_name", value: "Lulu Island", value_type: "string" }]
+  );
+
+  await assert.rejects(
+    () => renderLegalText("pipa_step1", {}, client),
+    (err: unknown) => {
+      assert.ok(err instanceof LegalTextNotFoundError);
+      assert.equal(err.reason, "no_active_version");
+      return true;
+    }
+  );
+});
+
+test("renderLegalText: active row within effective window -> resolves normally", async () => {
+  const past = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const client = makeMockClient(
+    [
+      {
+        id: "id-7",
+        key: "pipa_step1",
+        version: "v1.0",
+        content: "Welcome to [COMPANY_NAME].",
+        is_active: true,
+        effective_from: past,
+        effective_until: future,
+      },
+    ],
+    [{ key: "company_name", value: "Lulu Island", value_type: "string" }]
+  );
+
+  const result = await renderLegalText("pipa_step1", {}, client);
+  assert.equal(result.text, "Welcome to Lulu Island.");
 });
 
 test("renderLegalText: unknown placeholder left in content -> UnrenderedPlaceholderError, propagated as-is", async () => {

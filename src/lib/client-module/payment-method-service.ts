@@ -134,13 +134,16 @@ function resolveClient(client?: PaymentMethodsClient): PaymentMethodsClient {
 // hacerlo, y un olvido rompería el índice único con un error de constraint
 // poco claro para el usuario final.
 //
-// En su lugar, addPaymentMethod() desmarca aquí mismo, ANTES del insert,
-// todos los métodos de pago activos del cliente (is_default = false), y
-// luego inserta el nuevo con el is_default solicitado. Esto es a prueba de
-// fallos del caller: sin importar quién invoque esta función, la invariante
-// "a lo sumo un default activo por cliente" se mantiene. El índice único
-// parcial en la DB queda como red de seguridad adicional (defensa en
-// profundidad), no como el único mecanismo.
+// Fix (auditoría 2026-07-31, hallazgo #13): la versión anterior de esta
+// función desmarcaba el default previo y luego insertaba el nuevo como DOS
+// operaciones HTTP independientes (sin transacción real entre ambas) --
+// una caída justo entre las dos podía dejar al cliente TEMPORALMENTE sin
+// ningún default activo. Ahora ambos pasos ocurren dentro de una sola
+// función RPC SECURITY DEFINER (`add_client_payment_method_atomic`,
+// migración 289), en una única transacción de Postgres real -- mismo
+// patrón que `create_client_invoice_with_line_items` (281). El índice
+// único parcial en la DB (275) sigue como red de seguridad adicional
+// (defensa en profundidad), no como el único mecanismo.
 export async function addPaymentMethod(
   input: AddPaymentMethodInput,
   client?: PaymentMethodsClient
@@ -152,35 +155,16 @@ export async function addPaymentMethod(
 
   const resolved = resolveClient(client);
 
-  if (input.isDefault) {
-    const { error: unsetError } = await resolved
-      .from("client_payment_methods")
-      .update({ is_default: false })
-      .eq("client_id", input.clientId)
-      .eq("status", "active");
-
-    if (unsetError) {
-      throw new Error(
-        `Failed to unset previous default payment method for client "${input.clientId}": ${unsetError.message}`
-      );
-    }
-  }
-
-  const { data, error } = await resolved
-    .from("client_payment_methods")
-    .insert({
-      client_id: input.clientId,
-      method_type: input.methodType,
-      provider: input.provider ?? null,
-      provider_token: input.providerToken ?? null,
-      last_four: input.lastFour ?? null,
-      expiry_month: input.expiryMonth ?? null,
-      expiry_year: input.expiryYear ?? null,
-      is_default: input.isDefault ?? false,
-      status: "active",
-    })
-    .select("id")
-    .single();
+  const { data, error } = await resolved.rpc("add_client_payment_method_atomic", {
+    p_client_id: input.clientId,
+    p_method_type: input.methodType,
+    p_provider: input.provider ?? null,
+    p_provider_token: input.providerToken ?? null,
+    p_last_four: input.lastFour ?? null,
+    p_expiry_month: input.expiryMonth ?? null,
+    p_expiry_year: input.expiryYear ?? null,
+    p_is_default: input.isDefault ?? false,
+  });
 
   if (error || !data) {
     throw new Error(
@@ -190,7 +174,14 @@ export async function addPaymentMethod(
     );
   }
 
-  return { paymentMethodId: (data as { id: string }).id };
+  const row = (Array.isArray(data) ? data[0] : data) as { id: string } | undefined;
+  if (!row || !row.id) {
+    throw new Error(
+      `add_client_payment_method_atomic returned no data for client "${input.clientId}"`
+    );
+  }
+
+  return { paymentMethodId: row.id };
 }
 
 // ---------------------------------------------------------------------------

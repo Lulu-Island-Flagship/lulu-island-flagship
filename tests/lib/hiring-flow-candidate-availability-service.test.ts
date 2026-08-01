@@ -187,6 +187,25 @@ function makeMockClient(initialRows: AvailabilityRow[] = []) {
 
   return {
     _rows: () => rows,
+    // Fix (auditoría externa, hallazgo confirmado): setCandidateAvailability
+    // ahora llama a la RPC atómica set_candidate_availability (285) en vez
+    // de encadenar .from(...).delete() + .from(...).insert() por separado
+    // -- ver candidate-availability-service.ts. El mock simula el mismo
+    // comportamiento (reemplazo completo de las filas del candidato) para
+    // que estos tests sigan probando el contrato real sin necesitar una DB.
+    rpc(fnName: string, params: { p_candidate_id: string; p_blocks: Array<{ day_of_week: number; start_time: string; end_time: string }> }) {
+      assert.equal(fnName, "set_candidate_availability");
+      rows = rows.filter((r) => r.candidate_id !== params.p_candidate_id);
+      const inserted = params.p_blocks.map((b) => ({
+        id: `row-${nextId++}`,
+        candidate_id: params.p_candidate_id,
+        day_of_week: b.day_of_week,
+        start_time: b.start_time,
+        end_time: b.end_time,
+      }));
+      rows.push(...inserted);
+      return Promise.resolve({ data: inserted.length, error: null });
+    },
     from(table: string) {
       assert.equal(table, "candidate_availability");
       return {

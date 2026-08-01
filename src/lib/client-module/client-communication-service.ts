@@ -82,15 +82,20 @@ const VALID_COMMUNICATION_TYPES: CommunicationType[] = [
 // una validación de "al menos una fuente posible de asunto", no una
 // garantía de que el asunto final será válido.
 //
-// [ASSUMPTION -- fuera de alcance, validar CASL antes de enviar marketing
-// real] Este servicio NO valida consentimiento de marketing aquí (ej. CASL,
-// Canada's Anti-Spam Legislation) cuando communicationType === 'marketing'.
-// Esa validación es responsabilidad de otra capa (el caller que decide
-// encolar un mensaje de marketing debe verificar consentimiento vigente
-// -- ver client_consents / futuras tablas de preferencias de marketing --
-// antes de invocar queueCommunication). Encolar aquí sin esa verificación
-// previa no envía nada por sí solo (status siempre 'queued'), pero este
-// archivo no debe ser tratado como la barrera de cumplimiento CASL.
+// Fix (auditoría 2026-07-31, hallazgo #2): la nota [ASSUMPTION] de abajo
+// dejaba la validación de consentimiento de marketing (CASL, Canada's
+// Anti-Spam Legislation) fuera de este archivo, delegada a "otra capa" que
+// en la práctica no existía todavía -- el módulo de cliente (clients,
+// 269) no tenía ningún campo de opt-in de marketing, así que no había
+// ningún lugar real donde esa verificación pudiera vivir. Se agrega
+// `clients.marketing_opt_in` (migración nueva, ver comentario en esa
+// migración) y queueCommunication() ahora consulta ese campo y RECHAZA
+// (lanza CommunicationValidationError, nunca inserta) cualquier
+// communicationType='marketing' para un cliente sin opt-in vigente. Esto
+// es distinto del sistema B2C legacy (client_profiles.marketing_opt_in,
+// src/app/api/client/communication-preferences/route.ts) -- son dos
+// módulos de cliente independientes con sus propias tablas (ver cabecera
+// de este archivo), cada uno con su propio campo de opt-in.
 export function validateQueueCommunicationInput(
   input: QueueCommunicationInput
 ): string[] {
@@ -155,6 +160,29 @@ export async function queueCommunication(
   }
 
   const resolved = resolveClient(client);
+
+  // CASL: un mensaje de marketing NUNCA se encola sin opt-in vigente --
+  // ver nota de fix arriba. Se consulta clients.marketing_opt_in justo
+  // antes del insert (misma transacción lógica que el resto de esta
+  // función) en vez de confiar en que el caller ya lo validó.
+  if (input.communicationType === "marketing") {
+    const { data: clientRow, error: clientError } = await resolved
+      .from("clients")
+      .select("marketing_opt_in")
+      .eq("id", input.clientId)
+      .maybeSingle();
+
+    if (clientError) {
+      throw new Error(
+        `Failed to verify marketing opt-in for client "${input.clientId}": ${clientError.message}`
+      );
+    }
+    if (!clientRow || !clientRow.marketing_opt_in) {
+      throw new CommunicationValidationError([
+        `client "${input.clientId}" does not have an active marketing opt-in (CASL) -- cannot queue a marketing communication`,
+      ]);
+    }
+  }
 
   const { data, error } = await resolved
     .from("client_communications")

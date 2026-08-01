@@ -27,6 +27,8 @@ interface LegalTextRow {
   version: string;
   content: string;
   is_active: boolean;
+  effective_from: string | null;
+  effective_until: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -137,13 +139,35 @@ async function fetchLegalTextRows(
 ): Promise<LegalTextRow[]> {
   const { data, error } = await client
     .from("legal_texts")
-    .select("id, version, content, is_active")
+    .select("id, version, content, is_active, effective_from, effective_until")
     .eq("key", key);
 
   if (error) {
     throw new Error(`Failed to load legal text "${key}": ${error.message}`);
   }
   return (data ?? []) as LegalTextRow[];
+}
+
+// Fix (auditoría externa, hallazgo confirmado): antes esta función elegía
+// la versión activa solo por `is_active`, ignorando por completo
+// `effective_from`/`effective_until` -- columnas que la migración 253 SÍ
+// define (para poder programar la entrada/salida de vigencia de un texto
+// legal sin depender de que alguien recuerde activar/desactivar la fila
+// exacto en el momento correcto). Con eso, activar hoy una nueva versión
+// con `effective_from` en el futuro (ej. una nueva política de PIPA que
+// entra en vigor el mes que viene) la hacía visible de inmediato para
+// candidatos, o una versión con `effective_until` ya vencido seguía
+// sirviéndose mientras nadie desactivara `is_active` a mano. Se filtra
+// ahora también por vigencia real: `effective_from` nulo o en el pasado, y
+// `effective_until` nulo o en el futuro.
+function isCurrentlyEffective(row: LegalTextRow, now: Date): boolean {
+  if (row.effective_from && new Date(row.effective_from).getTime() > now.getTime()) {
+    return false;
+  }
+  if (row.effective_until && new Date(row.effective_until).getTime() <= now.getTime()) {
+    return false;
+  }
+  return true;
 }
 
 export async function renderLegalText(
@@ -157,7 +181,8 @@ export async function renderLegalText(
     throw new LegalTextNotFoundError(key, "no_such_key");
   }
 
-  const active = rows.find((row) => row.is_active);
+  const now = new Date();
+  const active = rows.find((row) => row.is_active && isCurrentlyEffective(row, now));
   if (!active) {
     throw new LegalTextNotFoundError(key, "no_active_version");
   }

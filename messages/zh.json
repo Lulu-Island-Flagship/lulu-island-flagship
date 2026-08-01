@@ -1009,6 +1009,7 @@
       "routeReady": "今日路线已保存，可离线使用。",
       "routeFailed": "无法保存今日路线以供离线使用——请保持网络连接直至恢复。",
       "vehicleTrackingFailed": "无法发送车辆位置——这不影响你的班次，但调度可能看不到你的位置。",
+      "vehicleTrackingRetrying": "正在重试发送车辆位置……",
       "loadError": "无法加载今日服务，请检查网络连接后重试。",
       "clientLabel": "客户：{name}",
       "more": "更多",
@@ -3193,7 +3194,8 @@
       "emptyWithFilter": "没有状态为“{filter}”的质检记录。",
       "photos": {
         "none": "未上传照片证据",
-        "altText": "服务证据照片"
+        "altText": "服务证据照片",
+        "more": "还有 {count} 张"
       },
       "reviewButton": "审核",
       "reviewedOn": "审核于 {date}",
@@ -3373,6 +3375,7 @@
       "subtitle": "为客户授予推荐/纠纷解决/促销积分。积分和促销额度 12 个月后到期；退款额度不会到期。",
       "loadError": "加载失败",
       "networkError": "网络错误",
+      "searchError": "客户搜索失败 — 请重试",
       "findClientLabel": "查找客户(姓名、邮箱或电话)",
       "searchAriaLabel": "按姓名、邮箱或电话搜索客户",
       "searchPlaceholder": "开始输入姓名、邮箱或电话号码...",

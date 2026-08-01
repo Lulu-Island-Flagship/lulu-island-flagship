@@ -1009,6 +1009,7 @@
       "routeReady": "Itinéraire du jour enregistré pour usage hors ligne.",
       "routeFailed": "Impossible d'enregistrer l'itinéraire du jour hors ligne — restez connecté jusqu'à nouvel ordre.",
       "vehicleTrackingFailed": "Impossible d'envoyer la position du véhicule — cela n'affecte pas votre quart, mais le répartiteur pourrait ne pas voir votre position.",
+      "vehicleTrackingRetrying": "Nouvelle tentative d'envoi de la position du véhicule…",
       "loadError": "Impossible de charger les services d'aujourd'hui. Vérifiez votre connexion et réessayez.",
       "clientLabel": "Client : {name}",
       "more": "Plus",
@@ -3193,7 +3194,8 @@
       "emptyWithFilter": "Aucune évaluation qualité avec le statut « {filter} ».",
       "photos": {
         "none": "Aucune photo justificative téléversée",
-        "altText": "Photo justificative du service"
+        "altText": "Photo justificative du service",
+        "more": "+{count} de plus"
       },
       "reviewButton": "Évaluer",
       "reviewedOn": "Évalué le {date}",
@@ -3373,6 +3375,7 @@
       "subtitle": "Accorder un crédit de parrainage/résolution/promotion à un client. Le crédit et la promotion expirent après 12 mois; les remboursements n'expirent pas.",
       "loadError": "Échec du chargement",
       "networkError": "Erreur réseau",
+      "searchError": "Échec de la recherche de client — réessayez",
       "findClientLabel": "Rechercher un client (nom, courriel ou téléphone)",
       "searchAriaLabel": "Rechercher un client par nom, courriel ou téléphone",
       "searchPlaceholder": "Commencez à taper un nom, un courriel ou un numéro de téléphone...",

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
+import { getVancouverOffset } from "@/lib/date-utils";
 import {
   Star,
   Loader2,
@@ -94,10 +95,28 @@ export default function EvaluarPage() {
       }
 
       // Verificar ventana de 24h: service_date + 1 día >= hoy en Vancouver
+      //
+      // Fix (auditoría 2026-07-31, hallazgo #19): el offset usado aquí
+      // estaba hardcodeado a "-07:00" (PDT, horario de verano) todo el
+      // año -- BC usa "-08:00" (PST) de noviembre a marzo. Con el offset
+      // fijo, en temporada PST este chequeo calculaba un deadline hasta
+      // un día ANTES del real, mostrando "ventana expirada" hasta 24h
+      // antes de que realmente expirara -- un falso rechazo que le
+      // ocultaba el formulario a un cliente con un link todavía válido.
+      // Se usa getVancouverOffset() (src/lib/date-utils.ts), que calcula
+      // el offset real PDT/PST para la fecha dada vía Intl, mismo helper
+      // que ya usa el resto del repo (ej. parseVancouverDateTime).
+      //
+      // IMPORTANTE: este chequeo es solo una pre-filtración de UX (evita
+      // mostrar el formulario completo si el link obviamente ya venció) --
+      // la validación real y definitiva de la ventana de 24h ocurre
+      // SIEMPRE en el servidor (POST /api/client/review, que recalcula el
+      // deadline exacto con service_date+service_time+offset real contra
+      // Date.now()) y nunca confía solo en este cálculo del navegador.
       const vancouverToday = getVancouverDateString();
       const serviceDate = order.service_date as string;
-      // Crear fecha en timezone Vancouver explícito para evitar desfases del browser
-      const deadlineDate = new Date(serviceDate + "T23:59:59-07:00"); // PST (Vancouver)
+      const offset = getVancouverOffset(serviceDate);
+      const deadlineDate = new Date(`${serviceDate}T23:59:59${offset}`);
       const deadlineStr = deadlineDate.toISOString().split("T")[0];
 
       if (vancouverToday > deadlineStr) {

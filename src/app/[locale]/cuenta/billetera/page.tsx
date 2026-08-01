@@ -7,6 +7,7 @@ import { StatusBanner } from "@/components/cuenta/StatusBanner";
 import { supabase } from "@/lib/supabase";
 import { AuthModal } from "@/components/cotizador/AuthModal";
 import { toIntlLocale } from "@/lib/format";
+import { formatServiceDateDisplay } from "@/lib/date-utils";
 
 interface WalletTransaction {
   id: string;
@@ -25,6 +26,23 @@ interface UnpaidOrder {
   // RAÍZ-3 (2026-07-21, migración 229): orders.wallet_amount_used_cents -- centavos, no dólares.
   wallet_amount_used_cents: number;
   canApplyWalletCredit: boolean;
+  // quotes.total viene en DÓLARES (esquema legacy del cotizador, no
+  // centavos) -- se convierte a centavos al usarlo, igual que
+  // /api/client/wallet/apply/route.ts (`Math.round(total * 100)`).
+  quotes?: { total?: number }[] | { total?: number } | null;
+}
+
+// Cuánto crédito de billetera se aplicaría realmente a esta orden si el
+// cliente confirma -- mismo cálculo que hace el servidor
+// (computeWalletApplication en src/lib/wallet.ts): el menor entre el saldo
+// disponible y el total de la orden. Se muestra ANTES de confirmar (fix
+// auditoría 2026-07-31, hallazgo #7: antes el botón "Apply credit" no
+// indicaba ningún monto).
+function creditToApply(order: UnpaidOrder, availableBalanceCents: number): number {
+  const quoteEntry = Array.isArray(order.quotes) ? order.quotes[0] : order.quotes;
+  const orderTotalCents = Math.round(Number(quoteEntry?.total ?? 0) * 100);
+  if (orderTotalCents <= 0) return 0;
+  return Math.min(availableBalanceCents, orderTotalCents);
 }
 
 // Fix (2026-07-25, auditoría UX, item 13): antes esto era un `$` fijo
@@ -209,7 +227,11 @@ export default function WalletPage() {
             {orders.map((o) => (
               <div key={o.id} className="p-3 flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-brand-ink">{o.service_date}</p>
+                  {/* Fix (auditoría 2026-07-31, hallazgo #6): antes se mostraba
+                      el string ISO crudo de service_date; se usa el mismo
+                      helper de formato que el resto de "Mi Cuenta"
+                      (formatServiceDateDisplay, src/lib/date-utils.ts). */}
+                  <p className="text-sm text-brand-ink">{formatServiceDateDisplay(o.service_date, safeLocale)}</p>
                   <p className="text-xs text-gray-500">
                     {ORDER_STATUSES.includes(o.status) ? tStatus(o.status) : o.status}
                   </p>
@@ -219,7 +241,11 @@ export default function WalletPage() {
                   disabled={applying === o.id}
                   className="text-xs bg-brand-navy text-white px-3 py-1.5 rounded-lg disabled:opacity-50"
                 >
-                  {applying === o.id ? t("applying") : t("applyCredit")}
+                  {applying === o.id
+                    ? t("applying")
+                    : creditToApply(o, availableBalance) > 0
+                      ? t("applyCreditAmount", { amount: formatDollars(creditToApply(o, availableBalance), safeLocale) })
+                      : t("applyCredit")}
                 </button>
               </div>
             ))}

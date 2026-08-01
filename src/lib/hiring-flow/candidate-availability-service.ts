@@ -193,21 +193,19 @@ interface CandidateAvailabilityRow {
 
 // Reemplaza (delete + insert) la disponibilidad completa del candidato.
 //
-// Nota de atomicidad -- HONESTA, no inventada: esto son DOS llamadas
-// separadas a supabase-js (delete de las filas existentes, luego insert de
-// las nuevas), NO una transacción de Postgres real. Si el proceso muere o
-// la conexión se corta justo entre el delete y el insert, el candidato
-// puede quedar temporalmente SIN ninguna fila de disponibilidad (en vez de
-// con la vieja o con la nueva). A diferencia de candidates+consents
-// (candidate-step1-service.ts / migración 268_hiring_flow_submit_step1_atomic.sql),
-// esto no es un requisito legal como el consentimiento -- es un dato de
-// conveniencia operativa que el candidato puede simplemente volver a
-// enviar -- así que se documenta la limitación en vez de bloquear esta
-// fase con una RPC. Si en el futuro se decide que esto necesita garantía
-// dura, la solución sería una función RPC SECURITY DEFINER análoga a
-// submit_step1_candidate que haga DELETE + INSERT dentro de una sola
-// transacción -- se deja propuesto, no implementado, para mantener el
-// alcance de esta fase acotado.
+// Fix (auditoría externa, hallazgo confirmado): la versión anterior de esta
+// función hacía DELETE y luego INSERT como dos llamadas independientes a
+// supabase-js -- NO una transacción de Postgres real. Si el proceso moría o
+// la conexión se cortaba justo entre el delete y el insert, el candidato
+// podía quedar temporalmente SIN ninguna fila de disponibilidad. Aunque el
+// riesgo era bajo (a diferencia de candidates+consents, esto no es un
+// requisito legal -- el candidato puede volver a enviarlo), se cierra la
+// ventana de todos modos con el mismo patrón ya usado en el resto del
+// módulo: una función RPC SECURITY DEFINER (285_hiring_flow_
+// set_candidate_availability_atomic.sql) que hace DELETE + INSERT dentro
+// de una sola transacción real. Los bloques ya validados en TS
+// (validateAvailabilityBlocks arriba) viajan como JSONB -- la RPC no
+// revalida formato, solo persiste.
 export async function setCandidateAvailability(
   candidateId: string,
   blocks: AvailabilityBlockInput[],
@@ -221,43 +219,22 @@ export async function setCandidateAvailability(
 
   const resolved = resolveClient(client);
 
-  const { error: deleteError } = await resolved
-    .from("candidate_availability")
-    .delete()
-    .eq("candidate_id", candidateId);
+  const { data, error } = await resolved.rpc("set_candidate_availability", {
+    p_candidate_id: candidateId,
+    p_blocks: blocks.map((block) => ({
+      day_of_week: block.dayOfWeek,
+      start_time: block.startTime,
+      end_time: block.endTime,
+    })),
+  });
 
-  if (deleteError) {
+  if (error) {
     throw new Error(
-      `Failed to clear existing availability for candidate "${candidateId}": ${deleteError.message}`
+      `Failed to set availability for candidate "${candidateId}": ${error.message}`
     );
   }
 
-  // Un candidato puede legítimamente enviar un array vacío (ej. "borrar
-  // toda mi disponibilidad") -- en ese caso el delete de arriba ya dejó el
-  // estado correcto y no hace falta ningún insert.
-  if (blocks.length === 0) {
-    return { count: 0 };
-  }
-
-  const { data, error: insertError } = await resolved
-    .from("candidate_availability")
-    .insert(
-      blocks.map((block) => ({
-        candidate_id: candidateId,
-        day_of_week: block.dayOfWeek,
-        start_time: block.startTime,
-        end_time: block.endTime,
-      }))
-    )
-    .select("id");
-
-  if (insertError) {
-    throw new Error(
-      `Failed to insert availability for candidate "${candidateId}": ${insertError.message}`
-    );
-  }
-
-  return { count: (data ?? []).length };
+  return { count: typeof data === "number" ? data : 0 };
 }
 
 export async function getCandidateAvailability(

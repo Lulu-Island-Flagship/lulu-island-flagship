@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { validateWarrantyClaimInput, WARRANTY_CLAIM_WINDOW_DAYS } from "@/lib/warranty-claim-validation";
+import { validateWarrantyClaimInput, isWarrantyClaimEligible, WARRANTY_CLAIM_WINDOW_DAYS } from "@/lib/warranty-claim-validation";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -121,19 +121,33 @@ export async function POST(request: NextRequest) {
 
     // v8.3 auditoría 2026-07-21 (E-B4): ventana de reclamación. Sin esto
     // se podía reclamar sobre un servicio de hace años.
-    if (order.service_date) {
-      const deadline = new Date(
-        new Date(`${order.service_date}T00:00:00Z`).getTime() +
-          WARRANTY_CLAIM_WINDOW_DAYS * 24 * 60 * 60 * 1000
+    //
+    // Fix (auditoría 2026-07-31, hallazgo #5): si `service_date` venía NULL
+    // (dato inconsistente -- una orden 'completed' debería siempre tener
+    // fecha de servicio, pero el esquema no lo garantiza con NOT NULL), el
+    // bloque de arriba se saltaba entero y el reclamo se aceptaba SIN límite
+    // de tiempo -- exactamente el hueco que esta ventana de 7 días existe
+    // para cerrar. No hay forma segura de determinar si la orden está dentro
+    // de la ventana sin una fecha de referencia, así que se rechaza
+    // explícitamente en vez de admitir por defecto (mismo principio
+    // deny-by-default que la comprobación de reembolso más abajo).
+    if (!order.service_date) {
+      console.error(
+        `client/warranty-claims: orden ${orderId} 'completed' sin service_date -- ` +
+          "no se puede determinar la ventana de garantía, se rechaza el reclamo."
       );
-      if (Date.now() > deadline.getTime()) {
-        return NextResponse.json(
-          {
-            error: `The warranty claim window (${WARRANTY_CLAIM_WINDOW_DAYS} days after service) has expired for this order.`,
-          },
-          { status: 400 }
-        );
-      }
+      return NextResponse.json(
+        { error: "Unable to determine the warranty window for this order. Please contact support." },
+        { status: 400 }
+      );
+    }
+    if (!isWarrantyClaimEligible(order.service_date)) {
+      return NextResponse.json(
+        {
+          error: `The warranty claim window (${WARRANTY_CLAIM_WINDOW_DAYS} days after service) has expired for this order.`,
+        },
+        { status: 400 }
+      );
     }
 
     // v8.3 auditoría 2026-07-21 (E-B4): no se validaba el estado de pago

@@ -36,6 +36,13 @@ export default function PreReviewSurveyPage() {
   // debe mezclarse con "falta login").
   const [needsAuth, setNeedsAuth] = useState(false);
 
+  // Fix (auditoría 2026-07-31, hallazgo #18): mismo criterio que el POST
+  // server-side (src/app/api/client/pre-review-survey/route.ts) -- 72h
+  // desde `pre_review_survey_sent_at`. La validación real vive en el
+  // servidor; esto solo evita mostrar el formulario completo para que
+  // recién al enviar el cliente descubra que expiró.
+  const PRE_REVIEW_SURVEY_RESPONSE_WINDOW_MS = 72 * 60 * 60 * 1000;
+
   useEffect(() => {
     verifyToken();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -56,7 +63,7 @@ export default function PreReviewSurveyPage() {
 
       const { data: order, error: orderError } = await supabase
         .from("orders")
-        .select("id, status")
+        .select("id, status, pre_review_survey_sent_at")
         .eq("pre_review_survey_token", token)
         .single();
 
@@ -74,6 +81,17 @@ export default function PreReviewSurveyPage() {
 
       if (existing) {
         setSubmitted(true);
+        setLoading(false);
+        return;
+      }
+
+      if (
+        !order.pre_review_survey_sent_at ||
+        Date.now() - new Date(order.pre_review_survey_sent_at).getTime() > PRE_REVIEW_SURVEY_RESPONSE_WINDOW_MS
+      ) {
+        setError(t("invalidOrExpired"));
+        setLoading(false);
+        return;
       }
     } catch {
       setError(t("somethingWrong"));

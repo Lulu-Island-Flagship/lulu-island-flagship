@@ -22,6 +22,22 @@ function getSupabaseClient() {
   });
 }
 
+// Fix (auditoría 2026-07-31, hallazgo #17): nps_surveys nunca expiraba --
+// no había columna `expires_at` ni ninguna validación de vigencia, así que
+// una encuesta enviada hace meses o años seguía siendo respondible
+// indefinidamente vía su `token` (UUID) sin ningún límite temporal. En vez
+// de agregar una columna nueva (que requeriría backfill sobre filas ya
+// existentes desde la migración 163 -- esta tabla es de v8.3 E10.13,
+// anterior al Módulo de Cliente de hoy, así que probablemente SÍ tiene
+// datos reales de producción; no se pudo verificar el conteo real de filas
+// desde este entorno, sin acceso a la base de datos en vivo), se reutiliza
+// la columna `sent_at` que YA existe y YA es NOT NULL para toda fila
+// (nueva o histórica) -- cero riesgo de backfill. Se define una ventana
+// razonable de 30 días desde el envío para responder (una encuesta
+// trimestral respondible casi un mes después sigue siendo útil sin ser
+// indefinida).
+const NPS_SURVEY_RESPONSE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
 /**
  * POST /api/client/nps-survey — { token, score, comment? }
  *
@@ -48,7 +64,7 @@ export async function POST(request: NextRequest) {
 
   const { data: survey, error: fetchError } = await supabase
     .from("nps_surveys")
-    .select("id, client_user_id, responded_at")
+    .select("id, client_user_id, responded_at, sent_at")
     .eq("token", body.token)
     .is("deleted_at", null)
     .maybeSingle();
@@ -58,6 +74,9 @@ export async function POST(request: NextRequest) {
   }
   if (survey.responded_at) {
     return NextResponse.json({ error: "Ya se respondió esta encuesta" }, { status: 409 });
+  }
+  if (Date.now() - new Date(survey.sent_at).getTime() > NPS_SURVEY_RESPONSE_WINDOW_MS) {
+    return NextResponse.json({ error: "Esta encuesta ya expiró" }, { status: 410 });
   }
 
   const { error: updateError } = await supabase

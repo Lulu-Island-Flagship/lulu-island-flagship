@@ -170,6 +170,27 @@ export async function validateSession(
     }
   }
 
+  // Fix (auditoría externa, hallazgo confirmado): validateSession() revisa
+  // last_activity_at (para el chequeo de expiración por inactividad de
+  // arriba) pero nunca lo actualizaba -- una sesión activa e ininterrumpida
+  // habría quedado marcada como "inactiva" tras security_session_duration_hours
+  // igual, porque nada refrescaba la marca de tiempo en cada validación
+  // exitosa. renewSession() ya existe con exactamente este UPDATE, pero
+  // dependía de que cada caller HTTP se acordara de invocarla por separado
+  // después de validar -- ahora la propia validación exitosa refresca la
+  // actividad, best-effort (si el UPDATE falla, no debe tumbar una sesión
+  // que sí es válida; se loguea y se sigue).
+  const { error: touchError } = await resolved
+    .from("sessions")
+    .update({ last_activity_at: new Date(now).toISOString() })
+    .eq("id", row.id);
+  if (touchError) {
+    console.error(
+      `[session-service] Failed to refresh last_activity_at for session "${row.id}" (non-fatal):`,
+      touchError.message
+    );
+  }
+
   return { sessionId: row.id, candidateId: row.candidate_id };
 }
 

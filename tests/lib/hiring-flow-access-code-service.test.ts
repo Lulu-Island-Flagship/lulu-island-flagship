@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { invalidateSettingsCache } from "../../src/lib/hiring-flow/settings-service";
+import { resetRateLimiterState } from "../../src/lib/hiring-flow/rate-limiter";
 import {
   generateRawCode,
   hashCode,
@@ -10,6 +11,7 @@ import {
   AccessCodeInvalidError,
   AccessCodeExpiredError,
   AccessCodeAlreadyUsedError,
+  AccessCodeRateLimitedError,
 } from "../../src/lib/hiring-flow/access-code-service";
 
 // ---------------------------------------------------------------------------
@@ -293,6 +295,73 @@ test("validateAccessCode: matching code but wrong purpose -> AccessCodeInvalidEr
     () => validateAccessCode("candidate-1", rawCode, "step2", client),
     AccessCodeInvalidError
   );
+});
+
+// Fix (auditoría externa, hallazgo confirmado): validateAccessCode ahora
+// aplica checkRateLimit() antes de tocar la DB -- ver comentario en
+// access-code-service.ts (AccessCodeRateLimitedError). Infraestructura ya
+// existente (rate-limiter.ts + setting security_rate_limit_validation) que
+// antes no se usaba en ningún lado del módulo.
+test("validateAccessCode: exceeds security_rate_limit_validation -> AccessCodeRateLimitedError", async () => {
+  invalidateSettingsCache();
+  resetRateLimiterState();
+  const state = baseState({
+    settingsRows: [
+      { key: "security_code_expiry_days", value: "3", value_type: "number" },
+      { key: "security_rate_limit_validation", value: "2", value_type: "number" },
+    ],
+    accessCodeRows: [],
+  });
+  const client = makeMockClient(state);
+
+  // Both attempts are wrong codes (candidate mistyping), but the important
+  // thing is that the rate limit tracks ATTEMPTS, not just failures -- the
+  // 3rd call must be blocked purely by the limiter, before it even reaches
+  // the (nonexistent) row lookup.
+  await assert.rejects(
+    () => validateAccessCode("candidate-rl", "WRONG001", "step2", client),
+    AccessCodeInvalidError
+  );
+  await assert.rejects(
+    () => validateAccessCode("candidate-rl", "WRONG002", "step2", client),
+    AccessCodeInvalidError
+  );
+  await assert.rejects(
+    () => validateAccessCode("candidate-rl", "WRONG003", "step2", client),
+    AccessCodeRateLimitedError
+  );
+});
+
+test("validateAccessCode: rate limit key is scoped per candidate+purpose (does not block a different candidate)", async () => {
+  invalidateSettingsCache();
+  resetRateLimiterState();
+  const rawCode = "SCOPED12";
+  const state = baseState({
+    settingsRows: [
+      { key: "security_code_expiry_days", value: "3", value_type: "number" },
+      { key: "security_rate_limit_validation", value: "1", value_type: "number" },
+    ],
+    accessCodeRows: [
+      {
+        id: "ac-scoped",
+        candidate_id: "candidate-b",
+        code_hash: hashCode(rawCode),
+        purpose: "step2",
+        used_at: null,
+        expires_at: new Date(Date.now() + 60_000).toISOString(),
+      },
+    ],
+  });
+  const client = makeMockClient(state);
+
+  // candidate-a exhausts its own limit (1 attempt)...
+  await assert.rejects(
+    () => validateAccessCode("candidate-a", "WRONGONE", "step2", client),
+    AccessCodeInvalidError
+  );
+  // ...but candidate-b's own budget is untouched.
+  const result = await validateAccessCode("candidate-b", rawCode, "step2", client);
+  assert.equal(result.accessCodeId, "ac-scoped");
 });
 
 // ---------------------------------------------------------------------------

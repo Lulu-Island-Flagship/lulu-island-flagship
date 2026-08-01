@@ -1,6 +1,7 @@
 import { randomInt, createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSetting, getHiringFlowServiceClient } from "./settings-service";
+import { checkRateLimit } from "./rate-limiter";
 
 // Módulo nuevo y separado: flujo de contratación v0.4.1 (candidate hiring
 // flow). Fase 3: Autenticación y Seguridad Base.
@@ -88,6 +89,23 @@ export class AccessCodeAlreadyUsedError extends Error {
   }
 }
 
+// Fix (auditoría externa, hallazgo confirmado): validateAccessCode() no
+// tenía ningún límite de intentos -- un atacante (o un script con errores)
+// podía probar códigos de 8 caracteres sin límite alguno contra el mismo
+// candidateId/purpose. El espacio de búsqueda (32^8) hace fuerza bruta
+// pura poco práctica, pero rate-limiter.ts (checkRateLimit) y el setting
+// "security_rate_limit_validation" (sembrado en 254, descripción: "Máximo
+// de intentos de validación (ej. código de seguridad) permitidos por
+// candidato...") ya existían construidos exactamente para este caso de uso
+// y no se estaban usando en ningún lado del módulo -- infraestructura
+// muerta. Se conecta acá.
+export class AccessCodeRateLimitedError extends Error {
+  constructor() {
+    super("Too many access code validation attempts. Please try again later.");
+    this.name = "AccessCodeRateLimitedError";
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Supabase client resolution — mismo patrón que settings-service
 // ---------------------------------------------------------------------------
@@ -165,6 +183,24 @@ export async function validateAccessCode(
   client?: AccessCodesClient
 ): Promise<{ accessCodeId: string }> {
   const resolved = resolveClient(client);
+
+  // Rate limit ANTES de tocar access_codes -- ver AccessCodeRateLimitedError
+  // arriba. Clave por candidato+propósito (no global ni solo por candidato)
+  // para que agotar los intentos de un "step2" no bloquee accidentalmente
+  // la validación de un código de "step3" del mismo candidato. Mismo
+  // criterio fail-open que el resto de checkRateLimit(): si no se puede
+  // leer el límite configurado, se deja pasar el tráfico en vez de romper
+  // el flujo del candidato por un problema de configuración ajeno.
+  const rateLimitKey = `hiring-flow:access-code-validate:${candidateId}:${purpose}`;
+  const { allowed } = await checkRateLimit(
+    rateLimitKey,
+    "security_rate_limit_validation",
+    resolved
+  );
+  if (!allowed) {
+    throw new AccessCodeRateLimitedError();
+  }
+
   const codeHash = hashCode(rawCode);
 
   const { data, error } = await resolved

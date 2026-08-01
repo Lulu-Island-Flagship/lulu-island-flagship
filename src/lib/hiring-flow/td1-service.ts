@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getSetting, getSettingOrDefault } from "./settings-service";
+import { getSetting } from "./settings-service";
 
 // Módulo nuevo y separado: flujo de contratación v0.4.1 (candidate hiring
 // flow). Fase 5.2 "Paso 3: Información Fiscal y Bancaria".
@@ -61,15 +61,20 @@ function dollarsToCents(dollars: number): number {
   return Math.round(dollars * 100);
 }
 
-// [ASSUMPTION -- falta seed en 254, agregar tax_bc_basic_personal_amount
-// antes de producción]. La migración 254_hiring_flow_seed_system_settings.sql
-// siembra tax_federal_basic_personal_amount, tax_year y payroll_min_wage_bc,
-// pero NO siembra un monto personal básico provincial de BC (TD1BC línea
-// 1). Usamos getSettingOrDefault con un placeholder explícito en vez de
-// inventar un número "real" -- así nunca hay un cálculo silenciosamente
-// incorrecto: el valor placeholder queda documentado tanto aquí como en
-// settingsUsed, visible para quien audite el cálculo.
-const BC_BASIC_PERSONAL_AMOUNT_PLACEHOLDER_DOLLARS = 12580;
+// Fix (auditoría externa, hallazgo confirmado): esta constante existía como
+// un default SILENCIOSO -- si faltaba tax_bc_basic_personal_amount en
+// system_settings, calculateTd1() usaba 12580 sin avisarle a nadie. Este es
+// un monto FISCAL real usado para calcular retenciones de impuestos de
+// empleados: un default desactualizado que nadie nota puede causar
+// retenciones mal calculadas durante meses. Se elimina el fallback
+// silencioso -- ver más abajo, ahora se usa getSetting() (sin default) para
+// esta key, igual que ya se hace para tax_year y
+// tax_federal_basic_personal_amount, y el mismo criterio de "fallar de
+// forma segura" que usa el resto del repo para configuración crítica
+// faltante (ej. HIRING_FLOW_ENCRYPTION_KEY). El valor real se siembra ahora
+// en supabase/migrations/286_hiring_flow_seed_bc_basic_personal_amount.sql
+// (con el mismo aviso "[ASSUMPTION -- verificar contra fuente oficial]" que
+// el resto del seed de 254) en vez de vivir hardcodeado en este archivo.
 const BC_BASIC_PERSONAL_AMOUNT_SETTING_KEY = "tax_bc_basic_personal_amount";
 
 // ---------------------------------------------------------------------------
@@ -95,12 +100,11 @@ export async function calculateTd1(
   const federalBasicPersonalAmountDollars = Number(
     await getSetting("tax_federal_basic_personal_amount", client)
   );
+  // Sin getSettingOrDefault: si falta este setting, calculateTd1() debe
+  // fallar ruidosamente (SettingNotFoundError) en vez de retener impuestos
+  // con un número inventado -- ver comentario de la constante arriba.
   const bcBasicPersonalAmountDollars = Number(
-    await getSettingOrDefault(
-      BC_BASIC_PERSONAL_AMOUNT_SETTING_KEY,
-      BC_BASIC_PERSONAL_AMOUNT_PLACEHOLDER_DOLLARS,
-      client
-    )
+    await getSetting(BC_BASIC_PERSONAL_AMOUNT_SETTING_KEY, client)
   );
 
   if (!Number.isFinite(taxYear)) {

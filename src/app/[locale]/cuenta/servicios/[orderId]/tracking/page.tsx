@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, MapPin, Clock, Truck } from "lucide-react";
+import { toIntlLocale } from "@/lib/format";
 
 interface TrackingData {
   lat?: number;
@@ -25,6 +26,8 @@ export default function ServiceTrackingPage() {
   const t = useTranslations("cuenta.servicios.tracking");
   const params = useParams();
   const orderId = params?.orderId as string;
+  const rawLocale = params?.locale as string | undefined;
+  const safeLocale = rawLocale && ["en", "zh", "fr"].includes(rawLocale) ? rawLocale : "en";
   const [data, setData] = useState<TrackingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -68,7 +71,13 @@ export default function ServiceTrackingPage() {
 
   if (!data) return null;
 
-  if (data.emptyReason || !data.lat || !data.lng) {
+  // Fix (auditoría 2026-07-31, hallazgo #8): `!data.lat || !data.lng` trata
+  // el número 0 como "faltante" -- 0,0 es una coordenada real (Golfo de
+  // Guinea) y, más relevante para BC, `0` es el tipo de valor falsy de JS
+  // que un backend con un bug de geocodificación podría llegar a devolver
+  // por error; lo correcto es distinguir "no vino el dato" (null/undefined)
+  // de "vino el número 0". Se compara explícitamente contra null/undefined.
+  if (data.emptyReason || data.lat == null || data.lng == null) {
     return (
       <div className="max-w-2xl">
         <div className="bg-white rounded-xl border p-8 text-center space-y-2">
@@ -122,7 +131,21 @@ export default function ServiceTrackingPage() {
           </div>
           {data.lastUpdatedAt && (
             <p className="text-xs text-gray-400">
-              {t("lastUpdated", { time: new Date(data.lastUpdatedAt).toLocaleTimeString() })}
+              {/* Fix (auditoría 2026-07-31, hallazgo #9): toLocaleTimeString()
+                  sin argumentos usa el locale/timezone del NAVEGADOR del
+                  cliente, no el idioma de la app ni la zona horaria del
+                  negocio -- un cliente en /zh viendo la hora en formato
+                  inglés, o un cliente fuera de BC viendo una hora que no es
+                  la de Vancouver (donde realmente ocurre el servicio). Se fija
+                  timeZone "America/Vancouver" (mismo criterio que
+                  date-utils.ts) y el locale de la app vía toIntlLocale(). */}
+              {t("lastUpdated", {
+                time: new Date(data.lastUpdatedAt).toLocaleTimeString(toIntlLocale(safeLocale), {
+                  timeZone: "America/Vancouver",
+                  hour: "numeric",
+                  minute: "2-digit",
+                }),
+              })}
             </p>
           )}
           <a

@@ -1009,6 +1009,7 @@
       "routeReady": "Today's route saved for offline use.",
       "routeFailed": "Couldn't save today's route for offline use — stay connected until reconnected.",
       "vehicleTrackingFailed": "Couldn't send your vehicle location — this doesn't affect your shift, but dispatch may not see your position.",
+      "vehicleTrackingRetrying": "Retrying to send your vehicle location…",
       "loadError": "Couldn't load today's services. Check your connection and try again.",
       "clientLabel": "Client: {name}",
       "more": "More",
@@ -3193,7 +3194,8 @@
       "emptyWithFilter": "No QC reviews with status \"{filter}\".",
       "photos": {
         "none": "No photo evidence uploaded",
-        "altText": "Service evidence photo"
+        "altText": "Service evidence photo",
+        "more": "+{count} more"
       },
       "reviewButton": "Review",
       "reviewedOn": "Reviewed {date}",
@@ -3373,6 +3375,7 @@
       "subtitle": "Grant referral/resolution/promo credit to a client. Credit and promo expire 12 months; refunds do not.",
       "loadError": "Failed to load",
       "networkError": "Network error",
+      "searchError": "Client search failed — try again",
       "findClientLabel": "Find client (name, email, or phone)",
       "searchAriaLabel": "Search client by name, email, or phone",
       "searchPlaceholder": "Start typing a name, email, or phone number...",

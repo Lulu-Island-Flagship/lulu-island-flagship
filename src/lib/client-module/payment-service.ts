@@ -71,26 +71,22 @@ function resolveClient(client?: PaymentsClient): PaymentsClient {
   return resolved;
 }
 
-// Forma de la fila que retorna la RPC. El contrato acordado declara la
-// función como `RETURNS client_payments`, cuyas columnas propias son
-// solo id/status/etc. de la tabla client_payments. [ASSUMPTION] Para que
-// el caller pueda conocer el resultado de la actualización de la factura
-// (status/balance_due_cents) sin una segunda ida a la DB -- y dado que la
-// RPC ya tiene esos valores disponibles en el mismo momento, dentro de la
-// misma transacción, porque ella misma los acaba de escribir -- se asume
-// que la función Postgres real se implementa devolviendo también esas dos
-// columnas adicionales junto a la fila de client_payments (ej. vía
-// `RETURNS TABLE(...)` con columnas extra, o un tipo compuesto ad-hoc),
-// aunque el nombre del tipo de retorno declarado en el contrato diga
-// `client_payments`. Si la función Postgres finalmente NO expone esas
-// columnas, este código deberá ajustarse (segunda consulta a
-// client_invoices) el día que se verifique la firma real contra la
-// migración.
+// Fix (auditoría 2026-07-31, hallazgo #15): el [ASSUMPTION] anterior
+// resultó ser falso -- se verificó la migración 278 real y `RETURNS
+// client_payments` NO exponía invoice_status/balance_due_cents en
+// absoluto, así que `row.invoice_status` siempre era `undefined` y el
+// fallback `row.invoice_status ?? row.status` devolvía el status del PAGO
+// ('completed', siempre) mal etiquetado como status de la FACTURA -- dos
+// conceptos distintos que nunca deben mezclarse (una factura recién
+// pagada parcialmente sigue 'partially_paid', no 'completed'). Se
+// actualizó la RPC (migración 291) para declarar `RETURNS TABLE(...)` con
+// invoice_status/balance_due_cents como columnas explícitas y siempre
+// presentes -- ya no son opcionales ni tienen fallback aquí.
 interface ClientPaymentRpcRow {
   id: string;
   status: string;
-  invoice_status?: string;
-  balance_due_cents?: number;
+  invoice_status: string;
+  balance_due_cents: number;
 }
 
 export async function recordPayment(
@@ -136,10 +132,20 @@ export async function recordPayment(
       `record_client_payment returned no payment row for invoice "${params.invoiceId}"`
     );
   }
+  // Defensa en profundidad: si por lo que sea la RPC no trajera
+  // invoice_status (ej. una migración futura que rompa el contrato de
+  // nuevo), fallar ruidoso es preferible a repetir el bug del fallback
+  // silencioso que este mismo fix elimina -- ver comentario de
+  // ClientPaymentRpcRow arriba.
+  if (row.invoice_status === undefined || row.invoice_status === null) {
+    throw new PaymentRecordingError(
+      `record_client_payment did not return invoice_status for invoice "${params.invoiceId}" -- RPC contract mismatch`
+    );
+  }
 
   return {
     paymentId: row.id,
-    invoiceStatus: row.invoice_status ?? row.status,
+    invoiceStatus: row.invoice_status,
     balanceDueCents: row.balance_due_cents ?? 0,
   };
 }

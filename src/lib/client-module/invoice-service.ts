@@ -216,26 +216,43 @@ function addDays(date: Date, days: number): Date {
   return result;
 }
 
-// [LIMITACIÓN CONOCIDA, heredada de la versión pre-retrofit] `createInvoice`
-// no expone un parámetro `invoiceNumber` en su firma pública (se mantiene
-// IDÉNTICA a la versión anterior, ver CreateInvoiceParams abajo), así que
-// el número de factura se genera acá mismo con `generateInvoiceNumber`
-// (billing-calculations.ts) usando `Date.now()` como sequenceNumber.
-// `generateInvoiceNumber` documenta explícitamente que resolver un
-// sequenceNumber libre de condición de carrera es responsabilidad del
-// caller (ej. vía una secuencia nativa de Postgres) -- ese trabajo sigue
-// sin hacerse aquí, exactamente igual que en la versión anterior de este
-// archivo, donde `defaultInsertInvoice` ni siquiera enviaba `invoice_number`
-// al INSERT (un gap preexistente, no introducido por este retrofit). Usar
-// `Date.now()` es una mejora estrictamente incidental para poder satisfacer
-// el NOT NULL/UNIQUE real de `client_invoices.invoice_number` al llamar a
-// la RPC (que si no, fallaría siempre en una DB real) -- no resuelve la
-// condición de carrera documentada, y queda fuera de alcance de esta tarea
-// (que es sobre atomicidad de factura+líneas, no sobre numeración). Un
-// esquema de numeración robusto (secuencia de Postgres) es un follow-up
-// separado.
-function buildInvoiceNumber(issueDate: Date): string {
-  return generateInvoiceNumber(issueDate, Date.now());
+// Fix (auditoría 2026-07-31, hallazgo #14): la versión anterior usaba
+// `Date.now()` como sequenceNumber -- riesgo real de colisión bajo carga
+// concurrente (dos facturas creadas en el mismo milisegundo, ej. batch de
+// facturación mensual), y un timestamp de 13 dígitos tampoco produce el
+// formato "INV-<año>-000123" legible que generateInvoiceNumber() espera.
+// Ahora se obtiene un secuencial atómico real vía
+// `next_client_invoice_number_sequence()` (RPC SECURITY DEFINER sobre una
+// SEQUENCE nativa de Postgres, migración 290) -- `nextval()` es atómico a
+// nivel de motor, dos transacciones concurrentes nunca reciben el mismo
+// valor, sin necesidad de lock explícito en esta capa.
+export type GetNextInvoiceSequenceFn = (
+  client: InvoiceServiceClient
+) => Promise<number>;
+
+async function defaultGetNextInvoiceSequence(
+  client: InvoiceServiceClient
+): Promise<number> {
+  const { data, error } = await client.rpc("next_client_invoice_number_sequence");
+  if (error || data === null || data === undefined) {
+    throw new InvoiceCreationError(
+      `next_client_invoice_number_sequence RPC failed: ${error?.message ?? "no data returned"}`
+    );
+  }
+  // La secuencia es BIGINT -- Supabase/PostgREST puede serializarla como
+  // string o number según el driver; se normaliza a number (Number.MAX_SAFE_INTEGER
+  // es ~9x10^15, muy por encima de cualquier volumen real de facturas de
+  // este negocio, así que la conversión es segura en la práctica).
+  return Number(data);
+}
+
+async function buildInvoiceNumber(
+  issueDate: Date,
+  client: InvoiceServiceClient,
+  getNextInvoiceSequenceFn: GetNextInvoiceSequenceFn
+): Promise<string> {
+  const sequenceNumber = await getNextInvoiceSequenceFn(client);
+  return generateInvoiceNumber(issueDate, sequenceNumber);
 }
 
 // ---------------------------------------------------------------------------
@@ -252,6 +269,7 @@ export interface CreateInvoiceParams {
   // Dependencias inyectables (default = implementación real importada).
   getSettingFn?: GetSettingFn;
   callCreateInvoiceRpcFn?: CallCreateInvoiceRpcFn;
+  getNextInvoiceSequenceFn?: GetNextInvoiceSequenceFn;
 }
 
 export interface CreateInvoiceResult {
@@ -275,6 +293,7 @@ export async function createInvoice(
 
   const getSettingImpl = params.getSettingFn ?? getSetting;
   const callCreateInvoiceRpcImpl = params.callCreateInvoiceRpcFn ?? defaultCallCreateInvoiceRpc;
+  const getNextInvoiceSequenceImpl = params.getNextInvoiceSequenceFn ?? defaultGetNextInvoiceSequence;
 
   const resolved = resolveClient(params.client);
 
@@ -286,7 +305,7 @@ export async function createInvoice(
   const totals = calculateInvoiceTotals(params.lineItems, gstRate, pstRate);
 
   const dueDate = addDays(params.issueDate, params.dueDateDays);
-  const invoiceNumber = buildInvoiceNumber(params.issueDate);
+  const invoiceNumber = await buildInvoiceNumber(params.issueDate, resolved, getNextInvoiceSequenceImpl);
 
   // Factura + TODAS sus líneas en una sola operación atómica (RPC
   // create_client_invoice_with_line_items, 281 -- ver "Nota de

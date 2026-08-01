@@ -24,6 +24,7 @@ import {
 import { sendSms } from "./sms";
 import { sendEmail } from "./email";
 import { getVancouverTodayString, getVancouverOffset } from "./date-utils";
+import { captureError } from "./observability";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -403,8 +404,17 @@ export async function dispatchCommunication(
   } catch (err) {
     // Nunca dejamos que un fallo de comunicaciones rompa el flujo principal
     // (reserva, cierre de servicio, resolución de disputa) que ya es válido.
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[dispatchCommunication] Error despachando '${params.eventKey}':`, message);
-    return { status: "failed", detail: message };
+    //
+    // Fix (auditoría 2026-07-31, item 13): antes `detail` devolvía
+    // `err.message` crudo al caller. Ningún call site actual reenvía ese
+    // valor a una respuesta HTTP externa hoy (se usa solo para logs o para
+    // `provider_response`, una columna interna), pero es una trampa real:
+    // cualquier detalle interno (nombre de tabla, mensaje de Postgres, stack)
+    // terminaría filtrado en cuanto algún caller futuro decida exponerlo. Se
+    // sigue el patrón ya establecido en el proyecto (captureError,
+    // src/lib/observability.ts) para el log completo, y se devuelve al
+    // caller un mensaje genérico sin detalle interno.
+    captureError(err, { module: "dispatchCommunication", eventKey: params.eventKey, userId: params.userId });
+    return { status: "failed", detail: "No se pudo despachar la comunicación" };
   }
 }

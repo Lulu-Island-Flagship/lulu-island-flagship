@@ -203,14 +203,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to load client profile" }, { status: 500 });
     }
 
+    const normalizedAddress = String(body.address).trim();
+    const normalizedPostalCode = body.postalCode ? String(body.postalCode).trim().toUpperCase() : null;
+
+    // Fix (auditoría 2026-07-31, hallazgo #1): el POST insertaba una
+    // propiedad nueva sin comprobar si el cliente ya tenía una activa con
+    // la misma dirección -- un doble clic, un reintento tras timeout, o
+    // simplemente reenviar el mismo formulario por error creaba
+    // duplicados silenciosos. El criterio de "duplicado" es exact-match de
+    // address (case-insensitive) + postal_code, no un match parcial: un
+    // cliente con dos propiedades legítimas en la misma calle (distinto
+    // número) no debe quedar bloqueado -- direcciones distintas siempre son
+    // direcciones distintas, aunque compartan calle/zona. Cuando
+    // postal_code no viene en ninguna de las dos, se compara solo por
+    // address exacto (mejor esfuerzo con el dato disponible).
+    let duplicateQuery = supabase
+      .from("client_properties")
+      .select("id")
+      .eq("client_profile_id", profile.id)
+      .eq("is_active", true)
+      .ilike("address", normalizedAddress);
+    duplicateQuery = normalizedPostalCode
+      ? duplicateQuery.eq("postal_code", normalizedPostalCode)
+      : duplicateQuery.is("postal_code", null);
+    const { data: duplicate, error: duplicateError } = await duplicateQuery.maybeSingle();
+
+    if (duplicateError) {
+      return safeErrorResponse(duplicateError, 500, "Failed to check for duplicate property");
+    }
+    if (duplicate) {
+      return NextResponse.json(
+        { error: "You already have a property with this address" },
+        { status: 409 }
+      );
+    }
+
     const { data: property, error } = await supabase
       .from("client_properties")
       .insert({
         client_profile_id: profile.id,
         nickname: body.nickname ? String(body.nickname) : undefined,
-        address: String(body.address).trim(),
+        address: normalizedAddress,
         zone: String(body.zone).trim(),
-        postal_code: body.postalCode ? String(body.postalCode).trim().toUpperCase() : undefined,
+        postal_code: normalizedPostalCode ?? undefined,
         square_feet: body.squareFeet ? Number(body.squareFeet) : undefined,
         is_active: true,
       })
@@ -262,6 +297,39 @@ export async function PATCH(request: NextRequest) {
       updatePayload.square_feet = updates.squareFeet ? Number(updates.squareFeet) : null;
     }
     if (updates.isActive !== undefined) updatePayload.is_active = Boolean(updates.isActive);
+
+    // Fix (auditoría 2026-07-31, hallazgo #1): mismo chequeo de duplicados
+    // que el POST, aplicado aquí solo cuando la actualización TOCA
+    // address o postalCode -- si el cliente no está cambiando la
+    // dirección, no hay nada que revalidar. Excluye la propia fila (`id`)
+    // de la búsqueda para no bloquear un PATCH que no cambia address
+    // (ej. solo actualiza nickname) contra sí misma.
+    if (updatePayload.address !== undefined || updatePayload.postal_code !== undefined) {
+      const addressToCheck = (updatePayload.address as string | undefined) ?? null;
+      if (addressToCheck) {
+        const postalCodeToCheck = updatePayload.postal_code !== undefined ? (updatePayload.postal_code as string | null) : null;
+        let duplicateQuery = supabase
+          .from("client_properties")
+          .select("id")
+          .eq("client_profile_id", profile.id)
+          .eq("is_active", true)
+          .neq("id", id)
+          .ilike("address", addressToCheck);
+        duplicateQuery = postalCodeToCheck
+          ? duplicateQuery.eq("postal_code", postalCodeToCheck)
+          : duplicateQuery.is("postal_code", null);
+        const { data: duplicate, error: duplicateError } = await duplicateQuery.maybeSingle();
+        if (duplicateError) {
+          return safeErrorResponse(duplicateError, 500, "Failed to check for duplicate property");
+        }
+        if (duplicate) {
+          return NextResponse.json(
+            { error: "You already have a property with this address" },
+            { status: 409 }
+          );
+        }
+      }
+    }
 
     const { data: property, error } = await supabase
       .from("client_properties")

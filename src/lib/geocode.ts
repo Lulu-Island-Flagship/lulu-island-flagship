@@ -63,14 +63,30 @@ export async function geocodeAddress(address: string): Promise<LatLng | null> {
       if (!res.ok) return null;
       const json = await res.json();
       // Adapter genérico: intenta leer lat/lng de formatos comunes
-      const lat =
+      const rawLat =
         json?.lat ?? json?.results?.[0]?.geometry?.location?.lat ?? json?.[0]?.lat;
-      const lng =
+      const rawLng =
         json?.lon ??
         json?.lng ??
         json?.results?.[0]?.geometry?.location?.lng ??
         json?.[0]?.lon;
-      if (typeof lat === "number" && typeof lng === "number") {
+      // Fix (auditoría 2026-07-31, item 12): antes se exigía `typeof lat ===
+      // "number"`, rechazando en silencio cualquier proveedor que devuelva
+      // lat/lng como string (común -- Nominatim mismo lo hace, ver el
+      // fallback más abajo que sí usa parseFloat). Se acepta number o
+      // string y se valida el resultado numérico real (NaN o fuera de rango
+      // de coordenadas válidas = rechazado), en vez de rechazar por el tipo
+      // JS del valor recibido.
+      const lat = typeof rawLat === "number" ? rawLat : typeof rawLat === "string" ? parseFloat(rawLat) : NaN;
+      const lng = typeof rawLng === "number" ? rawLng : typeof rawLng === "string" ? parseFloat(rawLng) : NaN;
+      if (
+        !Number.isNaN(lat) &&
+        !Number.isNaN(lng) &&
+        lat >= -90 &&
+        lat <= 90 &&
+        lng >= -180 &&
+        lng <= 180
+      ) {
         return { lat, lng };
       }
     } catch (err) {

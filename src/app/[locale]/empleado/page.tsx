@@ -31,6 +31,14 @@ import { triggerSyncCycle } from "@/lib/offline-sync-client";
 import { getVancouverTodayString, getVancouverOffset } from "@/lib/date-utils";
 import { ErrorBanner } from "@/components/empleado/ErrorBanner";
 import { SkeletonServiceList } from "@/components/ui/Skeleton";
+// Fix (auditoría externa, hallazgo confirmado): el logout con eventos
+// offline sin sincronizar usaba window.confirm() nativo -- no accesible, no
+// estilizable, y bloqueado por popup blockers en algunos navegadores/
+// entornos embebidos (mismo motivo que ya llevó a reemplazar 11 usos en el
+// admin, ver cabecera de ConfirmActionModal.tsx). Se reutiliza ese mismo
+// componente genérico en vez de crear uno nuevo -- no tiene ninguna lógica
+// específica de admin, solo confirmación accesible con focus trap.
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 type JornadaStatus = "not_started" | "started";
 type OfflineDownloadStatus = "idle" | "downloading" | "ready" | "failed";
@@ -67,6 +75,10 @@ export default function EmpleadoPage() {
   // más abajo -- antes un fallo real de tracking de vehículo era
   // indistinguible de "no tengo vehículo asignado" (mismo catch vacío).
   const [vehicleTrackingFailed, setVehicleTrackingFailed] = useState(false);
+  // Fix (auditoría externa, hallazgo confirmado): distingue "está
+  // reintentando en este momento" de "se agotaron los intentos" para el
+  // mensaje visible -- ver sendVehicleLocation/scheduleVehicleLocationRetry.
+  const [vehicleTrackingRetrying, setVehicleTrackingRetrying] = useState(false);
 
   const [services, setServices] = useState<EmployeeService[]>([]);
   const [loadingServices, setLoadingServices] = useState(true);
@@ -82,6 +94,10 @@ export default function EmpleadoPage() {
   const [offlineDownloadStatus, setOfflineDownloadStatus] = useState<OfflineDownloadStatus>("idle");
   // #7: evita doble-click en "Sign out" mientras se vacía la cola offline.
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  // Fix (auditoría externa, hallazgo confirmado): reemplaza window.confirm()
+  // -- ver import de ConfirmActionModal arriba.
+  const [showUnsyncedLogoutModal, setShowUnsyncedLogoutModal] = useState(false);
+  const [unsyncedCount, setUnsyncedCount] = useState(0);
 
   // Detect locale from route params (needed both by the auth effect below and
   // by navigation links further down) -- movido arriba del useEffect para que
@@ -211,6 +227,29 @@ export default function EmpleadoPage() {
   // todavía es válido para escribir), y si sigue quedando algo pendiente
   // (ej. sin red en este momento) se avisa explícitamente en vez de
   // cerrar sesión en silencio.
+  // Fix (auditoría de autenticación 2026-07-25/26, item 4): antes cerraba
+  // sesión directo desde el navegador con supabase.auth.signOut(), a
+  // diferencia de /admin (POST a /auth/signout, ver
+  // src/app/[locale]/admin/layout.tsx). Se unifica al mismo endpoint
+  // server-side vía fetch (no un <form> submit normal, porque antes hay
+  // trabajo async -- el ciclo de sync offline -- que debe completarse
+  // primero). credentials:"include" para que la Route Handler reciba las
+  // cookies de sesión a limpiar. Extraído a su propia función para poder
+  // invocarse tanto desde el flujo directo (sin eventos pendientes) como
+  // desde la confirmación del modal (ver handleConfirmLogoutWithUnsynced).
+  const performSignOut = async () => {
+    await fetch(`/auth/signout?locale=${safeLocale}`, {
+      method: "POST",
+      credentials: "include",
+    });
+    setServices([]);
+    setEmployeeName("");
+    setJornadaStatus("not_started");
+    // v8.3 fix G-1: sin modal propio -- de vuelta al Portal de equipo para
+    // un login limpio.
+    router.push(`/${safeLocale}/portal`);
+  };
+
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
@@ -219,40 +258,51 @@ export default function EmpleadoPage() {
         await triggerSyncCycle().catch(() => {});
         const stillPending = await getAllQueuedEvents().catch(() => []);
         if (stillPending.length > 0) {
-          const proceed = window.confirm(
-            t("dashboard.unsyncedWarning", { count: stillPending.length })
-          );
-          if (!proceed) {
-            setIsLoggingOut(false);
-            return;
-          }
+          // Fix (auditoría externa, hallazgo confirmado): antes esto era
+          // window.confirm() nativo -- se reemplaza por ConfirmActionModal
+          // (renderizado más abajo). El propio modal maneja su estado de
+          // carga/error al confirmar, así que acá solo se abre y se corta el
+          // flujo -- isLoggingOut se libera en el `finally` de abajo para que
+          // el ícono del header no quede girando mientras el modal está
+          // abierto (el modal tiene su propio spinner al confirmar).
+          setUnsyncedCount(stillPending.length);
+          setShowUnsyncedLogoutModal(true);
+          return;
         }
       }
 
-      // Fix (auditoría de autenticación 2026-07-25/26, item 4): antes cerraba
-      // sesión directo desde el navegador con supabase.auth.signOut(), a
-      // diferencia de /admin (POST a /auth/signout, ver
-      // src/app/[locale]/admin/layout.tsx). Se unifica al mismo endpoint
-      // server-side vía fetch (no un <form> submit normal, porque antes hay
-      // trabajo async -- el ciclo de sync offline -- que debe completarse
-      // primero). credentials:"include" para que la Route Handler reciba las
-      // cookies de sesión a limpiar.
-      await fetch(`/auth/signout?locale=${safeLocale}`, {
-        method: "POST",
-        credentials: "include",
-      });
-      setServices([]);
-      setEmployeeName("");
-      setJornadaStatus("not_started");
-      // v8.3 fix G-1: sin modal propio -- de vuelta al Portal de equipo para
-      // un login limpio.
-      router.push(`/${safeLocale}/portal`);
+      await performSignOut();
     } finally {
       setIsLoggingOut(false);
     }
   };
 
-  async function sendVehicleLocation() {
+  // onConfirm del modal: el empleado decidió cerrar sesión de todos modos
+  // pese a tener eventos sin sincronizar. Si performSignOut() lanza, el
+  // modal muestra el error y permanece abierto (mismo contrato que el resto
+  // de usos de ConfirmActionModal) -- nunca se pierde el aviso en silencio.
+  const handleConfirmLogoutWithUnsynced = async () => {
+    await performSignOut();
+    setShowUnsyncedLogoutModal(false);
+  };
+
+  // Fix (auditoría externa, hallazgo confirmado): un fallo real de tracking
+  // de vehículo (no "sin vehículo asignado") solo activaba el estado
+  // interno vehicleTrackingFailed una vez, sin ningún reintento automático
+  // -- si la ubicación no salió por un problema transitorio de red justo al
+  // iniciar jornada, quedaba así hasta el próximo inicio de jornada del día
+  // siguiente. Se agrega un backoff simple (cada 30s, hasta 3 intentos en
+  // total) -- mismo orden de magnitud que el backoff de la cola offline
+  // (ver nextRetryDelayMs en offline-queue.ts), sin reutilizar esa cola
+  // porque vehicle-tracking no es un evento de servicio encolable (no tiene
+  // orderId ni pasa por submitServiceEventOrQueue). La notificación en la UI
+  // (vehicleTrackingFailed, renderizado más abajo) permanece visible
+  // mientras se reintenta y también si se agotan los 3 intentos -- nunca
+  // vuelve a ser un estado puramente interno/silencioso.
+  const VEHICLE_TRACKING_MAX_ATTEMPTS = 3;
+  const VEHICLE_TRACKING_RETRY_DELAY_MS = 30000;
+
+  async function sendVehicleLocation(attempt = 1) {
     if (!navigator.geolocation) return;
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -274,20 +324,42 @@ export default function EmpleadoPage() {
       // quedaban indistinguibles. El operario creía que su ubicación se
       // transmitía cuando en realidad el envío fallaba en silencio. La API
       // (/api/empleado/vehicle-tracking) devuelve 400 "No vehicle assigned"
-      // para el caso esperado -- ese sí se ignora. Cualquier otro código
-      // (401/500/etc.) es un fallo real: se marca visible en la UI.
+      // para el caso esperado -- ese sí se ignora (nunca se reintenta: no es
+      // un fallo transitorio, es un estado permanente del empleado). Cualquier
+      // otro código (401/500/etc.) es un fallo real: se reintenta con backoff.
       if (!res.ok) {
         const body = await res.json().catch(() => ({}) as { error?: string });
         const noVehicleAssigned = res.status === 400 && /no vehicle assigned/i.test(body?.error || "");
-        setVehicleTrackingFailed(!noVehicleAssigned);
+        if (noVehicleAssigned) {
+          setVehicleTrackingFailed(false);
+          setVehicleTrackingRetrying(false);
+          return;
+        }
+        scheduleVehicleLocationRetry(attempt);
         return;
       }
       setVehicleTrackingFailed(false);
+      setVehicleTrackingRetrying(false);
     } catch {
       // Fallo real: permiso GPS denegado, timeout, sin red, etc. -- antes
       // era indistinguible de "no tengo vehículo asignado".
-      setVehicleTrackingFailed(true);
+      scheduleVehicleLocationRetry(attempt);
     }
+  }
+
+  function scheduleVehicleLocationRetry(attempt: number) {
+    setVehicleTrackingFailed(true);
+    if (attempt >= VEHICLE_TRACKING_MAX_ATTEMPTS) {
+      // Intentos agotados: la notificación queda visible (no silenciosa),
+      // pero ya no se reintenta más automáticamente por este inicio de
+      // jornada -- evita seguir golpeando el servidor/GPS indefinidamente.
+      setVehicleTrackingRetrying(false);
+      return;
+    }
+    setVehicleTrackingRetrying(true);
+    setTimeout(() => {
+      void sendVehicleLocation(attempt + 1);
+    }, VEHICLE_TRACKING_RETRY_DELAY_MS);
   }
 
   const handleStartJornada = async () => {
@@ -479,11 +551,19 @@ export default function EmpleadoPage() {
             de tracking de vehículo (GPS denegado, sin red, error del
             servidor) era indistinguible de "no tengo vehículo asignado" --
             el operario creía que su ubicación se transmitía cuando en
-            realidad fallaba en silencio. No bloquea nada, solo informa. */}
+            realidad fallaba en silencio. No bloquea nada, solo informa --
+            ahora distingue "reintentando" de "se agotaron los intentos"
+            (ver sendVehicleLocation/scheduleVehicleLocationRetry). */}
         {vehicleTrackingFailed && (
           <div className="flex items-center gap-2 text-xs text-state-warning px-1">
-            <AlertCircle className="w-3.5 h-3.5" />
-            {t("dashboard.vehicleTrackingFailed")}
+            {vehicleTrackingRetrying ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <AlertCircle className="w-3.5 h-3.5" />
+            )}
+            {vehicleTrackingRetrying
+              ? t("dashboard.vehicleTrackingRetrying")
+              : t("dashboard.vehicleTrackingFailed")}
           </div>
         )}
 
@@ -642,6 +722,20 @@ export default function EmpleadoPage() {
           </div>
         </div>
       </div>
+
+      {/* Fix (auditoría externa, hallazgo confirmado): reemplaza el
+          window.confirm() nativo que antes bloqueaba handleLogout() cuando
+          quedaban eventos offline sin sincronizar -- ver
+          handleConfirmLogoutWithUnsynced arriba. */}
+      {showUnsyncedLogoutModal && (
+        <ConfirmActionModal
+          title={t("dashboard.logout")}
+          message={t("dashboard.unsyncedWarning", { count: unsyncedCount })}
+          danger
+          onConfirm={handleConfirmLogoutWithUnsynced}
+          onCancel={() => setShowUnsyncedLogoutModal(false)}
+        />
+      )}
     </main>
   );
 }

@@ -27,6 +27,18 @@ function getSupabaseClient() {
 
 const SURVEY_WALLET_CREDIT_CENTS = 1000; // $10, fijo por spec (E5.7)
 
+// Fix (auditoría 2026-07-31, hallazgo #18): igual que nps_surveys
+// (ver src/app/api/client/nps-survey/route.ts), el pre_review_survey_token
+// nunca expiraba -- ningún límite temporal impedía responder una encuesta
+// enviada hace meses. Se reutiliza `orders.pre_review_survey_sent_at`
+// (columna ya existente, migración 156, poblada por el cron de envío --
+// src/app/api/cron/pre-review-survey/route.ts) en vez de agregar una
+// columna nueva: cero riesgo de backfill sobre órdenes ya enviadas. 72h es
+// más generoso que las 24h en las que se envía (spec E5.7: se envía 24h
+// después del cierre) -- da margen real para que el cliente responda un
+// mensaje de SMS/email sin dejar la ventana abierta indefinidamente.
+const PRE_REVIEW_SURVEY_RESPONSE_WINDOW_MS = 72 * 60 * 60 * 1000;
+
 /**
  * POST /api/client/pre-review-survey — { token, satisfied, complaintText? }
  *
@@ -55,12 +67,21 @@ export async function POST(request: NextRequest) {
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("id, user_id, service_date")
+    .select("id, user_id, service_date, pre_review_survey_sent_at")
     .eq("pre_review_survey_token", body.token)
     .maybeSingle();
   if (orderError) return NextResponse.json({ error: orderError.message }, { status: 500 });
   if (!order || order.user_id !== user.id) {
     return NextResponse.json({ error: "Encuesta no encontrada" }, { status: 404 });
+  }
+  // Sin sent_at, la encuesta nunca fue disparada por el cron -- no hay
+  // fecha de referencia para calcular una ventana, se rechaza (mismo
+  // criterio deny-by-default que el resto del módulo cliente).
+  if (
+    !order.pre_review_survey_sent_at ||
+    Date.now() - new Date(order.pre_review_survey_sent_at).getTime() > PRE_REVIEW_SURVEY_RESPONSE_WINDOW_MS
+  ) {
+    return NextResponse.json({ error: "Esta encuesta ya expiró" }, { status: 410 });
   }
 
   const { data: existing } = await supabase

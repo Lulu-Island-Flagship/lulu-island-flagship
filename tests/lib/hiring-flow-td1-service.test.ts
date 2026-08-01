@@ -40,8 +40,13 @@ function baseState(overrides: Partial<MockState> = {}): MockState {
     settingsRows: [
       { key: "tax_year", value: "2026", value_type: "number" },
       { key: "tax_federal_basic_personal_amount", value: "15705", value_type: "number" },
-      // tax_bc_basic_personal_amount intentionally NOT seeded here to
-      // exercise the getSettingOrDefault placeholder path.
+      // Fix (auditoría externa, hallazgo confirmado): tax_bc_basic_personal_amount
+      // ya no tiene un fallback hardcodeado silencioso en td1-service.ts (ver
+      // supabase/migrations/286_hiring_flow_seed_bc_basic_personal_amount.sql
+      // y el comentario en calculateTd1) -- ahora es requerido, igual que
+      // tax_year y tax_federal_basic_personal_amount, así que el estado base
+      // de estos tests debe sembrarlo explícitamente.
+      { key: "tax_bc_basic_personal_amount", value: "12580", value_type: "number" },
     ],
     ...overrides,
   };
@@ -62,15 +67,20 @@ test("calculateTd1: reads tax_year and federal basic personal amount from settin
   assert.equal(result.federalBasicPersonalAmountCents, 1570500);
 });
 
-test("calculateTd1: falls back to placeholder for tax_bc_basic_personal_amount when not seeded", async () => {
+test("calculateTd1: throws when tax_bc_basic_personal_amount setting is missing (no silent hardcoded fallback)", async () => {
   invalidateSettingsCache();
-  const state = baseState();
+  const state = baseState({
+    settingsRows: [
+      { key: "tax_year", value: "2026", value_type: "number" },
+      { key: "tax_federal_basic_personal_amount", value: "15705", value_type: "number" },
+      // tax_bc_basic_personal_amount intentionally NOT seeded -- must fail
+      // loudly (SettingNotFoundError), never silently default. Ver fix de
+      // auditoría externa en td1-service.ts.
+    ],
+  });
   const client = makeMockClient(state);
 
-  const result = await calculateTd1({ candidateId: "candidate-1" }, client);
-
-  // Placeholder documented in td1-service.ts as [ASSUMPTION]: 12580 dollars.
-  assert.equal(result.bcBasicPersonalAmountCents, 1258000);
+  await assert.rejects(() => calculateTd1({ candidateId: "candidate-1" }, client));
 });
 
 test("calculateTd1: uses the seeded value for tax_bc_basic_personal_amount when present", async () => {

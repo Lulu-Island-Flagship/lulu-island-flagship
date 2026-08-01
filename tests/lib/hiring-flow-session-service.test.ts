@@ -176,6 +176,35 @@ test("validateSession: valid, active session -> returns sessionId + candidateId"
   assert.equal(result.candidateId, "candidate-1");
 });
 
+// Fix (auditoría externa, hallazgo confirmado): validateSession() ahora
+// refresca last_activity_at en cada validación exitosa -- ver comentario en
+// session-service.ts.
+test("validateSession: successful validation refreshes last_activity_at", async () => {
+  invalidateSettingsCache();
+  const rawToken = "VALIDTOK2";
+  const staleActivity = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
+  const state = baseState({
+    sessionRows: [
+      {
+        id: "sess-touch",
+        candidate_id: "candidate-1",
+        token_hash: hashCode(rawToken),
+        expires_at: new Date(Date.now() + 60_000).toISOString(),
+        last_activity_at: staleActivity,
+        invalidated_at: null,
+      },
+    ],
+  });
+  const client = makeMockClient(state);
+
+  await validateSession(rawToken, client);
+
+  const updatedRow = state.sessionRows.find((r) => r.id === "sess-touch");
+  assert.ok(updatedRow);
+  assert.notEqual(updatedRow!.last_activity_at, staleActivity);
+  assert.ok(new Date(updatedRow!.last_activity_at).getTime() > new Date(staleActivity).getTime());
+});
+
 test("validateSession: nonexistent token -> SessionInvalidError", async () => {
   invalidateSettingsCache();
   const state = baseState({ sessionRows: [] });

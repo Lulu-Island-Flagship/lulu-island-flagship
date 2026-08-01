@@ -33,6 +33,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "lat and lng are required" }, { status: 400 });
     }
 
+    // Fix (auditoría externa, hallazgo confirmado): antes solo se validaba
+    // el TIPO (number) de lat/lng, no el RANGO -- un GPS con lectura
+    // corrupta, un bug de cliente, o un payload manipulado directamente
+    // contra este endpoint podía insertar coordenadas imposibles (ej. lat
+    // 200) en vehicle_tracking/vehicles, corrompiendo silenciosamente la
+    // posición mostrada a dispatch. Mismo criterio de validación explícita
+    // ya usado en el resto del repo para datos geográficos entrantes.
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      lat < -90 ||
+      lat > 90 ||
+      lng < -180 ||
+      lng > 180
+    ) {
+      return NextResponse.json(
+        { error: "lat must be between -90 and 90, lng must be between -180 and 180" },
+        { status: 400 }
+      );
+    }
+
     const supabase = getSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {

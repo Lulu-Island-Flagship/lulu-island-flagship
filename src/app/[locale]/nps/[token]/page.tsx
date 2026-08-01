@@ -32,6 +32,13 @@ export default function NpsSurveyPage() {
   // asume token inválido, esa es una causa real distinta).
   const [needsAuth, setNeedsAuth] = useState(false);
 
+  // Fix (auditoría 2026-07-31, hallazgo #17): mismo criterio que el POST
+  // server-side (src/app/api/client/nps-survey/route.ts) -- 30 días desde
+  // `sent_at`. La validación real y definitiva vive en el servidor (POST
+  // ya la rechaza con 410 si expiró); esto solo evita mostrarle al cliente
+  // un formulario completo para que recién al enviar descubra que expiró.
+  const NPS_SURVEY_RESPONSE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
   useEffect(() => {
     verifyToken();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -52,7 +59,7 @@ export default function NpsSurveyPage() {
 
       const { data: survey, error: surveyError } = await supabase
         .from("nps_surveys")
-        .select("id, responded_at")
+        .select("id, responded_at, sent_at")
         .eq("token", token)
         .single();
 
@@ -63,6 +70,13 @@ export default function NpsSurveyPage() {
       }
       if (survey.responded_at) {
         setSubmitted(true);
+        setLoading(false);
+        return;
+      }
+      if (Date.now() - new Date(survey.sent_at).getTime() > NPS_SURVEY_RESPONSE_WINDOW_MS) {
+        setError(t("invalidOrExpired"));
+        setLoading(false);
+        return;
       }
     } catch {
       setError(t("somethingWrong"));

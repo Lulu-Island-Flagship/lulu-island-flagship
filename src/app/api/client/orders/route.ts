@@ -47,7 +47,14 @@ export async function GET() {
   const { data: orders, error } = await supabase
     .from("orders")
     .select(
-      `${ORDER_CLIENT_COLUMNS}, hold_captured_at, capture_captured_at, quotes:quote_id (service_category, service_subtype, service_type, address, zone)`
+      // Fix (auditoría 2026-07-31, hallazgo #7 módulo cliente): se agrega
+      // `total` al join de quotes -- ya está en QUOTE_CLIENT_COLUMNS (el
+      // cliente puede ver el total de su propia cotización, invariante
+      // B.2.3 solo excluye economía INTERNA como score/margen), y la
+      // billetera lo necesita para mostrar cuánto crédito se aplicaría
+      // ANTES de que el cliente confirme "Apply credit" (antes no se
+      // mostraba ningún monto, el cliente aplicaba a ciegas).
+      `${ORDER_CLIENT_COLUMNS}, hold_captured_at, capture_captured_at, quotes:quote_id (service_category, service_subtype, service_type, address, zone, total)`
     )
     .eq("user_id", user.id)
     .order("service_date", { ascending: false });

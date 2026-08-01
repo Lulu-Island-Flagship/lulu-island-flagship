@@ -125,6 +125,32 @@ export async function POST(request: NextRequest) {
         `channel=${deliveryChannel} expires=${result.accessCodeExpiresAt.toISOString()}`
     );
 
+    // Fix (auditoría externa, hallazgo confirmado): si tanto SMS como email
+    // fallan (o ninguno de los dos estaba configurado / el candidato no dejó
+    // ni teléfono ni email utilizable), antes esto igual respondía
+    // { success: true } -- el candidato veía una pantalla de "revisa tu
+    // teléfono/correo" sin que nadie le fuera a enviar nada nunca, sin forma
+    // de saber que algo salió mal. El candidato (con su consentimiento
+    // registrado) y el código de acceso YA existen en la base para este
+    // punto -- candidate-step1-service.ts los crea de forma atómica antes de
+    // que este endpoint intente la entrega, y revertir esa creación acá
+    // reabriría la ventana de "candidato sin consentimiento" que la RPC 268
+    // fue diseñada para cerrar (ver nota de atomicidad en ese archivo). Así
+    // que en vez de deshacer nada, simplemente dejamos de mentir sobre el
+    // éxito: 503 explícito para que el frontend le diga al candidato que
+    // intente de nuevo o contacte a la empresa, en vez de fingir que ya
+    // recibirá su código.
+    if (deliveryChannel === "none") {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "We couldn't send your access code by SMS or email. Please try again in a few minutes or contact us directly.",
+        },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     if (error instanceof Step1SubmissionError) {
