@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
     // Verificar que el empleado tiene asignación para este order
     const { data: assignment, error: assignError } = await supabase
       .from("assignments")
-      .select("id, zones")
+      .select("id, zones, status")
       .is("deleted_at", null)
       .eq("order_id", orderId)
       .eq("employee_id", employee.id)
@@ -240,6 +240,18 @@ export async function POST(request: NextRequest) {
 
     if (assignError || !assignment) {
       return NextResponse.json({ error: "No assignment found for this service" }, { status: 403 });
+    }
+
+    // Fix (auditoría 2026-07-31, #12): antes se podía marcar/editar ítems
+    // del checklist (incluida evidencia de químicos/fotos) sin importar el
+    // estado de la asignación -- incluyendo servicios ya 'completed' o
+    // 'cancelled'. Solo se permite mientras el servicio sigue activo en
+    // campo.
+    if (!["arrived", "in_progress"].includes(assignment.status)) {
+      return NextResponse.json(
+        { error: "This assignment is no longer active -- the checklist can't be edited." },
+        { status: 409 }
+      );
     }
 
     // v8.3 E4 (D.7): regla dura del reparto — si esta orden ya tiene zonas

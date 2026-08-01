@@ -159,13 +159,26 @@ export async function POST(request: NextRequest) {
 
     const { data: assignment, error: assignError } = await supabase
       .from("assignments")
-      .select("id")
+      .select("id, status")
       .is("deleted_at", null)
       .eq("order_id", orderId)
       .eq("employee_id", employee.id)
       .single();
     if (assignError || !assignment) {
       return NextResponse.json({ error: "No assignment found for this service" }, { status: 403 });
+    }
+    // Fix (auditoría 2026-07-31, #11): antes se podía escribir/actualizar
+    // service_closures (evidencia de cierre: implementos, confirmación
+    // externa, pago alternativo) sin importar el estado de la asignación --
+    // incluyendo asignaciones ya 'completed' o 'cancelled'. Eso permitía
+    // alterar evidencia de cierre después de que la orden ya se dio por
+    // terminada (posible manipulación post-hoc). Solo se permite mientras
+    // el servicio sigue activo en campo (arrived/in_progress).
+    if (!["arrived", "in_progress"].includes(assignment.status)) {
+      return NextResponse.json(
+        { error: "This assignment is no longer active -- closure evidence can't be modified." },
+        { status: 409 }
+      );
     }
 
     // Fix 2026-07-24 (auditoría externa): además de "> 0" (validado arriba),
