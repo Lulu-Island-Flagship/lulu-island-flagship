@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { DollarSign, Loader2, TrendingUp, TrendingDown, Download, AlertTriangle, CheckCircle2, X } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
 
 interface GroupSummary {
   key: string;
@@ -30,8 +31,14 @@ interface AccountingResponse {
   monthlyFixedCostsCents: number;
 }
 
-function formatCad(cents: number): string {
-  return (cents / 100).toLocaleString("en-CA", { style: "currency", currency: "CAD" });
+// Fix (auditoría externa 2026-07-31, hallazgo #10): antes usaba
+// `toLocaleString("en-CA", ...)` fijo, sin importar el idioma de la ruta
+// admin (en/fr/zh) -- ver src/lib/format.ts, que ya centraliza este mismo
+// fix para la superficie de cliente. `locale` es el locale de la app
+// ("en"/"fr"/"zh"), no un locale BCP-47 completo -- formatCurrency lo
+// traduce internamente.
+function formatCad(cents: number, locale: string): string {
+  return formatCurrency(cents / 100, locale);
 }
 
 function formatPercent(fraction: number): string {
@@ -46,6 +53,7 @@ const MARGIN_ALERT_THRESHOLD = 0.15;
 
 function GroupTable({ title, rows, flagLowMargin }: { title: string; rows: GroupSummary[]; flagLowMargin?: boolean }) {
   const t = useTranslations("admin.contabilidad");
+  const locale = useLocale();
   return (
     <div className="mb-8">
       <h2 className="text-lg font-semibold mb-2">{title}</h2>
@@ -73,10 +81,10 @@ function GroupTable({ title, rows, flagLowMargin }: { title: string; rows: Group
                     {r.key}
                   </td>
                   <td className="px-3 py-2 text-right">{r.orders}</td>
-                  <td className="px-3 py-2 text-right">{formatCad(r.collectedCents)}</td>
-                  <td className="px-3 py-2 text-right">{formatCad(r.laborCostCents)}</td>
+                  <td className="px-3 py-2 text-right">{formatCad(r.collectedCents, locale)}</td>
+                  <td className="px-3 py-2 text-right">{formatCad(r.laborCostCents, locale)}</td>
                   <td className="px-3 py-2 text-right">
-                    {formatCad(r.employerBurdenCents)}
+                    {formatCad(r.employerBurdenCents, locale)}
                     {r.employerBurdenIsEstimated && (
                       <span
                         className="ml-1.5 inline-block align-middle rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"
@@ -91,15 +99,15 @@ function GroupTable({ title, rows, flagLowMargin }: { title: string; rows: Group
                       "Employer burden" -- engañoso, porque otherCostsCents no es
                       carga patronal (CPP/EI/WorkSafeBC) sino otros costos operativos.
                       Se separan en columnas propias para que cada cifra sea exacta. */}
-                  <td className="px-3 py-2 text-right">{formatCad(r.otherCostsCents)}</td>
+                  <td className="px-3 py-2 text-right">{formatCad(r.otherCostsCents, locale)}</td>
                   <td className="px-3 py-2 text-right">
                     <span className={isLowMargin ? "text-state-danger font-medium" : ""}>
-                      {formatCad(r.contributionMarginCents)} ({formatPercent(r.contributionMarginPercent)})
+                      {formatCad(r.contributionMarginCents, locale)} ({formatPercent(r.contributionMarginPercent)})
                     </span>
                   </td>
                   <td className="px-3 py-2 text-right">
                     <span className={r.netMarginCents >= 0 ? "text-green-700" : "text-red-700"}>
-                      {formatCad(r.netMarginCents)}
+                      {formatCad(r.netMarginCents, locale)}
                     </span>{" "}
                     <span className="text-gray-500">({formatPercent(r.netMarginPercent)})</span>
                   </td>
@@ -125,24 +133,60 @@ function GroupTable({ title, rows, flagLowMargin }: { title: string; rows: Group
   );
 }
 
-function downloadExport(month: string, format: "csv" | "json") {
-  const url = `/api/admin/export?month=${encodeURIComponent(month)}&format=${format}`;
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `export_universal_${month}.${format}`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+// Fix (auditoría externa 2026-07-31, hallazgo #9): antes esto era
+// `a.download` apuntando directo a la URL de la API, sin fetch ni manejo de
+// error -- si el endpoint respondía 4xx/5xx (ej. sesión admin vencida,
+// rango sin datos, error interno), el navegador igual "descargaba" un
+// archivo (el cuerpo del error JSON/HTML, no el CSV/JSON real) con
+// extensión .csv/.json, silenciosamente, sin que el dueño se enterara de
+// que el archivo está corrupto/vacío hasta que intentara abrirlo. Ahora se
+// hace fetch explícito, se revisa res.ok ANTES de descargar cualquier cosa,
+// y se construye el link de descarga desde un Blob real vía
+// URL.createObjectURL (revocada después de usarse, para no filtrar memoria).
+async function downloadExport(
+  month: string,
+  format: "csv" | "json",
+  onError: (message: string) => void
+) {
+  try {
+    const url = `/api/admin/export?month=${encodeURIComponent(month)}&format=${format}`;
+    const res = await fetch(url, { credentials: "include" });
+    if (!res.ok) {
+      let message = `Error ${res.status} al generar el export`;
+      try {
+        const json = await res.json();
+        if (json?.error) message = json.error;
+      } catch {
+        // Respuesta no era JSON (ej. HTML de error genérico) -- se deja el
+        // mensaje genérico de arriba, nunca se descarga el cuerpo tal cual.
+      }
+      onError(message);
+      return;
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = `export_universal_${month}.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  } catch {
+    onError("No se pudo conectar con el servidor para generar el export");
+  }
 }
 
 export default function AdminContabilidadClient() {
   const t = useTranslations("admin.contabilidad");
+  const locale = useLocale();
   const [data, setData] = useState<AccountingResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [exportMonth, setExportMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const [showFixedCostsForm, setShowFixedCostsForm] = useState(false);
   const [fixedCostsInput, setFixedCostsInput] = useState("");
@@ -176,6 +220,16 @@ export default function AdminContabilidadClient() {
       setFixedCostsError(t("fixedCostsForm.invalidInput"));
       return;
     }
+    // Fix (auditoría externa 2026-07-31, hallazgo #11): el server redondea a
+    // centavos con `Math.round(monthlyFixedCostsDollars * 100)`
+    // (src/app/api/admin/fixed-costs-settings/route.ts) -- si `dollars`
+    // llegara con más de 2 decimales (ej. 3500.005, alcanzable si el valor
+    // no viene de esta UI sino de un origen que no aplica la misma
+    // sanitización), el redondeo del servidor podría no coincidir con lo
+    // que el dueño ve en pantalla. Se redondea a centavos ACÁ también, antes
+    // de enviar, para que el valor mostrado y el valor persistido nunca
+    // diverjan por un resto de punto flotante.
+    const roundedDollars = Math.round(dollars * 100) / 100;
     setSavingFixedCosts(true);
     setFixedCostsError(null);
     setFixedCostsSuccess(false);
@@ -184,7 +238,7 @@ export default function AdminContabilidadClient() {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ monthlyFixedCostsDollars: dollars, reason: fixedCostsReason.trim() }),
+        body: JSON.stringify({ monthlyFixedCostsDollars: roundedDollars, reason: fixedCostsReason.trim() }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -266,13 +320,19 @@ export default function AdminContabilidadClient() {
           />
         </div>
         <button
-          onClick={() => downloadExport(exportMonth, "csv")}
+          onClick={() => {
+            setExportError(null);
+            downloadExport(exportMonth, "csv", setExportError);
+          }}
           className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-900 rounded text-sm hover:bg-gray-50"
         >
           <Download className="w-3.5 h-3.5" /> {t("export.csv")}
         </button>
         <button
-          onClick={() => downloadExport(exportMonth, "json")}
+          onClick={() => {
+            setExportError(null);
+            downloadExport(exportMonth, "json", setExportError);
+          }}
           className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-900 rounded text-sm hover:bg-gray-50"
         >
           <Download className="w-3.5 h-3.5" /> {t("export.json")}
@@ -281,6 +341,16 @@ export default function AdminContabilidadClient() {
           {t("export.note")}
         </span>
       </div>
+
+      {exportError && (
+        <div className="flex items-start gap-2 border border-red-200 bg-red-50 rounded p-3 mb-4 text-sm text-red-700">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <p className="flex-1">{exportError}</p>
+          <button type="button" aria-label={t("dismissAriaLabel")} onClick={() => setExportError(null)} className="opacity-60 hover:opacity-100">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {loading && (
         <div className="flex items-center gap-2 text-gray-500">
@@ -371,13 +441,13 @@ export default function AdminContabilidadClient() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
             <div className="border rounded p-4">
               <div className="text-xs text-gray-500 mb-1">{t("summary.totalCollected")}</div>
-              <div className="text-xl font-semibold">{formatCad(data.overall.collectedCents)}</div>
+              <div className="text-xl font-semibold">{formatCad(data.overall.collectedCents, locale)}</div>
             </div>
             <div className="border rounded p-4">
               <div className="text-xs text-gray-500 mb-1">{t("summary.netMargin")}</div>
               <div className={`text-xl font-semibold flex items-center gap-1 ${data.overall.netMarginCents >= 0 ? "text-green-700" : "text-red-700"}`}>
                 {data.overall.netMarginCents >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                {formatCad(data.overall.netMarginCents)} ({formatPercent(data.overall.netMarginPercent)})
+                {formatCad(data.overall.netMarginCents, locale)} ({formatPercent(data.overall.netMarginPercent)})
               </div>
             </div>
           </div>
