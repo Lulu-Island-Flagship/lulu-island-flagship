@@ -92,6 +92,59 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fix (auditoría 2026-07-31, #14): antes se aceptaba cualquier string
+    // como documentPath sin validar que perteneciera a este empleado ni que
+    // fuera un archivo real subido al bucket privado 'sick-notes' -- un
+    // empleado podía enviar el path de la nota médica de OTRO empleado (o
+    // cualquier string arbitrario) directo por API, sin pasar por la UI de
+    // subida. Se valida: (1) el path debe empezar con "<employee.id>/" --
+    // mismo prefijo que usa la UI al subir (ver enfermedad/page.tsx), (2)
+    // extensión permitida, (3) el archivo debe existir realmente en el
+    // bucket con un tamaño razonable (verificado vía service-role, la anon
+    // key no tiene acceso de lectura a metadata de otros archivos del
+    // bucket privado).
+    const ALLOWED_DOCUMENT_EXTENSIONS = ["pdf", "jpg", "jpeg", "png", "webp"];
+    const MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+    if (documentPath) {
+      if (!documentPath.startsWith(`${employee.id}/`) || documentPath.includes("..")) {
+        return NextResponse.json(
+          { error: "documentPath is invalid for this employee" },
+          { status: 403 }
+        );
+      }
+      const ext = documentPath.split(".").pop()?.toLowerCase() || "";
+      if (!ALLOWED_DOCUMENT_EXTENSIONS.includes(ext)) {
+        return NextResponse.json(
+          { error: `documentPath must have one of these extensions: ${ALLOWED_DOCUMENT_EXTENSIONS.join(", ")}` },
+          { status: 400 }
+        );
+      }
+
+      const svcForCheck = getServiceClient();
+      if (!svcForCheck) {
+        return NextResponse.json({ error: "Supabase service credentials not configured" }, { status: 500 });
+      }
+      const folder = documentPath.split("/").slice(0, -1).join("/");
+      const fileName = documentPath.split("/").pop() || "";
+      const { data: listing, error: listError } = await svcForCheck.storage
+        .from("sick-notes")
+        .list(folder, { search: fileName });
+      const uploadedFile = listing?.find((f) => f.name === fileName);
+      if (listError || !uploadedFile) {
+        return NextResponse.json(
+          { error: "documentPath does not correspond to an uploaded file" },
+          { status: 400 }
+        );
+      }
+      const sizeBytes = (uploadedFile.metadata as { size?: number } | null)?.size ?? 0;
+      if (sizeBytes > MAX_DOCUMENT_SIZE_BYTES) {
+        return NextResponse.json(
+          { error: "The medical note file is too large (max 10MB)" },
+          { status: 400 }
+        );
+      }
+    }
+
     const daysEmployedContinuous = employee.hire_date
       ? Math.floor((new Date(absenceDate).getTime() - new Date(employee.hire_date).getTime()) / 86400000)
       : 0;
