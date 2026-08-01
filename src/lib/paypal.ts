@@ -138,14 +138,26 @@ async function fetchOrder(
     payer?: { email_address?: string };
   };
 
-  const capture = data.purchase_units?.[0]?.payments?.captures?.[0];
+  const captures = data.purchase_units?.[0]?.payments?.captures;
+  const completedCapture = captures?.find((c) => c.status === "COMPLETED");
+  const capture = completedCapture ?? captures?.[0];
   const amountValue = capture?.amount?.value ?? data.purchase_units?.[0]?.amount?.value;
   const currencyCode = capture?.amount?.currency_code ?? data.purchase_units?.[0]?.amount?.currency_code;
 
+  // Fix (auditoría externa, verificado 2026-07-31): antes se aceptaba un
+  // order con status "APPROVED" como pago válido, aunque nunca se hubiera
+  // ejecutado la captura (el dinero nunca sale de la cuenta del pagador).
+  // Un order "aprobado" pero no capturado es reversible por el pagador sin
+  // que nosotros nos enteremos -- tratarlo como pago válido es un bug
+  // financiero crítico. Ahora exigimos que exista al menos una captura real
+  // con status "COMPLETED"; el status de nivel superior del order ya no es
+  // suficiente por sí solo.
+  const valid = completedCapture !== undefined;
+
   return {
-    valid: data.status === "COMPLETED" || data.status === "APPROVED",
+    valid,
     transactionId: data.id,
-    status: data.status,
+    status: completedCapture ? completedCapture.status : data.status,
     amount: amountValue ? Number(amountValue) : undefined,
     currency: currencyCode,
     payerEmail: data.payer?.email_address,
@@ -185,14 +197,37 @@ export async function refundPayPalCapture(
       body.note_to_payer = noteToPayer.slice(0, 255);
     }
 
+    // Fix (auditoría externa, verificado 2026-07-31): la idempotency key
+    // usaba SOLO el captureId, idéntica para CUALQUIER reembolso posterior
+    // de esa misma captura. PayPal deduplica peticiones con el mismo
+    // PayPal-Request-Id devolviendo la respuesta cacheada del primer
+    // reembolso -- así, un reembolso parcial legítimo #2 sobre la misma
+    // captura (distinto monto) sería silenciosamente IGNORADO por PayPal
+    // (se devolvería la respuesta del primer reembolso), y nuestro código
+    // creería que se procesó el segundo.
+    //
+    // OJO: se incluye el monto para diferenciar reembolsos de distinto
+    // valor, pero DELIBERADAMENTE se mantiene determinística (sin UUID
+    // aleatorio) -- el único llamador actual (cron/paypal-refunds) reintenta
+    // la MISMA orden con el MISMO monto en corridas posteriores si el
+    // intento anterior falló (status "failed" -> se vuelve a recoger), y
+    // necesitamos que ESE reintento SÍ sea deduplicado por PayPal si la
+    // primera llamada en realidad se procesó pero la respuesta se perdió
+    // (timeout de red, etc.) -- una key aleatoria por llamada rompería esa
+    // protección contra reembolso duplicado, que es un riesgo mayor que el
+    // caso hipotético (hoy no implementado) de dos reembolsos parciales
+    // legítimos de idéntico monto sobre la misma captura.
+    const idempotencyKey = `refund:${captureId}:${amount !== undefined ? amount.toFixed(2) : "full"}`;
+
     const res = await fetch(`${getPayPalBaseUrl()}/v2/payments/captures/${captureId}/refund`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
         // Idempotencia: PayPal soporta PayPal-Request-Id para deduplicar
-        // reintentos del mismo reembolso.
-        "PayPal-Request-Id": `refund:${captureId}`,
+        // reintentos del MISMO reembolso (ver comentario arriba sobre por
+        // qué incluye el monto pero no un UUID).
+        "PayPal-Request-Id": idempotencyKey,
       },
       body: JSON.stringify(body),
     });
@@ -246,6 +281,22 @@ export async function verifyPayPalTransaction(
         valid: false,
         transactionId,
         error: "Transaction not found in PayPal",
+      };
+    }
+
+    // Fix (auditoría externa, verificado 2026-07-31): nunca se validaba la
+    // moneda de la transacción, solo el monto numérico. Todo el negocio
+    // opera en CAD; una transacción en USD (u otra moneda) por un valor
+    // numérico similar podía pasar la comparación de monto y aceptarse
+    // como si fuera CAD, subvalorando el pago real recibido (1 USD < 1 CAD).
+    if (result.currency !== undefined && result.currency !== "CAD") {
+      return {
+        valid: false,
+        transactionId,
+        status: result.status,
+        amount: result.amount,
+        currency: result.currency,
+        error: `Currency mismatch: expected CAD, got ${result.currency}`,
       };
     }
 
