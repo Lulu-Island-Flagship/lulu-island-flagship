@@ -8,6 +8,20 @@ import { requireAdminRole } from "@/lib/admin";
  * esos campos están dentro del hash-chain y cambiarlos rompería la cadena
  * de integridad; si el contenido original estaba mal, se abre un nuevo
  * incidente que lo referencie, no se edita el viejo.
+ *
+ * LIMITACIÓN DE ALCANCE (auditoría 2026-07-31, item 1): `notify_oipc` y
+ * `notify_affected` NO envían ningún email/carta/llamada real al OIPC de BC
+ * ni a las personas afectadas -- solo escriben un timestamp confirmando que
+ * el admin YA notificó por su cuenta, fuera de este sistema (proceso legal
+ * bajo PIPA de BC, no técnico). Construir una integración de envío real
+ * (qué canal usa el OIPC, plantillas legales, evidencia de entrega) es una
+ * decisión legal/de negocio fuera de alcance de este fix; NO se improvisa
+ * aquí. Lo que sí se corrigió: la UI (src/app/[locale]/admin/pipeda/page.tsx)
+ * ahora dice explícitamente "confirmo que ENVIÉ esto manualmente" en vez de
+ * "marcar como notificado" (ambiguo, podía leerse como que el sistema lo
+ * hizo). Si en el futuro se agrega envío automático real, hacerlo en una
+ * acción NUEVA (ej. "send_oipc_notification") sin tocar el significado de
+ * estos dos campos existentes.
  */
 export async function PATCH(
   request: NextRequest,

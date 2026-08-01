@@ -27,7 +27,26 @@ import { computePurgeEligibleAt } from "@/lib/pipeda";
  *     - `wallet_transactions` es inmutable (Grupo B, sin `deleted_at`) --
  *       registro contable, no se toca.
  *     - Fotos en Supabase Storage: este endpoint solo toca Postgres, no
- *       hace llamadas a Storage.
+ *       hace llamadas a Storage. Confirmado como gap real (auditoría
+ *       2026-07-31, item 4) -- NO se implementa aquí a propósito: borrar
+ *       archivos de Storage exige saber con certeza qué rutas pertenecen
+ *       SOLO a este titular (fotos de checklist pueden estar compartidas
+ *       en un mismo `order` con otro personal/cliente vía join tables) y
+ *       una decisión de negocio sobre si las fotos de servicio se
+ *       consideran PII purgable o evidencia operativa que debe conservarse
+ *       igual que `wallet_transactions`. Requiere diseño explícito, no un
+ *       parche apurado que arriesgue borrar evidencia de otro titular.
+ *     - `auth.users` (tabla del sistema Auth de Supabase, fuera del schema
+ *       `public`) NO se anonimiza ni se toca aquí. Confirmado como gap real
+ *       (mismo hallazgo) -- tampoco se implementa hoy: escribir sobre
+ *       `auth.users` requiere `service_role` apuntando al schema `auth`
+ *       (distinto de las tablas `public.*` que ya usa este cascade) y
+ *       puede romper el login/sesión activa del usuario de forma
+ *       impredecible si no se coordina con Supabase Auth (ej. invalidar
+ *       sesiones, refresh tokens). Recomendación: endpoint/cron dedicado
+ *       que use `supabase.auth.admin.updateUserById()` (SDK admin oficial,
+ *       no UPDATE directo a la tabla) para anonimizar email/phone tras el
+ *       período de retención, evaluado y construido aparte.
  *     - El purge FÍSICO (más allá de deleted_at) NO ocurre aquí ni en
  *       ningún cron existente hoy -- `purge_eligible_at` se escribe pero
  *       ningún job lo consume todavía (fuera de alcance de este endpoint;
@@ -174,7 +193,14 @@ export async function PATCH(
           // delete "central") ya se intentó igual que el resto, y el admin
           // necesita poder cerrar el ticket dentro del SLA de 48h aunque una
           // tabla secundaria falle. Se deja rastro en la respuesta.
-          updatePayload.correction_details = `[E-B5] Cascada de borrado con errores parciales: ${JSON.stringify(cascadeErrors)}`;
+          //
+          // Fix (auditoría 2026-07-31, item 4): antes esto se escribía en
+          // `correction_details`, columna documentada (migración 142) como
+          // exclusiva de request_type = 'correction' -- semánticamente
+          // incorrecta para una solicitud de ELIMINACIÓN y confusa para
+          // cualquiera que audite el registro después. Se usa la columna
+          // dedicada `deletion_errors` (migración 287).
+          updatePayload.deletion_errors = `[E-B5] Cascada de borrado con errores parciales: ${JSON.stringify(cascadeErrors)}`;
         }
       }
 

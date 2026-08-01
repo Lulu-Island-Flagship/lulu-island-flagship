@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   const { data: requests, error } = await auth.supabase
     .from("data_subject_requests")
     .select(
-      "id, client_user_id, request_type, status, requested_at, due_at, completed_at, requested_by_admin, processed_by_admin, correction_details, denial_reason, export_reference, purge_eligible_at, purged_at, created_at"
+      "id, client_user_id, request_type, status, requested_at, due_at, completed_at, requested_by_admin, processed_by_admin, correction_details, denial_reason, export_reference, purge_eligible_at, purged_at, deletion_errors, created_at"
     )
     .is("deleted_at", null)
     .order("requested_at", { ascending: false });

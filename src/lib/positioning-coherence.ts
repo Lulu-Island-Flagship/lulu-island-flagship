@@ -25,7 +25,12 @@ export interface PositioningValidationResult {
 }
 
 export interface PositioningValidationOptions {
-  /** Debe venir de isFlagEnabled(client, "pólizas_seguro") o equivalente — nunca asumir true por default. */
+  /**
+   * Debe venir de isPublicInsuredClaimReady() (src/lib/business-insurance.ts)
+   * u otra función que valide vigencia REAL de las 3 pólizas requeridas —
+   * nunca de un flag manual desconectado de las fechas de vencimiento, y
+   * nunca asumir true por default.
+   */
   bondedPolicyFlagActive: boolean;
 }
 

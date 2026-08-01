@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { evaluatePostForApproval, approvePost, publishPost, rejectPost } from "@/lib/blog-content";
 import { validatePositioningCoherence } from "@/lib/positioning-coherence";
-import { isFlagEnabled, type FlagClient } from "@/lib/feature-flags";
+import { isPublicInsuredClaimReady } from "@/lib/business-insurance";
 import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/marketing — cola de posts del blog por estado + últimas
@@ -11,10 +11,21 @@ import { safeErrorResponse } from "@/lib/api-errors";
 //
 // POST /api/admin/marketing — flujo de aprobación de un toque (spec E10.7):
 //   { action: "evaluate", id } — corre evaluatePostForApproval() (PIPA,
-//     B.2.20) Y validatePositioningCoherence() (B.2.24/B.2.25, el flag de
-//     pólizas se resuelve aquí via isFlagEnabled — fail-closed real, nunca
-//     asumido). Registra el resultado en marketing_pipa_checks (log
-//     inmutable) y, si ambos pasan, mueve draft -> pending_approval.
+//     B.2.20) Y validatePositioningCoherence() (B.2.24/B.2.25). El claim
+//     "asegurados/bonded" se valida aquí via isPublicInsuredClaimReady()
+//     (src/lib/business-insurance.ts) -- la MISMA función que usa el
+//     endpoint público (src/app/api/public/insured-status/route.ts) y la
+//     home (src/app/[locale]/page.tsx) para decidir si el sitio puede
+//     afirmar "insured/bonded". Fix (auditoría 2026-07-31, item 2): antes
+//     este check usaba isFlagEnabled(supabase, "pólizas_seguro"), un flag
+//     MANUAL en feature_flags sin relación con el vencimiento real de las
+//     pólizas -- un admin podía activarlo una vez y quedaría "true" para
+//     siempre aunque las pólizas reales vencieran después, permitiendo
+//     aprobar contenido que afirma "bonded/insured" con seguro vencido
+//     (publicidad engañosa real). Ahora hay una sola fuente de verdad: el
+//     estado calculado en vivo desde business_insurance_policies.
+//     Registra el resultado en marketing_pipa_checks (log inmutable) y, si
+//     ambos pasan, mueve draft -> pending_approval.
 //   { action: "approve", id } — approvePost(), exige pending_approval.
 //   { action: "reject", id } — rejectPost().
 //   { action: "publish", id } — publishPost(), exige approved.
@@ -99,12 +110,11 @@ export async function POST(request: NextRequest) {
       sourceMetadata: { triggerType: post.source_trigger_type, sampleSize: post.source_sample_size },
     });
 
-    // Cast estructural: el cliente real de supabase-js satisface FlagClient en
-    // runtime (mismo método .from().select().eq().is().maybeSingle()), pero su
-    // tipo genérico es demasiado profundo para que TS lo infiera contra la
-    // interfaz mínima de FlagClient (TS2589). El contrato real se verifica en
-    // isFlagEnabled(), que es fail-closed ante cualquier forma inesperada.
-    const bondedPolicyFlagActive = await isFlagEnabled(supabase as unknown as FlagClient, "pólizas_seguro");
+    // isPublicInsuredClaimReady() ignora `supabase` a propósito: usa su propio
+    // cliente service-role internamente (igual que el endpoint público), así
+    // que el resultado es idéntico sin importar quién lo llame. Fail-closed:
+    // cualquier error, credencial faltante, o póliza vencida/incompleta => false.
+    const bondedPolicyFlagActive = await isPublicInsuredClaimReady();
     const positioning = validatePositioningCoherence(post.content, { bondedPolicyFlagActive });
 
     const passed = evaluation.readyForApproval && positioning.passes;

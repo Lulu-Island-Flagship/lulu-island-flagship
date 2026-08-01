@@ -80,7 +80,7 @@ export default function MarketingPage() {
       </div>
 
       <p className="text-sm text-gray-500 mb-6">
-        {t("intro")} <code>pólizas_seguro</code> {t("introFlagSuffix")}
+        {t("intro")} {t("introFlagSuffix")}
       </p>
 
       {loading && (

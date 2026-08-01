@@ -286,6 +286,17 @@ export default function PipedaPage() {
 
       <div className="space-y-3">
         <h2 className="font-semibold text-brand-ink">{t("breachIncidents")}</h2>
+        {/* Fix (auditoría 2026-07-31, item 1): antes los botones "Mark ...
+            notified" podían leerse como si el sistema hubiera enviado la
+            notificación al OIPC/afectados automáticamente. No existe
+            ninguna integración de envío real (email/carta) -- es fuera de
+            alcance implementarla hoy (requiere decisiones legales/de
+            negocio sobre el canal oficial). Este texto deja explícito que
+            son un registro manual de que el admin ya notificó por fuera
+            del sistema. */}
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+          {t("manualNotificationDisclaimer")}
+        </p>
 
         <div className="bg-white rounded-xl border p-4 space-y-2">
           <input
