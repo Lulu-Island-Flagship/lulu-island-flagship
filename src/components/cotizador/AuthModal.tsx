@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
+import { isAllowedInternalPath } from "@/lib/safe-redirect";
 import { Globe, Apple, Mail, Smartphone, X } from "lucide-react";
 
 // Fix (auditoría externa 2026-07-24, accesibilidad): validación de email
@@ -146,11 +147,25 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
     return () => document.removeEventListener("keydown", handleEscape);
   }, [forcePhoneVerification, onClose]);
 
+  // Fix (auditoría 2026-07-31, hallazgo confirmado): handleGoogleSignIn y
+  // handleAppleSignIn usaban window.location.pathname a secas como destino
+  // post-login, ignorando cualquier `?next=` que middleware.ts pudiera haber
+  // puesto en la URL actual (ej. tras redirigir desde /cuenta/algo protegido
+  // de vuelta al home con `?next=/es/cuenta/algo`, ver clientProtectedPrefixes
+  // en middleware.ts). Se prioriza `next` (validado con isAllowedInternalPath,
+  // misma allowlist que ya usan /portal y /auth/callback) sobre el pathname
+  // actual; si no hay `next` válido, se cae al comportamiento de siempre
+  // (volver a la página donde se abrió el modal).
+  const getPostLoginRedirectPath = (): string => {
+    const rawNext = new URLSearchParams(window.location.search).get("next");
+    return isAllowedInternalPath(rawNext) ? rawNext : window.location.pathname;
+  };
+
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError("");
     try {
-      const currentPath = window.location.pathname;
+      const currentPath = getPostLoginRedirectPath();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -174,7 +189,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
     setLoading(true);
     setError("");
     try {
-      const currentPath = window.location.pathname;
+      const currentPath = getPostLoginRedirectPath();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "apple",
         options: {
