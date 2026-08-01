@@ -21,6 +21,24 @@ export function useFocusTrap<T extends HTMLElement>(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ref = useRef<T>(null as any);
 
+  // Fix (auditoría 2026-07-31, item 16): el efecto de abajo depende solo de
+  // `active` (a propósito -- ver comentario en el array de dependencias),
+  // así que closeaba sobre el `onClose` recibido la primera vez que
+  // `active` pasó a true. Si el caller pasa un `onClose` inline (común,
+  // ej. `() => setOpen(false)` con datos capturados de un render
+  // posterior), Escape podía invocar una versión vieja. Se guarda la
+  // referencia más reciente en un ref, actualizado en CADA render (sin
+  // dependencias, no dispara efectos), y `handleKeyDown` llama
+  // `onCloseRef.current` en vez de cerrar directamente sobre el parámetro.
+  // Así Escape siempre ve el `onClose` más reciente sin necesidad de
+  // re-ejecutar el setup/teardown de foco en cada re-render del padre
+  // (que sí pasaría si `onClose` estuviera en el array de dependencias del
+  // efecto sin que el caller lo memoice con useCallback).
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   useEffect(() => {
     if (!active) return;
     const node = ref.current;
@@ -41,9 +59,9 @@ export function useFocusTrap<T extends HTMLElement>(
     (focusable[0] || node).focus();
 
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && onClose) {
+      if (e.key === "Escape" && onCloseRef.current) {
         e.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab") return;

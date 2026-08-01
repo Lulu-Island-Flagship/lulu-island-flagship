@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Globe } from "lucide-react";
 
@@ -36,6 +36,22 @@ export function LanguageSelector() {
     }
     return "en";
   });
+
+  // Fix (auditoría 2026-07-31, item 15): `useState(() => ...)` solo corre su
+  // inicializador en el primer render -- si el locale de la ruta cambia
+  // DESPUÉS del montaje sin pasar por `switchLanguage` (ej. el usuario
+  // navega manualmente a otra URL con distinto prefijo de locale, o usa
+  // atrás/adelante del navegador entre rutas de distinto idioma), este
+  // componente seguía marcando como "activo" el idioma con el que se montó
+  // la primera vez, desincronizado de la URL real. `usePathname()` sí es
+  // reactivo a cambios de ruta; se resincroniza `currentLocale` cada vez que
+  // cambia, siempre que la ruta traiga un prefijo de locale reconocido.
+  useEffect(() => {
+    if (pathLocale && pathLocale[1] !== currentLocale) {
+      setCurrentLocale(pathLocale[1]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const switchLanguage = (locale: string) => {
     setCurrentLocale(locale);

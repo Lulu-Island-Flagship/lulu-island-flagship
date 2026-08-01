@@ -12,10 +12,20 @@
 // BCP-47 más apropiado para Intl.NumberFormat. La moneda siempre es CAD
 // (el negocio opera únicamente en BC, Canadá) independientemente del idioma
 // de la interfaz.
+// Fix (auditoría 2026-07-31, item 17): "zh-CN" es el locale de China
+// continental -- región distinta de donde opera el negocio (BC, Canadá).
+// Con el ICU de este runtime (verificado con Node) "zh-CN" + currency:"CAD"
+// ya renderiza "CA$" y no el símbolo ¥, pero el mapeo de región errado
+// sigue siendo un riesgo latente en otros motores/versiones de ICU (algunos
+// resuelven símbolo de moneda con reglas específicas de la región del
+// locale). "zh-Hans-CA" (chino simplificado, región Canadá) es la etiqueta
+// BCP-47 correcta para "clientes que leen chino simplificado en Canadá" y
+// produce el mismo resultado verificado (fecha/hora/moneda idénticos en
+// pruebas), sin ambigüedad de región.
 const CURRENCY_LOCALE_MAP: Record<string, string> = {
   en: "en-CA",
   fr: "fr-CA",
-  zh: "zh-CN",
+  zh: "zh-Hans-CA",
 };
 
 /**
