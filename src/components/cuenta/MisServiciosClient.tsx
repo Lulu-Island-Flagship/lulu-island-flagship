@@ -44,6 +44,10 @@ interface ClientOrder {
   id: string;
   service_date: string;
   service_time: string;
+  // Fix (auditoría 2026-07-31, hallazgo #1): necesario para calcular la
+  // ventana de cancelación (>72h / 24-72h / <24h) en el preview del cliente
+  // -- ya venía en ORDER_CLIENT_COLUMNS pero nunca se exponía en esta interfaz.
+  service_datetime: string;
   status: string;
   // RAÍZ-3 (2026-07-21, migración 229): orders.total_paid_cents -- centavos, no dólares.
   total_paid_cents: number;
@@ -51,7 +55,7 @@ interface ClientOrder {
   // (src/lib/client-visible-columns.ts) pero nunca se mostraba en esta UI.
   hold_amount_cents: number | null;
   warranty_status: string;
-  quotes: { service_category?: string; service_subtype?: string; address?: string; zone?: string } | null;
+  quotes: { service_category?: string; service_subtype?: string; address?: string; zone?: string; total?: number } | null;
   claimableZones: ClaimableZone[];
 }
 
@@ -96,6 +100,13 @@ export default function MisServiciosClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [claimingOrderId, setClaimingOrderId] = useState<string | null>(null);
+  // Fix (auditoría 2026-07-31, hallazgo #1): /cancelacion solo mostraba el
+  // texto legal de la política de cancelación, pero no había ningún botón
+  // real en esta pantalla para ejecutarla -- POST /api/orders/[orderId]/cancel
+  // ya existía y funcionaba (con toda la lógica de penalidad/reembolso vía
+  // computeCancellationDecision), simplemente ningún componente cliente lo
+  // invocaba nunca.
+  const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
   // Fix (2026-07-24): este era el destino real del link "Iniciar sesión" de
   // la página principal, pero el componente nunca comprobaba si había
   // sesión -- sin login, /api/client/orders devuelve 401 y eso se mostraba
@@ -289,8 +300,31 @@ export default function MisServiciosClient() {
                         <ChevronDown className={`w-3 h-3 transition-transform ${claimingOrderId === order.id ? "rotate-180" : ""}`} />
                       </button>
                     )}
+                    {/* Fix (auditoría 2026-07-31, hallazgo #1): acción de
+                        cancelar, solo para órdenes que aún admiten cancelación. */}
+                    {(order.status === "pending" || order.status === "confirmed") && (
+                      <button
+                        onClick={() => setCancelingOrderId(cancelingOrderId === order.id ? null : order.id)}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-state-danger hover:opacity-80 border border-state-danger/30 rounded-lg px-3 py-1.5"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        {t("cancelService.button")}
+                        <ChevronDown className={`w-3 h-3 transition-transform ${cancelingOrderId === order.id ? "rotate-180" : ""}`} />
+                      </button>
+                    )}
                   </div>
                 </div>
+
+                {cancelingOrderId === order.id && (
+                  <CancelOrderPanel
+                    order={order}
+                    onCancelled={() => {
+                      setCancelingOrderId(null);
+                      loadAll();
+                    }}
+                    onClose={() => setCancelingOrderId(null)}
+                  />
+                )}
 
                 {orderClaims.length > 0 && (
                   <div className="px-4 pb-3 space-y-2">
@@ -538,6 +572,126 @@ function ClaimForm({
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Fix (auditoría 2026-07-31, hallazgo #1): panel de cancelación con preview
+ * de la penalidad ANTES de confirmar. La ventana (>72h/24-72h/<24h) y el
+ * monto de penalidad reflejan las mismas reglas D.3 que ejecuta el backend
+ * (src/lib/order-cancellation.ts::computeCancellationDecision) -- este
+ * cálculo es solo un PREVIEW en el cliente (usa el hold efectivo =
+ * min(hold_amount_cents, quotes.total en centavos), igual que el backend);
+ * el monto final real y autoritativo siempre lo decide y persiste
+ * /api/orders/[orderId]/cancel del lado servidor.
+ */
+function CancelOrderPanel({
+  order,
+  onCancelled,
+  onClose,
+}: {
+  order: ClientOrder;
+  onCancelled: () => void;
+  onClose: () => void;
+}) {
+  const t = useTranslations("cuenta.servicios.cancelService");
+  const locale = useLocale();
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const hoursUntil = order.service_datetime
+    ? (new Date(order.service_datetime).getTime() - Date.now()) / (1000 * 60 * 60)
+    : null;
+
+  const holdCents = Math.max(0, order.hold_amount_cents || 0);
+  const quoteTotalCents = Math.round((order.quotes?.total || 0) * 100);
+  const effectiveHoldCents = quoteTotalCents > 0 ? Math.min(holdCents, quoteTotalCents) : holdCents;
+
+  let windowLabel = t("windowUnknown");
+  let penaltyCents = 0;
+  if (hoursUntil !== null) {
+    if (hoursUntil > 72) {
+      windowLabel = t("windowFullRefund");
+      penaltyCents = 0;
+    } else if (hoursUntil >= 24) {
+      windowLabel = t("windowPartialPenalty");
+      penaltyCents = Math.round(effectiveHoldCents * 0.5);
+    } else {
+      windowLabel = t("windowFullPenalty");
+      penaltyCents = effectiveHoldCents;
+    }
+  }
+
+  async function handleConfirm() {
+    if (!window.confirm(t("confirmPrompt"))) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setError(t("networkError"));
+        return;
+      }
+      const res = await fetch(`/api/orders/${order.id}/cancel`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || t("failed"));
+        return;
+      }
+      onCancelled();
+    } catch {
+      setError(t("networkError"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="px-4 pb-4 pt-1 border-t space-y-3">
+      <p className="text-xs text-gray-600">
+        {t.rich("intro", {
+          link: (chunks) => (
+            <a href={`/${locale}/cancelacion`} target="_blank" rel="noopener noreferrer" className="underline hover:text-brand-navy">
+              {chunks}
+            </a>
+          ),
+        })}
+      </p>
+      <div className="bg-gray-50 rounded-lg p-3 text-xs space-y-1">
+        <p className="text-gray-700">{windowLabel}</p>
+        {penaltyCents > 0 ? (
+          <p className="font-medium text-state-danger">
+            {t("penaltyAmount", { amount: formatCurrency(penaltyCents / 100, locale) })}
+          </p>
+        ) : (
+          <p className="font-medium text-state-success">{t("noPenalty")}</p>
+        )}
+      </div>
+      {error && <p className="text-xs text-state-danger">{error}</p>}
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-xs px-3 py-1.5 rounded-lg text-gray-500 hover:bg-gray-100"
+        >
+          {t("dismiss")}
+        </button>
+        <button
+          type="button"
+          onClick={handleConfirm}
+          disabled={submitting}
+          className="inline-flex items-center gap-1.5 text-xs px-4 py-1.5 rounded-lg bg-state-danger text-white hover:opacity-90 disabled:opacity-50"
+        >
+          {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          {t("confirm")}
+        </button>
+      </div>
+    </div>
   );
 }
 
