@@ -30,7 +30,6 @@ export async function GET(request: NextRequest) {
         orders:order_id (service_date, service_time)
       `)
       .eq("status", status)
-      .order("priority", { ascending: false }) // high first
       .order("created_at", { ascending: true });
 
     if (error) {
@@ -38,7 +37,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
-    return NextResponse.json({ tickets: data || [] }, { status: 200 });
+    // Fix (auditoría externa, hallazgo confirmado): `priority` es TEXT
+    // ('high'/'medium'/'low'), y ordenar por esa columna con
+    // `.order("priority", { ascending: false })` es un ORDER BY alfabético
+    // en Postgres, no por severidad real -- alfabéticamente "medium" >
+    // "low" > "high", así que los tickets de alta prioridad terminaban
+    // AL FINAL de la cola en vez de primero. Se reordena en memoria con un
+    // mapeo numérico explícito de severidad (mismo criterio real que el
+    // nombre de la ruta promete: "cola de tickets priorizada"); created_at
+    // asc como desempate ya viene aplicado desde la consulta.
+    const PRIORITY_RANK: Record<string, number> = { high: 0, medium: 1, low: 2 };
+    const sorted = [...(data || [])].sort((a, b) => {
+      const rankA = PRIORITY_RANK[a.priority as string] ?? 99;
+      const rankB = PRIORITY_RANK[b.priority as string] ?? 99;
+      return rankA - rankB;
+    });
+
+    return NextResponse.json({ tickets: sorted }, { status: 200 });
   } catch (err: Error | unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

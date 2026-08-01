@@ -182,6 +182,7 @@ export default function AdminContabilidadClient() {
     try {
       const res = await fetch("/api/admin/fixed-costs-settings", {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ monthlyFixedCostsDollars: dollars, reason: fixedCostsReason.trim() }),
       });
@@ -209,7 +210,7 @@ export default function AdminContabilidadClient() {
       const params = new URLSearchParams();
       if (from) params.set("from", from);
       if (to) params.set("to", to);
-      const res = await fetch(`/api/admin/accounting?${params.toString()}`);
+      const res = await fetch(`/api/admin/accounting?${params.toString()}`, { credentials: "include" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || t("loadError"));
       setData(json);

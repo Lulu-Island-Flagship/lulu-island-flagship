@@ -12,10 +12,21 @@ import { requireAdminRole } from "@/lib/admin";
  * de un empleado real requiere, en una sola transacción de aplicación:
  *
  *   1. Desactivación: employees.is_active=false, terminated_at, termination_reason.
- *   2. Pago final: paga el Vacation Pay acumulado del año (payroll_ytd,
- *      migración 052) vía employee_final_payouts (migración 177), que
- *      payroll-export ya funde al ciclo (mismo patrón que sick leave /
- *      stat holiday de FIX-4).
+ *      Se ejecuta PRIMERO (no al final): no hay una transacción real que
+ *      envuelva los 4 pasos (son varias llamadas a Supabase desde la API
+ *      route, no una RPC atómica), así que si un paso posterior falla a
+ *      mitad de camino, el fallo seguro es que el empleado quede desactivado
+ *      (bloquea dispatch/login) aunque algún pago o reasignación no se haya
+ *      completado -- nunca al revés (pagado/desvinculado de servicios pero
+ *      todavía activo en el sistema).
+ *   2. Pago final: paga el Vacation Pay acumulado sin pagar de TODOS los años
+ *      calendario abiertos en payroll_ytd (migración 052), no solo el año en
+ *      curso. Bajo BC ESA el Vacation Pay acumulado nunca prescribe: si la
+ *      baja ocurre en enero y quedó un saldo del año anterior nunca
+ *      liquidado (no existe un proceso de cierre de año que lo funda o lo
+ *      pague), ese saldo se debe. Vía employee_final_payouts (migración
+ *      177), que payroll-export ya funde al ciclo (mismo patrón que sick
+ *      leave / stat holiday de FIX-4).
  *   3. Revocación de acceso: banea la cuenta auth (Supabase admin API) --
  *      is_active=false ya bloquea el dispatch, pero no bloqueaba el login
  *      ni la sesión activa de la PWA.
@@ -71,26 +82,50 @@ export async function POST(
       return NextResponse.json({ error: "Employee already offboarded" }, { status: 409 });
     }
 
-    // --- 2. Pago final: Vacation Pay acumulado del año en curso ---
-    const calendarYear = Number(effectiveDate.slice(0, 4));
-    const { data: ytdRow } = await supabase
-      .from("payroll_ytd")
-      .select("ytd_vacation_pay_accrued_cents")
-      .eq("employee_id", employeeId)
-      .eq("calendar_year", calendarYear)
-      .maybeSingle();
+    // --- 1. Desactivación (primero: ver comentario de cabecera) ---
+    const { data: updatedEmployee, error: updateError } = await supabase
+      .from("employees")
+      .update({
+        is_active: false,
+        terminated_at: new Date().toISOString(),
+        termination_reason: terminationReason.trim(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", employeeId)
+      .select("id, name, email, is_active, terminated_at, termination_reason")
+      .single();
 
-    const vacationPayoutCents = ytdRow?.ytd_vacation_pay_accrued_cents ?? 0;
-    if (vacationPayoutCents > 0) {
+    if (updateError) {
+      console.error("admin/empleados/[id]/offboard error:", updateError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
+
+    // --- 2. Pago final: Vacation Pay acumulado de TODOS los años abiertos ---
+    // No solo `calendar_year` = año de la baja: si nunca se liquidó el saldo
+    // de un año anterior (no existe cierre de año automático que lo funda),
+    // ese saldo bajo BC ESA se sigue debiendo y se debe incluir aquí.
+    const calendarYear = Number(effectiveDate.slice(0, 4));
+    const { data: ytdRows } = await supabase
+      .from("payroll_ytd")
+      .select("calendar_year, ytd_vacation_pay_accrued_cents")
+      .eq("employee_id", employeeId)
+      .lte("calendar_year", calendarYear)
+      .gt("ytd_vacation_pay_accrued_cents", 0);
+
+    let vacationPayoutCents = 0;
+    for (const row of ytdRows || []) {
+      const amountCents = row.ytd_vacation_pay_accrued_cents ?? 0;
+      if (amountCents <= 0) continue;
+      vacationPayoutCents += amountCents;
       const { error: payoutError } = await supabase
         .from("employee_final_payouts")
         .upsert(
           {
             employee_id: employeeId,
             payout_type: "vacation_pay_accrual",
-            amount_cents: vacationPayoutCents,
+            amount_cents: amountCents,
             payout_date: effectiveDate,
-            source_calendar_year: calendarYear,
+            source_calendar_year: row.calendar_year,
             created_by: auth.user.id,
           },
           { onConflict: "employee_id,payout_type,source_calendar_year" }
@@ -217,24 +252,6 @@ export async function POST(
           },
         });
       }
-    }
-
-    // --- 1. Desactivación ---
-    const { data: updatedEmployee, error: updateError } = await supabase
-      .from("employees")
-      .update({
-        is_active: false,
-        terminated_at: new Date().toISOString(),
-        termination_reason: terminationReason.trim(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", employeeId)
-      .select("id, name, email, is_active, terminated_at, termination_reason")
-      .single();
-
-    if (updateError) {
-      console.error("admin/empleados/[id]/offboard error:", updateError);
-      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json(

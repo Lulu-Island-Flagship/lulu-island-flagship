@@ -148,67 +148,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // A-9 fix (auditoría 2026-07-21): este era un .delete() físico sin
-    // filtro de estado, pese a que `deleted_at` es el patrón universal del
-    // repo (usado en el propio GET de esta ruta, línea ~270). Si un
-    // empleado ya estaba 'in_progress' en el servicio, su fila
-    // desaparecía sin aviso y no podía cerrar el servicio (t_out no tiene
-    // fila de assignment que actualizar) -- la orden quedaba colgada,
-    // nunca facturable. Ahora: (a) se bloquea el redespacho si hay alguna
-    // asignación 'in_progress' para la orden (hay que resolver/cerrar esa
-    // jornada antes de reasignar el equipo completo), y (b) el reemplazo
-    // de asignaciones 'pending'/'confirmed' es soft-delete (deleted_at),
-    // no DELETE físico, preservando el historial de auditoría.
-    const { data: activeAssignments } = await auth.supabase
-      .from("assignments")
-      .select("id, employee_id, status")
-      .eq("order_id", orderId)
-      .is("deleted_at", null)
-      .eq("status", "in_progress");
+    // A-9 fix (auditoría 2026-07-21): antes esto era un .delete() físico sin
+    // filtro de estado -- si un empleado ya estaba 'in_progress' en el
+    // servicio, su fila desaparecía sin aviso y no podía cerrar el servicio
+    // (t_out no tiene fila de assignment que actualizar).
+    //
+    // Fix (auditoría externa, hallazgo confirmado -- concurrencia): el check
+    // de 'in_progress' + el soft-delete de las asignaciones activas + el
+    // insert de las nuevas eran 3 llamadas separadas sin ningún lock. Dos
+    // admins redespachando la MISMA orden casi al mismo tiempo (o un admin
+    // y el publicador automático de las 5:30 PM) podían dejarla con DOS
+    // equipos "pending" simultáneos. Ahora los 3 pasos corren dentro de
+    // redispatch_order_atomic (migración 287), que toma
+    // `SELECT ... FOR UPDATE` sobre las filas activas de esta orden para
+    // serializar redespachos concurrentes -- el segundo que llegue espera a
+    // que el primero termine y ve el estado ya actualizado.
+    const { data: inserted, error: rpcError } = await auth.supabase.rpc("redispatch_order_atomic", {
+      p_order_id: orderId,
+      p_employee_ids: employeeIds,
+      p_notes: notes || null,
+      p_locked_by: auth.user.id,
+    });
 
-    if (activeAssignments && activeAssignments.length > 0) {
-      return NextResponse.json(
-        {
-          error:
-            "Cannot redispatch: this order has an assignment already in_progress. Resolve or close it before reassigning the team.",
-          inProgressAssignments: activeAssignments,
-        },
-        { status: 409 }
-      );
-    }
-
-    const nowIso = new Date().toISOString();
-    const { error: deleteError } = await auth.supabase
-      .from("assignments")
-      .update({ status: "cancelled", deleted_at: nowIso, updated_at: nowIso })
-      .eq("order_id", orderId)
-      .is("deleted_at", null);
-
-    if (deleteError) {
-      console.error("Dispatch delete error:", deleteError);
-      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
-    }
-
-    // v8.3 E3/D.4 (migración 140): marcar como decisión humana explícita
-    // para que el publicador automático de las 5:30 PM (persistAssignments
-    // en /api/cron/dispatch-scheduler) NUNCA la borre ni la reemplace.
-    const assignments = employeeIds.map((employeeId: string) => ({
-      order_id: orderId,
-      employee_id: employeeId,
-      status: "pending" as const,
-      notes: notes || null,
-      locked_by_admin: true,
-      locked_by: auth.user.id,
-      locked_at: new Date().toISOString(),
-    }));
-
-    const { data: inserted, error: insertError } = await auth.supabase
-      .from("assignments")
-      .insert(assignments)
-      .select("id, order_id, employee_id, status, assigned_at, notes");
-
-    if (insertError) {
-      console.error("Dispatch insert error:", insertError);
+    if (rpcError) {
+      // 55000 (object_not_in_prerequisite_state): la función encontró una
+      // asignación 'in_progress' -- mismo caso que antes devolvía 409.
+      if (rpcError.code === "55000") {
+        return NextResponse.json(
+          {
+            error:
+              "Cannot redispatch: this order has an assignment already in_progress. Resolve or close it before reassigning the team.",
+          },
+          { status: 409 }
+        );
+      }
+      console.error("Dispatch redispatch_order_atomic error:", rpcError);
       return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
@@ -364,9 +338,23 @@ export async function GET(request: NextRequest) {
       });
 
       if (assignments.length > 0) {
-        const perPersonMinutes = Math.round((hheHours / assignments.length) * 60);
+        // Fix (auditoría externa, hallazgo confirmado): antes se calculaba
+        // perPersonMinutes = Math.round((hheHours/N)*60) UNA vez y se le
+        // asignaba el mismo valor a los N empleados -- con N>1 y hheHours no
+        // divisible exacto, la suma de los N perPersonMinutes puede no
+        // coincidir con el total HHE del servicio en minutos (ej. 100 min /
+        // 3 = 33.33 -> Math.round da 33 a los 3 -> suma 99, se pierde 1
+        // minuto de jornada real). Se calcula el total en minutos UNA sola
+        // vez (redondeado una sola vez, no N veces) y se reparte en enteros;
+        // el residuo de la división entera lo absorbe el último empleado de
+        // la lista para que la suma siempre cuadre exacto con el total.
+        const totalServiceMinutes = Math.round(hheHours * 60);
+        const perPersonBaseMinutes = Math.floor(totalServiceMinutes / assignments.length);
+        const minutesRemainder = totalServiceMinutes - perPersonBaseMinutes * assignments.length;
         const rawAssignments = assignmentsByOrder.get(order.id) || [];
-        for (const a of assignments) {
+        assignments.forEach((a, idx) => {
+          const perPersonMinutes =
+            perPersonBaseMinutes + (idx === assignments.length - 1 ? minutesRemainder : 0);
           const list = blocksByEmployee.get(a.employeeId) || [];
           list.push({ serviceMinutes: perPersonMinutes, transitMinutes: PLACEHOLDER_TRANSIT_MINUTES });
           blocksByEmployee.set(a.employeeId, list);
@@ -385,7 +373,7 @@ export async function GET(request: NextRequest) {
             advanceNoticeDays,
           });
           scheduleBlocksByEmployee.set(a.employeeId, scheduleList);
-        }
+        });
       }
 
       const clientLanguages = langMap.get(order.user_id) ?? ["en"];
@@ -445,12 +433,26 @@ export async function GET(request: NextRequest) {
     const scheduleCompliance = Array.from(scheduleBlocksByEmployee.entries()).map(([employeeId, blocks]) => {
       const emp = employeeMap.get(employeeId);
       const classification = classifySchedule(blocks);
-      const dayRate = Number((emp as { day_rate?: number } | undefined)?.day_rate ?? 200);
-      const hourlyRateCents = Math.round((dayRate * 100) / 8);
-      const guaranteedContingencyPayCents = calculateContingencyGuaranteedPay(
-        classification.contingencyMinutes,
-        hourlyRateCents
-      );
+      // Fix (auditoría externa, hallazgo confirmado): antes, si `emp` no se
+      // encontraba en employeeMap (dato inconsistente -- no debería pasar en
+      // el flujo normal, pero no está garantizado), se usaba un default
+      // hardcodeado de $200/día tomado del DEFAULT de la columna
+      // employees.day_rate (migración 003) para calcular un monto real de
+      // pago garantizado (guaranteedContingencyPayCents). Eso inventaba una
+      // cifra de dinero para un empleado del que en realidad no se pudo leer
+      // la tarifa real -- en vez de eso, se excluye el monto y se marca
+      // explícitamente `dayRateUnavailable: true` para que el admin sepa que
+      // debe verificar el registro del empleado antes de confiar en el pago
+      // garantizado mostrado (o su ausencia).
+      const rawDayRate = (emp as { day_rate?: number } | undefined)?.day_rate;
+      const dayRateUnavailable = typeof rawDayRate !== "number";
+      const dayRate = dayRateUnavailable ? null : rawDayRate;
+      const guaranteedContingencyPayCents = dayRate === null
+        ? null
+        : calculateContingencyGuaranteedPay(
+            classification.contingencyMinutes,
+            Math.round((dayRate * 100) / 8)
+          );
       return {
         employeeId,
         name: emp?.name ?? "Unknown",
@@ -460,7 +462,7 @@ export async function GET(request: NextRequest) {
         expectedContingencyMinutes: classification.expectedContingencyMinutes,
         withinTolerance: classification.withinTolerance,
         deviationReasons: classification.deviationReasons,
-        ...(hasPayrollAccess ? { guaranteedContingencyPayCents } : {}),
+        ...(hasPayrollAccess ? { guaranteedContingencyPayCents, dayRateUnavailable } : {}),
       };
     });
 

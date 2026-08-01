@@ -139,10 +139,24 @@ export function calculateOvertimePay(input: OvertimePayInput): OvertimePayResult
   } = input;
 
   const overtimeMinutes = Math.max(0, totalDayMinutes - standardDayMinutes);
-  const hourlyRateCents = standardDayMinutes > 0 ? dayRateCents / (standardDayMinutes / 60) : 0;
-  const overtimePayCents = Math.round((overtimeMinutes / 60) * hourlyRateCents * overtimeMultiplier);
 
-  return { overtimeMinutes, hourlyRateCents: Math.round(hourlyRateCents), overtimePayCents };
+  // Fix (auditoría externa, hallazgo confirmado): antes se calculaba
+  // hourlyRateCents = dayRateCents / (standardDayMinutes/60) (una división
+  // en punto flotante) y ESE resultado ya imprecisó se volvía a multiplicar
+  // por overtimeMinutes/60 y overtimeMultiplier para llegar a
+  // overtimePayCents -- dos operaciones en punto flotante encadenadas antes
+  // de redondear, en vez de una. Se reordena para que overtimePayCents salga
+  // de una sola expresión combinada (multiplicar primero en enteros,
+  // dividir una sola vez) con un único Math.round al final; hourlyRateCents
+  // (el valor que se expone para mostrar/depurar) se calcula por separado y
+  // ya no alimenta el cálculo de dinero real.
+  const overtimePayCents =
+    standardDayMinutes > 0
+      ? Math.round((overtimeMinutes * dayRateCents * overtimeMultiplier) / standardDayMinutes)
+      : 0;
+  const hourlyRateCents = standardDayMinutes > 0 ? Math.round((dayRateCents * 60) / standardDayMinutes) : 0;
+
+  return { overtimeMinutes, hourlyRateCents, overtimePayCents };
 }
 
 /**

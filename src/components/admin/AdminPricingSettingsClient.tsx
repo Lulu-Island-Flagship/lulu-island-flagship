@@ -417,15 +417,26 @@ export default function AdminPricingSettingsClient() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {[
-                  { key: "regular" as const, label: t("serviceTypes.regular"), hhe: [1.5, 2.5, 4.0, 6.0, 8.0] },
-                  { key: "deep" as const, label: t("serviceTypes.deep"), hhe: [2.5, 4.0, 6.5, 9.0, 12.0] },
-                  { key: "move_in_out" as const, label: t("serviceTypes.moveInOut"), hhe: [3.0, 5.0, 8.0, 11.0, 15.0] },
-                  { key: "post_construction" as const, label: t("serviceTypes.postConstruction"), hhe: [4.0, 6.5, 10.0, 14.0, 18.0] },
+                {/* Fix (auditoría externa, hallazgo confirmado): este preview
+                    usaba 4 arrays HHE hardcodeados (valores de ejemplo/seed)
+                    en vez de leer la tabla `hheTable` ya cargada desde
+                    GET /api/admin/hhe-settings (mismo estado que alimenta el
+                    formulario editable arriba). Resultado: si el admin
+                    cambiaba un valor HHE y lo guardaba, el "preview en vivo"
+                    seguía mostrando los precios calculados con los valores
+                    viejos de ejemplo -- lo opuesto de lo que promete la
+                    palabra "preview". Ahora usa hheTable directamente; si
+                    todavía no cargó, no se renderiza esta sección (mismo
+                    guard `hheTable &&` que ya usa el formulario editable). */}
+                {hheTable && [
+                  { key: "regular" as const, label: t("serviceTypes.regular") },
+                  { key: "deep" as const, label: t("serviceTypes.deep") },
+                  { key: "move_in_out" as const, label: t("serviceTypes.moveInOut") },
+                  { key: "post_construction" as const, label: t("serviceTypes.postConstruction") },
                 ].map((row) => (
                   <tr key={row.key}>
                     <td className="px-4 py-3 font-medium text-brand-ink">{row.label}</td>
-                    {row.hhe.map((hhe, i) => (
+                    {hheTable[row.key].map((hhe, i) => (
                       <td key={i} className="px-4 py-3 text-right text-gray-600">
                         ${Math.round(hhe * data.current!.target_hourly_rate).toLocaleString()}
                       </td>

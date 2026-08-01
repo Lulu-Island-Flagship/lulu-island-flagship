@@ -248,6 +248,20 @@ export default function AdminQCClient() {
                       />
                     </button>
                   ))}
+                  {/* Fix (auditoría externa, hallazgo confirmado): antes se
+                      mostraban solo las primeras 8 fotos sin ningún
+                      indicador de que había más -- un admin revisando
+                      evidencia de campo podía creer que vio todo el set. */}
+                  {review.photos.length > 8 && (
+                    <button
+                      type="button"
+                      onClick={() => setLightboxUrl(review.photos[8].url)}
+                      className="relative aspect-square rounded-md overflow-hidden border border-gray-200 bg-gray-900/80 text-white text-xs font-medium flex items-center justify-center hover:bg-gray-900"
+                      title={t("photos.more", { count: review.photos.length - 8 })}
+                    >
+                      {t("photos.more", { count: review.photos.length - 8 })}
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-xs text-gray-400 mb-3">

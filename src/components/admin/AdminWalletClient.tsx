@@ -45,6 +45,7 @@ export default function AdminWalletClient() {
   const [searchResults, setSearchResults] = useState<ClientSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [wallet, setWallet] = useState<{ balance: number } | null>(null);
@@ -68,6 +69,7 @@ export default function AdminWalletClient() {
     }
     searchDebounceRef.current = setTimeout(async () => {
       setSearching(true);
+      setSearchError("");
       try {
         const res = await fetch(`/api/admin/wallet/search-client?q=${encodeURIComponent(query.trim())}`, {
           credentials: "include",
@@ -76,10 +78,22 @@ export default function AdminWalletClient() {
           const data = await res.json();
           setSearchResults(data.clients || []);
           setShowResults(true);
+        } else {
+          // Fix (auditoría externa, hallazgo confirmado): antes un `!res.ok`
+          // (la API realmente falló, ej. 500) caía silenciosamente al mismo
+          // estado que "sin resultados" -- searchResults nunca se limpiaba
+          // ni se avisaba del error, así que el admin veía la misma UI que
+          // "no encontramos ese cliente" cuando en realidad la búsqueda
+          // nunca corrió. Se distingue con un mensaje de error explícito.
+          setSearchResults([]);
+          setSearchError(t("searchError"));
         }
       } catch {
-        // Búsqueda es un helper de UX -- si falla, el admin sigue pudiendo
-        // ver "sin resultados" y reintentar; no bloquea el resto de la página.
+        // Mismo caso que arriba pero para fallos de red/fetch -- antes el
+        // catch estaba vacío y el admin no tenía forma de distinguir "sin
+        // resultados" de "la búsqueda ni siquiera corrió".
+        setSearchResults([]);
+        setSearchError(t("searchError"));
       } finally {
         setSearching(false);
       }
@@ -211,6 +225,7 @@ export default function AdminWalletClient() {
               onChange={(e) => {
                 setQuery(e.target.value);
                 setSelectedClient(null);
+                setSearchError("");
                 // Fix (revisión 2026-07-30, punto 10): al cambiar el texto de
                 // búsqueda se limpiaba selectedClient pero no wallet/transactions
                 // -- el balance y el historial de la búsqueda anterior seguían
@@ -256,6 +271,7 @@ export default function AdminWalletClient() {
           )}
         </div>
         {searching && <p className="text-xs text-gray-400">{t("searching")}</p>}
+        {!searching && searchError && <p className="text-xs text-state-danger">{searchError}</p>}
         {selectedClient && (
           <p className="text-xs text-gray-500 flex items-center gap-1">
             <Search className="w-3 h-3" /> {t("selectedPrefix")} {describeClient(selectedClient, t("noNameOnFile"))}

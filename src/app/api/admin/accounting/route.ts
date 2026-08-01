@@ -62,7 +62,12 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const [{ data: reserves }, { data: payrollEntries }, { data: assignments }, { data: fixedCostsCents }] = await Promise.all([
+  const [
+    { data: reserves, error: reservesError },
+    { data: payrollEntries, error: payrollEntriesError },
+    { data: assignments, error: assignmentsError },
+    { data: fixedCostsCents, error: fixedCostsError },
+  ] = await Promise.all([
     supabase.from("chargeback_reserves").select("order_id, captured_amount").in("order_id", orderIds),
     supabase
       .from("payroll_entries")
@@ -72,6 +77,21 @@ export async function GET(request: NextRequest) {
     supabase.from("assignments").select("order_id, employee_id, employees(name)").in("order_id", orderIds),
     supabase.rpc("get_current_monthly_fixed_costs_cents"),
   ]);
+
+  // Fix (auditoría externa, hallazgo confirmado): antes ninguno de estos 4
+  // resultados revisaba `error` individualmente -- si payroll_entries o
+  // assignments fallaba (ej. permiso RLS, timeout), `data` queda null/
+  // undefined y el código de abajo lo trata igual que "sin filas", así que
+  // el costo de mano de obra o el equipo asignado quedaban en $0/"sin
+  // asignar" de forma silenciosa y el margen de contribución/neto salía mal
+  // sin que nadie se enterara. Cualquier fallo en una de las 4 consultas
+  // principales (todas necesarias para un margen correcto) aborta con 500
+  // en vez de seguir con datos parciales que parecen reales.
+  const firstError = reservesError || payrollEntriesError || assignmentsError || fixedCostsError;
+  if (firstError) {
+    console.error("admin/accounting error (Promise.all):", firstError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
 
   // v8.3 E9.1: "margen neto real" exige prorratear costos fijos mensuales
   // (renta, seguros, software, compensación del dueño -- fixed_costs_settings,

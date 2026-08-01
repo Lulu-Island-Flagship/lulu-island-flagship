@@ -57,14 +57,36 @@ export async function GET() {
 
     const completedIds = (completedIdsData || []).map((o: { id: string }) => o.id);
 
+    // Fix (auditoría externa, hallazgo confirmado): antes solo se contaban
+    // warranty_claims. tickets_disputas (migración 010, CHECK ampliado en
+    // 073/089/176) tiene un type='dispute' explícito y también cuelga de
+    // order_id -- es otra fuente real de disputas de cliente (distinta de
+    // una reclamación de garantía), y dejarla fuera inflaba artificialmente
+    // disputeFreeRate. Se cuenta la UNIÓN de órdenes con al menos una fila en
+    // cualquiera de las dos tablas, no la suma (una misma orden puede tener
+    // ambas y no debe contarse dos veces).
     let disputedCount = 0;
     if (completedIds.length > 0) {
-      const { count, error: disputedError } = await supabase
+      const disputedOrderIds = new Set<string>();
+
+      const { data: warrantyRows, error: disputedError } = await supabase
         .from("warranty_claims")
-        .select("order_id", { count: "exact", head: true })
+        .select("order_id")
         .in("order_id", completedIds);
       if (disputedError) console.error("dashboard-metrics disputedCount error:", disputedError);
-      disputedCount = count || 0;
+      for (const r of warrantyRows || []) disputedOrderIds.add(r.order_id);
+
+      const { data: ticketDisputeRows, error: ticketDisputeError } = await supabase
+        .from("tickets_disputas")
+        .select("order_id")
+        .eq("type", "dispute")
+        .in("order_id", completedIds);
+      if (ticketDisputeError) console.error("dashboard-metrics ticketDisputeCount error:", ticketDisputeError);
+      for (const r of ticketDisputeRows || []) {
+        if (r.order_id) disputedOrderIds.add(r.order_id);
+      }
+
+      disputedCount = disputedOrderIds.size;
     }
 
     const disputeFreeRatePercent = computeDisputeFreeRatePercent({
@@ -124,6 +146,23 @@ export async function GET() {
     }
 
     // ---- 4 & 5. Margen de contribución + margen neto real ----
+    // NOTA (auditoría externa, hallazgo confirmado, no arreglado aquí):
+    // este número usa quotes.estimated_margin_contribution -- una ESTIMACIÓN
+    // congelada al momento de cotizar (antes de saber el costo real de mano
+    // de obra/carga patronal de ese servicio). /api/admin/accounting SÍ
+    // calcula un margen real por orden (collected - labor - employerBurden,
+    // ver operational-accounting.ts), pero reutilizar esa lógica aquí no es
+    // un cambio trivial: requiere las mismas 4-5 consultas adicionales
+    // (chargeback_reserves, payroll_entries, assignments,
+    // payroll_cycle_deductions, fixed-costs) sobre la ventana de 30 días de
+    // este endpoint, lo cual duplica una porción grande de accounting/route.ts
+    // dentro de un endpoint que se llama en cada carga del dashboard. Se deja
+    // documentado en vez de duplicar esa lógica sin pruebas dentro de este
+    // fix: la recomendación concreta es extraer un helper compartido, ej.
+    // `computeRealMarginForOrders(orderIds, supabase)` en
+    // operational-accounting.ts, y que tanto accounting/route.ts como este
+    // endpoint lo consuman -- así ambos números coinciden siempre por
+    // construcción en vez de por casualidad.
     let avgContributionMarginPercent: number | null = null;
     let avgOrderValueDollars: number | null = null;
 
