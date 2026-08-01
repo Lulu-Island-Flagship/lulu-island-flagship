@@ -1254,7 +1254,10 @@
       "accessDenied": "您的账户尚未分配管理员角色。",
       "goHome": "返回首页",
       "supervisorNoRoleTitle": "尚未分配操作角色",
-      "supervisorNoRoleBody": "您的账户拥有主管权限，但尚未在 admin_roles 中分配操作角色。请联系管理员为您分配管理菜单的访问权限。"
+      "supervisorNoRoleBody": "您的账户拥有主管权限，但尚未在 admin_roles 中分配操作角色。请联系管理员为您分配管理菜单的访问权限。",
+      "supervisorNoRoleContactButton": "联系管理员",
+      "supervisorNoRoleMailSubject": "申请管理员角色",
+      "supervisorNoRoleMailBody": "您好，我的账户（{email}）拥有主管权限，但尚未在 admin_roles 中分配操作角色。能否请您为我开通访问权限？"
     },
     "dashboard": {
       "title": "管理后台首页",

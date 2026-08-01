@@ -1254,7 +1254,10 @@
       "accessDenied": "Your account does not have an admin role assigned.",
       "goHome": "Go to Home",
       "supervisorNoRoleTitle": "No operational role assigned yet",
-      "supervisorNoRoleBody": "Your account has supervisor permissions but has not been assigned an operational role in admin_roles yet. Contact an Administrator to get access to the admin menu."
+      "supervisorNoRoleBody": "Your account has supervisor permissions but has not been assigned an operational role in admin_roles yet. Contact an Administrator to get access to the admin menu.",
+      "supervisorNoRoleContactButton": "Contact administrator",
+      "supervisorNoRoleMailSubject": "Requesting an admin role",
+      "supervisorNoRoleMailBody": "Hi, my account ({email}) has supervisor permissions but no operational role assigned in admin_roles yet. Could you grant me access?"
     },
     "dashboard": {
       "title": "Admin Dashboard",

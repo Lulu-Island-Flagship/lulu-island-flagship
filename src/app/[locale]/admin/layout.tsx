@@ -225,6 +225,19 @@ export default async function AdminLayout({
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-sm text-amber-900">
             <p className="font-semibold">{t("supervisorNoRoleTitle")}</p>
             <p className="mt-1">{t("supervisorNoRoleBody")}</p>
+            {/* Fix (auditoría externa 2026-07-31, item 17): el banner no
+                tenía ninguna acción -- el usuario veía el aviso pero no
+                tenía forma de pedir acceso desde ahí mismo. */}
+            <a
+              href={`mailto:support@luluislandflagship.ca?subject=${encodeURIComponent(
+                t("supervisorNoRoleMailSubject")
+              )}&body=${encodeURIComponent(
+                t("supervisorNoRoleMailBody", { email: user.email || "" })
+              )}`}
+              className="mt-3 inline-block bg-brand-navy text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-brand-navy-light"
+            >
+              {t("supervisorNoRoleContactButton")}
+            </a>
           </div>
         )}
         {children}

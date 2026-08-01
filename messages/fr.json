@@ -1254,7 +1254,10 @@
       "accessDenied": "Votre compte n'a aucun rôle administrateur assigné.",
       "goHome": "Retour à l'accueil",
       "supervisorNoRoleTitle": "Aucun rôle opérationnel assigné",
-      "supervisorNoRoleBody": "Votre compte a des permissions de superviseur mais aucun rôle opérationnel ne vous a encore été assigné dans admin_roles. Contactez un administrateur pour obtenir l'accès au menu d'administration."
+      "supervisorNoRoleBody": "Votre compte a des permissions de superviseur mais aucun rôle opérationnel ne vous a encore été assigné dans admin_roles. Contactez un administrateur pour obtenir l'accès au menu d'administration.",
+      "supervisorNoRoleContactButton": "Contacter l'administrateur",
+      "supervisorNoRoleMailSubject": "Demande de rôle administrateur",
+      "supervisorNoRoleMailBody": "Bonjour, mon compte ({email}) a des permissions de superviseur mais aucun rôle opérationnel assigné dans admin_roles. Pourriez-vous m'accorder l'accès ?"
     },
     "dashboard": {
       "title": "Tableau de bord administrateur",
