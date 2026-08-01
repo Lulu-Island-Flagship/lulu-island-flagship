@@ -67,9 +67,99 @@ COMMENT ON FUNCTION get_current_monthly_fixed_costs_cents IS
   'infiere "configurado" a partir de monto > 0 (ambiguo con un $0 real). '
   'Firma cambiada de INTEGER a TABLE; callers deben leer la primera fila.';
 
--- set_current_fixed_costs (249) ya inserta filas nuevas con
--- has_been_configured=true por el DEFAULT de la columna -- no requiere
--- cambios. Se documenta explícitamente en su función para dejar constancia.
+-- [FIX 2026-08-01] Al aplicar esta migración (295) a producción, el `db push`
+-- falló en el `COMMENT ON FUNCTION set_current_fixed_costs IS ...` de abajo
+-- con "could not find a function named set_current_fixed_costs" (SQLSTATE
+-- 42883 -- undefined_function, no es ambigüedad de sobrecarga). Es decir: la
+-- función de la migración 249 NUNCA llegó a existir realmente en producción,
+-- a pesar de que el historial de `supabase_migrations.schema_migrations`
+-- la marca como aplicada (esa marca vino de un `migration repair --status
+-- applied` masivo para 001-250 hecho en una sesión anterior, basado en
+-- evidencia de que OTROS objetos ya existían -- evidentemente no cubría
+-- cada función individualmente). Consecuencia real y activa: cualquier
+-- intento del dueño de guardar costos fijos mensuales desde
+-- /admin/contabilidad (route.ts línea ~64, `.rpc("set_current_fixed_costs",
+-- ...)`) fallaba en producción con un 500, silenciosamente, desde que se
+-- "aplicó" la 249. Esta migración ahora recrea la función completa (idéntica
+-- a la definición original de 249, CREATE OR REPLACE es idempotente y
+-- seguro tanto si existía como si no) ANTES de comentarla, para que 295
+-- quede auto-suficiente y además repare esta regresión real de producción.
+CREATE OR REPLACE FUNCTION set_current_fixed_costs(
+  p_monthly_fixed_costs_cents INTEGER,
+  p_effective_from DATE,
+  p_reason TEXT,
+  p_created_by UUID
+)
+RETURNS TABLE (
+  id UUID,
+  monthly_fixed_costs_cents INTEGER,
+  effective_from DATE,
+  effective_to DATE,
+  reason TEXT,
+  created_by UUID,
+  created_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_previous_id UUID;
+  v_new_id UUID;
+BEGIN
+  IF NOT has_admin_role(auth.uid(), ARRAY['owner_admin']) THEN
+    RAISE EXCEPTION 'set_current_fixed_costs: solo owner_admin puede editar costos fijos'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF p_monthly_fixed_costs_cents IS NULL OR p_monthly_fixed_costs_cents < 0 THEN
+    RAISE EXCEPTION 'set_current_fixed_costs: monthly_fixed_costs_cents debe ser >= 0'
+      USING ERRCODE = '22023';
+  END IF;
+  IF p_reason IS NULL OR length(trim(p_reason)) = 0 THEN
+    RAISE EXCEPTION 'set_current_fixed_costs: reason es requerido para el historial de auditoría'
+      USING ERRCODE = '22023';
+  END IF;
+  IF p_effective_from IS NULL THEN
+    RAISE EXCEPTION 'set_current_fixed_costs: effective_from es requerido'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT fcs.id INTO v_previous_id
+  FROM fixed_costs_settings fcs
+  WHERE fcs.effective_to IS NULL
+  ORDER BY fcs.effective_from DESC
+  LIMIT 1
+  FOR UPDATE;
+
+  INSERT INTO fixed_costs_settings (monthly_fixed_costs_cents, effective_from, reason, created_by)
+  VALUES (p_monthly_fixed_costs_cents, p_effective_from, p_reason, p_created_by)
+  RETURNING fixed_costs_settings.id INTO v_new_id;
+
+  IF v_previous_id IS NOT NULL THEN
+    UPDATE fixed_costs_settings
+    SET effective_to = p_effective_from - INTERVAL '1 day'
+    WHERE fixed_costs_settings.id = v_previous_id;
+  END IF;
+
+  RETURN QUERY
+  SELECT fcs.id, fcs.monthly_fixed_costs_cents, fcs.effective_from, fcs.effective_to,
+         fcs.reason, fcs.created_by, fcs.created_at
+  FROM fixed_costs_settings fcs
+  WHERE fcs.id = v_new_id;
+END;
+$$;
+
+-- [FIX 2026-08-01] A propósito NO se agrega REVOKE ALL FROM PUBLIC aquí (a
+-- diferencia de funciones RPC llamadas con el service role, ej.
+-- apply_batch_capture_result en 296): route.ts llama esta función con
+-- `auth.supabase`, el cliente atado a la SESIÓN del admin (requireAdminRole),
+-- no con el service role -- la función internamente valida
+-- `has_admin_role(auth.uid(), ...)`, que solo resuelve auth.uid() para un
+-- caller autenticado real. La definición original de 249 tampoco tenía
+-- GRANT/REVOKE explícito (PostgreSQL otorga EXECUTE a PUBLIC por defecto al
+-- crear una función), así que se preserva ese comportamiento -- restringir a
+-- service_role habría roto la llamada real del endpoint.
 COMMENT ON FUNCTION set_current_fixed_costs IS
   'Fix 2026-07-30 (auditoría de integridad financiera): versiona fixed_costs_settings de forma '
   'atómica -- INSERT de la fila nueva vigente + UPDATE de cierre (effective_to) de la anterior '
@@ -77,4 +167,6 @@ COMMENT ON FUNCTION set_current_fixed_costs IS
   'src/app/api/admin/fixed-costs-settings/route.ts, que podía dejar la tabla sin ninguna fila '
   'vigente si el insert fallaba después de cerrar la fila anterior. Toda fila insertada por esta '
   'función es una configuración real del dueño: has_been_configured nace en true (DEFAULT de la '
-  'columna, migración 295), a diferencia de la fila semilla de la migración 134.';
+  'columna, migración 295), a diferencia de la fila semilla de la migración 134. '
+  '[FIX 2026-08-01] Recreada aquí (CREATE OR REPLACE idempotente) porque nunca existió '
+  'realmente en producción pese a que 249 estaba marcada como aplicada -- ver comentario arriba.';
