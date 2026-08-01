@@ -646,6 +646,7 @@
   "cuenta": {
     "nav": {
       "ariaLabel": "Navigation du compte",
+      "backToHome": "Retour à l'accueil",
       "servicios": "Mes services",
       "propiedades": "Mes propriétés",
       "billetera": "Portefeuille Lulu",

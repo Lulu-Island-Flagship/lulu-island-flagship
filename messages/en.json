@@ -646,6 +646,7 @@
   "cuenta": {
     "nav": {
       "ariaLabel": "Account navigation",
+      "backToHome": "Back to home",
       "servicios": "My Services",
       "propiedades": "My Properties",
       "billetera": "Lulu Wallet",

@@ -24,7 +24,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Wrench, Home, Wallet, Gift, Settings, LogOut } from "lucide-react";
+import { ArrowLeft, Wrench, Home, Wallet, Gift, Settings, LogOut } from "lucide-react";
 
 const SECTIONS = [
   { key: "servicios", href: "servicios", icon: Wrench },
@@ -79,36 +79,56 @@ export function CuentaNav() {
   // dos mecanismos de logout distintos en el mismo proyecto. Se usa un
   // <form> normal (no fetch) para que el POST + redirect final de esa Route
   // Handler funcione igual que en /admin.
+  // Fix (auditoría en vivo 2026-08-01, UX): antes esta barra era un único
+  // <div overflow-x-auto> de max-w-lg con las 5 secciones + logout adentro
+  // -- en desktop, con 6 items, "Log out" quedaba fuera del ancho visible y
+  // la única pista de que había más contenido era un hilo gris de 2px bajo
+  // la barra (nada descubrible; hubo que hacer scroll manual para
+  // encontrarlo). Tampoco existía NINGÚN link de vuelta al sitio/home en
+  // toda el área /cuenta -- solo el botón atrás del navegador. Se separa la
+  // barra en 3 zonas: "Volver a home" fijo a la izquierda, las 5 secciones
+  // en su propio contenedor con scroll-x (el scroll horizontal sigue siendo
+  // el patrón correcto en móvil, ver comentario de arriba), y "Log out" fijo
+  // a la derecha -- ninguno de los dos extremos se pierde nunca por scroll.
   return (
     <nav
       aria-label={t("ariaLabel")}
       className="sticky top-0 z-20 bg-white border-b border-gray-200 shadow-elevation-1"
     >
-      <div className="max-w-lg mx-auto flex items-stretch overflow-x-auto">
-        {SECTIONS.map(({ key, href, icon: Icon }) => {
-          const isActive = pathname?.includes(`/cuenta/${href}`);
-          return (
-            <Link
-              key={key}
-              href={`/${locale}/cuenta/${href}`}
-              aria-current={isActive ? "page" : undefined}
-              className={`flex flex-col items-center justify-center gap-1 px-4 py-2.5 min-w-[76px] shrink-0 text-xs font-medium border-b-2 transition-colors ${
-                isActive
-                  ? "border-brand-navy text-brand-navy"
-                  : "border-transparent text-gray-400 hover:text-brand-navy"
-              }`}
-            >
-              <Icon className="w-5 h-5" />
-              <span className="whitespace-nowrap">{t(key)}</span>
-            </Link>
-          );
-        })}
-        <form action={`/auth/signout?locale=${locale}`} method="post" onSubmit={handleSignout} className="ml-auto">
+      <div className="max-w-3xl mx-auto flex items-stretch">
+        <Link
+          href={`/${locale}`}
+          aria-label={t("backToHome")}
+          className="flex flex-col items-center justify-center gap-1 px-3 py-2.5 min-w-[56px] shrink-0 text-xs font-medium text-gray-400 hover:text-brand-navy transition-colors border-r border-gray-100"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Link>
+        <div className="flex items-stretch overflow-x-auto min-w-0 flex-1">
+          {SECTIONS.map(({ key, href, icon: Icon }) => {
+            const isActive = pathname?.includes(`/cuenta/${href}`);
+            return (
+              <Link
+                key={key}
+                href={`/${locale}/cuenta/${href}`}
+                aria-current={isActive ? "page" : undefined}
+                className={`flex flex-col items-center justify-center gap-1 px-4 py-2.5 min-w-[76px] shrink-0 text-xs font-medium border-b-2 transition-colors ${
+                  isActive
+                    ? "border-brand-navy text-brand-navy"
+                    : "border-transparent text-gray-400 hover:text-brand-navy"
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                <span className="whitespace-nowrap">{t(key)}</span>
+              </Link>
+            );
+          })}
+        </div>
+        <form action={`/auth/signout?locale=${locale}`} method="post" onSubmit={handleSignout} className="shrink-0">
           <button
             type="submit"
             disabled={signingOut}
             aria-label={t("logout")}
-            className="flex flex-col items-center justify-center gap-1 px-4 py-2.5 min-w-[76px] shrink-0 text-xs font-medium border-b-2 border-transparent text-gray-400 hover:text-state-danger transition-colors disabled:opacity-50"
+            className="flex flex-col items-center justify-center gap-1 px-4 py-2.5 min-w-[76px] shrink-0 text-xs font-medium border-b-2 border-transparent text-gray-400 hover:text-state-danger transition-colors disabled:opacity-50 border-l border-gray-100"
           >
             <LogOut className="w-5 h-5" />
             <span className="whitespace-nowrap">{t("logout")}</span>

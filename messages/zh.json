@@ -646,6 +646,7 @@
   "cuenta": {
     "nav": {
       "ariaLabel": "账户导航",
+      "backToHome": "返回首页",
       "servicios": "我的服务",
       "propiedades": "我的物业",
       "billetera": "Lulu钱包",
