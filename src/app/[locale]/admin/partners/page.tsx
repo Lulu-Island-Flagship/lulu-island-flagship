@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Loader2, Handshake, Plus, X, Calculator } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { formatCurrency } from "@/lib/format";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 type PartnerType = "real_estate_agent" | "property_manager" | "veterinarian" | "builder";
 
@@ -49,6 +50,11 @@ export default function PartnersPage() {
   const [saving, setSaving] = useState(false);
   const [partnerForm, setPartnerForm] = useState({ partnerType: "real_estate_agent" as PartnerType, name: "", contactEmail: "" });
   const [calcForm, setCalcForm] = useState({ partnerId: "", orderId: "", orderValueDollars: "" });
+  // Fix (auditoría externa 2026-07-31, item 12): markPaid no pedía
+  // confirmación ni manejaba errores del servidor -- un click accidental
+  // marcaba una comisión real como pagada, y si el fetch fallaba, la UI no
+  // decía nada (parecía haber funcionado).
+  const [confirmPayCommission, setConfirmPayCommission] = useState<Commission | null>(null);
 
   useEffect(() => {
     load();
@@ -138,12 +144,16 @@ export default function PartnersPage() {
   }
 
   async function markPaid(id: string) {
-    await fetch("/api/admin/partner-commissions", {
+    const res = await fetch("/api/admin/partner-commissions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({ action: "mark_paid", id }),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => null);
+      throw new Error(err?.error || t("errorGeneric"));
+    }
     await load();
   }
 
@@ -249,7 +259,7 @@ export default function PartnersPage() {
                   <p className="text-xs text-gray-500">{c.description}</p>
                 </div>
                 {c.status === "pending" ? (
-                  <button onClick={() => markPaid(c.id)} className="text-xs bg-brand-navy text-white px-3 py-1.5 rounded-lg">
+                  <button onClick={() => setConfirmPayCommission(c)} className="text-xs bg-brand-navy text-white px-3 py-1.5 rounded-lg">
                     {t("markPaid")}
                   </button>
                 ) : (
@@ -260,6 +270,22 @@ export default function PartnersPage() {
           )}
         </div>
       </div>
+
+      {confirmPayCommission && (
+        <ConfirmActionModal
+          title={t("confirmMarkPaid.title")}
+          message={t("confirmMarkPaid.message", {
+            partner: confirmPayCommission.partners?.name || "",
+            amount: money(confirmPayCommission.amount_cents),
+          })}
+          confirmLabel={t("markPaid")}
+          onCancel={() => setConfirmPayCommission(null)}
+          onConfirm={async () => {
+            await markPaid(confirmPayCommission.id);
+            setConfirmPayCommission(null);
+          }}
+        />
+      )}
     </div>
   );
 }

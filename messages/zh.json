@@ -2620,6 +2620,10 @@
       "commissions": "佣金",
       "noCommissions": "尚无佣金记录。",
       "markPaid": "标记为已付款",
+      "confirmMarkPaid": {
+        "title": "确定将此佣金标记为已付款吗？",
+        "message": "此操作会将欠 {partner} 的 {amount} 佣金标记为已付款。此操作在此屏幕上无法撤销。"
+      },
       "errorNetwork": "网络错误",
       "errorGeneric": "失败",
       "type": {

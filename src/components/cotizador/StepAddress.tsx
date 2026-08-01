@@ -113,6 +113,26 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
     loadProperties();
   }, []);
 
+  // Fix (auditoría 2026-07-31, hallazgo #8): al elegir una propiedad guardada
+  // del <select>, selectedPropertyId quedaba fijo aunque el cliente después
+  // editara manualmente la dirección/zona/código postal -- el <select>
+  // seguía mostrando la propiedad guardada como "seleccionada" mientras los
+  // campos reales ya no coincidían con ella, lo que confunde sobre cuál
+  // dirección se va a usar realmente. Se resetea a "" en cuanto los campos
+  // dejan de coincidir con la propiedad actualmente seleccionada.
+  useEffect(() => {
+    if (!selectedPropertyId) return;
+    const property = savedProperties.find((p) => p.id === selectedPropertyId);
+    if (!property) return;
+    const stillMatches =
+      property.address === address &&
+      property.zone === zone &&
+      (property.postalCode || "") === postalCode;
+    if (!stillMatches) {
+      setSelectedPropertyId("");
+    }
+  }, [address, zone, postalCode, selectedPropertyId, savedProperties]);
+
   return (
     <div className="space-y-8">
       <div className="text-center">

@@ -2620,6 +2620,10 @@
       "commissions": "Commissions",
       "noCommissions": "Aucune commission enregistrée pour le moment.",
       "markPaid": "Marquer comme payé",
+      "confirmMarkPaid": {
+        "title": "Marquer la commission comme payée ?",
+        "message": "Ceci marquera la commission de {amount} due à {partner} comme payée. Cette action ne peut pas être annulée depuis cet écran."
+      },
       "errorNetwork": "Erreur réseau",
       "errorGeneric": "Échec",
       "type": {

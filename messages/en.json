@@ -2622,6 +2622,10 @@
       "markPaid": "Mark Paid",
       "errorNetwork": "Network error",
       "errorGeneric": "Failed",
+      "confirmMarkPaid": {
+        "title": "Mark commission as paid?",
+        "message": "This will mark the {amount} commission owed to {partner} as paid. This cannot be undone from here."
+      },
       "type": {
         "realEstateAgent": "Real Estate Agent (10% first booking)",
         "propertyManager": "Property Manager (5% monthly)",
