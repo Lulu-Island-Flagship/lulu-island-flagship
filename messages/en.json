@@ -233,14 +233,14 @@
     "consentCheck": {
       "title": "Consent & Agreements",
       "tcLabel": "Terms & Conditions",
-      "tcDesc": "I agree to the Terms of Service, including the cancellation policy, payment terms, and service scope. Required to proceed.",
+      "tcDesc": "I agree to the Terms of Service, including the cancellation policy, payment terms, and service scope. Required to proceed. Read the full <link>Terms of Service</link>.",
       "pipaLabel": "Photo Evidence Consent (PIPA) — Optional",
-      "pipaDesc": "I consent to the collection of photographic evidence of the cleaning service for quality assurance and dispute resolution, in accordance with BC's Personal Information Protection Act (PIPA).",
+      "pipaDesc": "I consent to the collection of photographic evidence of the cleaning service for quality assurance and dispute resolution, in accordance with BC's Personal Information Protection Act (PIPA), which governs how we collect, use, and protect your personal information. See our <link>Privacy Policy</link> for details.",
       "pipaWarning": "Without photo consent, your service will require a mandatory 100% field audit (no extra charge) and the checklist will be completed without photographs.",
       "marketingLabel": "Marketing Communications (Optional)",
-      "marketingDesc": "I consent to receive promotional emails and SMS about special offers, seasonal cleaning tips, and service reminders. You can unsubscribe at any time. (CASL compliant)",
+      "marketingDesc": "I consent to receive promotional emails and SMS about special offers, seasonal cleaning tips, and service reminders. You can unsubscribe at any time. (CASL compliant). See our <link>Privacy Policy</link>.",
       "photoMarketingLabel": "Marketing Photos (Optional)",
-      "photoMarketingDesc": "I consent to allowing Lulu Island Flagship to use before/after photos of my service for marketing purposes (website, social media, portfolio). Without this consent, only anonymous demo property photos will be used."
+      "photoMarketingDesc": "I consent to allowing Lulu Island Flagship to use before/after photos of my service for marketing purposes (website, social media, portfolio). Without this consent, only anonymous demo property photos will be used. See our <link>Privacy Policy</link>."
     },
     "languagePreference": {
       "title": "Preferred Language(s)",
@@ -927,7 +927,8 @@
         "invalidCode": "Please enter the 6-digit code",
         "invalidVerificationCode": "Invalid verification code",
         "backupCodeRequired": "Please enter a backup code",
-        "backupCodeFailed": "Backup code sign-in failed"
+        "backupCodeFailed": "Backup code sign-in failed",
+        "backupCodeTooManyAttempts": "Too many failed attempts. Please wait {seconds}s before trying again."
       }
     },
     "page": {
@@ -988,6 +989,11 @@
     "startShift": "Start Shift",
     "shiftStarted": "Shift Started",
     "readyToWork": "Ready to work",
+    "endShift": "End Shift",
+    "endShiftConfirmTitle": "End your shift?",
+    "endShiftConfirmMessage": "This will clock you out for the day. Make sure all your services are closed out first.",
+    "endShiftError": "Could not end shift. Please try again.",
+    "endShiftConnectionError": "Connection error. Please check your signal and try again.",
     "todaysServices": "Today's Services",
     "noServices": "No services assigned for today.",
     "openService": "Open Service",
@@ -2836,6 +2842,8 @@
         "notesPlaceholder": "Notes (optional)",
         "selectAtLeastOne": "Select at least one employee",
         "saveError": "Failed to save",
+        "confirmChangeTitle": "Confirm assignment change",
+        "confirmNoChanges": "No changes to the assigned team — only the notes may have changed.",
         "cancel": "Cancel",
         "savingAriaLabel": "Saving assignment",
         "saveAriaLabel": "Save and lock assignment",

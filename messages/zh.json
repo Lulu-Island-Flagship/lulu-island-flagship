@@ -233,14 +233,14 @@
     "consentCheck": {
       "title": "同意条款与协议",
       "tcLabel": "服务条款",
-      "tcDesc": "我同意服务条款，包括取消政策、付款条款及服务范围。此项为必选，方可继续。",
+      "tcDesc": "我同意服务条款，包括取消政策、付款条款及服务范围。此项为必选，方可继续。查看完整<link>服务条款</link>。",
       "pipaLabel": "照片留证同意（PIPA）— 可选",
-      "pipaDesc": "我同意收集清洁服务过程中的照片留证，用于质量保证与争议处理，符合卑诗省《个人信息保护法》（PIPA）。",
+      "pipaDesc": "我同意收集清洁服务过程中的照片留证，用于质量保证与争议处理，符合卑诗省《个人信息保护法》（PIPA），该法律规范我们如何收集、使用和保护您的个人信息。详情请见我们的<link>隐私政策</link>。",
       "pipaWarning": "若不同意照片留证，您的服务将强制进行100%实地质检（不另收费），且清洁核对表将在无照片记录的情况下完成。",
       "marketingLabel": "营销通讯（可选）",
-      "marketingDesc": "我同意接收有关优惠活动、季节性清洁小贴士及服务提醒的推广邮件和短信。您可随时取消订阅。（符合CASL加拿大反垃圾邮件法）",
+      "marketingDesc": "我同意接收有关优惠活动、季节性清洁小贴士及服务提醒的推广邮件和短信。您可随时取消订阅。（符合CASL加拿大反垃圾邮件法）详情请见我们的<link>隐私政策</link>。",
       "photoMarketingLabel": "营销用照片（可选）",
-      "photoMarketingDesc": "我同意Lulu Island Flagship将我的服务前后对比照片用于营销用途（网站、社交媒体、作品集展示）。若不同意，将仅使用匿名的示范物业照片。"
+      "photoMarketingDesc": "我同意Lulu Island Flagship将我的服务前后对比照片用于营销用途（网站、社交媒体、作品集展示）。若不同意，将仅使用匿名的示范物业照片。详情请见我们的<link>隐私政策</link>。"
     },
     "languagePreference": {
       "title": "偏好语言",
@@ -927,7 +927,8 @@
         "invalidCode": "请输入 6 位验证码",
         "invalidVerificationCode": "验证码无效",
         "backupCodeRequired": "请输入备用代码",
-        "backupCodeFailed": "备用代码登录失败"
+        "backupCodeFailed": "备用代码登录失败",
+        "backupCodeTooManyAttempts": "失败次数过多，请等待 {seconds} 秒后重试。"
       }
     },
     "page": {
@@ -988,6 +989,11 @@
     "startShift": "开始今日班次",
     "shiftStarted": "班次已开始",
     "readyToWork": "准备就绪",
+    "endShift": "结束班次",
+    "endShiftConfirmTitle": "确定要结束班次吗？",
+    "endShiftConfirmMessage": "这将为您今天打卡下班。请先确认所有服务都已完成关闭。",
+    "endShiftError": "无法结束班次，请重试。",
+    "endShiftConnectionError": "连接错误，请检查网络信号后重试。",
     "todaysServices": "今日服务安排",
     "noServices": "今天暂无分配的服务。",
     "openService": "打开服务详情",
@@ -2835,6 +2841,8 @@
         "notesAriaLabel": "分配备注（可选）",
         "notesPlaceholder": "备注（可选）",
         "selectAtLeastOne": "请至少选择一名员工",
+        "confirmChangeTitle": "确认调整分配",
+        "confirmNoChanges": "分配的团队没有变化——可能只修改了备注。",
         "saveError": "保存失败",
         "cancel": "取消",
         "savingAriaLabel": "正在保存分配",

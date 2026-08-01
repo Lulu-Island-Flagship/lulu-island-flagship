@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
@@ -90,6 +91,15 @@ export default function EmpleadoPage() {
   const [jornadaStatus, setJornadaStatus] = useState<JornadaStatus>("not_started");
   const [isStartingJornada, setIsStartingJornada] = useState(false);
   const [jornadaError, setJornadaError] = useState("");
+  // Fix (auditoría 2026-07-31, #2): el backend (/api/empleado/jornada,
+  // action="end") ya soportaba cerrar la jornada -- solo faltaba el botón
+  // en esta UI, dejando a los empleados sin forma de marcar salida desde
+  // el dashboard. Se agrega con confirmación explícita (ConfirmActionModal,
+  // mismo patrón ya usado para logout con eventos sin sincronizar) para
+  // evitar un cierre accidental de jornada.
+  const [isEndingJornada, setIsEndingJornada] = useState(false);
+  const [endJornadaError, setEndJornadaError] = useState("");
+  const [showEndJornadaModal, setShowEndJornadaModal] = useState(false);
   // v8.3 E4 (D.10.1-2): estado de la precarga offline (ruta+SOP+accesos del día).
   const [offlineDownloadStatus, setOfflineDownloadStatus] = useState<OfflineDownloadStatus>("idle");
   // #7: evita doble-click en "Sign out" mientras se vacía la cola offline.
@@ -417,6 +427,49 @@ export default function EmpleadoPage() {
     }
   };
 
+  const handleEndJornada = async () => {
+    setIsEndingJornada(true);
+    setEndJornadaError("");
+    try {
+      let locationLat: number | undefined;
+      let locationLng: number | undefined;
+
+      if (navigator.geolocation) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+          });
+          locationLat = pos.coords.latitude;
+          locationLng = pos.coords.longitude;
+        } catch {
+          // Geolocation failed, continue without it
+        }
+      }
+
+      const res = await fetch("/api/empleado/jornada", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "end", locationLat, locationLng }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error("Jornada end error:", err.error);
+        setEndJornadaError(err.error || t("dashboard.endShiftError"));
+        return;
+      }
+
+      setJornadaStatus("not_started");
+      setShowEndJornadaModal(false);
+    } catch (e) {
+      console.error("End jornada error:", e);
+      setEndJornadaError(t("dashboard.endShiftConnectionError"));
+    } finally {
+      setIsEndingJornada(false);
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "pending": return <AlertCircle className="w-4 h-4 text-gray-400" />;
@@ -519,10 +572,22 @@ export default function EmpleadoPage() {
             <ErrorBanner message={jornadaError} onRetry={handleStartJornada} retrying={isStartingJornada} />
           </div>
         ) : (
-          <div className="bg-state-success/10 text-state-success py-3 px-4 rounded-xl flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5" />
-            <span className="font-medium">{t("shiftStarted")}</span>
-            <span className="text-sm ml-auto">{t("readyToWork")}</span>
+          <div className="space-y-2">
+            <div className="bg-state-success/10 text-state-success py-3 px-4 rounded-xl flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5" />
+              <span className="font-medium">{t("shiftStarted")}</span>
+              <span className="text-sm ml-auto">{t("readyToWork")}</span>
+            </div>
+            <button
+              type="button"
+              aria-label={t("dashboard.endShift")}
+              onClick={() => setShowEndJornadaModal(true)}
+              disabled={isEndingJornada}
+              className="w-full border border-state-danger text-state-danger py-3 rounded-xl font-semibold hover:bg-state-danger/5 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isEndingJornada ? <Loader2 className="w-5 h-5 animate-spin" /> : t("dashboard.endShift")}
+            </button>
+            <ErrorBanner message={endJornadaError} onRetry={() => setShowEndJornadaModal(true)} retrying={isEndingJornada} />
           </div>
         )}
 
@@ -649,76 +714,81 @@ export default function EmpleadoPage() {
             {t("dashboard.more")}
           </h2>
           <div className="grid grid-cols-4 gap-2">
-            <a
+            {/* Fix (auditoría 2026-07-31, #10): estos enlaces usaban <a href>
+                nativos, forzando una recarga completa de página en cada tap
+                (perdiendo el estado de React en memoria, incluida la sesión
+                del cliente de Supabase en el navegador) en vez de una
+                navegación SPA. Se reemplazan por next/link. */}
+            <Link
               href={`/${safeLocale}/empleado/score`}
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
               <Star className="w-4 h-4 text-brand-gold-dark" />
               <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.myScore")}</span>
-            </a>
-            <a
+            </Link>
+            <Link
               href={`/${safeLocale}/empleado/votacion`}
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
               <Users className="w-4 h-4 text-brand-navy" />
               <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.peerVoting")}</span>
-            </a>
+            </Link>
             {/* v8.3 E8.1: checklist de disposición matutina (sueño/ánimo/atajo) — antes construido pero inalcanzable */}
-            <a
+            <Link
               href={`/${safeLocale}/empleado/checkin`}
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
               <Sunrise className="w-4 h-4 text-brand-gold-dark" />
               <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.checkin")}</span>
-            </a>
+            </Link>
             {/* v8.3 E7.3: ciclo de paños/inventario — antes construido pero inalcanzable */}
-            <a
+            <Link
               href={`/${safeLocale}/empleado/panos`}
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
               <Shirt className="w-4 h-4 text-brand-navy" />
               <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.cloths")}</span>
-            </a>
+            </Link>
             {/* v8.3 E8.13: ritual de inicio/fin de jornada (equipo, clima, ranking, ganancias, insignias) */}
-            <a
+            <Link
               href={`/${safeLocale}/empleado/ritual`}
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
               <Star className="w-4 h-4 text-brand-gold-dark" />
               <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.shiftRitual")}</span>
-            </a>
+            </Link>
             {/* v8.3 E10.8: consentimiento opcional para reels/insignias públicas */}
-            <a
+            <Link
               href={`/${safeLocale}/empleado/marketing`}
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
               <Video className="w-4 h-4 text-brand-navy" />
               <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.marketing")}</span>
-            </a>
+            </Link>
             {/* BC ESA Parte 5.1: reportar ausencia por enfermedad */}
-            <a
+            <Link
               href={`/${safeLocale}/empleado/enfermedad`}
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
               <AlertCircle className="w-4 h-4 text-state-warning" />
               <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.sickDay")}</span>
-            </a>
+            </Link>
             {/* BC ESA s.32: descansos documentados vía tránsito */}
-            <a
+            <Link
               href={`/${safeLocale}/empleado/descansos`}
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
               <Clock className="w-4 h-4 text-brand-navy" />
               <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.myBreaks")}</span>
-            </a>
+            </Link>
             {/* E7 D.10.7: SOS, near-miss y reporte de incidente laboral */}
-            <a
+            <Link
               href={`/${safeLocale}/empleado/seguridad`}
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow border border-state-danger/20"
             >
               <AlertOctagon className="w-4 h-4 text-state-danger" />
               <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.safety")}</span>
-            </a>
+            </Link>
           </div>
         </div>
       </div>
@@ -734,6 +804,19 @@ export default function EmpleadoPage() {
           danger
           onConfirm={handleConfirmLogoutWithUnsynced}
           onCancel={() => setShowUnsyncedLogoutModal(false)}
+        />
+      )}
+
+      {/* Fix (auditoría 2026-07-31, #2): confirmación explícita antes de
+          cerrar la jornada -- evita un tap accidental sobre "Terminar
+          jornada" mientras el empleado todavía tiene servicios en curso. */}
+      {showEndJornadaModal && (
+        <ConfirmActionModal
+          title={t("dashboard.endShiftConfirmTitle")}
+          message={t("dashboard.endShiftConfirmMessage")}
+          danger
+          onConfirm={handleEndJornada}
+          onCancel={() => setShowEndJornadaModal(false)}
         />
       )}
     </main>

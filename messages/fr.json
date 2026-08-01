@@ -233,14 +233,14 @@
     "consentCheck": {
       "title": "Consentements et accords",
       "tcLabel": "Modalités et conditions",
-      "tcDesc": "J'accepte les modalités de service, y compris la politique d'annulation, les modalités de paiement et la portée du service. Requis pour continuer.",
+      "tcDesc": "J'accepte les modalités de service, y compris la politique d'annulation, les modalités de paiement et la portée du service. Requis pour continuer. Lire les <link>modalités de service</link> complètes.",
       "pipaLabel": "Consentement aux preuves photo (PIPA) — Optionnel",
-      "pipaDesc": "Je consens à la collecte de preuves photographiques du service de nettoyage à des fins d'assurance qualité et de résolution de différends, conformément à la Loi sur la protection des renseignements personnels de la C.-B. (PIPA).",
+      "pipaDesc": "Je consens à la collecte de preuves photographiques du service de nettoyage à des fins d'assurance qualité et de résolution de différends, conformément à la Loi sur la protection des renseignements personnels de la C.-B. (PIPA), qui encadre la collecte, l'utilisation et la protection de vos renseignements personnels. Voir notre <link>politique de confidentialité</link> pour plus de détails.",
       "pipaWarning": "Sans consentement photo, votre service nécessitera un audit terrain obligatoire à 100% (sans frais supplémentaires) et la liste de vérification sera complétée sans photographies.",
       "marketingLabel": "Communications marketing (Optionnel)",
-      "marketingDesc": "Je consens à recevoir des courriels et SMS promotionnels au sujet d'offres spéciales, de conseils de nettoyage saisonniers et de rappels de service. Vous pouvez vous désabonner en tout temps. (Conforme à la LCAP)",
+      "marketingDesc": "Je consens à recevoir des courriels et SMS promotionnels au sujet d'offres spéciales, de conseils de nettoyage saisonniers et de rappels de service. Vous pouvez vous désabonner en tout temps. (Conforme à la LCAP). Voir notre <link>politique de confidentialité</link>.",
       "photoMarketingLabel": "Photos marketing (Optionnel)",
-      "photoMarketingDesc": "Je consens à ce que Lulu Island Flagship utilise des photos avant/après de mon service à des fins marketing (site web, médias sociaux, portfolio). Sans ce consentement, seules des photos anonymes de propriétés de démonstration seront utilisées."
+      "photoMarketingDesc": "Je consens à ce que Lulu Island Flagship utilise des photos avant/après de mon service à des fins marketing (site web, médias sociaux, portfolio). Sans ce consentement, seules des photos anonymes de propriétés de démonstration seront utilisées. Voir notre <link>politique de confidentialité</link>."
     },
     "languagePreference": {
       "title": "Langue(s) préférée(s)",
@@ -927,7 +927,8 @@
         "invalidCode": "Veuillez entrer le code à 6 chiffres",
         "invalidVerificationCode": "Code de vérification invalide",
         "backupCodeRequired": "Veuillez entrer un code de secours",
-        "backupCodeFailed": "Échec de la connexion avec le code de secours"
+        "backupCodeFailed": "Échec de la connexion avec le code de secours",
+        "backupCodeTooManyAttempts": "Trop de tentatives échouées. Veuillez patienter {seconds}s avant de réessayer."
       }
     },
     "page": {
@@ -988,6 +989,11 @@
     "startShift": "Commencer le quart",
     "shiftStarted": "Quart commencé",
     "readyToWork": "Prêt à travailler",
+    "endShift": "Terminer le quart",
+    "endShiftConfirmTitle": "Terminer votre quart?",
+    "endShiftConfirmMessage": "Cela mettra fin à votre journée de travail. Assurez-vous d'abord que tous vos services sont clôturés.",
+    "endShiftError": "Impossible de terminer le quart. Veuillez réessayer.",
+    "endShiftConnectionError": "Erreur de connexion. Vérifiez votre signal et réessayez.",
     "todaysServices": "Services d'aujourd'hui",
     "noServices": "Aucun service assigné pour aujourd'hui.",
     "openService": "Ouvrir le service",
@@ -2835,6 +2841,8 @@
         "notesAriaLabel": "Notes de l'affectation (facultatif)",
         "notesPlaceholder": "Notes (facultatif)",
         "selectAtLeastOne": "Sélectionnez au moins un employé",
+        "confirmChangeTitle": "Confirmer le changement d'assignation",
+        "confirmNoChanges": "Aucun changement dans l'équipe assignée — seules les notes ont pu changer.",
         "saveError": "Échec de l'enregistrement",
         "cancel": "Annuler",
         "savingAriaLabel": "Enregistrement de l'affectation",
