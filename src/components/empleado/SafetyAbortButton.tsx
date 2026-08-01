@@ -37,12 +37,22 @@ const GPS_UPDATE_INTERVAL_MS = 20000;
 // escalación de SOS no tiene integración Twilio real todavía;
 // TWILIO_HUMAN_ESCALATION_NUMBER es para la centralita telefónica general,
 // no para SOS) -- no existe ninguno. Se usa una variable de entorno pública
-// dedicada; el placeholder es obviamente inválido a propósito.
+// dedicada.
+//
+// Fix (auditoría 2026-07-31, bug #1): el fallback anterior sustituía un
+// número FALSO (+10000000000) cuando la env var no estaba configurada. En
+// una emergencia real sin datos móviles, "Llamar ahora" habría intentado
+// marcar un número inexistente sin que el empleado lo supiera -- el peor
+// modo de falla posible (silencioso). Ahora, si la env var no está
+// configurada, SOS_FALLBACK_PHONE queda `null` y la UI oculta los botones
+// tel:/sms: reemplazándolos por una instrucción explícita de llamar al 911
+// (o al equivalente de emergencias local) directamente. El modo de falla es
+// visible, no un número inventado.
 //
 // ATENCIÓN PRODUCCIÓN: NEXT_PUBLIC_SOS_EMERGENCY_PHONE debe configurarse con
 // el número real del coordinador de guardia antes de salir a producción.
 const SOS_FETCH_TIMEOUT_MS = 2500;
-const SOS_FALLBACK_PHONE = process.env.NEXT_PUBLIC_SOS_EMERGENCY_PHONE || "+10000000000";
+const SOS_FALLBACK_PHONE = process.env.NEXT_PUBLIC_SOS_EMERGENCY_PHONE || null;
 
 export function SafetyAbortButton({ orderId }: { orderId?: string }) {
   const [stage, setStage] = useState<Stage>("idle");
@@ -331,25 +341,36 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
             <Siren className="w-10 h-10 text-state-danger mb-3" />
             <h2 className="text-lg font-bold text-brand-ink mb-2">Sin conexión — llama directamente</h2>
             <p className="text-sm text-gray-600 mb-4">
-              No pudimos enviar el SOS por internet. Usa uno de estos accesos directos para contactar de
-              inmediato al coordinador de guardia.
+              No pudimos enviar el SOS por internet.{" "}
+              {SOS_FALLBACK_PHONE
+                ? "Usa uno de estos accesos directos para contactar de inmediato al coordinador de guardia."
+                : "Si tu vida o tu seguridad están en riesgo, llama al 911 (o al número de emergencias de tu localidad) directamente desde tu teléfono."}
             </p>
-            <div className="flex flex-col gap-2 mb-4">
+            {SOS_FALLBACK_PHONE ? (
+              <div className="flex flex-col gap-2 mb-4">
+                <a
+                  href={`tel:${SOS_FALLBACK_PHONE}`}
+                  className="w-full bg-state-danger text-white py-3 rounded-lg font-semibold text-center"
+                >
+                  Llamar ahora
+                </a>
+                <a
+                  href={`sms:${SOS_FALLBACK_PHONE}?body=${encodeURIComponent(
+                    `SOS emergencia. ${reason.trim() || "Sin detalles adicionales."}`
+                  )}`}
+                  className="w-full border border-state-danger text-state-danger py-2.5 rounded-lg font-semibold text-center"
+                >
+                  Enviar SMS de emergencia
+                </a>
+              </div>
+            ) : (
               <a
-                href={`tel:${SOS_FALLBACK_PHONE}`}
-                className="w-full bg-state-danger text-white py-3 rounded-lg font-semibold text-center"
+                href="tel:911"
+                className="w-full bg-state-danger text-white py-3 rounded-lg font-semibold text-center block mb-4"
               >
-                Llamar ahora
+                Llamar al 911
               </a>
-              <a
-                href={`sms:${SOS_FALLBACK_PHONE}?body=${encodeURIComponent(
-                  `SOS emergencia. ${reason.trim() || "Sin detalles adicionales."}`
-                )}`}
-                className="w-full border border-state-danger text-state-danger py-2.5 rounded-lg font-semibold text-center"
-              >
-                Enviar SMS de emergencia
-              </a>
-            </div>
+            )}
             <button
               type="button"
               onClick={() => setStage("second")}
