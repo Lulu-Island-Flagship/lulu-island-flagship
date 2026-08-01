@@ -19,6 +19,7 @@ import {
 import { SUPPORTED_LANGUAGES } from "@/lib/languages";
 import { LANGUAGE_LEVELS, type LanguageLevels } from "@/lib/employee-languages";
 import { CAREER_LEVEL_ORDER, type CareerLevel } from "@/lib/career-path";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 interface Employee {
   id: string;
@@ -136,16 +137,21 @@ export default function AdminEmpleadosClient() {
     }
   }
 
-  // Fix (revisión 2026-07-30, punto 8): el <select> disparaba el PATCH
-  // apenas cambiaba el valor, sin ninguna confirmación -- un click/tap
-  // desviado en el <select> (fácil en una tabla densa) cambiaba el nivel de
-  // carrera del empleado de inmediato, sin deshacer fácil. Se agrega un
-  // window.confirm() mínimo antes de aplicar (mismo patrón ya usado para
-  // "cancel" en updateContractStatus de MisServiciosClient.tsx).
+  // Fix (auditoría externa 2026-07-31): el <select> disparaba el PATCH
+  // apenas cambiaba el valor, con solo un window.confirm() nativo (no
+  // estilizable/accesible) como freno -- un click/tap desviado en el
+  // <select> (fácil en una tabla densa) cambiaba el nivel de carrera del
+  // empleado de inmediato. Se reemplaza por ConfirmActionModal: el
+  // <select> ya no dispara el PATCH directamente, solo guarda el cambio
+  // pendiente; el PATCH real ocurre en el onConfirm del modal.
+  const [pendingCareerLevel, setPendingCareerLevel] = useState<{
+    employeeId: string;
+    employeeName: string;
+    fromLevel: CareerLevel;
+    toLevel: CareerLevel;
+  } | null>(null);
+
   async function saveCareerLevel(employeeId: string, careerLevel: CareerLevel) {
-    if (!window.confirm(t("confirmCareerLevelChange"))) {
-      return;
-    }
     const res = await fetch(`/api/admin/empleados/${employeeId}`, {
       method: "PATCH",
       credentials: "include",
@@ -155,7 +161,7 @@ export default function AdminEmpleadosClient() {
     if (!res.ok) {
       const err = await res.json();
       setActivateError(err.error || t("saveCareerLevelFailed"));
-      return;
+      throw new Error(err.error || t("saveCareerLevelFailed"));
     }
     const data = await res.json();
     setEmployees((prev) => prev.map((e) => (e.id === employeeId ? data.employee : e)));
@@ -334,7 +340,14 @@ export default function AdminEmpleadosClient() {
                         title={t("careerLevelPromotionNotice")}
                         aria-label={t("careerLevelSelectAria")}
                         value={emp.career_level || "trabajador"}
-                        onChange={(e) => saveCareerLevel(emp.id, e.target.value as CareerLevel)}
+                        onChange={(e) =>
+                          setPendingCareerLevel({
+                            employeeId: emp.id,
+                            employeeName: emp.name,
+                            fromLevel: emp.career_level || "trabajador",
+                            toLevel: e.target.value as CareerLevel,
+                          })
+                        }
                         className="text-xs border rounded-md px-2 py-1"
                       >
                         {CAREER_LEVEL_ORDER.map((level) => (
@@ -394,6 +407,23 @@ export default function AdminEmpleadosClient() {
               prev.map((e) => (e.id === employeeId ? { ...e, ...updated } : e))
             );
             setOffboardingEmployee(null);
+          }}
+        />
+      )}
+
+      {pendingCareerLevel && (
+        <ConfirmActionModal
+          title={t("confirmCareerLevelChangeTitle")}
+          message={t("confirmCareerLevelChange", {
+            name: pendingCareerLevel.employeeName,
+            from: CAREER_LEVEL_LABEL[pendingCareerLevel.fromLevel],
+            to: CAREER_LEVEL_LABEL[pendingCareerLevel.toLevel],
+          })}
+          confirmLabel={t("confirmCareerLevelChangeConfirm")}
+          onCancel={() => setPendingCareerLevel(null)}
+          onConfirm={async () => {
+            await saveCareerLevel(pendingCareerLevel.employeeId, pendingCareerLevel.toLevel);
+            setPendingCareerLevel(null);
           }}
         />
       )}
