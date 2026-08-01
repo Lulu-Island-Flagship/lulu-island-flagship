@@ -104,8 +104,17 @@ export function ApplePayButton({
 
       event.complete("success");
 
-      if (setupIntent?.payment_method) {
+      // Fix (auditoría 2026-07-31, hallazgo #6): mismo bug ya corregido en
+      // StripeCardForm.tsx (auditoría externa, 2026-07-31) -- solo se
+      // chequeaba que setupIntent.payment_method existiera, sin verificar
+      // setupIntent.status === "succeeded". Algunos estados intermedios
+      // pueden traer un payment_method ya asociado sin estar realmente
+      // listo para cobros off_session futuros; se replica la misma
+      // validación aquí para Apple/Google Pay.
+      if (setupIntent?.status === "succeeded" && setupIntent.payment_method) {
         onPaymentMethodReady(setupIntent.payment_method as string);
+      } else if (setupIntent && setupIntent.status !== "succeeded") {
+        setError(t("validationFailed"));
       }
     };
 
