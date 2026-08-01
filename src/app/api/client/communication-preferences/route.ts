@@ -71,10 +71,31 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Fix (auditoría en vivo 2026-08-01, confirmado por prueba E2E real): un
+  // cliente recién registrado (login por email/teléfono/Google/Apple) NO
+  // tiene todavía una fila en client_profiles -- esa tabla solo se crea hoy
+  // al generar su primera cotización/orden (no hay trigger en auth.users,
+  // ver migraciones 001-300: ningún on_auth_user_created). .single() sobre
+  // 0 filas devuelve el error crudo de PostgREST "Cannot coerce the result
+  // to a single JSON object" (PGRST116), y este endpoint lo reenviaba tal
+  // cual al cliente -- un cliente real probando /cuenta/preferencias por
+  // primera vez, antes de su primer servicio, veía ese texto técnico en
+  // pantalla en vez de la página de preferencias. upsert() con
+  // onConflict "user_id" crea la fila con los defaults de la migración 001
+  // (marketing_opt_in = false, etc.) si no existía, sin tocar nada si ya
+  // existía -- misma política RLS "Users insert own client profile"
+  // (migración 018) que ya permite este insert desde el propio cliente.
+  // ignoreDuplicates se deja en false (default) a propósito: con
+  // ignoreDuplicates:true, PostgREST arma un ON CONFLICT DO NOTHING, que no
+  // devuelve fila por RETURNING cuando la fila YA existía -- exactamente el
+  // caso más común (cliente que ya tiene client_profiles) -- y el .single()
+  // de abajo volvería a fallar. El upsert por defecto hace un
+  // ON CONFLICT (user_id) DO UPDATE de un único campo (user_id = user_id,
+  // no-op real), que sí devuelve la fila completa en ambos casos.
   const { data, error } = await supabase
     .from("client_profiles")
+    .upsert({ user_id: user.id }, { onConflict: "user_id" })
     .select("marketing_opt_in, marketing_opt_in_updated_at, auto_unsubscribed_at, birth_date")
-    .eq("user_id", user.id)
     .single();
 
   if (error) {
@@ -139,10 +160,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
 
+  // Mismo problema que GET arriba: .update().eq(...) sobre una fila que
+  // todavía no existe (cliente nuevo, sin client_profiles) actualiza 0
+  // filas y el .single() posterior revienta con el mismo error crudo de
+  // PostgREST. upsert() con user_id incluido crea la fila si falta (mismos
+  // defaults de la migración 001) y la actualiza si ya existía, en una sola
+  // llamada.
   const { data, error } = await supabase
     .from("client_profiles")
-    .update(update)
-    .eq("user_id", user.id)
+    .upsert({ user_id: user.id, ...update }, { onConflict: "user_id" })
     .select("marketing_opt_in, marketing_opt_in_updated_at, birth_date")
     .single();
 

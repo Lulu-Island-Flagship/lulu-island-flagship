@@ -1,0 +1,57 @@
+<!--
+  Fix (auditoría en vivo 2026-08-01, login de cliente): AuthModal.tsx llama
+  a supabase.auth.signInWithOtp() SIN emailRedirectTo, a propósito, para que
+  Supabase envíe el código numérico (token) en vez de un magic link -- la UI
+  (mode === "email", pantalla "otpSent") pide explícitamente un código de
+  6 dígitos, nunca un link para hacer clic. Pero esta plantilla nunca se
+  había configurado: el proyecto seguía usando la plantilla por defecto de
+  Supabase para "Magic Link", que usa {{ .ConfirmationURL }} en vez de
+  {{ .Token }}. Resultado real, confirmado en vivo por un cliente probando
+  el flujo: el correo trae un link, no un código -- y la pantalla de
+  "Enter 6-digit code" nunca puede completarse con lo que llega al correo.
+  Esta plantilla usa {{ .Token }} (el código de 6 dígitos, ver otp_length=6
+  en supabase/config.toml, sección [auth.email]) para que el correo real
+  coincida con lo que la UI pide.
+-->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Your verification code</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#eef5fa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eef5fa; padding:32px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:8px; padding:40px 32px; max-width:480px; width:100%;">
+            <tr>
+              <td align="center" style="padding-bottom:24px;">
+                <span style="font-size:18px; font-weight:700; color:#1e3a5f;">Lulu Island Flagship</span>
+                <br />
+                <span style="font-size:12px; color:#6b7280;">Cleaning Services</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:16px; color:#1f2937; line-height:1.5; padding-bottom:16px;">
+                Use this code to sign in. It expires shortly, and works only once.
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:16px 0 24px;">
+                <span style="display:inline-block; font-size:32px; font-weight:700; letter-spacing:8px; color:#1e3a5f; background-color:#eef5fa; padding:16px 24px; border-radius:8px;">
+                  {{ .Token }}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:13px; color:#6b7280; line-height:1.5; padding-bottom:8px;">
+                Didn't request this? You can safely ignore this email — no account changes were made.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

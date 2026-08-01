@@ -233,6 +233,23 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
+# Fix (auditoría en vivo 2026-08-01, login de cliente, confirmado por
+# prueba E2E real): AuthModal.tsx (src/components/cotizador/AuthModal.tsx,
+# handleEmailOtpRequest) llama a signInWithOtp() sin emailRedirectTo a
+# propósito, para pedirle a Supabase que mande el código numérico (token)
+# en vez de un magic link -- la pantalla que sigue ("Enter 6-digit code
+# sent to ...") solo acepta un código de 6 dígitos, nunca un link. La
+# plantilla de SMS de abajo ([auth.sms.template]) ya usaba {{ .Code }}
+# correctamente, pero la de email nunca se había configurado -- seguía en
+# el magic link por defecto de Supabase ({{ .ConfirmationURL }}). Un
+# cliente real probando el login confirmó que el correo trae un link, no
+# un código: la pantalla de verificación no se podía completar nunca.
+# content_path apunta a una plantilla que usa {{ .Token }} (el código,
+# ver otp_length = 6 en [auth.email] arriba) en vez del link.
+[auth.email.template.magic_link]
+subject = "Your verification code"
+content_path = "./supabase/templates/magic_link.html"
+
 # Use a production-ready SMTP server
 # [auth.email.smtp]
 # enabled = true
