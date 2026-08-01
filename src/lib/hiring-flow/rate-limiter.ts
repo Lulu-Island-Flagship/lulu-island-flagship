@@ -28,6 +28,15 @@ import { getSetting } from "./settings-service";
 // defensa barata contra abuso obvio (loops de fuerza bruta desde una sola
 // instancia caliente), y es mejor que no tener nada mientras no se migra a
 // Redis.
+//
+// Revisión de auditoría externa (Prioridad 5, falso positivo de
+// "sin documentar"): un reporte externo señaló esta misma limitación
+// (rate limiter no distribuido, multiplicado por instancia serverless).
+// La limitación es real y ya estaba documentada en detalle arriba antes
+// de esta revisión -- se confirma acá que sigue siendo una decisión
+// consciente y aceptada (no un bug), y que migrar a Redis/Upstash queda
+// fuera de alcance mientras el volumen de tráfico de este flujo no lo
+// justifique (sin dependencia de Redis configurada en este repo hoy).
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type RateLimiterClient = SupabaseClient<any, "public", any>;
