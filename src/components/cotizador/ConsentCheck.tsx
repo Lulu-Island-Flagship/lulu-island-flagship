@@ -1,9 +1,19 @@
 "use client";
 
 import React from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { FileText, Camera, Mail, Check } from "lucide-react";
 import { CONSENT_VERSIONS } from "@/lib/pricing";
+
+// Fix (auditoría 2026-07-31, hallazgo #2): los links a /terminos y
+// /privacidad viven DENTRO de un <label> asociado (vía htmlFor) al checkbox
+// -- sin detener la propagación del click, activar el link también
+// alterna el checkbox (comportamiento nativo de <label>). Se para la
+// propagación en cada <a> para que el link funcione sin tocar el estado del
+// consentimiento.
+function stopLabelToggle(e: React.MouseEvent) {
+  e.stopPropagation();
+}
 
 interface ConsentCheckProps {
   consents: {
@@ -22,6 +32,7 @@ interface ConsentCheckProps {
 
 export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
   const t = useTranslations("cotizador.consentCheck");
+  const locale = useLocale();
   return (
     <div className="space-y-4">
       <h3 className="font-semibold text-brand-ink">{t("title")}</h3>
@@ -43,7 +54,19 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
             {consents.tc && <Check className="w-4 h-4 text-state-success" />}
           </div>
           <p className="text-xs text-gray-500">
-            {t("tcDesc")}
+            {t.rich("tcDesc", {
+              link: (chunks) => (
+                <a
+                  href={`/${locale}/terminos`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={stopLabelToggle}
+                  className="underline hover:text-brand-navy"
+                >
+                  {chunks}
+                </a>
+              ),
+            })}
           </p>
         </div>
       </label>
@@ -65,7 +88,19 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
             {consents.pipa && <Check className="w-4 h-4 text-state-success" />}
           </div>
           <p className="text-xs text-gray-500">
-            {t("pipaDesc")}
+            {t.rich("pipaDesc", {
+              link: (chunks) => (
+                <a
+                  href={`/${locale}/privacidad`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={stopLabelToggle}
+                  className="underline hover:text-brand-navy"
+                >
+                  {chunks}
+                </a>
+              ),
+            })}
           </p>
           {!consents.pipa && (
             <p className="text-xs text-state-warning mt-2">
@@ -92,7 +127,19 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
             {consents.marketing && <Check className="w-4 h-4 text-state-success" />}
           </div>
           <p className="text-xs text-gray-500">
-            {t("marketingDesc")}
+            {t.rich("marketingDesc", {
+              link: (chunks) => (
+                <a
+                  href={`/${locale}/privacidad`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={stopLabelToggle}
+                  className="underline hover:text-brand-navy"
+                >
+                  {chunks}
+                </a>
+              ),
+            })}
           </p>
         </div>
       </label>
@@ -114,7 +161,19 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
             {consents.photoMarketing && <Check className="w-4 h-4 text-state-success" />}
           </div>
           <p className="text-xs text-gray-500">
-            {t("photoMarketingDesc")}
+            {t.rich("photoMarketingDesc", {
+              link: (chunks) => (
+                <a
+                  href={`/${locale}/privacidad`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={stopLabelToggle}
+                  className="underline hover:text-brand-navy"
+                >
+                  {chunks}
+                </a>
+              ),
+            })}
           </p>
         </div>
       </label>
