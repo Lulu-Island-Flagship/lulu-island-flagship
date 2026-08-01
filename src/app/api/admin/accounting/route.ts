@@ -52,13 +52,22 @@ export async function GET(request: NextRequest) {
   const orderIds = (orders || []).map((o) => o.id);
   if (orderIds.length === 0) {
     const empty: OrderFinancialRecord[] = [];
+    // Fix (auditoría externa 2026-07-31): este early-return (sin órdenes en
+    // el rango) también debe reflejar el estado real de configuración de
+    // costos fijos -- antes devolvía fixedCostsConfigured:false siempre,
+    // aunque el dueño ya la hubiera configurado, con solo filtrar un rango
+    // de fechas sin órdenes.
+    const { data: emptyRangeFixedCosts } = await supabase.rpc("get_current_monthly_fixed_costs_cents");
+    const emptyRangeRow = Array.isArray(emptyRangeFixedCosts)
+      ? (emptyRangeFixedCosts[0] as { monthly_fixed_costs_cents: number; has_been_configured: boolean } | undefined)
+      : undefined;
     return NextResponse.json({
       byZone: summarizeByZone(empty),
       byServiceType: summarizeByServiceType(empty),
       byTeam: summarizeByTeam(empty),
       overall: summarizeOverall(empty),
-      fixedCostsConfigured: false,
-      monthlyFixedCostsCents: 0,
+      fixedCostsConfigured: emptyRangeRow?.has_been_configured ?? false,
+      monthlyFixedCostsCents: Number(emptyRangeRow?.monthly_fixed_costs_cents || 0),
     });
   }
 
@@ -98,7 +107,14 @@ export async function GET(request: NextRequest) {
   // migración 134). Si el dueño nunca lo configuró (sigue en el seed $0),
   // esto queda en $0 explícitamente -- nunca se simula un número que no
   // existe. Lógica pura y testeada en src/lib/operational-accounting.ts.
-  const monthlyFixedCostsCents = Number(fixedCostsCents || 0);
+  // Fix (auditoría externa 2026-07-31): get_current_monthly_fixed_costs_cents
+  // (migración 295) ahora devuelve TABLE(monthly_fixed_costs_cents,
+  // has_been_configured) en vez de un INTEGER escalar -- ver comentario en
+  // fixedCostsConfigured más abajo.
+  const fixedCostsRow = Array.isArray(fixedCostsCents)
+    ? (fixedCostsCents[0] as { monthly_fixed_costs_cents: number; has_been_configured: boolean } | undefined)
+    : undefined;
+  const monthlyFixedCostsCents = Number(fixedCostsRow?.monthly_fixed_costs_cents || 0);
   // Fix (auditoría 2026-07-30): computeProratedFixedCostsPerOrder ahora
   // devuelve un array (uno por orden, mismo índice que `orders`) en vez de
   // un escalar aplicado a todas por igual -- así el resto de centavos que
@@ -166,16 +182,27 @@ export async function GET(request: NextRequest) {
 
   const cycleDeductionsByEmployeeCycle = new Map<string, { grossCents: number; employerCostCents: number }>();
   if (employeeIdsForBurden.length > 0 && cycleLabelsForBurden.length > 0) {
+    // Fix (auditoría externa 2026-07-31, hallazgo confirmado): employer_cost_cents
+    // (payroll_cycle_deductions, migración 052) SOLO incluye CPP/CPP2 patronal +
+    // EI patronal + WorkSafeBC -- por diseño de calculatePayrollDeductions()
+    // (src/lib/payroll-deductions.ts), que documenta explícitamente que NO
+    // incluye vacation_pay_accrual_cents pese a que la BC Employment Standards
+    // Act la exige como obligación patronal real (mínimo 4%/6% del bruto,
+    // acumulada, pagadera). Se suma aquí (fuente: vacation_pay_accrual_cents,
+    // también snapshot por ciclo en la misma tabla) para que "carga patronal"
+    // en el margen neto refleje el costo real del empleador -- antes el margen
+    // neto salía sobreestimado porque una obligación legal real quedaba fuera
+    // de employerBurdenCents.
     const { data: cycleDeductions } = await supabase
       .from("payroll_cycle_deductions")
-      .select("employee_id, cycle_label, gross_cents, employer_cost_cents")
+      .select("employee_id, cycle_label, gross_cents, employer_cost_cents, vacation_pay_accrual_cents")
       .in("employee_id", employeeIdsForBurden)
       .in("cycle_label", cycleLabelsForBurden);
 
     for (const d of cycleDeductions || []) {
       cycleDeductionsByEmployeeCycle.set(`${d.employee_id}|${d.cycle_label}`, {
         grossCents: d.gross_cents,
-        employerCostCents: d.employer_cost_cents,
+        employerCostCents: d.employer_cost_cents + (d.vacation_pay_accrual_cents || 0),
       });
     }
   }
@@ -202,9 +229,13 @@ export async function GET(request: NextRequest) {
         ytdInsurableCents: 0,
         ytdAssessableCents: 0,
       });
+      // Ver comentario arriba (cycleDeductionsByEmployeeCycle): se suma
+      // vacationPayAccrualCents también en la estimación de respaldo, mismo
+      // criterio que el snapshot real -- vacation pay es carga patronal
+      // obligatoria (BC ESA), no un extra opcional.
       employerBurdenByOrder.set(
         p.order_id,
-        (employerBurdenByOrder.get(p.order_id) || 0) + estimate.employerCostCents
+        (employerBurdenByOrder.get(p.order_id) || 0) + estimate.employerCostCents + estimate.vacationPayAccrualCents
       );
       employerBurdenEstimatedOrders.add(p.order_id);
       continue;
@@ -253,7 +284,14 @@ export async function GET(request: NextRequest) {
     byServiceType: summarizeByServiceType(records),
     byTeam: summarizeByTeam(records),
     overall: summarizeOverall(records),
-    fixedCostsConfigured: monthlyFixedCostsCents > 0,
+    // Fix (auditoría externa 2026-07-31, hallazgo confirmado): antes se
+    // inferia "configurado" de monthlyFixedCostsCents > 0 -- un negocio con
+    // costos fijos legítimamente en $0 nunca podía silenciar la advertencia
+    // "aún no configurado". Ahora se lee el booleano explícito
+    // has_been_configured (migración 295), que distingue la fila semilla
+    // (134, nunca editada por el dueño) de una configuración real, sin
+    // importar el monto.
+    fixedCostsConfigured: fixedCostsRow?.has_been_configured ?? false,
     monthlyFixedCostsCents,
   });
 }
