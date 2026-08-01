@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Loader2, StickyNote, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 type EntityType = "employee" | "client_property" | "client_profile" | "vehicle";
 
@@ -40,6 +41,12 @@ export default function EntityNotesPage() {
   const [newNote, setNewNote] = useState("");
   const [newContexts, setNewContexts] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  // Fix (auditoría 2026-08-01): borrar una nota se disparaba directo desde el
+  // onClick del ícono de basura, sin ninguna confirmación (ni siquiera
+  // window.confirm). Se agrega ConfirmActionModal (mismo patrón que el resto
+  // del admin) para evitar borrados accidentales de conocimiento operativo
+  // que puede no ser fácil de reconstruir (p.ej. "no emparejar con Pedro").
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     loadOptions();
@@ -117,17 +124,14 @@ export default function EntityNotesPage() {
 
   async function deleteNote(id: string) {
     setError("");
-    try {
-      const res = await fetch(`/api/admin/entity-notes?id=${id}`, { method: "DELETE", credentials: "include" });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        setError(err.error || t("errorDeleting"));
-        return;
-      }
-      await loadNotes();
-    } catch {
-      setError(t("errorNetwork"));
+    const res = await fetch(`/api/admin/entity-notes?id=${id}`, { method: "DELETE", credentials: "include" });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      // Se lanza el error para que ConfirmActionModal lo muestre dentro del
+      // modal y lo mantenga abierto (permite reintentar) en vez de tragarlo.
+      throw new Error(err.error || t("errorDeleting"));
     }
+    await loadNotes();
   }
 
   function toggleContext(ctx: string) {
@@ -231,7 +235,7 @@ export default function EntityNotesPage() {
                           <p className="text-xs text-gray-400 mt-1">{t("shownIn", { contexts: n.suggest_context.join(", ") })}</p>
                         )}
                       </div>
-                      <button onClick={() => deleteNote(n.id)} aria-label={t("deleteNote")} className="text-gray-300 hover:text-state-danger shrink-0">
+                      <button onClick={() => setPendingDeleteId(n.id)} aria-label={t("deleteNote")} className="text-gray-300 hover:text-state-danger shrink-0">
                         <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </button>
                     </div>
@@ -242,6 +246,19 @@ export default function EntityNotesPage() {
           </>
         )}
       </div>
+
+      {pendingDeleteId && (
+        <ConfirmActionModal
+          title={t("deleteNote")}
+          message={t("confirmDeleteMessage")}
+          danger
+          onCancel={() => setPendingDeleteId(null)}
+          onConfirm={async () => {
+            await deleteNote(pendingDeleteId);
+            setPendingDeleteId(null);
+          }}
+        />
+      )}
     </div>
   );
 }
