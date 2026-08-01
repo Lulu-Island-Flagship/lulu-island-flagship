@@ -150,7 +150,12 @@ export default function CommunicationPreferencesClient() {
   }
 
   return (
-    <div className="space-y-6 max-w-lg">
+    // Fix (auditoría en vivo 2026-08-01, diseño): mismo problema que
+    // billetera/referidos -- sin mx-auto ni px-4 quedaba pegado al borde
+    // izquierdo. Se mantiene max-w-lg (es un formulario angosto, no una
+    // lista como servicios/propiedades) pero se agrega mx-auto + px-4 py-8
+    // para el mismo margen/centrado que el resto de /cuenta.
+    <div className="max-w-lg mx-auto px-4 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
         <p className="text-sm text-gray-500 mt-1">

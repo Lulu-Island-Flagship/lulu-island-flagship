@@ -189,7 +189,12 @@ export default function WalletPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    // Fix (auditoría en vivo 2026-08-01, diseño): esta página usaba
+    // "max-w-2xl" sin mx-auto ni px-4, a diferencia de servicios/propiedades
+    // (max-w-3xl mx-auto px-4 py-8) -- quedaba pegada al borde izquierdo sin
+    // margen, en vez de centrada con aire lateral. Se alinea al mismo patrón
+    // que ya usan esas dos páginas.
+    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
         <p className="text-sm text-gray-500 mt-1">

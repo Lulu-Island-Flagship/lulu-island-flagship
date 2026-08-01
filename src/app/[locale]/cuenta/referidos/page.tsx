@@ -146,7 +146,10 @@ export default function ReferralsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    // Fix (auditoría en vivo 2026-08-01, diseño): mismo patrón que
+    // billetera/page.tsx -- alineado a max-w-3xl mx-auto px-4 py-8, igual
+    // que servicios/propiedades, en vez de quedar pegado al borde izquierdo.
+    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
         <p className="text-sm text-gray-500 mt-1">
