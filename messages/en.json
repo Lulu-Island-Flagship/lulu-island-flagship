@@ -3166,7 +3166,8 @@
         "reasonRequired": "Reason is required for audit log",
         "updateFailed": "Failed to update pricing settings",
         "hheUpdateFailed": "Failed to update HHE settings",
-        "hheCellMustBePositive": "Enter a number greater than 0 for this cell."
+        "hheCellMustBePositive": "Enter a number greater than 0 for this cell.",
+        "hheCellExceedsMax": "This cell can't exceed {max} hours — check for a typo (e.g. an extra digit)."
       },
       "targetRate": {
         "title": "Target Hourly Rate",
@@ -3184,7 +3185,9 @@
         "serviceTypeHeader": "Service Type",
         "cellAriaLabel": "Estimated hours: {serviceType}, {range}",
         "reasonPlaceholder": "e.g. Adjust deep cleaning estimates after field data",
-        "saveButton": "Save HHE Table"
+        "saveButton": "Save HHE Table",
+        "confirmTitle": "Confirm HHE table changes",
+        "confirmNoChanges": "No cell values changed — only the reason/metadata may be updated."
       },
       "serviceTypes": {
         "regular": "Regular",

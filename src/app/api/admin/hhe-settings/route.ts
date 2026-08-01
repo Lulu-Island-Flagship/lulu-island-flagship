@@ -4,13 +4,21 @@ import { requireAdminRole } from "@/lib/admin";
 const SERVICE_TYPES = ["regular", "deep", "move_in_out", "post_construction"] as const;
 const RANGE_LABELS = ["≤ 700 ft²", "700 – 1,500 ft²", "1,500 – 2,500 ft²", "2,500 – 3,500 ft²", "> 3,500 ft²"];
 
+// Fix (auditoría externa 2026-07-31): el HHE (Hours per House Estimate)
+// solo se validaba como "> 0", sin techo -- un typo (ej. 500 en vez de 5.0)
+// se guardaba sin aviso y multiplicaba por 100 el precio cotizado para ese
+// rango de metraje. 50 horas es un techo generoso (muy por encima de
+// cualquier trabajo real, que ronda 1-15h) que igual atrapa errores de
+// dedo gordo de una orden de magnitud.
+const MAX_HHE_VALUE = 50;
+
 function isValidHHETable(body: unknown): body is Record<string, number[]> {
   if (!body || typeof body !== "object") return false;
   const table = body as Record<string, unknown>;
   for (const st of SERVICE_TYPES) {
     const row = table[st];
     if (!Array.isArray(row) || row.length !== 5) return false;
-    if (!row.every((v) => typeof v === "number" && v > 0)) return false;
+    if (!row.every((v) => typeof v === "number" && v > 0 && v <= MAX_HHE_VALUE)) return false;
   }
   return true;
 }
@@ -63,7 +71,9 @@ export async function PATCH(request: NextRequest) {
 
     if (!isValidHHETable(table)) {
       return NextResponse.json(
-        { error: "Invalid HHE table. Must include 4 service types with 5 positive numbers each." },
+        {
+          error: `Invalid HHE table. Must include 4 service types with 5 numbers each, all > 0 and <= ${MAX_HHE_VALUE}.`,
+        },
         { status: 400 }
       );
     }

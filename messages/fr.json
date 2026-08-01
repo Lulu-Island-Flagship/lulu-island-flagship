@@ -3166,7 +3166,8 @@
         "reasonRequired": "Un motif est requis pour le journal d'audit",
         "updateFailed": "Échec de la mise à jour des paramètres de tarification",
         "hheUpdateFailed": "Échec de la mise à jour des paramètres HHE",
-        "hheCellMustBePositive": "Entrez un nombre supérieur à 0 pour cette cellule."
+        "hheCellMustBePositive": "Entrez un nombre supérieur à 0 pour cette cellule.",
+        "hheCellExceedsMax": "Cette cellule ne peut pas dépasser {max} heures — vérifiez une éventuelle faute de frappe (ex. un chiffre en trop)."
       },
       "targetRate": {
         "title": "Taux horaire cible",
@@ -3184,7 +3185,9 @@
         "serviceTypeHeader": "Type de service",
         "cellAriaLabel": "Heures estimées : {serviceType}, {range}",
         "reasonPlaceholder": "ex. Ajuster les estimations de nettoyage en profondeur selon les données terrain",
-        "saveButton": "Enregistrer le tableau HHE"
+        "saveButton": "Enregistrer le tableau HHE",
+        "confirmTitle": "Confirmer les modifications du tableau HHE",
+        "confirmNoChanges": "Aucune valeur de cellule n'a changé — seuls le motif/les métadonnées peuvent être mis à jour."
       },
       "serviceTypes": {
         "regular": "Régulier",

@@ -3166,7 +3166,8 @@
         "reasonRequired": "审计日志需要填写原因",
         "updateFailed": "更新定价设置失败",
         "hheUpdateFailed": "更新 HHE 设置失败",
-        "hheCellMustBePositive": "请为此单元格输入大于 0 的数字。"
+        "hheCellMustBePositive": "请为此单元格输入大于 0 的数字。",
+        "hheCellExceedsMax": "此单元格不能超过 {max} 小时——请检查是否有输入错误（例如多输入了一位数字）。"
       },
       "targetRate": {
         "title": "目标时薪",
@@ -3184,7 +3185,9 @@
         "serviceTypeHeader": "服务类型",
         "cellAriaLabel": "预估工时：{serviceType}，{range}",
         "reasonPlaceholder": "例如：根据现场数据调整深度清洁预估",
-        "saveButton": "保存 HHE 表格"
+        "saveButton": "保存 HHE 表格",
+        "confirmTitle": "确认 HHE 表格更改",
+        "confirmNoChanges": "没有单元格数值发生变化——可能只更新了原因/元数据。"
       },
       "serviceTypes": {
         "regular": "常规清洁",

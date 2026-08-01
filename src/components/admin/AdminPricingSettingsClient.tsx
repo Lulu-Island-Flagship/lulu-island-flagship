@@ -3,6 +3,12 @@
 import React, { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, DollarSign, History, AlertCircle, CheckCircle2, Table2 } from "lucide-react";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
+
+// Fix (auditoría externa 2026-07-31): mismo techo que el backend
+// (src/app/api/admin/hhe-settings/route.ts) -- validar solo en el cliente
+// no sirve de nada si el servidor acepta cualquier valor positivo.
+const MAX_HHE_VALUE = 50;
 
 interface PricingSetting {
   id: string;
@@ -42,6 +48,11 @@ export default function AdminPricingSettingsClient() {
   const [success, setSuccess] = useState("");
 
   const [hheTable, setHheTable] = useState<Record<string, number[]> | null>(null);
+  // Fix (auditoría externa 2026-07-31): snapshot del último valor cargado
+  // del servidor, usado para construir el diff antes/después mostrado en
+  // el modal de confirmación de handleHHESubmit.
+  const [hheOriginalTable, setHheOriginalTable] = useState<Record<string, number[]> | null>(null);
+  const [showHheConfirm, setShowHheConfirm] = useState(false);
   const [hheRangeLabels, setHheRangeLabels] = useState<string[]>([
     "≤ 700 ft²", "700 – 1,500 ft²", "1,500 – 2,500 ft²", "2,500 – 3,500 ft²", "> 3,500 ft²",
   ]);
@@ -88,6 +99,7 @@ export default function AdminPricingSettingsClient() {
       }
       const json = (await res.json()) as { table: Record<string, number[]>; rangeLabels: string[] };
       setHheTable(json.table);
+      setHheOriginalTable(json.table);
       setHheRangeLabels(json.rangeLabels);
     } catch {
       setHheError(t("errors.hheNetworkError"));
@@ -142,19 +154,28 @@ export default function AdminPricingSettingsClient() {
     }
   }
 
-  async function handleHHESubmit(e: React.FormEvent) {
+  // Fix (auditoría externa 2026-07-31): handleHHESubmit guardaba
+  // directamente sin mostrar ningún resumen de qué iba a cambiar -- ahora
+  // solo valida y abre un ConfirmActionModal con el diff antes/después; el
+  // PATCH real ocurre en submitHHE, llamado desde el onConfirm del modal.
+  function handleHHESubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!hheTable) return;
-    setHheSaving(true);
     setHheError("");
     setHheSuccess("");
 
     if (!hheReason.trim()) {
       setHheError(t("errors.reasonRequired"));
-      setHheSaving(false);
       return;
     }
 
+    setShowHheConfirm(true);
+  }
+
+  async function submitHHE() {
+    if (!hheTable) return;
+    setHheSaving(true);
+    setHheError("");
     try {
       const res = await fetch("/api/admin/hhe-settings", {
         method: "PATCH",
@@ -165,16 +186,18 @@ export default function AdminPricingSettingsClient() {
 
       if (!res.ok) {
         const err = await res.json();
-        setHheError(err.error || t("errors.hheUpdateFailed"));
-        return;
+        const message = err.error || t("errors.hheUpdateFailed");
+        setHheError(message);
+        throw new Error(message);
       }
 
       const result = (await res.json()) as { message: string };
       setHheSuccess(result.message);
       setHheReason("");
       await loadHHE();
-    } catch {
-      setHheError(t("errors.networkError"));
+    } catch (err) {
+      if (!(err instanceof Error)) setHheError(t("errors.networkError"));
+      throw err;
     } finally {
       setHheSaving(false);
     }
@@ -188,6 +211,12 @@ export default function AdminPricingSettingsClient() {
       // silencio si el valor era 0/negativo/no numérico, sin explicar por
       // qué el input no reflejaba lo que el usuario acababa de teclear.
       setHheError(t("errors.hheCellMustBePositive"));
+      return;
+    }
+    if (num > MAX_HHE_VALUE) {
+      // Fix (auditoría externa 2026-07-31): sin techo, un typo de una
+      // orden de magnitud (ej. 500 en vez de 5.0) se guardaba sin aviso.
+      setHheError(t("errors.hheCellExceedsMax", { max: MAX_HHE_VALUE }));
       return;
     }
     setHheError("");
@@ -358,6 +387,7 @@ export default function AdminPricingSettingsClient() {
                           <input
                             type="number"
                             min="0.1"
+                            max={MAX_HHE_VALUE}
                             step="0.1"
                             aria-label={t("hheTable.cellAriaLabel", { serviceType: row.label, range: hheRangeLabels[i] })}
                             value={value}
@@ -491,6 +521,47 @@ export default function AdminPricingSettingsClient() {
           </div>
         )}
       </div>
+
+      {showHheConfirm && hheTable && (
+        <ConfirmActionModal
+          title={t("hheTable.confirmTitle")}
+          message={
+            <span className="space-y-1 block">
+              {(() => {
+                const rows = [
+                  { key: "regular", label: t("serviceTypes.regular") },
+                  { key: "deep", label: t("serviceTypes.deep") },
+                  { key: "move_in_out", label: t("serviceTypes.moveInOut") },
+                  { key: "post_construction", label: t("serviceTypes.postConstruction") },
+                ];
+                const diffs: string[] = [];
+                for (const row of rows) {
+                  const before = hheOriginalTable?.[row.key];
+                  const after = hheTable[row.key];
+                  after.forEach((v, i) => {
+                    const prev = before?.[i];
+                    if (prev !== undefined && prev !== v) {
+                      diffs.push(`${row.label} (${hheRangeLabels[i]}): ${prev} → ${v}`);
+                    }
+                  });
+                }
+                if (diffs.length === 0) {
+                  return <span>{t("hheTable.confirmNoChanges")}</span>;
+                }
+                return diffs.map((d) => (
+                  <span key={d} className="block font-mono text-xs">{d}</span>
+                ));
+              })()}
+            </span>
+          }
+          confirmLabel={t("hheTable.saveButton")}
+          onCancel={() => setShowHheConfirm(false)}
+          onConfirm={async () => {
+            await submitHHE();
+            setShowHheConfirm(false);
+          }}
+        />
+      )}
     </div>
   );
 }
