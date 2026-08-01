@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { BADGE_CATALOG, type BadgeKey } from "@/lib/badges";
 import { CAREER_LEVEL_ORDER, type CareerLevel } from "@/lib/career-path";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 // v8.3 E8 FIX-1: la API (/api/empleado/score) ya no devuelve
 // total_score/telemetry_score/audit_score/peer_score en crudo -- ver
@@ -444,50 +445,70 @@ export default function EmpleadoScorePage() {
 
       {/* Appeal Modal */}
       {selectedAudit && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-brand-ink">Appeal Audit</h2>
-              <button
-                onClick={() => setSelectedAudit(null)}
-                aria-label="Close"
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <XCircle className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-sm text-gray-600">
-              You have <strong>72 hours</strong> from the audit date to appeal. 
-              The appeal log is immutable and will be reviewed by a supervisor.
-            </p>
-
-            <div className="text-sm bg-gray-50 rounded-lg p-3">
-              <p><strong>Audit Score:</strong> {selectedAudit.score}/100</p>
-              <p><strong>Date:</strong> {new Date(selectedAudit.created_at).toLocaleDateString()}</p>
-            </div>
-
-            <textarea
-              aria-label="Razón de la apelación de auditoría"
-              value={appealReason}
-              onChange={(e) => setAppealReason(e.target.value)}
-              placeholder="Explain why you believe this audit is unfair..."
-              className="w-full border rounded-lg p-3 text-sm min-h-[100px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
-            />
-
-            {appealError && <p className="text-sm text-red-600">{appealError}</p>}
-            {appealSuccess && <p className="text-sm text-green-600">{appealSuccess}</p>}
-
+        <AppealDialog onClose={() => setSelectedAudit(null)}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-brand-ink">Appeal Audit</h2>
             <button
-              onClick={() => submitAppeal(selectedAudit.id)}
-              disabled={submittingAppeal}
-              className="w-full bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
+              onClick={() => setSelectedAudit(null)}
+              aria-label="Close"
+              className="text-gray-400 hover:text-gray-600"
             >
-              {submittingAppeal ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Submit Appeal"}
+              <XCircle className="w-5 h-5" />
             </button>
           </div>
-        </div>
+
+          <p className="text-sm text-gray-600">
+            You have <strong>72 hours</strong> from the audit date to appeal.
+            The appeal log is immutable and will be reviewed by a supervisor.
+          </p>
+
+          <div className="text-sm bg-gray-50 rounded-lg p-3">
+            <p><strong>Audit Score:</strong> {selectedAudit.score}/100</p>
+            <p><strong>Date:</strong> {new Date(selectedAudit.created_at).toLocaleDateString()}</p>
+          </div>
+
+          <textarea
+            aria-label="Razón de la apelación de auditoría"
+            value={appealReason}
+            onChange={(e) => setAppealReason(e.target.value)}
+            placeholder="Explain why you believe this audit is unfair..."
+            className="w-full border rounded-lg p-3 text-sm min-h-[100px] focus:ring-2 focus:ring-brand-navy focus:border-transparent"
+          />
+
+          {appealError && <p className="text-sm text-red-600">{appealError}</p>}
+          {appealSuccess && <p className="text-sm text-green-600">{appealSuccess}</p>}
+
+          <button
+            onClick={() => submitAppeal(selectedAudit.id)}
+            disabled={submittingAppeal}
+            className="w-full bg-brand-navy text-white py-3 rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
+          >
+            {submittingAppeal ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Submit Appeal"}
+          </button>
+        </AppealDialog>
       )}
     </main>
+  );
+}
+
+/**
+ * Auditoría externa (verificado real): este modal de apelación no tenía
+ * role="dialog"/aria-modal ni focus trap, a diferencia del modal de
+ * votación (votacion/page.tsx, VoteDialog) que ya lo corrigió. Mismo hook
+ * useFocusTrap, mismo patrón: Escape cierra, Tab cicla dentro del modal.
+ */
+function AppealDialog({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  const dialogRef = useFocusTrap<HTMLDivElement>(true, onClose);
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4"
+      >
+        {children}
+      </div>
+    </div>
   );
 }
