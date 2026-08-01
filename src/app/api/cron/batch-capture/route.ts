@@ -672,37 +672,39 @@ export async function GET(request: NextRequest) {
           );
         }
 
-        await supabase
-          .from("orders")
-          .update({
-            hold_captured_at: payments.hold ? new Date().toISOString() : order.hold_captured_at,
-            stripe_capture_payment_intent_id: payments.balance || null,
-            capture_captured_at: payments.balance ? new Date().toISOString() : null,
-            // capture_authorized_amount es columna fuera de alcance de RAÍZ-3
-            // (sigue en dólares) -- se preserva su unidad original.
-            capture_authorized_amount: Math.round(amountChargedCents / 100),
-            // Fix (auditoría externa 2026-07-24): para alipay/wechat_pay,
-            // amountChargedCents se queda intencionalmente en 0 (ver el
-            // bloque de arriba -- no hay saldo que cobrar, el 100% ya se
-            // cobró en /api/stripe/confirm). Antes de este fix, este UPDATE
-            // SOBREESCRIBÍA total_paid_cents con esa suma sin incluir
-            // wallet_amount_collected_cents, borrando a 0 todas las noches
-            // el cobro real ya reflejado al crear la orden (mismo bug de
-            // fondo que el fix en stripe/confirm/route.ts). Se suma aquí
-            // siguiendo el mismo criterio: walletAppliedCents ya sigue
-            // siendo crédito de billetera Lulu aplicado a la orden (campo
-            // distinto), no confundir con este.
-            total_paid_cents:
-              amountChargedCents +
-              walletAppliedCents +
-              (order.wallet_amount_collected_cents || 0) +
-              (order.payment_option === "paypal_first_time" ? Math.round((order.paypal_advance_amount || 0) * 100) : 0),
-            card_amount_charged_cents: amountChargedCents,
-            capture_attempts: 0,
-            capture_last_error: null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", order.id);
+        // Fix (auditoría externa 2026-07-31, hallazgo #3 -- CRÍTICO): antes
+        // este bloque hacía un UPDATE plano que SOBREESCRIBÍA
+        // total_paid_cents/card_amount_charged_cents/capture_authorized_amount
+        // con un valor calculado en JS -- si el Hold ya había sido
+        // reconciliado por reconcileCapturedPaymentIntent (ver
+        // payment-capture-reconciliation.ts, que SÍ suma correctamente) o
+        // por una ejecución previa de este mismo cron, ese monto se perdía
+        // al recalcular "desde cero" en esta ejecución. Se reemplaza por la
+        // RPC atómica apply_batch_capture_result (migración 296), que
+        // INCREMENTA esas columnas en vez de sobreescribirlas.
+        //
+        // wallet_amount_collected_cents (Alipay/WeChat Pay) NO se incluye
+        // aquí como delta: ya se escribió una sola vez en total_paid_cents
+        // al crear la orden (stripe/confirm/route.ts) -- volver a sumarlo
+        // en cada ejecución de este cron (ahora que es un incremento, no
+        // una reescritura) lo duplicaría. Para esas órdenes amountChargedCents
+        // ya es 0 (ver bloque de arriba), así que el delta de esta llamada
+        // es 0 y total_paid_cents queda intacto, como corresponde.
+        const paypalAdvanceDeltaCents =
+          order.payment_option === "paypal_first_time"
+            ? Math.round((order.paypal_advance_amount || 0) * 100)
+            : 0;
+        const { error: applyCaptureError } = await supabase.rpc("apply_batch_capture_result", {
+          p_order_id: order.id,
+          p_amount_captured_delta_cents: amountChargedCents,
+          p_wallet_applied_delta_cents: walletAppliedCents,
+          p_paypal_advance_delta_cents: paypalAdvanceDeltaCents,
+          p_hold_payment_intent_id: payments.hold || null,
+          p_balance_payment_intent_id: payments.balance || null,
+        });
+        if (applyCaptureError) {
+          throw new Error(`apply_batch_capture_result failed: ${applyCaptureError.message}`);
+        }
 
         // Chargeback reserve
         if (chargebackEnabled && amountChargedCents > 0) {

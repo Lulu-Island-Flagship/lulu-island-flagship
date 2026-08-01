@@ -386,25 +386,36 @@ export async function GET(request: NextRequest) {
           );
         }
 
-        await supabase
-          .from("orders")
-          .update({
-            hold_captured_at: payments.hold ? new Date().toISOString() : order.hold_captured_at,
-            stripe_capture_payment_intent_id: payments.balance || null,
-            capture_captured_at: payments.balance ? new Date().toISOString() : null,
-            // capture_authorized_amount es columna fuera de alcance de RAÍZ-3
-            // (sigue en dólares) -- se preserva su unidad original.
-            capture_authorized_amount: Math.round(amountChargedCents / 100),
-            total_paid_cents:
-              amountChargedCents +
-              walletAppliedCents +
-              (order.payment_option === "paypal_first_time" ? Math.round((order.paypal_advance_amount || 0) * 100) : 0),
-            card_amount_charged_cents: amountChargedCents,
-            capture_attempts: 0,
-            capture_last_error: null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", order.id);
+        // Fix (auditoría externa 2026-07-31, hallazgo #3 -- CRÍTICO): antes
+        // este bloque hacía un UPDATE plano que SOBREESCRIBÍA
+        // total_paid_cents/card_amount_charged_cents/capture_authorized_amount
+        // en vez de incrementarlos. Escenario real de pérdida: el Hold de
+        // esta orden se capturó y reconcilió (payment-capture-reconciliation.ts
+        // Caso 1, que SÍ suma correctamente a total_paid_cents) entre la
+        // corrida de las 7PM (que falló en el cobro del saldo) y este
+        // reintento de las 10PM. Aquí `!order.hold_captured_at` ya es falso
+        // (correcto: no se vuelve a capturar el Hold en Stripe), pero
+        // amountChargedCents entonces solo trae el saldo recién cobrado --
+        // sobreescribir total_paid_cents con ese valor borraba el monto del
+        // Hold que la reconciliación ya había sumado. Se reemplaza por la
+        // RPC atómica apply_batch_capture_result (migración 296), que
+        // INCREMENTA en vez de sobreescribir y preserva hold_captured_at/
+        // capture_captured_at si esta ejecución no los tocó.
+        const paypalAdvanceDeltaCents =
+          order.payment_option === "paypal_first_time"
+            ? Math.round((order.paypal_advance_amount || 0) * 100)
+            : 0;
+        const { error: applyCaptureError } = await supabase.rpc("apply_batch_capture_result", {
+          p_order_id: order.id,
+          p_amount_captured_delta_cents: amountChargedCents,
+          p_wallet_applied_delta_cents: walletAppliedCents,
+          p_paypal_advance_delta_cents: paypalAdvanceDeltaCents,
+          p_hold_payment_intent_id: payments.hold || null,
+          p_balance_payment_intent_id: payments.balance || null,
+        });
+        if (applyCaptureError) {
+          throw new Error(`apply_batch_capture_result failed: ${applyCaptureError.message}`);
+        }
 
         // Fix B-P0-5 (auditoría 2026-07-21): batch-capture exporta a QBO con
         // upsert idempotente por (order_id, transaction_type); este retry no
