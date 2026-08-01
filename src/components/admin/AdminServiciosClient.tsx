@@ -55,6 +55,11 @@ export default function AdminServiciosClient() {
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [dispatchLoading, setDispatchLoading] = useState(false);
   const [dispatchError, setDispatchError] = useState("");
+  // Fix (auditoría externa 2026-07-31): loadEmployees fallaba en silencio
+  // (catch vacío) -- el modal de despacho quedaba con la lista vacía sin
+  // ninguna explicación de por qué. Se guarda el error para mostrarlo
+  // dentro del modal cuando se abre.
+  const [employeesLoadError, setEmployeesLoadError] = useState(false);
 
   // Item 12 (auditoría 2026-07-25): el modal de despacho no tenía focus
   // trap ni cierre con Escape.
@@ -97,11 +102,17 @@ export default function AdminServiciosClient() {
   async function loadEmployees() {
     try {
       const res = await fetch("/api/admin/empleados", { credentials: "include" });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setEmployeesLoadError(true);
+        return;
+      }
       const data = await res.json();
       setEmployees((data.employees || []).filter((e: Employee) => e.is_active));
+      setEmployeesLoadError(false);
     } catch {
-      // Non-blocking: dispatch fallback will show empty list
+      // Non-blocking for the page load, but surfaced in the dispatch modal
+      // so the admin knows the empty list is a load failure, not "no employees".
+      setEmployeesLoadError(true);
     }
   }
 
@@ -288,8 +299,26 @@ export default function AdminServiciosClient() {
               <span className="font-mono text-xs">{dispatchOrderId.slice(0, 8)}</span>
             </p>
 
+            {employeesLoadError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm text-red-700">{t("dispatch.employeesLoadError")}</p>
+                  <button
+                    type="button"
+                    onClick={() => loadEmployees()}
+                    className="text-xs text-red-700 underline hover:no-underline mt-1"
+                  >
+                    {t("dispatch.retry")}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {employees.length === 0 ? (
-              <p className="text-sm text-gray-500">{t("dispatch.noEmployeesAvailable")}</p>
+              <p className="text-sm text-gray-500">
+                {employeesLoadError ? "" : t("dispatch.noEmployeesAvailable")}
+              </p>
             ) : (
               <div className="max-h-64 overflow-y-auto border rounded-lg divide-y">
                 {employees.map((emp) => (

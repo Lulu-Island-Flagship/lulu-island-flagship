@@ -443,11 +443,19 @@ export default function AdminChecklistsClient() {
       setError(t("errorDeleteServiceTypeFailed"));
       return;
     }
+    // Fix (auditoría externa 2026-07-31): el dry-run ahora devuelve cuántas
+    // zonas/checklists se van a borrar -- se muestra en el mensaje de
+    // confirmación en vez de solo decir "esto no se puede deshacer".
+    const dryRunData = res.ok ? await res.json().catch(() => null) : null;
+    const affectedZones: number = dryRunData?.affectedZones ?? 0;
     // Show confirmation before actual delete
     setConfirmDialog({
       open: true,
       title: t("deleteServiceTypeTitle"),
-      message: t("deleteServiceTypeMessage", { subtype: subtype.replace(/_/g, " ") }),
+      message: t("deleteServiceTypeMessageWithCount", {
+        subtype: subtype.replace(/_/g, " "),
+        count: affectedZones,
+      }),
       onConfirm: async () => {
         const res2 = await fetch(`/api/admin/checklists/service-type/${encodeURIComponent(subtype)}`, {
           method: "DELETE",

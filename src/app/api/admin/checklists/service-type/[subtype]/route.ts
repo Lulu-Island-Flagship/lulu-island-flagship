@@ -45,7 +45,22 @@ export async function DELETE(
     }
 
     if (dryRun) {
-      return NextResponse.json({ dryRun: true, canDelete: true }, { status: 200 });
+      // Fix (auditoría externa 2026-07-31): el dry-run solo confirmaba que
+      // se PODÍA borrar, pero no decía CUÁNTO se iba a borrar -- el admin
+      // confirmaba a ciegas. Se cuentan las zonas (sop_checklists) que este
+      // borrado físico va a eliminar para mostrarlas en el modal de
+      // confirmación del frontend.
+      const { count, error: countError } = await supabase
+        .from("sop_checklists")
+        .select("id", { count: "exact", head: true })
+        .eq("service_subtype", decodedSubtype);
+      if (countError) {
+        console.error("dryRun count error:", countError);
+      }
+      return NextResponse.json(
+        { dryRun: true, canDelete: true, affectedZones: count ?? 0 },
+        { status: 200 }
+      );
     }
 
     // 2. Borrar físicamente todas las zonas de este service_subtype
