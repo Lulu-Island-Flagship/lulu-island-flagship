@@ -449,31 +449,11 @@ export function getEstimatedServiceMinutes(
   return Math.round(getHHEForRange(serviceType, squareFeet, hheTable) * 60);
 }
 
-export interface BookingAvailability {
-  allowed: boolean;
-  reason?: "too_soon" | "past_cutoff";
-}
-
 /**
- * Regla única de disponibilidad de reserva por fecha (corte de las 5 PM
- * hora de Vancouver). Fuente ÚNICA de verdad: tanto el date-picker de la UI
- * (src/components/reserva/DatePicker.tsx) como el endpoint autoritativo de
- * confirmación de pago (src/app/api/stripe/confirm/route.ts) llaman a esta
- * función. Antes cada uno reimplementaba su propia versión de la regla y
- * podían divergir -- p. ej. el date-picker permitía seleccionar cualquier
- * fecha futura después del corte (salvo "mañana"), pero el endpoint de
- * confirmación rechazaba CUALQUIER fecha futura una vez pasadas las 5 PM,
- * generando una conversión fallida confusa en checkout (auditoría externa,
- * verificado 2026-08-01).
- *
- * Regla vigente (verificada contra la lógica real y ya enforced de
- * confirm/route.ts, no modificada aquí -- solo unificada):
- *  - Hoy NUNCA es reservable (mínimo 1 día de anticipación).
- *  - Cualquier fecha futura deja de ser reservable si, al momento de la
- *    consulta, ya son las BOOKING_CUTOFF_HOUR (17:00) hora de Vancouver
- *    o más tarde.
+ * Verifica si una fecha objetivo puede reservarse respetando el corte de las 5 PM
+ * del día anterior (hora de Vancouver).
  */
-export function checkBookingDateAllowed(targetDate: string): BookingAvailability {
+export function canBookDate(targetDate: string): boolean {
   const now = new Date();
   const vancouverParts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Vancouver",
@@ -489,28 +469,13 @@ export function checkBookingDateAllowed(targetDate: string): BookingAvailability
   const m = vancouverParts.find((p) => p.type === "month")?.value;
   const d = vancouverParts.find((p) => p.type === "day")?.value;
   const hr = vancouverParts.find((p) => p.type === "hour")?.value;
-  if (!y || !m || !d || !hr) return { allowed: false, reason: "too_soon" };
+  if (!y || !m || !d || !hr) return false;
 
   const todayStr = `${y}-${m}-${d}`;
-
-  if (targetDate <= todayStr) {
-    return { allowed: false, reason: "too_soon" };
+  if (targetDate > todayStr) {
+    return Number(hr) < BOOKING_CUTOFF_HOUR;
   }
-
-  if (Number(hr) >= BOOKING_CUTOFF_HOUR) {
-    return { allowed: false, reason: "past_cutoff" };
-  }
-
-  return { allowed: true };
-}
-
-/**
- * Verifica si una fecha objetivo puede reservarse respetando el corte de las 5 PM
- * hora de Vancouver. Wrapper de conveniencia sobre checkBookingDateAllowed()
- * para call sites que solo necesitan un boolean.
- */
-export function canBookDate(targetDate: string): boolean {
-  return checkBookingDateAllowed(targetDate).allowed;
+  return targetDate === todayStr; // hoy siempre permitido si hay capacidad
 }
 
 // Cálculo completo de precio

@@ -30,7 +30,7 @@
     "verifiedTitle": "Vérifiée et formée",
     "verifiedDesc": "Chaque membre de l'équipe a fait l'objet d'une vérification d'antécédents et d'une formation avant de mettre les pieds chez vous.",
     "verifiedTitleInsured": "Vérifiée et assurée",
-    "verifiedDescInsured": "Chaque membre de l'équipe a fait l'objet d'une vérification d'antécédents et est couvert par une assurance complète.",
+    "verifiedDescInsured": "Chaque membre de l'équipe a fait l'objet d'une vérification d'antécédents, est cautionné et couvert par une assurance complète.",
     "teamTitle": "Toujours la même équipe",
     "teamDesc": "Pas d'inconnus chez vous. La même équipe dédiée revient à chaque visite et connaît vos préférences.",
     "guaranteeTitle": "Garantie Premium",
@@ -334,7 +334,6 @@
     "datePicker": {
       "label": "Sélectionner la date du service",
       "cutoffWarning": "Les réservations pour demain ferment à 17h00. Veuillez choisir une date ultérieure.",
-      "bookingClosedForNow": "La réservation en ligne est fermée pour aujourd'hui (limite quotidienne à 17h00, heure de Vancouver). Revenez demain avant 17h00 pour réserver.",
       "helpText": "Les réservations ferment à 17h00 la veille. Date la plus proche disponible : {date}"
     },
     "timeSlotPicker": {

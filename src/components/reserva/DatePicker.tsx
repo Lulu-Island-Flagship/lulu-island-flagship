@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Calendar, AlertCircle } from "lucide-react";
-import { checkBookingDateAllowed } from "@/lib/pricing";
 
 interface DatePickerProps {
   value: string; // ISO date string YYYY-MM-DD
@@ -57,29 +56,20 @@ export function DatePicker({ value, onChange, minDate, maxDate }: DatePickerProp
   const vancouverHour = getVancouverHour();
   const tomorrow = addDays(vancouverToday, 1);
 
-  // Corte de las 5 PM hora de Vancouver: se evalúa con la MISMA regla que usa
-  // el backend en checkout (checkBookingDateAllowed en @/lib/pricing), en vez
-  // de una reimplementación propia -- antes este componente solo bloqueaba
-  // "mañana" tras el corte, pero el backend (stripe/confirm) rechaza
-  // CUALQUIER fecha futura una vez pasadas las 5 PM, así que el date-picker
-  // podía mostrar como seleccionables fechas que el checkout luego rechazaba
-  // (auditoría externa, verificado 2026-08-01).
+  // Corte de las 5:00 PM del día anterior: si ya pasó el corte, mañana no es elegible.
   const cutoffPassed = vancouverHour >= 17;
-  const bookingClosedForNow = !checkBookingDateAllowed(tomorrow).allowed && cutoffPassed;
-  const effectiveMin = minDate ?? tomorrow;
+  const effectiveMin = minDate ?? (cutoffPassed ? addDays(vancouverToday, 2) : tomorrow);
   const effectiveMax = maxDate ?? addYears(vancouverToday, 1);
 
   const [warning, setWarning] = useState("");
 
   useEffect(() => {
-    if (bookingClosedForNow) {
-      setWarning(t("bookingClosedForNow"));
-    } else if (value && value === tomorrow && cutoffPassed) {
+    if (value && value === tomorrow && cutoffPassed) {
       setWarning(t("cutoffWarning"));
     } else {
       setWarning("");
     }
-  }, [value, tomorrow, cutoffPassed, bookingClosedForNow, t]);
+  }, [value, tomorrow, cutoffPassed, t]);
 
   return (
     <div className="space-y-3">
@@ -95,8 +85,7 @@ export function DatePicker({ value, onChange, minDate, maxDate }: DatePickerProp
           onChange={(e) => onChange(e.target.value)}
           min={effectiveMin}
           max={effectiveMax}
-          disabled={bookingClosedForNow}
-          className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:border-brand-gold focus:ring-1 focus:ring-brand-gold outline-none text-brand-ink disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+          className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:border-brand-gold focus:ring-1 focus:ring-brand-gold outline-none text-brand-ink"
         />
       </div>
       {warning ? (

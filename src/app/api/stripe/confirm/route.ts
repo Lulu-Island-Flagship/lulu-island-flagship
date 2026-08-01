@@ -6,8 +6,8 @@ import { assertStripe } from "@/lib/stripe";
 import {
   getVancouverOffset,
   getVancouverTodayMidnight,
+  getVancouverTodayString,
 } from "@/lib/date-utils";
-import { checkBookingDateAllowed } from "@/lib/pricing";
 import { verifyPayPalTransaction } from "@/lib/paypal";
 import { dispatchCommunication } from "@/lib/send-communication";
 import {
@@ -148,8 +148,18 @@ export async function POST(request: NextRequest) {
     const vancouverToday = getVancouverTodayMidnight();
     const serviceDateObj = new Date(`${serviceDate}T00:00:00${offset}`);
 
+    const tomorrow = new Date(vancouverToday);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
     const oneYearLater = new Date(vancouverToday);
     oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+
+    if (serviceDateObj < tomorrow) {
+      return NextResponse.json(
+        { error: "Service must be scheduled at least 1 day in advance" },
+        { status: 400 }
+      );
+    }
 
     if (serviceDateObj > oneYearLater) {
       return NextResponse.json(
@@ -158,21 +168,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Regla única de "mínimo 1 día de anticipación" + "corte de las 5 PM hora
-    // de Vancouver", compartida con el date-picker de la UI vía
-    // checkBookingDateAllowed() (@/lib/pricing). Antes esta ruta reimplementaba
-    // su propia versión de la regla por separado del date-picker, y podían
-    // divergir -- el date-picker permitía elegir fechas futuras que este
-    // endpoint terminaba rechazando en checkout (auditoría externa,
-    // verificado 2026-08-01).
-    const dateCheck = checkBookingDateAllowed(serviceDate);
-    if (!dateCheck.allowed) {
-      if (dateCheck.reason === "too_soon") {
-        return NextResponse.json(
-          { error: "Service must be scheduled at least 1 day in advance" },
-          { status: 400 }
-        );
-      }
+    // Corte de las 5:00 PM del día anterior para reservas de mañana
+    const todayStr = getVancouverTodayString();
+    const vancouverNowParts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Vancouver",
+      hour: "2-digit",
+      hour12: false,
+    }).formatToParts(new Date());
+    const currentHour = Number(vancouverNowParts.find((p) => p.type === "hour")?.value ?? 0);
+    if (serviceDate > todayStr && currentHour >= 17) {
       return NextResponse.json(
         { error: "Bookings for tomorrow close at 5:00 PM. Please select a later date." },
         { status: 400 }

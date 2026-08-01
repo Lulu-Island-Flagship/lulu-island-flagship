@@ -17,9 +17,9 @@ import {
 } from "../../src/lib/payroll-deductions";
 
 describe("calculateCppContribution", () => {
-  it("aplica la exención básica prorrateada por período semi-mensual (24 períodos, no 26)", () => {
+  it("aplica la exención básica prorrateada por quincena (26 períodos)", () => {
     const r = calculateCppContribution({ grossCents: 200000, ytdPensionableCents: 0 });
-    const exemptionPerPeriod = Math.round((3500 * 100) / 24);
+    const exemptionPerPeriod = Math.round((3500 * 100) / 26);
     const expectedBase = Math.round((200000 - exemptionPerPeriod) * CPP_RATE_2026);
     assert.equal(r.baseContributionCents, expectedBase);
     assert.equal(r.cpp2ContributionCents, 0);

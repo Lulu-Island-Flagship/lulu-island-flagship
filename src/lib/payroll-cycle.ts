@@ -1,14 +1,7 @@
 /**
- * v8.3 E2/E9 — Ciclo de nómina (invariante B.1: pago cada medio mes,
+ * v8.3 E2/E9 — CICLO QUINCENAL de nómina (invariante B.1: pago quincenal,
  * direct deposit). Funciones puras, fechas en hora Vancouver (YYYY-MM-DD).
- * Convención SEMI-MENSUAL estándar: día 1-15 y día 16-fin de mes.
- *
- * Nota fiscal (fix auditoría E9): pese al nombre coloquial "quincenal" usado
- * en varios comentarios de este módulo, este NO es un ciclo biweekly real
- * (cada 14 días desde una fecha ancla, que da 26 o 27 períodos según el
- * año). Es semi-mensual: SIEMPRE exactamente 24 períodos por año calendario,
- * sin excepción. Ver PAY_PERIODS_PER_YEAR en payroll-deductions.ts, que
- * antes usaba 26 por error (ya corregido a 24).
+ * Convención semi-mensual estándar: día 1-15 y día 16-fin de mes.
  */
 
 export interface PayrollCycle {

@@ -27,54 +27,6 @@ function getSupabaseClient() {
   );
 }
 
-const RECENT_TEAMMATE_DAYS = 14;
-
-/**
- * Compañeros con los que `employeeId` compartió una asignación real
- * (misma orden, `assignments.order_id`) en los últimos RECENT_TEAMMATE_DAYS
- * días de `orders.service_date`. Mismo patrón de "co-asignados en las
- * mismas órdenes" que ya usan team-chat/route.ts y ritual/inicio/route.ts —
- * se reutiliza aquí para que la votación de bienestar solo pueda dirigirse
- * a compañeros con los que de verdad se trabajó recientemente.
- */
-async function getRecentTeammateIds(
-  supabase: ReturnType<typeof getSupabaseClient>,
-  employeeId: string
-): Promise<Set<string>> {
-  const todayStr = new Date().toISOString().split("T")[0];
-  const sinceStr = new Date(Date.now() - RECENT_TEAMMATE_DAYS * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0];
-
-  const { data: recentOrders } = await supabase
-    .from("orders")
-    .select("id")
-    .gte("service_date", sinceStr)
-    .lte("service_date", todayStr);
-
-  const recentOrderIds = (recentOrders || []).map((o) => o.id);
-  if (recentOrderIds.length === 0) return new Set();
-
-  const { data: myAssignments } = await supabase
-    .from("assignments")
-    .select("order_id")
-    .eq("employee_id", employeeId)
-    .is("deleted_at", null)
-    .in("order_id", recentOrderIds);
-
-  const myOrderIds = (myAssignments || []).map((a) => a.order_id);
-  if (myOrderIds.length === 0) return new Set();
-
-  const { data: coAssignments } = await supabase
-    .from("assignments")
-    .select("employee_id")
-    .in("order_id", myOrderIds)
-    .neq("employee_id", employeeId)
-    .is("deleted_at", null);
-
-  return new Set((coAssignments || []).map((a) => a.employee_id));
-}
-
 // GET /api/empleado/votacion — compañeros para votar esta semana
 export async function GET() {
   try {
@@ -104,27 +56,13 @@ export async function GET() {
     monday.setUTCDate(vancouverToday.getUTCDate() - diff);
     const weekStart = monday.toISOString().split("T")[0];
 
-    // Auditoría externa (verificado real): este GET devolvía TODOS los
-    // empleados activos como "compañeros votables", sin exigir que hubieran
-    // trabajado juntos recientemente. Eso permite votar (bien o mal) a
-    // alguien con quien nunca se compartió turno/orden, lo que vuelve el
-    // ranking de bienestar manipulable. Se restringe a compañeros reales:
-    // co-asignados en las mismas órdenes en los últimos RECENT_TEAMMATE_DAYS
-    // días (mismo patrón "assignments" + "orders.service_date" que ya usan
-    // team-chat/route.ts y ritual/inicio/route.ts).
-    const teammateIds = await getRecentTeammateIds(supabase, me.id);
-
-    if (teammateIds.size === 0) {
-      return NextResponse.json({ peers: [], weekStart }, { status: 200 });
-    }
-
+    // Compañeros activos (excluyendo uno mismo)
     const { data: peers, error: peersError } = await supabase
       .from("employees")
       .select("id, name, role")
       .eq("is_active", true)
       .is("deleted_at", null)
-      .neq("id", me.id)
-      .in("id", Array.from(teammateIds));
+      .neq("id", me.id);
 
     if (peersError) {
       return NextResponse.json({ error: peersError.message }, { status: 500 });
@@ -227,19 +165,6 @@ export async function POST(request: NextRequest) {
 
     if (targetError || !targetEmployee) {
       return NextResponse.json({ error: "Target employee not found or inactive" }, { status: 400 });
-    }
-
-    // Auditoría externa (verificado real): el POST solo comprobaba que el
-    // target existiera y estuviera activo, no que fuera un compañero real
-    // (mismo problema que en el GET, arriba en este archivo). Sin este
-    // check, el filtrado del GET era solo cosmético: cualquiera podía votar
-    // por cualquier employeeId activo llamando al POST directamente.
-    const teammateIds = await getRecentTeammateIds(supabase, me.id);
-    if (!teammateIds.has(targetEmployeeId)) {
-      return NextResponse.json(
-        { error: "Solo puedes votar por compañeros con los que trabajaste recientemente" },
-        { status: 403 }
-      );
     }
 
     const { data, error } = await supabase

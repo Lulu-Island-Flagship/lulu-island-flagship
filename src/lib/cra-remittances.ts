@@ -20,18 +20,7 @@
  * - GST/PST: NETFILE trimestral, vence un mes después del cierre del
  *   trimestre.
  * - T4: anual, vence el último día de febrero del año siguiente.
- *
- * Fix de auditoría E9 (fiscal): las tres fechas límite de arriba son
- * calendario fijo (día 15, último día del mes, etc.) y pueden caer en
- * sábado, domingo o festivo reconocido por CRA. La política de CRA es que
- * un pago/declaración se considera A TIEMPO si se recibe el SIGUIENTE día
- * hábil cuando la fecha límite cae en fin de semana o festivo -- por lo
- * que aquí se ajusta cada dueDateISO con nextBusinessDay() antes de
- * guardarlo. Esto es una corrección de FECHA únicamente; no toca el
- * cálculo de montos (que sigue viniendo de nómina/QBO, ver arriba).
  */
-
-import { computeCraRecognizedHolidays } from "./statutory-holidays";
 
 export type RemittanceType = "cpp_ei_monthly" | "gst_pst_quarterly" | "t4_annual";
 export type RemittanceStatus = "pending" | "filed";
@@ -52,37 +41,6 @@ function lastDayOfMonth(y: number, m: number): number {
   return new Date(Date.UTC(y, m, 0)).getUTCDate();
 }
 
-function craHolidaySet(years: number[]): Set<string> {
-  const set = new Set<string>();
-  for (const y of years) {
-    for (const h of computeCraRecognizedHolidays(y)) set.add(h.dateISO);
-  }
-  return set;
-}
-
-/**
- * Avanza `dateISO` al siguiente día hábil si cae sábado, domingo o festivo
- * reconocido por CRA (política de CRA: "on time" si se recibe el siguiente
- * día hábil). `region` queda como parámetro explícito para no asumir que
- * esta misma tabla de festivos aplica fuera del contexto CRA/federal (ver
- * nota en statutory-holidays.ts sobre por qué BC ESA y CRA difieren);
- * "cra" es la única región implementada hoy porque es la única que este
- * archivo necesita.
- */
-export function nextBusinessDay(dateISO: string, region: "cra" = "cra"): string {
-  void region; // reservado para futuras regiones; hoy solo existe "cra"
-  const [y] = dateISO.split("-").map(Number);
-  const holidays = craHolidaySet([y, y + 1]); // por si el ajuste cruza a enero del año siguiente
-  let cursor = new Date(`${dateISO}T00:00:00.000Z`);
-  for (let i = 0; i < 14; i++) {
-    const dow = cursor.getUTCDay();
-    const iso = cursor.toISOString().slice(0, 10);
-    if (dow !== 0 && dow !== 6 && !holidays.has(iso)) return iso;
-    cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
-  }
-  return dateISO; // fallback defensivo, no debería alcanzarse nunca
-}
-
 /** Los 12 períodos mensuales de CPP/EI para un año calendario, venciendo el 15 del mes siguiente. */
 export function generateCppEiMonthlyPeriods(year: number): RemittancePeriod[] {
   const periods: RemittancePeriod[] = [];
@@ -94,7 +52,7 @@ export function generateCppEiMonthlyPeriods(year: number): RemittancePeriod[] {
       type: "cpp_ei_monthly",
       periodStartISO: isoDate(year, m, 1),
       periodEndISO: periodEnd,
-      dueDateISO: nextBusinessDay(isoDate(dueYear, dueMonth, 15)),
+      dueDateISO: isoDate(dueYear, dueMonth, 15),
     });
   }
   return periods;
@@ -116,7 +74,7 @@ export function generateGstPstQuarterlyPeriods(year: number): RemittancePeriod[]
       type: "gst_pst_quarterly",
       periodStartISO: isoDate(year, startMonth, 1),
       periodEndISO: periodEnd,
-      dueDateISO: nextBusinessDay(isoDate(dueYear, dueMonth, lastDayOfMonth(dueYear, dueMonth))),
+      dueDateISO: isoDate(dueYear, dueMonth, lastDayOfMonth(dueYear, dueMonth)),
     };
   });
 }
@@ -128,7 +86,7 @@ export function generateT4AnnualPeriod(year: number): RemittancePeriod {
     type: "t4_annual",
     periodStartISO: isoDate(year, 1, 1),
     periodEndISO: isoDate(year, 12, 31),
-    dueDateISO: nextBusinessDay(isoDate(dueYear, 2, lastDayOfMonth(dueYear, 2))),
+    dueDateISO: isoDate(dueYear, 2, lastDayOfMonth(dueYear, 2)),
   };
 }
 

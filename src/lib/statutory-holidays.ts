@@ -83,44 +83,6 @@ export function computeBcStatutoryHolidays(year: number): StatutoryHoliday[] {
   ];
 }
 
-/**
- * v8.3 fix auditoría E9 (fiscal): festivos reconocidos por CRA a nivel
- * federal, usados para calcular "siguiente día hábil" en fechas límite de
- * remesas/declaraciones (CPP/EI, GST/PST, T4) -- ver cra-remittances.ts.
- * Política de CRA: si la fecha límite cae sábado, domingo o festivo
- * reconocido por CRA, se considera a tiempo si se recibe el siguiente día
- * hábil.
- *
- * OJO: esta lista es DISTINTA de computeBcStatutoryHolidays() de arriba.
- * CRA es una agencia FEDERAL y no reconoce festivos exclusivamente
- * provinciales de BC (Family Day, BC Day) para este propósito, pero sí
- * reconoce Easter Monday y Boxing Day, que el ESA de BC no exige pagar.
- * Confirmar con el contador cada enero si el listado publicado por CRA
- * cambia (no es asesoría fiscal, son las reglas generales vigentes al
- * escribir esto).
- */
-export function computeCraRecognizedHolidays(year: number): StatutoryHoliday[] {
-  const easterSunday = computeEasterSunday(year);
-  const goodFriday = new Date(easterSunday);
-  goodFriday.setUTCDate(goodFriday.getUTCDate() - 2);
-  const easterMonday = new Date(easterSunday);
-  easterMonday.setUTCDate(easterMonday.getUTCDate() + 1);
-
-  return [
-    { name: "New Year's Day", dateISO: toIsoDate(toUtcDate(year, 1, 1)) },
-    { name: "Good Friday", dateISO: toIsoDate(goodFriday) },
-    { name: "Easter Monday", dateISO: toIsoDate(easterMonday) },
-    { name: "Victoria Day", dateISO: toIsoDate(lastWeekdayBeforeOrOn(year, 5, 24, 1)) },
-    { name: "Canada Day", dateISO: toIsoDate(toUtcDate(year, 7, 1)) },
-    { name: "Labour Day", dateISO: toIsoDate(nthWeekdayOfMonth(year, 9, 1, 1)) },
-    { name: "National Day for Truth and Reconciliation", dateISO: toIsoDate(toUtcDate(year, 9, 30)) },
-    { name: "Thanksgiving", dateISO: toIsoDate(nthWeekdayOfMonth(year, 10, 1, 2)) },
-    { name: "Remembrance Day", dateISO: toIsoDate(toUtcDate(year, 11, 11)) },
-    { name: "Christmas Day", dateISO: toIsoDate(toUtcDate(year, 12, 25)) },
-    { name: "Boxing Day", dateISO: toIsoDate(toUtcDate(year, 12, 26)) },
-  ];
-}
-
 export const STAT_HOLIDAY_MIN_EMPLOYMENT_DAYS = 30;
 export const STAT_HOLIDAY_MIN_DAYS_WORKED_IN_WINDOW = 15;
 export const STAT_HOLIDAY_LOOKBACK_DAYS = 30;

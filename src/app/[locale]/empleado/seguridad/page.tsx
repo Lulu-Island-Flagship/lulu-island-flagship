@@ -227,8 +227,17 @@ function WorkplaceIncidentSection() {
       )}
       {queued && (
         <div className="flex items-center gap-2 text-brand-navy text-sm">
+          {/* Fix (auditoría implacable, hallazgo nuevo): este texto decía
+              "the WorkSafeBC clock starts once it syncs" -- falso. El
+              servidor calcula worksafebc_report_due_at a partir de
+              incidentDatetime (capturado AHORA, antes de encolar, ver
+              submit() más arriba y computeWorkSafeBCDeadline en la API),
+              no del momento de sincronización. Decirle a un empleado
+              lesionado que el reloj "todavía no arrancó" podía retrasar
+              peligrosamente que avise a su supervisor. */}
           <CloudUpload className="w-4 h-4 flex-shrink-0" /> No connection — saved on this device, will send
-          automatically as soon as you have signal. The WorkSafeBC clock starts once it syncs.
+          automatically as soon as you have signal. The WorkSafeBC 72h clock is already running from the time
+          of the incident, not from when this syncs — tell your supervisor now if this is serious.
         </div>
       )}
       <textarea

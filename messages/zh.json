@@ -30,7 +30,7 @@
     "verifiedTitle": "身份核实 · 专业培训",
     "verifiedDesc": "每位团队成员在进入您家之前,均已通过背景审查并完成专业培训。",
     "verifiedTitleInsured": "身份核实 · 已投保",
-    "verifiedDescInsured": "每位团队成员均经过背景审查,并享有全面保险保障。",
+    "verifiedDescInsured": "每位团队成员均经过背景审查、担保认证,并享有全面保险保障。",
     "teamTitle": "始终是同一支团队",
     "teamDesc": "拒绝陌生面孔。同一支专属团队每次上门服务,了解您的每一个偏好。",
     "guaranteeTitle": "尊享保障",
@@ -334,7 +334,6 @@
     "datePicker": {
       "label": "选择服务日期",
       "cutoffWarning": "次日预订将于当天下午5点截止，请选择更晚的日期。",
-      "bookingClosedForNow": "今日在线预订已截止（每日下午5点温哥华时间截止）。请于明天下午5点前再来预订。",
       "helpText": "预订将于前一天下午5点截止。最早可选日期：{date}"
     },
     "timeSlotPicker": {

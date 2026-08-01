@@ -5,7 +5,6 @@ import { useParams } from "next/navigation";
 import { Loader2, Users, CloudSun, Trophy, DollarSign, Award, AlertTriangle, ShieldAlert } from "lucide-react";
 import { EmpleadoBackHeader } from "@/components/empleado/EmpleadoBackHeader";
 import { supabase } from "@/lib/supabase";
-import { getVancouverTodayString, getVancouverOffset } from "@/lib/date-utils";
 
 type ReadinessRequestType = "illness" | "family_emergency" | "no_transport";
 type Mood = "happy" | "neutral" | "sad";
@@ -136,14 +135,10 @@ export default function ShiftRitualPage() {
       try {
         // Mismo patrón que checkJornadaStatus() en empleado/page.tsx --
         // timestamp Vancouver con offset explícito para comparar contra TIMESTAMPTZ.
-        // Auditoría externa (verificado real): esta pantalla todavía tenía el
-        // parseo frágil de "PDT"/"PST" desde toLocaleString(), que puede
-        // devolver "GMT-7" en vez de la abreviatura según navegador/runtime
-        // (mismo bug ya corregido en empleado/page.tsx, ROUND 4 fix #2). Se
-        // usa el offset numérico real vía Intl (getVancouverOffset), robusto
-        // en cualquier entorno y correcto en las transiciones PST/PDT.
-        const today = getVancouverTodayString();
-        const offset = getVancouverOffset(today);
+        const vancouverDate = new Date().toLocaleString("en-CA", { timeZone: "America/Vancouver", timeZoneName: "short" });
+        const today = vancouverDate.split(",")[0];
+        const isPDT = vancouverDate.includes("PDT");
+        const offset = isPDT ? "-07:00" : "-08:00";
         const { data: logs } = await supabase
           .from("service_logs")
           .select("event_type")
@@ -176,7 +171,7 @@ export default function ShiftRitualPage() {
   return (
     <main className="min-h-screen bg-brand-ice">
       <EmpleadoBackHeader title="Ritual de turno" backHref={backHref} />
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-6 max-w-md mx-auto">
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">{error}</div>}
 
       <div>

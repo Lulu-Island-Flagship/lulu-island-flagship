@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Key, Loader2, ChevronLeft, AlertTriangle, Check, Eye, EyeOff, Camera } from "lucide-react";
+import { Key, Loader2, ChevronLeft, AlertTriangle, Check, Eye, EyeOff, Camera, CloudUpload } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { submitGenericReportOrQueue } from "@/lib/offline-sync-client";
 
 type KeyMethod = "in_person" | "lockbox" | "third_party" | "problem";
 
@@ -61,6 +62,15 @@ export default function LlavesPage() {
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const [uploadingSignature, setUploadingSignature] = useState(false);
   const [signatureError, setSignatureError] = useState("");
+  // Fix (auditoría implacable, hallazgo nuevo): este formulario enviaba el
+  // registro de manejo de llaves (evidencia física -- código de lockbox,
+  // firma de tercero, confirmación de devolución) con un fetch plano, sin
+  // ningún mecanismo de reintento. Un líder que registra el acceso al salir
+  // de una zona sin señal (el caso de uso típico de esta pantalla, ver
+  // CONTEXTO en la auditoría) perdía el registro por completo -- mismo
+  // patrón de "cola offline" que ya usan enfermedad/page.tsx y
+  // seguridad/page.tsx vía submitGenericReportOrQueue.
+  const [queued, setQueued] = useState(false);
 
   useEffect(() => {
     if (orderId) load();
@@ -107,28 +117,31 @@ export default function LlavesPage() {
     e.preventDefault();
     setSubmitting(true);
     setError("");
+    setQueued(false);
     try {
-      const res = await fetch("/api/empleado/llaves", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          orderId,
-          method,
-          lockboxCode: method === "lockbox" ? lockboxCode : undefined,
-          confirmedReturned: method === "in_person" ? confirmedReturned : undefined,
-          signatureUrl: method === "third_party" ? signatureUrl : undefined,
-        }),
+      const result = await submitGenericReportOrQueue("/api/empleado/llaves", {
+        orderId,
+        method,
+        lockboxCode: method === "lockbox" ? lockboxCode : undefined,
+        confirmedReturned: method === "in_person" ? confirmedReturned : undefined,
+        signatureUrl: method === "third_party" ? signatureUrl : undefined,
       });
-      const d = await res.json();
-      if (!res.ok) {
-        setError(d.error || "Error al registrar.");
+      if (!result.ok) {
+        setError(result.error || "Error al registrar.");
         return;
       }
       setLockboxCode("");
       setConfirmedReturned(false);
       setSignatureUrl(null);
-      await load();
+      if (result.queued) {
+        // Sin señal: el registro quedó en la cola local y se enviará solo
+        // en cuanto vuelva la conexión -- no se pierde, pero tampoco puede
+        // aparecer todavía en la lista de abajo (esa lista viene del
+        // servidor, ver load()).
+        setQueued(true);
+      } else {
+        await load();
+      }
     } finally {
       setSubmitting(false);
     }
@@ -273,6 +286,12 @@ export default function LlavesPage() {
               )}
 
               {error && <p className="text-xs text-red-600">{error}</p>}
+              {queued && (
+                <p className="text-xs text-brand-navy flex items-center gap-1">
+                  <CloudUpload className="w-3.5 h-3.5" /> Sin conexión: se guardó en el dispositivo y se enviará
+                  solo en cuanto vuelva la señal.
+                </p>
+              )}
 
               <button
                 type="submit"
