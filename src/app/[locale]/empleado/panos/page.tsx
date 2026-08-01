@@ -87,7 +87,9 @@ export default function PanosPage() {
   async function submit(e?: React.FormEvent) {
     e?.preventDefault();
     const n = parseInt(count);
-    if (isNaN(n) || n < 0) return;
+    // Fix (auditoría 2026-07-31, #16): antes solo se rechazaba n<0 -- sin
+    // tope superior, un typo (ej. un cero de más) se guardaba sin aviso.
+    if (isNaN(n) || n < 0 || n > 999) return;
     setSubmitting(true);
     setSubmitError("");
     try {
@@ -160,6 +162,8 @@ export default function PanosPage() {
 
           <input
             type="number"
+            min={0}
+            max={999}
             aria-label={t("countLabel")}
             placeholder={t("countPlaceholder")}
             value={count}

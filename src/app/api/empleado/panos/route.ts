@@ -68,8 +68,12 @@ export async function POST(request: NextRequest) {
     if (!VALID_STAGES.includes(stage)) {
       return NextResponse.json({ error: `stage inválido. Debe ser uno de: ${VALID_STAGES.join(", ")}` }, { status: 400 });
     }
-    if (typeof count !== "number" || count < 0) {
-      return NextResponse.json({ error: "count debe ser un número >= 0" }, { status: 400 });
+    // Fix (auditoría 2026-07-31, #16): antes no había tope superior --
+    // servía cualquier número positivo, incluidos valores absurdos por
+    // typo. El límite de 999 es el mismo que ahora aplica el input
+    // client-side (min/max), reforzado server-side.
+    if (typeof count !== "number" || !Number.isFinite(count) || count < 0 || count > 999) {
+      return NextResponse.json({ error: "count debe ser un número entre 0 y 999" }, { status: 400 });
     }
 
     const { data, error } = await supabase
