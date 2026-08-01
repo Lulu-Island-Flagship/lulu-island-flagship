@@ -326,7 +326,7 @@ async function handleRefund(
   // a dólares que existía antes (refundedAmount = deltaCents / 100).
   const { data: orders } = await supabase
     .from("orders")
-    .select("id, user_id, total_paid_cents, stripe_amount_refunded_cents")
+    .select("id, user_id, total_paid_cents, card_amount_charged_cents, stripe_amount_refunded_cents")
     .or(`stripe_hold_payment_intent_id.eq.${paymentIntentId},stripe_capture_payment_intent_id.eq.${paymentIntentId}`)
     .limit(1);
 
@@ -346,11 +346,32 @@ async function handleRefund(
 
   const newTotalPaidCents = Math.max(0, (order.total_paid_cents ?? 0) - deltaCents);
 
+  // Fix (auditoría implacable 2026-08-01, bug real confirmado): antes esta
+  // línea era `card_amount_charged_cents: newTotalPaidCents` -- igualaba la
+  // porción de TARJETA al total pagado. Son columnas con semántica distinta
+  // y el resto del repo las trata como tales: `total_paid_cents` incluye
+  // billetera y adelanto de PayPal, mientras que `card_amount_charged_cents`
+  // es SOLO lo cobrado a la tarjeta (ver /api/orders/[orderId]/cancel líneas
+  // ~290-297, que para una orden de billetera pone card=0 con total_paid>0, y
+  // batch-capture ~418-419, que suma walletAppliedCents solo al total).
+  //
+  // Efecto real del bug en una orden de pago mixto: $100 pagados = $30 de
+  // billetera + $70 de tarjeta (total_paid=10000, card=7000). Llega un
+  // reembolso de $20 -> newTotalPaidCents=8000 -> card quedaba en 8000, o sea
+  // la cifra de tarjeta SUBÍA de 7000 a 8000 a causa de un REEMBOLSO. Eso
+  // corrompe el export contable a QuickBooks (qbo-sync lee justamente
+  // card_amount_charged_cents, ver su select) y cualquier conciliación
+  // tarjeta-vs-billetera contra el depósito real del procesador.
+  //
+  // Correcto: un reembolso de Stripe devuelve dinero de la TARJETA, así que
+  // se resta el mismo delta a la porción de tarjeta, con piso en 0.
+  const newCardChargedCents = Math.max(0, (order.card_amount_charged_cents ?? 0) - deltaCents);
+
   await supabase
     .from("orders")
     .update({
       total_paid_cents: newTotalPaidCents,
-      card_amount_charged_cents: newTotalPaidCents,
+      card_amount_charged_cents: newCardChargedCents,
       stripe_amount_refunded_cents: newCumulativeRefundedCents,
       warranty_status: newTotalPaidCents === 0 ? "resolved_client" : undefined,
       updated_at: new Date().toISOString(),
