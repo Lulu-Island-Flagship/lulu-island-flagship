@@ -76,6 +76,16 @@ export function WalletPayButton({
     }
   };
 
+  // Fix (auditoría externa, verificado 2026-07-31): stripe.retrievePaymentIntent
+  // no estaba envuelto en try/catch -- un error de red transitorio durante el
+  // polling (WiFi inestable mientras el cliente escanea el QR, por ejemplo)
+  // producía un unhandled promise rejection en cada tick sin que el usuario
+  // se enterara ni el código lo registrara; el polling seguía intentando
+  // ciegamente hasta el timeout de 5 minutos igualmente, así que no bloqueaba
+  // el flujo, pero fallaba en silencio sin ninguna señal para diagnóstico.
+  // Se agrega manejo explícito: se loguea el error y se sigue esperando el
+  // próximo tick (el timeout de POLL_TIMEOUT_MS ya acota cuántas veces esto
+  // puede repetirse).
   const pollWechatStatus = (clientSecret: string, paymentIntentId: string) => {
     pollDeadlineRef.current = Date.now() + POLL_TIMEOUT_MS;
     pollTimerRef.current = setInterval(async () => {
@@ -86,17 +96,24 @@ export function WalletPayButton({
         setError(t("paymentTimedOut"));
         return;
       }
-      const { paymentIntent } = await stripe.retrievePaymentIntent(clientSecret);
-      if (paymentIntent?.status === "succeeded") {
-        stopPolling();
-        setStatus("succeeded");
-        onPaymentConfirmed(paymentIntentId);
-      } else if (paymentIntent?.status === "canceled") {
-        stopPolling();
-        setStatus("error");
-        setError(t("paymentCancelled"));
+      try {
+        const { paymentIntent } = await stripe.retrievePaymentIntent(clientSecret);
+        if (paymentIntent?.status === "succeeded") {
+          stopPolling();
+          setStatus("succeeded");
+          onPaymentConfirmed(paymentIntentId);
+        } else if (paymentIntent?.status === "canceled") {
+          stopPolling();
+          setStatus("error");
+          setError(t("paymentCancelled"));
+        }
+        // "requires_action" (QR aún no escaneado) -- seguir esperando.
+      } catch (err) {
+        // Error de red transitorio -- no se detiene el polling, solo se
+        // registra; el próximo tick reintenta, y POLL_TIMEOUT_MS acota el
+        // total de intentos.
+        console.error("WeChat Pay polling error (will retry):", err);
       }
-      // "requires_action" (QR aún no escaneado) -- seguir esperando.
     }, POLL_INTERVAL_MS);
   };
 
@@ -123,8 +140,18 @@ export function WalletPayButton({
         setStatus("pending");
         // Redirect completo fuera de la página -- Stripe vuelve a esta misma
         // URL con los params de resultado ya en el querystring.
+        // Fix (auditoría externa, verificado 2026-07-31): antes se enviaba
+        // window.location.href COMPLETA (con querystring) como return_url --
+        // si la página ya tenía sus propios query params (ej. de un intento
+        // previo, un paso guardado, tracking de campaña, etc.), Stripe los
+        // reenviaría de vuelta MEZCLADOS con sus propios params de resultado
+        // (payment_intent, payment_intent_client_secret, redirect_status),
+        // pudiendo confundir la lógica de la página al volver (params viejos
+        // interpretados como si fueran del resultado actual). Se usa origin
+        // + pathname (sin querystring) -- la página al volver solo recibe
+        // los params que Stripe realmente agrega.
         const { error: confirmError } = await stripe.confirmAlipayPayment(clientSecret, {
-          return_url: window.location.href,
+          return_url: window.location.origin + window.location.pathname,
         });
         if (confirmError) {
           setStatus("error");

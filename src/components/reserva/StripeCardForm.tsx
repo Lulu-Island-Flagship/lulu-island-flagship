@@ -93,8 +93,20 @@ export function StripeCardForm({ onPaymentMethodReady, disabled, clientSecret }:
       return;
     }
 
-    if (setupIntent?.payment_method) {
+    // Fix (auditoría externa, verificado 2026-07-31): antes se llamaba a
+    // onPaymentMethodReady con solo chequear que setupIntent.payment_method
+    // existiera, sin verificar setupIntent.status === "succeeded". Aunque
+    // confirmCardSetup normalmente resuelve con stripeError seteado para la
+    // mayoría de fallos, algunos estados intermedios (ej. "processing",
+    // "requires_action" sin error explícito) pueden devolver un
+    // setupIntent con payment_method ya asociado pero SIN estar realmente
+    // listo para cobros off_session futuros -- tratarlo como listo podría
+    // hacer que el checkout avanzara con un método de pago que Stripe
+    // todavía no confirmó del todo.
+    if (setupIntent?.status === "succeeded" && setupIntent.payment_method) {
       onPaymentMethodReady(setupIntent.payment_method as string);
+    } else if (setupIntent && setupIntent.status !== "succeeded") {
+      setError(t("cardValidationFailed"));
     }
 
     setIsProcessing(false);
