@@ -27,6 +27,11 @@ export function UpsellSelector({ orderId, onUpsellAdded }: UpsellSelectorProps) 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
+  // Fix (auditoría 2026-07-31, #17): handleSubmit limpiaba la selección al
+  // tener éxito pero no mostraba ninguna confirmación visual -- el empleado
+  // no tenía forma de saber si el upsell realmente se guardó o si la UI
+  // solo se reseteó. Mensaje breve, se autolimpia.
+  const [successMessage, setSuccessMessage] = useState("");
 
   const toggleUpsell = (type: string) => {
     setSelected((prev) => {
@@ -44,6 +49,7 @@ export function UpsellSelector({ orderId, onUpsellAdded }: UpsellSelectorProps) 
     if (selected.size === 0) return;
     setIsSubmitting(true);
     setError("");
+    setSuccessMessage("");
 
     // Bug previo: este fetch nunca verificaba res.ok -- si el servidor
     // rechazaba el upsell (400/403/500), la UI igual limpiaba la selección
@@ -90,8 +96,13 @@ export function UpsellSelector({ orderId, onUpsellAdded }: UpsellSelectorProps) 
           `Couldn't record: ${failedLabels.join(", ")}. Please try again.`
         );
       } else {
+        const savedCount = selectedArray.length;
         setSelected(new Set());
         setNotes("");
+        setSuccessMessage(
+          savedCount === 1 ? "Upsell recorded." : `${savedCount} upsells recorded.`
+        );
+        window.setTimeout(() => setSuccessMessage(""), 4000);
         onUpsellAdded?.();
       }
     } finally {
@@ -169,6 +180,15 @@ export function UpsellSelector({ orderId, onUpsellAdded }: UpsellSelectorProps) 
           className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
         />
       </div>
+
+      {successMessage && (
+        <div
+          role="status"
+          className="flex items-center gap-2 bg-state-success/10 text-state-success text-sm rounded-lg px-3 py-2"
+        >
+          <Check className="w-4 h-4" /> {successMessage}
+        </div>
+      )}
 
       <ErrorBanner message={error} onRetry={handleSubmit} retrying={isSubmitting} />
 
