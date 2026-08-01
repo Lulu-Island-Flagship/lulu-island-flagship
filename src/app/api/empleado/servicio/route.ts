@@ -12,6 +12,7 @@ import { ensureZoneAssignment } from "@/lib/zone-assignment";
 import { haversineDistance, ARRIVAL_GEOFENCE_RADIUS_METERS } from "@/lib/geocode";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { getVancouverOffset } from "@/lib/date-utils";
+import { publishUnifiedAlert } from "@/lib/unified-alerts";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
@@ -482,11 +483,18 @@ export async function POST(request: NextRequest) {
         // equipo seguía trabajando. Ahora se verifica que TODAS las
         // asignaciones activas (no canceladas, no soft-deleted) de esta
         // orden estén en status='completed' antes de cerrar la orden.
+        // Fix (auditoría 2026-07-31, #5): .neq("status","cancelled") excluía
+        // asignaciones canceladas del cómputo de allTeamDone, pero no las
+        // 'no_show' (marcadas por el cron de no-show, ver
+        // src/app/api/cron/no-show/route.ts) -- si un compañero de equipo
+        // quedaba no_show, su asignación nunca pasa a 'completed' y el resto
+        // del equipo jamás podía cerrar la orden. Se excluyen ambos estados
+        // terminales-no-trabajados del set de asignaciones "activas".
         const { data: allAssignments } = await supabase
           .from("assignments")
           .select("id, status")
           .is("deleted_at", null)
-          .neq("status", "cancelled")
+          .not("status", "in", "(cancelled,no_show)")
           .eq("order_id", orderId);
 
         const allTeamDone =
@@ -577,12 +585,15 @@ export async function POST(request: NextRequest) {
     // para revisión, no una aprobación. geofence_bypass_review_status queda
     // SIEMPRE 'pending_supervisor_review' en el momento del insert; solo un
     // supervisor/admin (endpoint todavía no implementado) puede pasarlo a
-    // 'approved'/'rejected'. NOTA: todavía no existe en este repo ninguna
-    // integración de notificación push/email en tiempo real hacia el
-    // supervisor cuando esto ocurre -- este campo deja el registro
-    // persistido y consultable (para un futuro dashboard/alerta), pero la
-    // notificación real queda pendiente de esa integración. No se inventa
-    // aquí infraestructura de notificaciones que no existe.
+    // 'approved'/'rejected'.
+    //
+    // Fix (auditoría 2026-07-31, #3): antes esto solo quedaba como fila
+    // consultable, sin ninguna notificación activa hacia un supervisor --
+    // se reutiliza publishUnifiedAlert (misma bandeja consolidada que usa
+    // safety-abort, ver /admin/alerts) para que el bypass aparezca de
+    // inmediato con severidad p1_urgent (no es una emergencia de seguridad
+    // humana como un SOS, pero sí requiere revisión pronta). No bloquea el
+    // flujo del empleado si falla -- publishUnifiedAlert nunca lanza.
     const { data: log, error: logError } = await supabase
       .from("service_logs")
       .insert({
@@ -605,6 +616,23 @@ export async function POST(request: NextRequest) {
     if (logError) {
       console.error("Service log error:", logError);
       return NextResponse.json({ error: logError.message }, { status: 500 });
+    }
+
+    if (isGeofenceBypass) {
+      const alertResult = await publishUnifiedAlert(supabase, {
+        sourceModule: "geofence_bypass",
+        sourceTable: "service_logs",
+        sourceId: log.id as string,
+        tier: "respond_10min",
+        severity: "p1_urgent",
+        title: "Bypass de geocerca pendiente de revisión",
+        summary: `Empleado ${employee.id} declaró bypass en orden ${orderId} (categoría: ${
+          geofenceBypassCategory || "sin categoría"
+        }).${isNoPhotoBypass ? " Sin foto de evidencia." : ""}`,
+      });
+      if (!alertResult.success) {
+        console.error("Geofence bypass alert publish error:", alertResult.error);
+      }
     }
 
     return NextResponse.json(
