@@ -30,7 +30,7 @@
     "verifiedTitle": "Verified & Trained",
     "verifiedDesc": "Every team member is background-checked and trained before they ever set foot in your home.",
     "verifiedTitleInsured": "Verified & Insured",
-    "verifiedDescInsured": "Every team member is background-checked, bonded, and covered by comprehensive insurance.",
+    "verifiedDescInsured": "Every team member is background-checked and covered by comprehensive insurance.",
     "teamTitle": "Same Team, Always",
     "teamDesc": "No strangers. The same dedicated team returns to your home, knowing your preferences.",
     "guaranteeTitle": "Premium Guarantee",
@@ -334,6 +334,7 @@
     "datePicker": {
       "label": "Select Service Date",
       "cutoffWarning": "Bookings for tomorrow close at 5:00 PM. Please select a later date.",
+      "bookingClosedForNow": "Online booking is closed for today (daily cutoff at 5:00 PM Vancouver time). Please come back tomorrow before 5:00 PM to book.",
       "helpText": "Bookings close at 5:00 PM the day before. Earliest available: {date}"
     },
     "timeSlotPicker": {
