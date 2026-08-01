@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Loader2, Camera, Clock, MessageSquare, AlertTriangle, CheckCircle2, CalendarPlus } from "lucide-react";
+import { Loader2, Camera, Clock, MessageSquare, AlertTriangle, CheckCircle2, CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import { parseVancouverDateTime } from "@/lib/date-utils";
 
@@ -165,7 +165,18 @@ export default function ServiceGalleryPage() {
             if (e.target === e.currentTarget) setLightboxIndex(null);
           }}
           onKeyDown={(e) => {
+            // Fix (auditoría 2026-07-31, hallazgo #11): el lightbox solo
+            // mostraba una foto sin forma de navegar a la siguiente/anterior
+            // -- con varias fotos por servicio, el cliente tenía que cerrar
+            // y reabrir el lightbox para cada una. Se agregan flechas de
+            // teclado (ArrowLeft/ArrowRight) con wraparound, igual criterio
+            // que los botones de abajo.
             if (e.key === "Escape") setLightboxIndex(null);
+            else if (e.key === "ArrowLeft" && data.photos) {
+              setLightboxIndex((prev) => (prev === null ? prev : (prev - 1 + data.photos!.length) % data.photos!.length));
+            } else if (e.key === "ArrowRight" && data.photos) {
+              setLightboxIndex((prev) => (prev === null ? prev : (prev + 1) % data.photos!.length));
+            }
           }}
           tabIndex={-1}
         >
@@ -176,6 +187,34 @@ export default function ServiceGalleryPage() {
           >
             &times;
           </button>
+          {/* Fix (auditoría 2026-07-31, hallazgo #11): botones prev/next,
+              solo cuando hay más de una foto. */}
+          {data.photos.length > 1 && (
+            <>
+              <button
+                type="button"
+                aria-label={t("previousPhotoAriaLabel")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxIndex((prev) => (prev === null ? prev : (prev - 1 + data.photos!.length) % data.photos!.length));
+                }}
+                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-black/30 hover:bg-black/50 rounded-full p-2"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <button
+                type="button"
+                aria-label={t("nextPhotoAriaLabel")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxIndex((prev) => (prev === null ? prev : (prev + 1) % data.photos!.length));
+                }}
+                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-black/30 hover:bg-black/50 rounded-full p-2"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            </>
+          )}
           <div className="relative w-full h-full max-w-3xl max-h-[80vh]">
             <Image
               src={data.photos[lightboxIndex]}
@@ -263,6 +302,16 @@ function RebookWidget({ orderId }: { orderId: string }) {
       // locales de Vancouver en cada archivo y mantener un solo lugar que
       // maneje el offset PDT/PST.
       const day = parseVancouverDateTime(selectedDate, "12:00").getUTCDay();
+      // Fix (auditoría 2026-07-31, hallazgo #3): antes se mandaba
+      // `isPreferredDay: true` sin importar el día elegido -- calculatePrice
+      // (src/lib/pricing.ts ~L529-534) aplica el recargo logístico de $25
+      // cuando dayOfWeek es domingo (0) o sábado (6), y separadamente cuando
+      // isPreferredDay === false. Mandar siempre `true` no evitaba el
+      // recargo de fin de semana (ese chequeo es independiente), pero SÍ
+      // mentía sobre la preferencia real del cliente. "Día preferencial" es
+      // simplemente "no es fin de semana" -- se deriva del mismo `day` ya
+      // calculado en vez de un valor fijo.
+      const isPreferredDay = day !== 0 && day !== 6;
       const res = await fetch("/api/quote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -270,7 +319,7 @@ function RebookWidget({ orderId }: { orderId: string }) {
         body: JSON.stringify({
           ...rebookInfo.prefill,
           dayOfWeek: day,
-          isPreferredDay: true,
+          isPreferredDay,
         }),
       });
       const json = await res.json();
