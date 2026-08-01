@@ -70,13 +70,41 @@ export async function POST(request: NextRequest) {
   const code = normalizeReferralCode(body.code);
   const nowIso = new Date().toISOString();
 
-  const { data: myProfile, error: myProfileError } = await supabase
+  // Fix (auditoría en vivo 2026-08-01): esto devolvía 404 "Client profile
+  // not found" para cualquier cliente que todavía no tuviera fila en
+  // client_profiles -- exactamente el caso de alguien que se acaba de
+  // registrar PORQUE un amigo lo invitó y quiere canjear el código como su
+  // primera acción real en la cuenta, antes de haber cotizado nada (mismo
+  // patrón de bug ya confirmado y corregido en
+  // /api/client/communication-preferences: la tabla solo se crea hoy en la
+  // primera cotización, no hay trigger en auth.users). Se crea la fila con
+  // los defaults de la migración 001 si falta, igual que ya hace
+  // getOrCreateClientProfile() en /api/client/properties -- este endpoint
+  // no puede reusar esa función directamente (es local a ese route.ts, no
+  // exportada; mismo patrón ya duplicado en api/quote y
+  // api/admin/phone-booking), así que se replica aquí el mismo
+  // select-then-insert.
+  let myProfile: { id: string; referred_by_code: string | null; referral_banned_until: string | null };
+  const { data: existingProfile, error: myProfileError } = await supabase
     .from("client_profiles")
     .select("id, referred_by_code, referral_banned_until")
     .eq("user_id", user.id)
     .maybeSingle();
   if (myProfileError) return NextResponse.json({ error: myProfileError.message }, { status: 500 });
-  if (!myProfile) return NextResponse.json({ error: "Client profile not found" }, { status: 404 });
+  if (existingProfile) {
+    myProfile = existingProfile;
+  } else {
+    const { data: createdProfile, error: createError } = await supabase
+      .from("client_profiles")
+      .insert({ user_id: user.id, score: 50, services_count: 0, disputes_count: 0, no_show_count: 0, account_type: "b2c" })
+      .select("id, referred_by_code, referral_banned_until")
+      .single();
+    if (createError || !createdProfile) {
+      console.error("referral/redeem: could not create client profile:", createError);
+      return NextResponse.json({ error: "Could not process redemption" }, { status: 500 });
+    }
+    myProfile = createdProfile;
+  }
 
   // Ban temporal activo (3+ códigos distintos intentados antes) -- rechaza
   // sin siquiera mirar el código.
