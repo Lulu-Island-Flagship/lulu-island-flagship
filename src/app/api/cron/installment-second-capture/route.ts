@@ -79,7 +79,15 @@ export async function GET(request: NextRequest) {
     // Mismo filtro que capture-remainder (fix A-4, auditoría 2026-07-21):
     // nunca cobrar remanentes de órdenes canceladas/no-show/borradas.
     .not("status", "in", "(cancelled,no_show)")
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    // Fix (auditoría externa, verificado 2026-07-31): la segunda mitad
+    // nunca debe cobrarse antes de que la primera (el hold del flujo normal
+    // Hold T-72h + Batch Capture) ya se haya capturado -- de lo contrario
+    // se cobraría el 50% "de más" fuera de orden sin que el 50% base esté
+    // asegurado. Se filtra aquí (ANTES de llamar a Stripe) y no solo en el
+    // RPC de aplicación (capture_installment_second_atomic, migración 292)
+    // para nunca cobrar la tarjeta si la condición no se cumple.
+    .not("hold_captured_at", "is", null);
 
   if (error) {
     console.error("installment-second-capture fetch error:", error);
@@ -159,27 +167,44 @@ export async function GET(request: NextRequest) {
         })
       );
 
-      // Suma al total_paid_cents existente (la primera mitad ya se cobró
-      // vía el flujo Hold+Batch Capture normal) en vez de sobreescribirlo.
-      const { data: currentOrder } = await supabase
-        .from("orders")
-        .select("total_paid_cents, card_amount_charged_cents")
-        .eq("id", order.id)
-        .single();
+      // Fix (auditoría externa, verificado 2026-07-31): antes esto era un
+      // SELECT (leer total_paid_cents) + suma en JS + UPDATE plano -- una
+      // condición de carrera de doble conteo si esta función corriera dos
+      // veces concurrentemente para la misma orden (ver migración 292 para
+      // el detalle completo). Ahora es un UPDATE atómico de una sola
+      // sentencia vía RPC (capture_installment_second_atomic, migración
+      // 292), con el incremento calculado en SQL y el guard de idempotencia
+      // (installment_second_captured_at IS NULL) en el mismo WHERE del
+      // UPDATE -- también valida ahí mismo que hold_captured_at ya esté
+      // seteado (la primera mitad ya cobrada) antes de aplicar la segunda.
+      const { data: rpcResult, error: rpcError } = await supabase.rpc(
+        "capture_installment_second_atomic",
+        {
+          p_order_id: order.id,
+          p_payment_intent_id: pi.id,
+          p_amount_cents: secondCents,
+        }
+      );
 
-      const previousTotalPaidCents = Number(currentOrder?.total_paid_cents || 0);
-      const previousCardChargedCents = Number(currentOrder?.card_amount_charged_cents || 0);
+      const applied = Array.isArray(rpcResult) ? rpcResult[0] : rpcResult;
 
-      await supabase
-        .from("orders")
-        .update({
-          installment_second_captured_at: new Date().toISOString(),
-          installment_second_payment_intent_id: pi.id,
-          total_paid_cents: previousTotalPaidCents + secondCents,
-          card_amount_charged_cents: previousCardChargedCents + secondCents,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", order.id);
+      if (rpcError || !applied?.success) {
+        // El cobro en Stripe YA ocurrió (pi.status === "succeeded" arriba) --
+        // esto es un fallo al REFLEJARLO localmente, no un fallo de cobro.
+        // No reintentamos el cobro (sería un doble cobro real); se loguea
+        // fuerte para reconciliación manual. El shadow ledger arriba ya
+        // dejó evidencia del cobro real con idempotencyKey determinística.
+        console.error(
+          `CRITICAL: installment second capture succeeded in Stripe (PI ${pi.id}) but failed to reflect locally for order ${order.id}:`,
+          rpcError || applied?.reason
+        );
+        results.failed++;
+        results.errors.push({
+          orderId: order.id,
+          error: `Payment succeeded but local update failed: ${rpcError?.message || applied?.reason}`,
+        });
+        continue;
+      }
 
       results.captured++;
     } catch (err: Error | unknown) {

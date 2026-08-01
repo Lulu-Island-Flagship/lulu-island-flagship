@@ -161,31 +161,38 @@ export async function GET(request: NextRequest) {
         })
       );
 
-      // Suma al total_paid_cents existente (la captura parcial ya dejó un
-      // valor previo ahí) en vez de sobreescribirlo -- por eso se lee antes.
-      // RAÍZ-3 (2026-07-21, migración 229): total_paid_cents/
-      // card_amount_charged_cents ya están en centavos -- se suma
-      // remainingCents directo, sin la conversión a dólares que existía
-      // antes (remainingDollars = remainingCents / 100).
-      const { data: currentOrder } = await supabase
-        .from("orders")
-        .select("total_paid_cents, card_amount_charged_cents")
-        .eq("id", order.id)
-        .single();
+      // Fix (auditoría externa, verificado 2026-07-31): antes esto era un
+      // SELECT (leer total_paid_cents) + suma en JS + UPDATE plano -- misma
+      // condición de carrera de doble conteo que en installment-second-capture
+      // (ver migración 292). Ahora es un UPDATE atómico de una sola
+      // sentencia vía RPC (capture_remainder_atomic), con el incremento
+      // calculado en SQL y el guard de idempotencia
+      // (capture_remaining_captured_at IS NULL) en el mismo WHERE del UPDATE.
+      const { data: rpcResult, error: rpcError } = await supabase.rpc(
+        "capture_remainder_atomic",
+        {
+          p_order_id: order.id,
+          p_payment_intent_id: pi.id,
+          p_amount_cents: remainingCents,
+        }
+      );
 
-      const previousTotalPaidCents = Number(currentOrder?.total_paid_cents || 0);
-      const previousCardChargedCents = Number(currentOrder?.card_amount_charged_cents || 0);
+      const applied = Array.isArray(rpcResult) ? rpcResult[0] : rpcResult;
 
-      await supabase
-        .from("orders")
-        .update({
-          capture_remaining_captured_at: new Date().toISOString(),
-          capture_remaining_payment_intent_id: pi.id,
-          total_paid_cents: previousTotalPaidCents + remainingCents,
-          card_amount_charged_cents: previousCardChargedCents + remainingCents,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", order.id);
+      if (rpcError || !applied?.success) {
+        // El cobro en Stripe YA ocurrió -- fallo al reflejarlo localmente,
+        // no un fallo de cobro. No reintentamos (evita doble cobro real).
+        console.error(
+          `CRITICAL: remainder capture succeeded in Stripe (PI ${pi.id}) but failed to reflect locally for order ${order.id}:`,
+          rpcError || applied?.reason
+        );
+        results.failed++;
+        results.errors.push({
+          orderId: order.id,
+          error: `Payment succeeded but local update failed: ${rpcError?.message || applied?.reason}`,
+        });
+        continue;
+      }
 
       results.captured++;
     } catch (err: Error | unknown) {
