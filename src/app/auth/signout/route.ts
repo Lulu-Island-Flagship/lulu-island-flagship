@@ -107,5 +107,18 @@ export async function POST(request: NextRequest) {
   // base, mismo patrón ya establecido en src/app/auth/callback/route.ts: la
   // URL real que el navegador usó para llegar aquí siempre es el origen
   // correcto, sin depender de ninguna env var adicional.
-  return NextResponse.redirect(new URL(`/${locale}`, request.url));
+  //
+  // Fix (auditoría en vivo 2026-08-01, verificación en producción tras el fix
+  // anterior): con el origen ya corregido, el fetch de CuentaNav.tsx SÍ lograba
+  // seguir el redirect -- pero NextResponse.redirect() sin status explícito usa
+  // 307 (Temporary Redirect), que por spec de HTTP preserva el método original
+  // de la petición. Como el POST original venía de un <form>/fetch POST a
+  // /auth/signout, el navegador reintentaba el destino final (`/${locale}`)
+  // también con POST -- y esa página solo tiene handler GET, así que Next.js
+  // respondía 405 Method Not Allowed. Confirmado en los logs de Vercel: POST
+  // /auth/signout -> 307, POST /en -> 405. Se usa status 303 (See Other), el
+  // código estándar para "redirige y cambia a GET" tras un POST -- mismo
+  // patrón que cualquier flujo POST-then-redirect (ej. logout, submit de
+  // formulario clásico).
+  return NextResponse.redirect(new URL(`/${locale}`, request.url), 303);
 }
