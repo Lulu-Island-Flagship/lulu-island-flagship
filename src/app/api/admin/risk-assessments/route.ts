@@ -61,6 +61,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing clientPropertyId or flags" }, { status: 400 });
     }
 
+    // Fix (auditoría 2026-07-31, item 8): antes se insertaba directo y se
+    // dependía de la FK (client_property_id REFERENCES client_properties,
+    // migración 047 -- la tabla LEGACY del cotizador B2C, no la nueva
+    // client_module_properties del Módulo de Cliente) para rechazar un id
+    // inexistente. La integridad de datos ya estaba protegida por la FK,
+    // pero el error que llegaba al admin era un 500 genérico ("Ocurrió un
+    // error interno") en vez de un 404 claro. Se valida antes para dar un
+    // error legible sin depender de interpretar el mensaje crudo de Postgres.
+    const { data: property, error: propertyError } = await supabase
+      .from("client_properties")
+      .select("id")
+      .eq("id", clientPropertyId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (propertyError) {
+      console.error("admin/risk-assessments error:", propertyError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
+    if (!property) {
+      return NextResponse.json({ error: "Property not found" }, { status: 404 });
+    }
+
     const assessment = evaluatePropertyRisk(flags);
 
     const { data: assessor } = await supabase
