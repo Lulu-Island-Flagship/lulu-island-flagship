@@ -242,6 +242,18 @@ export default function LlavesPage() {
                         capture="environment"
                         className="hidden"
                         disabled={uploadingSignature}
+                        // Fix (CI #67, auditoría a11y E6-C7): aunque el <input>
+                        // ya está anidado dentro del <label> de arriba (nombre
+                        // accesible válido por anidamiento JSX real), el
+                        // escáner estático de scripts/audit-accessibility.mjs
+                        // no evalúa el DOM real -- solo detecta patrones de
+                        // texto -- y lo marcó como "sin nombre accesible"
+                        // (falso positivo, el propio audit lo advierte en su
+                        // mensaje). Se agrega aria-label explícito, redundante
+                        // pero inequívoco para cualquier lector de pantalla y
+                        // para el escáner, mismo criterio que el checkbox de
+                        // "Confirmo que devolví las llaves" más arriba.
+                        aria-label="Tomar o adjuntar foto de la evidencia firmada"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) void handleSignaturePhoto(file);
