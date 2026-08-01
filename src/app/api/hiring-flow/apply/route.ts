@@ -3,6 +3,7 @@ import {
   submitStep1Application,
   Step1SubmissionError,
   ConsentRequiredError,
+  DuplicateApplicationError,
 } from "@/lib/hiring-flow/candidate-step1-service";
 import { PositionNotFoundError } from "@/lib/hiring-flow/positions-service";
 import type { Step1Input } from "@/lib/hiring-flow/step1-validator";
@@ -168,6 +169,16 @@ export async function POST(request: NextRequest) {
         { error: "Consent is required to submit an application" },
         { status: 400 }
       );
+    }
+
+    // Fix (auditoría externa, hallazgo confirmado): antes no había ninguna
+    // verificación de duplicados -- ver DuplicateApplicationError y la
+    // migración 297_hiring_flow_candidates_dedup_unique_index.sql. 409 en
+    // vez de 500 porque esto no es un error inesperado del servidor, es un
+    // conflicto legítimo con el estado actual de los datos (ya existe una
+    // aplicación activa para este email/teléfono).
+    if (error instanceof DuplicateApplicationError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
     }
 
     if (error instanceof PositionNotFoundError) {

@@ -78,6 +78,26 @@ export class ConsentRequiredError extends Error {
   }
 }
 
+// Fix de auditoría externa (hallazgo confirmado, Prioridad 3): antes no
+// existía ninguna verificación de duplicados -- el mismo candidato podía
+// enviar el formulario público repetidas veces (mismo email o teléfono)
+// sin límite. Se agregaron índices únicos parciales en `candidates`
+// (migración 297_hiring_flow_candidates_dedup_unique_index.sql) que
+// bloquean, a nivel de Postgres (atómico, sin ventana TOCTOU), más de una
+// aplicación activa (status <> 'rejected') por email o teléfono
+// normalizado. Este error envuelve la violación de esa constraint
+// (Postgres error.code "23505") para que el caller HTTP pueda distinguirlo
+// inequívocamente y devolver 409 en vez de 500.
+export class DuplicateApplicationError extends Error {
+  constructor() {
+    super(
+      "An active application already exists for this email or phone number. " +
+        "Please wait until it is resolved, or contact us if you need to update it."
+    );
+    this.name = "DuplicateApplicationError";
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Nota de atomicidad candidato + consentimiento (actualizada)
 // ---------------------------------------------------------------------------
@@ -239,6 +259,14 @@ async function defaultInsertCandidateWithConsent(
   // normal para que el resto del flujo (y los tests) lo traten igual que
   // cualquier otro fallo de inserción.
   if (error) {
+    // Violación del índice único parcial de email/teléfono (297) -- ver
+    // DuplicateApplicationError arriba. Postgres reporta esto con el
+    // código estándar de unique_violation, "23505"; mismo criterio de
+    // detección ya usado en otras rutas del repo (ver sick-leave/route.ts,
+    // partner-commissions/route.ts, equipment-reservations/route.ts).
+    if ((error as { code?: string }).code === "23505") {
+      throw new DuplicateApplicationError();
+    }
     throw new Error(`submit_step1_candidate RPC failed: ${error.message}`);
   }
   const row = Array.isArray(data) ? data[0] : data;
@@ -258,6 +286,20 @@ async function defaultInsertCandidateWithConsent(
 // código de acceso emitido; perder un evento de auditoría es indeseable
 // pero no bloqueante. Se loguea a console.error para no perder la señal
 // por completo.
+//
+// Revisión de auditoría externa (falso positivo confirmado): un reporte
+// externo señaló que este insert ocurre fuera de la RPC atómica (268) y
+// que una falla se "pierde en silencio". Lo primero es cierto a propósito
+// (ver nota de atomicidad arriba: meter telemetría dentro de la misma
+// transacción que candidates+consents mezclaría una preocupación legal
+// bloqueante con una de auditoría best-effort, y forzaría revertir un
+// candidato+consentimiento válidos solo porque falló un insert de
+// telemetría). Lo segundo NO es cierto: el try/catch de abajo ya loguea
+// explícitamente cualquier fallo (tanto el `error` de PostgREST como una
+// excepción inesperada) con el candidateId, así que el fallo es visible
+// en los logs del servidor, no silencioso. No se requiere ningún cambio
+// de código para este hallazgo -- se documenta acá para dejar constancia
+// de que fue revisado y no es un bug real.
 async function defaultInsertFunnelEvent(
   params: { candidateId: string; eventType: string; toStatus: string },
   client: CandidateStep1Client
