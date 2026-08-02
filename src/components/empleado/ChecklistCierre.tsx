@@ -720,7 +720,7 @@ export function ChecklistCierre({
                               <span>Add photo</span>
                               <input
                                 type="file"
-                                aria-label="Agregar foto del item de cierre"
+                                aria-label="Add closure item photo"
                                 accept="image/*"
                                 capture="environment"
                                 className="hidden"

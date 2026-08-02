@@ -114,7 +114,7 @@ function NearMissSection() {
         </div>
       )}
       <select
-        aria-label="Categoría del cuasi-accidente"
+        aria-label="Near-miss category"
         value={category}
         onChange={(e) => setCategory(e.target.value)}
         className="w-full border rounded px-2 py-1.5 text-sm"
@@ -127,7 +127,7 @@ function NearMissSection() {
         ))}
       </select>
       <textarea
-        aria-label="Descripción del cuasi-accidente"
+        aria-label="Near-miss description"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="What happened? (optional)"
@@ -139,7 +139,7 @@ function NearMissSection() {
         Report anonymously
       </label>
       <button
-        aria-label="Enviar reporte de cuasi-accidente"
+        aria-label="Send near-miss report"
         onClick={submit}
         disabled={submitting}
         className="w-full bg-brand-navy text-white rounded py-2 text-sm flex items-center justify-center gap-2"
@@ -241,7 +241,7 @@ function WorkplaceIncidentSection() {
         </div>
       )}
       <textarea
-        aria-label="Descripción de la lesión"
+        aria-label="Injury description"
         value={injuryDescription}
         onChange={(e) => setInjuryDescription(e.target.value)}
         placeholder="Describe what happened *"
@@ -256,7 +256,7 @@ function WorkplaceIncidentSection() {
         className="w-full border rounded px-2 py-1.5 text-sm"
       />
       <select
-        aria-label="Tipo de atención médica recibida"
+        aria-label="Type of medical attention received"
         value={medicalAttentionType}
         onChange={(e) => setMedicalAttentionType(e.target.value)}
         className="w-full border rounded px-2 py-1.5 text-sm"
@@ -268,14 +268,14 @@ function WorkplaceIncidentSection() {
         ))}
       </select>
       <input
-        aria-label="Ubicación del incidente"
+        aria-label="Incident location"
         value={locationDescription}
         onChange={(e) => setLocationDescription(e.target.value)}
         placeholder="Location"
         className="w-full border rounded px-2 py-1.5 text-sm"
       />
       <textarea
-        aria-label="Acción inmediata tomada"
+        aria-label="Immediate action taken"
         value={immediateActionTaken}
         onChange={(e) => setImmediateActionTaken(e.target.value)}
         placeholder="Immediate action taken (optional)"

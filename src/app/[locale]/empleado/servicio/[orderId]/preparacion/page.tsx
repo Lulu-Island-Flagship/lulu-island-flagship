@@ -56,7 +56,7 @@ export default function ServiceBriefingPage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-brand-ice">
-        <EmpleadoBackHeader title="Preparación del servicio" backHref={backHref} />
+        <EmpleadoBackHeader title="Service Prep" backHref={backHref} />
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
         </div>
@@ -66,9 +66,9 @@ export default function ServiceBriefingPage() {
 
   return (
     <main className="min-h-screen bg-brand-ice">
-      <EmpleadoBackHeader title="Preparación del servicio" backHref={backHref} />
+      <EmpleadoBackHeader title="Service Prep" backHref={backHref} />
       <div className="max-w-lg mx-auto px-4 py-6 space-y-4 max-w-md mx-auto">
-      <h1 className="text-lg font-bold text-brand-ink">Preparación del servicio</h1>
+      <h1 className="text-lg font-bold text-brand-ink">Service Prep</h1>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">{error}</div>}
 

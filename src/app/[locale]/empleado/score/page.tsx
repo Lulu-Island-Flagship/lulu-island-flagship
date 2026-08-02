@@ -201,11 +201,20 @@ export default function EmpleadoScorePage() {
     return "text-red-600";
   };
 
+  // Fix (auditoría en vivo 2026-08-01): estas 4 etiquetas eran las únicas
+  // strings en español dentro de una página que, como el resto del portal
+  // de empleado, no usa next-intl y tiene todo su texto hardcodeado en
+  // inglés -- quedaban expuestas tal cual (p.ej. "Estándar") en la barra
+  // "My Score" de un cliente viendo /en/empleado/score. Se traducen al
+  // inglés para que coincidan con el resto de la página, en vez de
+  // introducir next-intl solo aquí (el resto del portal de empleado
+  // tampoco lo usa; hacerlo consistente en las 12 páginas es un cambio
+  // más grande, fuera de alcance de este fix puntual).
   const TRUST_LEVEL_LABEL: Record<string, string> = {
-    elite: "Élite",
-    standard: "Estándar",
-    observation: "Observación",
-    suspended: "Suspendido",
+    elite: "Elite",
+    standard: "Standard",
+    observation: "Observation",
+    suspended: "Suspended",
   };
 
   const latestScore = data?.scores?.[0];
@@ -468,7 +477,7 @@ export default function EmpleadoScorePage() {
           </div>
 
           <textarea
-            aria-label="Razón de la apelación de auditoría"
+            aria-label="Audit appeal reason"
             value={appealReason}
             onChange={(e) => setAppealReason(e.target.value)}
             placeholder="Explain why you believe this audit is unfair..."

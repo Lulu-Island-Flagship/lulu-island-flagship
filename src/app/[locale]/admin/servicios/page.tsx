@@ -6,7 +6,7 @@ export async function generateStaticParams() {
 
 import AdminServiciosClient from "@/components/admin/AdminServiciosClient";
 
-export const metadata: Metadata = { title: "Servicios" };
+export const metadata: Metadata = { title: "Services" };
 
 export default function AdminServiciosPage() {
   return <AdminServiciosClient />;

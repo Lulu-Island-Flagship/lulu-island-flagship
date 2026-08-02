@@ -371,7 +371,7 @@ export default function InventarioPage() {
               />
               <div className="grid grid-cols-2 gap-2">
                 <select
-                  aria-label="Categoría del producto"
+                  aria-label="Product category"
                   value={itemForm.category}
                   onChange={(e) => setItemForm({ ...itemForm, category: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
@@ -425,7 +425,7 @@ export default function InventarioPage() {
                   className="text-sm border rounded-lg px-3 py-2"
                 />
                 <input
-                  type="text" aria-label="Teléfono del contacto" placeholder="Phone" value={supplierForm.contactPhone}
+                  type="text" aria-label="Contact phone" placeholder="Phone" value={supplierForm.contactPhone}
                   onChange={(e) => setSupplierForm({ ...supplierForm, contactPhone: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />
@@ -435,7 +435,7 @@ export default function InventarioPage() {
                   className="text-sm border rounded-lg px-3 py-2"
                 />
                 <input
-                  type="number" aria-label="Tiempo de entrega en días" placeholder="Lead time (days)" value={supplierForm.leadTimeDays}
+                  type="number" aria-label="Lead time in days" placeholder="Lead time (days)" value={supplierForm.leadTimeDays}
                   onChange={(e) => setSupplierForm({ ...supplierForm, leadTimeDays: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />

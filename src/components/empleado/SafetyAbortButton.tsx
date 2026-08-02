@@ -17,6 +17,12 @@ import { useFocusTrap } from "@/hooks/useFocusTrap";
  *
  * `orderId` es opcional: el SOS es válido en cualquier momento del día,
  * no solo dentro de un servicio (D.10 #7 no lo condiciona a eso).
+ *
+ * Fix (auditoría en vivo 2026-08-01): todo el texto visible de este botón
+ * (crítico -- es el SOS de emergencia, montado en cada página de
+ * /empleado) estaba hardcodeado en español mientras el resto del portal
+ * está en inglés. Confirmado en vivo con cuenta de prueba en /en/empleado.
+ * Se traduce todo el texto/aria-label al inglés.
  */
 
 type Stage = "idle" | "first" | "second" | "sending" | "sent" | "error" | "network_fallback";
@@ -182,7 +188,7 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
       });
       clearTimeout(timeoutId);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "No se pudo activar el SOS");
+      if (!res.ok) throw new Error(data.error || "Could not activate SOS");
       const createdId = data.safetyAbort?.id as string | undefined;
       if (createdId) {
         setSafetyAbortId(createdId);
@@ -201,7 +207,7 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
       if (isNetworkFailure) {
         setStage("network_fallback");
       } else {
-        setErrorMsg(err instanceof Error ? err.message : "Error de red");
+        setErrorMsg(err instanceof Error ? err.message : "Network error");
         setStage("error");
       }
     }
@@ -212,7 +218,7 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
       <button
         type="button"
         onClick={() => setStage("first")}
-        aria-label="Aborto seguro de emergencia"
+        aria-label="Emergency safety abort"
         className="fixed bottom-5 right-5 z-50 flex items-center gap-2 bg-state-danger text-white px-4 py-3 rounded-full shadow-elevation-3 font-semibold text-sm"
       >
         <Siren className="w-5 h-5" />
@@ -230,11 +236,11 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
       <button
         type="button"
         onClick={() => setMinimized(false)}
-        aria-label="SOS activo — toca para ver el estado"
+        aria-label="SOS active — tap to view status"
         className="fixed bottom-5 right-5 z-50 flex items-center gap-2 bg-state-danger text-white px-4 py-3 rounded-full shadow-elevation-3 font-semibold text-sm animate-pulse"
       >
         <Siren className="w-5 h-5" />
-        SOS Activo
+        SOS Active
       </button>
     );
   }
@@ -245,13 +251,13 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Aborto seguro de emergencia"
+        aria-label="Emergency safety abort"
         className="bg-white rounded-xl max-w-sm w-full p-6 relative"
       >
         <button
           type="button"
           onClick={dialogCloseHandler}
-          aria-label="Cerrar"
+          aria-label="Close"
           className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
         >
           <X className="w-5 h-5" />
@@ -260,17 +266,17 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
         {stage === "first" && (
           <>
             <Siren className="w-10 h-10 text-state-danger mb-3" />
-            <h2 className="text-lg font-bold text-brand-ink mb-2">¿Activar aborto seguro?</h2>
+            <h2 className="text-lg font-bold text-brand-ink mb-2">Activate safety abort?</h2>
             <p className="text-sm text-gray-600 mb-4">
-              Esto notifica a un admin de inmediato con tu ubicación. Úsalo solo ante un riesgo real
-              de seguridad. Confirma dos veces para evitar activaciones accidentales.
+              This immediately notifies an admin with your location. Only use it for a real safety
+              risk. Confirm twice to avoid accidental activations.
             </p>
             <button
               type="button"
               onClick={() => setStage("second")}
               className="w-full bg-state-danger text-white py-3 rounded-lg font-semibold"
             >
-              Sí, continuar
+              Yes, continue
             </button>
           </>
         )}
@@ -278,15 +284,15 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
         {stage === "second" && (
           <>
             <Siren className="w-10 h-10 text-state-danger mb-3" />
-            <h2 className="text-lg font-bold text-brand-ink mb-2">Confirma una vez más</h2>
+            <h2 className="text-lg font-bold text-brand-ink mb-2">Confirm one more time</h2>
             <p className="text-sm text-gray-600 mb-3">
-              Esta es la confirmación final. Se activará el SOS inmediatamente al tocar el botón.
+              This is the final confirmation. SOS will activate immediately when you tap the button.
             </p>
             <textarea
-              aria-label="Qué está pasando (opcional)"
+              aria-label="What's happening (optional)"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="¿Qué está pasando? (opcional, pero ayuda al admin a responder mejor)"
+              placeholder="What's happening? (optional, but helps the admin respond better)"
               className="w-full border border-gray-300 rounded-lg p-2 text-sm mb-4"
               rows={3}
             />
@@ -295,7 +301,7 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
               onClick={confirmSecondAndSend}
               className="w-full bg-state-danger text-white py-3 rounded-lg font-semibold"
             >
-              Activar SOS ahora
+              Activate SOS now
             </button>
           </>
         )}
@@ -303,34 +309,34 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
         {stage === "sending" && (
           <div className="flex flex-col items-center py-6">
             <Loader2 className="w-8 h-8 animate-spin text-state-danger mb-3" />
-            <p className="text-sm text-gray-600">Activando SOS…</p>
+            <p className="text-sm text-gray-600">Activating SOS…</p>
           </div>
         )}
 
         {stage === "sent" && (
           <>
             <Siren className="w-10 h-10 text-state-danger mb-3" />
-            <h2 className="text-lg font-bold text-brand-ink mb-2">SOS activado</h2>
+            <h2 className="text-lg font-bold text-brand-ink mb-2">SOS activated</h2>
             <p className="text-sm text-gray-600 mb-4">
-              Un admin fue notificado. Si no recibes respuesta en 2 minutos, el sistema escala
-              automáticamente. Mantente en un lugar seguro.
+              An admin has been notified. If there&apos;s no response in 2 minutes, the system escalates
+              automatically. Stay in a safe place.
             </p>
             <button type="button" onClick={minimizeDialog} className="w-full border border-gray-300 py-2.5 rounded-lg text-sm">
-              Cerrar
+              Close
             </button>
           </>
         )}
 
         {stage === "error" && (
           <>
-            <h2 className="text-lg font-bold text-brand-ink mb-2">No se pudo activar</h2>
+            <h2 className="text-lg font-bold text-brand-ink mb-2">Couldn&apos;t activate</h2>
             <p className="text-sm text-state-danger mb-4">{errorMsg}</p>
             <div className="flex gap-2">
               <button type="button" onClick={() => setStage("second")} className="flex-1 bg-state-danger text-white py-2.5 rounded-lg text-sm font-semibold">
-                Reintentar
+                Retry
               </button>
               <button type="button" onClick={reset} className="flex-1 border border-gray-300 py-2.5 rounded-lg text-sm">
-                Cancelar
+                Cancel
               </button>
             </div>
           </>
@@ -339,12 +345,12 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
         {stage === "network_fallback" && (
           <>
             <Siren className="w-10 h-10 text-state-danger mb-3" />
-            <h2 className="text-lg font-bold text-brand-ink mb-2">Sin conexión — llama directamente</h2>
+            <h2 className="text-lg font-bold text-brand-ink mb-2">No connection — call directly</h2>
             <p className="text-sm text-gray-600 mb-4">
-              No pudimos enviar el SOS por internet.{" "}
+              We couldn&apos;t send the SOS over the internet.{" "}
               {SOS_FALLBACK_PHONE
-                ? "Usa uno de estos accesos directos para contactar de inmediato al coordinador de guardia."
-                : "Si tu vida o tu seguridad están en riesgo, llama al 911 (o al número de emergencias de tu localidad) directamente desde tu teléfono."}
+                ? "Use one of these shortcuts to contact the on-call coordinator immediately."
+                : "If your life or safety is at risk, call 911 (or your local emergency number) directly from your phone."}
             </p>
             {SOS_FALLBACK_PHONE ? (
               <div className="flex flex-col gap-2 mb-4">
@@ -352,15 +358,15 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
                   href={`tel:${SOS_FALLBACK_PHONE}`}
                   className="w-full bg-state-danger text-white py-3 rounded-lg font-semibold text-center"
                 >
-                  Llamar ahora
+                  Call now
                 </a>
                 <a
                   href={`sms:${SOS_FALLBACK_PHONE}?body=${encodeURIComponent(
-                    `SOS emergencia. ${reason.trim() || "Sin detalles adicionales."}`
+                    `SOS emergency. ${reason.trim() || "No additional details."}`
                   )}`}
                   className="w-full border border-state-danger text-state-danger py-2.5 rounded-lg font-semibold text-center"
                 >
-                  Enviar SMS de emergencia
+                  Send emergency SMS
                 </a>
               </div>
             ) : (
@@ -368,7 +374,7 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
                 href="tel:911"
                 className="w-full bg-state-danger text-white py-3 rounded-lg font-semibold text-center block mb-4"
               >
-                Llamar al 911
+                Call 911
               </a>
             )}
             <button
@@ -376,10 +382,10 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
               onClick={() => setStage("second")}
               className="w-full border border-gray-300 py-2.5 rounded-lg text-sm mb-2"
             >
-              Reintentar por internet
+              Retry over internet
             </button>
             <button type="button" onClick={reset} className="w-full text-xs text-gray-400 py-1">
-              Cancelar
+              Cancel
             </button>
           </>
         )}

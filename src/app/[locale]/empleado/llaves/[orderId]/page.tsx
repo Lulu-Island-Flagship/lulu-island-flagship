@@ -19,10 +19,10 @@ interface KeyLog {
 }
 
 const METHODS: { value: KeyMethod; label: string }[] = [
-  { value: "in_person", label: "En persona" },
+  { value: "in_person", label: "In person" },
   { value: "lockbox", label: "Lockbox" },
-  { value: "third_party", label: "Tercero" },
-  { value: "problem", label: "Problema de acceso" },
+  { value: "third_party", label: "Third party" },
+  { value: "problem", label: "Access problem" },
 ];
 
 export default function LlavesPage() {
@@ -100,14 +100,14 @@ export default function LlavesPage() {
         .upload(fileName, file, { contentType: file.type });
       if (uploadError) {
         console.error("Signature upload error:", uploadError);
-        setSignatureError("No se pudo subir la evidencia. Intenta de nuevo.");
+        setSignatureError("Couldn't upload the evidence. Please try again.");
         return;
       }
       const { data: publicUrlData } = supabase.storage.from("service-photos").getPublicUrl(fileName);
       setSignatureUrl(publicUrlData.publicUrl);
     } catch (e) {
       console.error("Signature photo error:", e);
-      setSignatureError("Error de conexión al subir la evidencia. Intenta de nuevo.");
+      setSignatureError("Connection error uploading the evidence. Please try again.");
     } finally {
       setUploadingSignature(false);
     }
@@ -127,17 +127,17 @@ export default function LlavesPage() {
         signatureUrl: method === "third_party" ? signatureUrl : undefined,
       });
       if (!result.ok) {
-        setError(result.error || "Error al registrar.");
+        setError(result.error || "Error saving the record.");
         return;
       }
       setLockboxCode("");
       setConfirmedReturned(false);
       setSignatureUrl(null);
       if (result.queued) {
-        // Sin señal: el registro quedó en la cola local y se enviará solo
-        // en cuanto vuelva la conexión -- no se pierde, pero tampoco puede
-        // aparecer todavía en la lista de abajo (esa lista viene del
-        // servidor, ver load()).
+        // No signal: the record stayed in the local queue and will only be
+        // sent once the connection comes back -- it isn't lost, but it also
+        // won't show up yet in the list below (that list comes from the
+        // server, see load()).
         setQueued(true);
       } else {
         await load();
@@ -157,13 +157,13 @@ export default function LlavesPage() {
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
           <button
             onClick={() => router.push(`/${safeLocale}/empleado/servicio/${orderId}`)}
-            aria-label="Volver"
+            aria-label="Back"
             className="text-white/70 hover:text-white"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <h1 className="font-semibold text-sm flex items-center gap-2">
-            <Key className="w-4 h-4" /> Manejo de Llaves
+            <Key className="w-4 h-4" /> Key Handling
           </h1>
         </div>
       </header>
@@ -172,7 +172,7 @@ export default function LlavesPage() {
         {pendingProblem && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <span>Hay un problema de acceso reportado y pendiente de resolver. Si pasan 15 min sin respuesta del admin, se documenta como no-show.</span>
+            <span>There&apos;s an access problem reported and pending resolution. If 15 min pass without a response from admin, it gets documented as a no-show.</span>
           </div>
         )}
 
@@ -181,7 +181,7 @@ export default function LlavesPage() {
         ) : (
           <>
             <form onSubmit={submit} className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3">
-              <h2 className="text-sm font-semibold text-brand-ink">Registrar acceso</h2>
+              <h2 className="text-sm font-semibold text-brand-ink">Log access</h2>
               <div className="grid grid-cols-2 gap-2">
                 {METHODS.map((m) => (
                   <button
@@ -201,8 +201,8 @@ export default function LlavesPage() {
                 <div className="relative">
                   <input
                     type={showLockboxCode ? "text" : "password"}
-                    aria-label="Código del lockbox"
-                    placeholder="Código del lockbox"
+                    aria-label="Lockbox code"
+                    placeholder="Lockbox code"
                     value={lockboxCode}
                     onChange={(e) => setLockboxCode(e.target.value)}
                     className="w-full text-sm border rounded-lg px-3 py-2 pr-10"
@@ -210,7 +210,7 @@ export default function LlavesPage() {
                   <button
                     type="button"
                     onClick={() => setShowLockboxCode((v) => !v)}
-                    aria-label={showLockboxCode ? "Ocultar código del lockbox" : "Mostrar código del lockbox"}
+                    aria-label={showLockboxCode ? "Hide lockbox code" : "Show lockbox code"}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     {showLockboxCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -223,23 +223,23 @@ export default function LlavesPage() {
                   <input
                     id="keys-confirm-returned"
                     type="checkbox"
-                    aria-label="Confirmo que devolví las llaves al cliente"
+                    aria-label="I confirm I returned the keys to the client"
                     checked={confirmedReturned}
                     onChange={(e) => setConfirmedReturned(e.target.checked)}
                   />
-                  Confirmo que devolví las llaves al cliente
+                  I confirm I returned the keys to the client
                 </label>
               )}
 
               {method === "third_party" && (
                 <div className="space-y-2">
                   <p className="text-xs text-gray-500">
-                    Requiere evidencia: foto de la nota/recibo firmado por el tercero que entregó o recibió las
-                    llaves.
+                    Evidence required: photo of the note/receipt signed by the third party who handed over or
+                    received the keys.
                   </p>
                   {signatureUrl ? (
                     <div className="flex items-center gap-2 text-xs text-state-success">
-                      <Check className="w-4 h-4" /> Evidencia subida
+                      <Check className="w-4 h-4" /> Evidence uploaded
                     </div>
                   ) : (
                     <label className="flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-lg px-3 py-3 text-sm text-gray-500 cursor-pointer">
@@ -248,7 +248,7 @@ export default function LlavesPage() {
                       ) : (
                         <Camera className="w-4 h-4" />
                       )}
-                      {uploadingSignature ? "Subiendo..." : "Tomar/adjuntar foto de la evidencia firmada"}
+                      {uploadingSignature ? "Uploading..." : "Take/attach photo of the signed evidence"}
                       <input
                         type="file"
                         accept="image/*"
@@ -265,8 +265,8 @@ export default function LlavesPage() {
                         // mensaje). Se agrega aria-label explícito, redundante
                         // pero inequívoco para cualquier lector de pantalla y
                         // para el escáner, mismo criterio que el checkbox de
-                        // "Confirmo que devolví las llaves" más arriba.
-                        aria-label="Tomar o adjuntar foto de la evidencia firmada"
+                        // "I confirm I returned the keys" above.
+                        aria-label="Take or attach photo of the signed evidence"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) void handleSignaturePhoto(file);
@@ -281,15 +281,15 @@ export default function LlavesPage() {
 
               {method === "problem" && (
                 <p className="text-xs text-gray-500">
-                  Esto notifica al admin de inmediato. Si no hay respuesta en 15 min, se escala automáticamente.
+                  This notifies admin immediately. If there&apos;s no response in 15 min, it escalates automatically.
                 </p>
               )}
 
               {error && <p className="text-xs text-red-600">{error}</p>}
               {queued && (
                 <p className="text-xs text-brand-navy flex items-center gap-1">
-                  <CloudUpload className="w-3.5 h-3.5" /> Sin conexión: se guardó en el dispositivo y se enviará
-                  solo en cuanto vuelva la señal.
+                  <CloudUpload className="w-3.5 h-3.5" /> No connection: saved on this device, will send
+                  automatically as soon as signal returns.
                 </p>
               )}
 
@@ -298,12 +298,12 @@ export default function LlavesPage() {
                 disabled={submitting || !canSubmitThirdParty}
                 className="w-full flex items-center justify-center gap-2 bg-brand-navy text-white px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
               >
-                <Check className="w-4 h-4" /> Registrar
+                <Check className="w-4 h-4" /> Save
               </button>
             </form>
 
             <div className="bg-white rounded-xl shadow-elevation-1 divide-y">
-              {logs.length === 0 && <p className="p-4 text-sm text-gray-500">Sin registros todavía.</p>}
+              {logs.length === 0 && <p className="p-4 text-sm text-gray-500">No records yet.</p>}
               {logs.map((l) => (
                 <div key={l.id} className="p-3 text-sm">
                   <span className="font-medium capitalize">{l.method.replace("_", " ")}</span>

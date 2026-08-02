@@ -368,7 +368,7 @@ export default function ServicioPage() {
         // así que el empleado ve un aviso claro de "guardada, reintentando"
         // en vez de perder la foto silenciosamente.
         setBypassPhotoError(
-          "Sin conexión: la foto quedó guardada en el dispositivo y se subirá automáticamente en cuanto haya señal. Vuelve a intentar en unos momentos."
+          "No connection: the photo was saved on this device and will upload automatically once you have signal. Try again in a moment."
         );
         return;
       }
@@ -855,7 +855,7 @@ export default function ServicioPage() {
 
                 {/* Salvaguarda 2: categoría estructurada del motivo — flag amarillo estructurado */}
                 <select
-                  aria-label="Categoría del motivo de bypass de geocerca"
+                  aria-label="Geofence bypass reason category"
                   value={bypassCategory}
                   onChange={(e) => setBypassCategory(e.target.value)}
                   className="w-full text-sm border border-yellow-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white"
@@ -870,7 +870,7 @@ export default function ServicioPage() {
                 {/* Salvaguarda 2b: razón de texto SIEMPRE obligatoria además de la categoría */}
                 <input
                   type="text"
-                  aria-label="Razón para omitir la verificación de geocerca"
+                  aria-label="Reason for skipping geofence verification"
                   value={bypassReason}
                   onChange={(e) => setBypassReason(e.target.value)}
                   placeholder="Describe the specific situation in detail (required, min. 30 characters)..."
@@ -900,7 +900,7 @@ export default function ServicioPage() {
                         <span>Add evidence photo (required)</span>
                         <input
                           type="file"
-                          aria-label="Foto de evidencia obligatoria para el bypass de geocerca"
+                          aria-label="Required evidence photo for geofence bypass"
                           accept="image/*"
                           capture="environment"
                           className="hidden"
@@ -928,7 +928,7 @@ export default function ServicioPage() {
                       Explain why you can&apos;t take a photo (required, flagged for supervisor review)
                     </label>
                     <textarea
-                      aria-label="Justificación por no poder tomar foto de evidencia"
+                      aria-label="Justification for not being able to take an evidence photo"
                       value={bypassNoPhotoJustification}
                       onChange={(e) => setBypassNoPhotoJustification(e.target.value)}
                       placeholder="e.g. camera not working, client asked not to photograph the interior... (min. 30 characters)"
@@ -1089,7 +1089,7 @@ export default function ServicioPage() {
                     )}
                     <input
                       type="file"
-                      aria-label="Agregar foto del servicio"
+                      aria-label="Add service photo"
                       accept="image/*"
                       capture="environment"
                       className="hidden"
@@ -1151,7 +1151,7 @@ export default function ServicioPage() {
                     <div className="flex items-center gap-2">
                       <input
                         type="text"
-                        aria-label="Agregar una nota al servicio"
+                        aria-label="Add a note to the service"
                         value={noteText}
                         onChange={(e) => setNoteText(e.target.value)}
                         placeholder="Add a note..."
@@ -1159,7 +1159,7 @@ export default function ServicioPage() {
                         onKeyDown={(e) => e.key === "Enter" && handleSendNote()}
                       />
                       <button
-                        aria-label="Enviar nota"
+                        aria-label="Send note"
                         onClick={handleSendNote}
                         disabled={!noteText.trim() || isSubmitting}
                         className="p-2 bg-brand-navy text-white rounded-lg disabled:opacity-50"

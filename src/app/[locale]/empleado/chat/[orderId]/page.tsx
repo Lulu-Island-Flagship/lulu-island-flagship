@@ -189,7 +189,7 @@ export default function TeamChatPage() {
       <EmpleadoBackHeader title="Chat del equipo" backHref={backHref} icon={MessageCircle} />
       <div className="flex flex-col h-[70vh] max-w-md mx-auto px-4 py-4">
       <div className="mb-3">
-        <p className="text-xs text-gray-500">Solo texto, historial de 7 días. Se cierra al terminar la jornada.</p>
+        <p className="text-xs text-gray-500">Text only, 7-day history. Closes when the shift ends.</p>
       </div>
 
       {pendingCount > 0 && (
@@ -203,7 +203,7 @@ export default function TeamChatPage() {
 
       <div className="flex-1 overflow-y-auto space-y-2 bg-white rounded-xl border p-3">
         {messages.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-6">Aún no hay mensajes.</p>
+          <p className="text-sm text-gray-400 text-center py-6">No messages yet.</p>
         ) : (
           messages.map((m) => (
             <div key={m.id} className="text-sm">
@@ -230,7 +230,7 @@ export default function TeamChatPage() {
           className="flex-1 border rounded-lg px-3 py-2 text-sm"
         />
         <button
-          aria-label="Enviar mensaje"
+          aria-label="Send message"
           onClick={send}
           disabled={sending || !draft.trim()}
           className="bg-brand-navy text-white p-2.5 rounded-lg disabled:opacity-50"
