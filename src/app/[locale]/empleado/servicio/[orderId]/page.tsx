@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -314,17 +314,38 @@ export default function ServicioPage() {
   // de poder confirmar el bypass — arranca apenas se entra en "outside" y
   // se reinicia si se vuelve a "checking"/"inside" (ej. el empleado se
   // movió y ahora sí entra en rango).
+  //
+  // Bug auditoría (2026-08-02): este efecto se dispara cada vez que
+  // `geofenceStatus` cambia de VALOR (React sólo re-ejecuta si cambió),
+  // pero si el estado fluctúa "outside" -> "checking" -> "outside" por
+  // ruido de GPS, el countdown se reiniciaba a 120s en cada vuelta a
+  // "outside", así que nunca llegaba a 0 y el empleado no podía completar
+  // la espera. Ahora usamos un ref con el estado ANTERIOR: sólo reiniciamos
+  // el contador cuando la transición es específicamente de un estado que
+  // NO es "outside" hacia "outside" (primera entrada). Si ya estaba en
+  // "outside" y sigue en "outside", no se reinicia ni se recrea el
+  // interval.
+  const prevGeofenceStatusRef = useRef(geofenceStatus);
   useEffect(() => {
+    const prevStatus = prevGeofenceStatusRef.current;
+    prevGeofenceStatusRef.current = geofenceStatus;
+
     if (geofenceStatus !== "outside") {
       setBypassCountdown(BYPASS_WAIT_SECONDS);
       return;
     }
+
+    // Ya estábamos en "outside": no reiniciar el countdown ni recrear el
+    // interval (el que ya está corriendo sigue su curso).
+    if (prevStatus === "outside") {
+      return;
+    }
+
     setBypassCountdown(BYPASS_WAIT_SECONDS);
     const interval = setInterval(() => {
       setBypassCountdown((n) => (n > 0 ? n - 1 : 0));
     }, 1000);
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geofenceStatus]);
 
   // Bug auditoría (foto de bypass de geocerca sin cola offline): esta
@@ -855,28 +876,38 @@ export default function ServicioPage() {
                 </div>
 
                 {/* Salvaguarda 2: categoría estructurada del motivo — flag amarillo estructurado */}
-                <select
-                  aria-label="Geofence bypass reason category"
-                  value={bypassCategory}
-                  onChange={(e) => setBypassCategory(e.target.value)}
-                  className="w-full text-sm border border-yellow-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white"
-                >
-                  <option value="">Select a reason category (required)...</option>
-                  <option value="gps_inaccurate">GPS is inaccurate / weak signal</option>
-                  <option value="building_entrance_far">Building entrance is far from the map pin</option>
-                  <option value="parking_restriction">Had to park/enter far from exact address</option>
-                  <option value="other">Other</option>
-                </select>
+                <div>
+                  <label htmlFor="bypass-reason-category" className="block text-xs font-medium text-yellow-800 mb-1">
+                    Reason category (required)
+                  </label>
+                  <select
+                    id="bypass-reason-category"
+                    value={bypassCategory}
+                    onChange={(e) => setBypassCategory(e.target.value)}
+                    className="w-full text-sm border border-yellow-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white"
+                  >
+                    <option value="">Select a reason category (required)...</option>
+                    <option value="gps_inaccurate">GPS is inaccurate / weak signal</option>
+                    <option value="building_entrance_far">Building entrance is far from the map pin</option>
+                    <option value="parking_restriction">Had to park/enter far from exact address</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
 
                 {/* Salvaguarda 2b: razón de texto SIEMPRE obligatoria además de la categoría */}
-                <input
-                  type="text"
-                  aria-label="Reason for skipping geofence verification"
-                  value={bypassReason}
-                  onChange={(e) => setBypassReason(e.target.value)}
-                  placeholder="Describe the specific situation in detail (required, min. 30 characters)..."
-                  className="w-full text-sm border border-yellow-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                />
+                <div>
+                  <label htmlFor="bypass-reason-text" className="block text-xs font-medium text-yellow-800 mb-1">
+                    Reason for skipping geofence verification (required)
+                  </label>
+                  <input
+                    id="bypass-reason-text"
+                    type="text"
+                    value={bypassReason}
+                    onChange={(e) => setBypassReason(e.target.value)}
+                    placeholder="Describe the specific situation in detail (required, min. 30 characters)..."
+                    className="w-full text-sm border border-yellow-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                </div>
                 {bypassReason.trim().length > 0 && bypassReason.trim().length < MIN_BYPASS_REASON_LENGTH && (
                   <p className="text-xs text-yellow-800">
                     {MIN_BYPASS_REASON_LENGTH - bypassReason.trim().length} more characters needed.

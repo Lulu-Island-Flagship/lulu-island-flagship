@@ -1,8 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
-import { useTranslations } from "next-intl";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useTranslations, useLocale } from "next-intl";
+import { Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
+
+// Los links a /privacidad viven DENTRO de un <label> asociado (vía htmlFor)
+// al checkbox de consentimiento -- sin detener la propagación del click,
+// activar el link también alterna el checkbox (comportamiento nativo de
+// <label>). Mismo patrón que ConsentCheck.tsx (cotizador).
+function stopLabelToggle(e: React.MouseEvent) {
+  e.stopPropagation();
+}
 
 // Formulario público del Paso 1 del flujo de contratación ("empleo" en el
 // sitio público). Llama a POST /api/hiring-flow/apply, que a su vez orquesta
@@ -15,6 +23,23 @@ import { Loader2, CheckCircle2 } from "lucide-react";
 // servidor devuelve 400 con errores de validación por campo, se muestran
 // tal cual (ver handleSubmit / fieldErrors abajo).
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Fix (auditoría externa 2026-08-02, hallazgo CRÍTICO #2): antes este
+// formulario solo mostraba un string i18n hardcodeado
+// (`empleo.fields.consentLabel`) como si fuera el consentimiento legal,
+// sin enlazar al texto legal real ni a /privacidad, y sin que el backend
+// supiera qué versión exacta se le mostró al candidato. Ahora se carga el
+// texto legal ACTIVO real desde GET /api/hiring-flow/legal-text (key
+// "pipa_step1", ver esa ruta y legal-text-service.ts) al montar el
+// formulario, y se envía de vuelta `legalTextVersion` en el submit -- el
+// backend (candidate-step1-service.ts) valida que siga siendo la versión
+// activa vigente (ver LegalTextVersionMismatchError).
+const PIPA_STEP1_KEY = "pipa_step1";
+
+interface LegalTextState {
+  version: string;
+  text: string;
+}
 
 interface FormState {
   firstName: string;
@@ -41,11 +66,59 @@ interface ValidationErrorItem {
 
 export function JobApplicationForm() {
   const t = useTranslations("empleo");
+  const locale = useLocale();
   const [form, setForm] = useState<FormState>(INITIAL_STATE);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [generalError, setGeneralError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [legalText, setLegalText] = useState<LegalTextState | null>(null);
+  const [legalTextLoadFailed, setLegalTextLoadFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadLegalText() {
+      try {
+        const response = await fetch(
+          `/api/hiring-flow/legal-text?key=${encodeURIComponent(PIPA_STEP1_KEY)}`
+        );
+        if (!response.ok) {
+          throw new Error(`Unexpected status ${response.status}`);
+        }
+        const data = (await response.json()) as { version: string; text: string };
+        if (!cancelled) {
+          setLegalText({ version: data.version, text: data.text });
+        }
+      } catch {
+        if (!cancelled) {
+          setLegalTextLoadFailed(true);
+        }
+      }
+    }
+
+    void loadLegalText();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function reloadLegalText() {
+    setLegalTextLoadFailed(false);
+    setLegalText(null);
+    try {
+      const response = await fetch(
+        `/api/hiring-flow/legal-text?key=${encodeURIComponent(PIPA_STEP1_KEY)}`
+      );
+      if (!response.ok) {
+        throw new Error(`Unexpected status ${response.status}`);
+      }
+      const data = (await response.json()) as { version: string; text: string };
+      setLegalText({ version: data.version, text: data.text });
+    } catch {
+      setLegalTextLoadFailed(true);
+    }
+  }
 
   function updateField<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -70,7 +143,7 @@ export function JobApplicationForm() {
     if (form.dateOfBirth.trim().length === 0) {
       errors.dateOfBirth = t("errors.required");
     }
-    if (!form.consentAccepted) {
+    if (!form.consentAccepted || !legalText) {
       errors.consentAccepted = t("errors.consentRequired");
     }
     return errors;
@@ -99,6 +172,8 @@ export function JobApplicationForm() {
           phone: form.phone.trim(),
           dateOfBirth: form.dateOfBirth,
           consentAccepted: form.consentAccepted,
+          legalTextVersion: legalText?.version,
+          locale,
         }),
       });
 
@@ -122,6 +197,25 @@ export function JobApplicationForm() {
           setGeneralError(t("errors.validationFailed"));
         } else {
           setGeneralError(t("errors.consentRequired"));
+        }
+        return;
+      }
+
+      // Fix (auditoría externa, hallazgo MEDIO #4): el 409 ahora trae un
+      // código estable en `error` (ver apply/route.ts) -- se distinguen
+      // los dos casos posibles en vez de caer siempre en el mensaje
+      // genérico, para que el candidato sepa qué pasó y qué hacer.
+      if (response.status === 409) {
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        if (data?.error === "legal_text_outdated") {
+          setGeneralError(t("errors.legalTextOutdated"));
+          await reloadLegalText();
+          updateField("consentAccepted", false);
+        } else {
+          // "duplicate_application" o cualquier otro código no reconocido
+          // en este 409: el mensaje de duplicado sigue siendo el más
+          // informativo y no revela nada sensible.
+          setGeneralError(t("errors.duplicateApplication"));
         }
         return;
       }
@@ -270,18 +364,65 @@ export function JobApplicationForm() {
         )}
       </div>
 
+      <div>
+        {!legalText && !legalTextLoadFailed && (
+          <div className="flex items-center gap-2 text-sm text-gray-500 p-3 rounded-lg border border-gray-200 bg-gray-50">
+            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+            {t("legalText.loading")}
+          </div>
+        )}
+
+        {legalTextLoadFailed && (
+          <div className="flex items-start gap-2 text-sm text-state-danger p-3 rounded-lg border border-state-danger/30 bg-state-danger/10">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p>{t("legalText.loadError")}</p>
+              <button
+                type="button"
+                onClick={() => void reloadLegalText()}
+                className="mt-2 underline font-medium hover:text-state-danger/80"
+              >
+                {t("legalText.retry")}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {legalText && (
+          <div
+            className="max-h-32 overflow-y-auto text-xs text-gray-600 p-3 rounded-lg border border-gray-200 bg-gray-50 whitespace-pre-wrap"
+            aria-label={t("legalText.textAriaLabel")}
+          >
+            {legalText.text}
+          </div>
+        )}
+      </div>
+
       <div className="flex items-start gap-3">
         <input
           id="empleo-consent"
           type="checkbox"
           checked={form.consentAccepted}
           onChange={(e) => updateField("consentAccepted", e.target.checked)}
+          disabled={!legalText}
           aria-invalid={Boolean(fieldErrors.consentAccepted)}
           aria-describedby={fieldErrors.consentAccepted ? "empleo-consent-error" : undefined}
-          className="mt-1 w-4 h-4 rounded border-gray-300 text-brand-navy focus:ring-brand-wave-blue"
+          className="mt-1 w-4 h-4 rounded border-gray-300 text-brand-navy focus:ring-brand-wave-blue disabled:opacity-50"
         />
         <label htmlFor="empleo-consent" className="text-sm text-gray-600">
-          {t("fields.consentLabel")}
+          {t.rich("fields.consentLabel", {
+            link: (chunks) => (
+              <a
+                href={`/${locale}/privacidad`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={stopLabelToggle}
+                className="underline hover:text-brand-navy"
+              >
+                {chunks}
+              </a>
+            ),
+          })}
         </label>
       </div>
       {fieldErrors.consentAccepted && (
@@ -292,7 +433,7 @@ export function JobApplicationForm() {
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || !legalText}
         aria-label={t("submitAriaLabel")}
         className="w-full bg-brand-navy text-white py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
       >

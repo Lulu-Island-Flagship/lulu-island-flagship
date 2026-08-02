@@ -170,6 +170,11 @@ export async function GET(request: NextRequest) {
       // órdenes ya force-capturadas por un admin; este retry no lo hacía y
       // volvía a cobrar el total completo — doble cobro real. Mismo filtro.
       .is("capture_force_full_by", null)
+      // Fix CRÍTICO (auditoría externa de integridad financiera, 2026-08-02):
+      // mismo bug que batch-capture -- faltaba excluir órdenes con soft
+      // delete (deleted_at NOT NULL), lo que permitía reintentar cargos
+      // reales sobre órdenes que operación ya dio por eliminadas.
+      .is("deleted_at", null)
       .gte("capture_attempts", 1)
       .lt("capture_attempts", MAX_ATTEMPTS)
       .order("service_datetime", { ascending: true });

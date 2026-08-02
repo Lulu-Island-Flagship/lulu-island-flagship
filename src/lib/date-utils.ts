@@ -71,6 +71,82 @@ export function getVancouverTodayMidnight(): Date {
 }
 
 /**
+ * Construye un Date UTC que representa la medianoche local de Vancouver para
+ * un string de fecha "YYYY-MM-DD" arbitrario (no solo "hoy"). Análogo a
+ * `getVancouverTodayMidnight()` pero para cualquier fecha.
+ */
+export function parseVancouverDate(dateOnlyStr: string): Date {
+  const offset = getVancouverOffset(dateOnlyStr);
+  return new Date(`${dateOnlyStr}T00:00:00${offset}`);
+}
+
+/**
+ * Día de la semana (0 = domingo ... 6 = sábado) para un string de solo-fecha
+ * "YYYY-MM-DD" (ej. service_date). El día de la semana de una fecha
+ * calendario NO depende de la zona horaria -- "2026-08-02" es domingo sin
+ * importar en qué huso corra el proceso -- pero `new Date("YYYY-MM-DDT00:00:00")`
+ * seguido de `.getDay()` depende implícitamente de la hora local del
+ * runtime para interpretar el string. Esta función construye el Date a
+ * partir de los componentes Y/M/D directamente (como `formatServiceDateDisplay`)
+ * para eliminar esa dependencia implícita y dejar explícito que el cálculo
+ * es agnóstico al huso horario del servidor.
+ */
+export function getDayOfWeekFromDateString(dateOnlyStr: string): number {
+  const [year, month, day] = dateOnlyStr.split("-").map(Number);
+  if (!year || !month || !day) return NaN;
+  return new Date(year, month - 1, day).getDay();
+}
+
+/**
+ * Día de la semana actual (0 = domingo ... 6 = sábado) según la fecha local
+ * de HOY en Vancouver -- no la fecha/hora del runtime del servidor, que
+ * puede correr en UTC u otro huso y dar un día distinto al que realmente es
+ * "hoy" en Vancouver (ej. cerca de medianoche).
+ */
+export function getVancouverDayOfWeek(): number {
+  return getDayOfWeekFromDateString(getVancouverTodayString());
+}
+
+/**
+ * Suma (o resta) días a un string de solo-fecha "YYYY-MM-DD" y devuelve el
+ * resultado en el mismo formato. Aritmética de calendario pura vía
+ * Date.UTC/getUTCDate -- inmune a la zona horaria del host, a diferencia de
+ * `setDate()`/`getDate()` (que usan la hora LOCAL del runtime y pueden
+ * desplazar el día calendario resultante si el proceso corre fuera de
+ * Vancouver).
+ */
+export function addDaysToDateString(dateOnlyStr: string, days: number): string {
+  const [year, month, day] = dateOnlyStr.split("-").map(Number);
+  const d = new Date(Date.UTC(year, month - 1, day));
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().split("T")[0];
+}
+
+/**
+ * Formatea una fecha/instante (Date o string parseable, ej. un timestamp
+ * `created_at`/`expires_at` de Postgres) para mostrarlo al usuario en la
+ * zona horaria de negocio (America/Vancouver) explícitamente. A diferencia
+ * de `formatServiceDateDisplay` (que es para strings de solo-fecha
+ * "YYYY-MM-DD" sin componente de hora), esta función SÍ debe convertir de
+ * zona horaria porque el valor de entrada es un instante real (timestamptz).
+ * Sin `timeZone: "America/Vancouver"` explícito, `toLocaleDateString`/
+ * `Intl.DateTimeFormat` usan la zona horaria del entorno de ejecución
+ * (navegador del usuario o servidor), lo que puede mostrar un día distinto
+ * al que corresponde en Vancouver.
+ */
+export function formatVancouverDate(
+  date: Date | string,
+  locale: string = "en",
+  options: Intl.DateTimeFormatOptions = { year: "numeric", month: "long", day: "numeric" }
+): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return new Intl.DateTimeFormat(toIntlLocale(locale), {
+    ...options,
+    timeZone: "America/Vancouver",
+  }).format(d);
+}
+
+/**
  * Formatea un string de solo-fecha "YYYY-MM-DD" (service_date, tal como viene
  * de Postgres) para mostrarlo al usuario, SIN pasar por conversión de zona
  * horaria. `service_date` ya representa el día calendario correcto -- no es

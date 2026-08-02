@@ -114,10 +114,10 @@ export default async function middleware(request: NextRequest) {
             return request.cookies.get(name)?.value;
           },
           set(name: string, value: string, options) {
-            apiResponse.cookies.set({ name, value, ...options });
+            apiResponse.cookies.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
           },
           remove(name: string, options) {
-            apiResponse.cookies.set({ name, value: '', ...options });
+            apiResponse.cookies.set({ name, value: '', ...options, httpOnly: true, secure: true, sameSite: "lax" });
           },
         },
       });
@@ -156,10 +156,10 @@ export default async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options) {
-          response.cookies.set({ name, value, ...options });
+          response.cookies.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
         },
         remove(name: string, options) {
-          response.cookies.set({ name, value: '', ...options });
+          response.cookies.set({ name, value: '', ...options, httpOnly: true, secure: true, sameSite: "lax" });
         },
       },
     });

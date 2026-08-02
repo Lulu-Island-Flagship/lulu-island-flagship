@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, Home, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -33,11 +33,7 @@ export default function NeighborhoodPage() {
   const [complaintForm, setComplaintForm] = useState({ clientPropertyId: "", description: "" });
   const [leadForm, setLeadForm] = useState({ name: "", contactPhone: "", contactEmail: "", notes: "" });
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -55,7 +51,11 @@ export default function NeighborhoodPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function submitComplaint(e: React.FormEvent) {
     e.preventDefault();

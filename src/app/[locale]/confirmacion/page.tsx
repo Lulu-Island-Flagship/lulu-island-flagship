@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import { mapQuoteFromSupabase, mapOrderFromSupabase } from "@/lib/supabase-mappers";
@@ -25,10 +25,14 @@ function ConfirmacionContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId");
 
-  // Detect locale from pathname for navigation
-  const locale = (typeof window !== "undefined"
-    ? window.location.pathname.split("/")[1]
-    : "en") as string;
+  // Fix (auditoría externa, hallazgo A11): antes se leía el locale de
+  // window.location.pathname en el primer render (hydration mismatch --
+  // servidor sin `window` usaba "en" de fallback, cliente podía resolver
+  // otro locale en la misma pasada). Esta ruta tiene [locale] como segmento
+  // dinámico, así que useParams() lo resuelve de forma consistente entre
+  // servidor y cliente.
+  const params = useParams();
+  const locale = (params?.locale as string) || "en";
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
 
   const [order, setOrder] = useState<Order | null>(null);

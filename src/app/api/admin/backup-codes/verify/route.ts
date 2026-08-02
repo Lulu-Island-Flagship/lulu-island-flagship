@@ -65,10 +65,23 @@ export async function POST(request: NextRequest) {
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip") ||
     "unknown";
-  const { data: rateLimitData } = await serviceClient.rpc("check_rate_limit", {
+  const { data: rateLimitData, error: rateLimitError } = await serviceClient.rpc("check_rate_limit", {
     p_ip_address: `backup-code:${ip}`,
     p_max_requests: 8,
   });
+  // Fix (auditoría externa, hallazgo CRÍTICO): antes el error del RPC ni
+  // siquiera se leía -- si el RPC fallaba, rateLimitData quedaba undefined y
+  // el código seguía de largo como si no hubiera límite, sobre el endpoint
+  // MÁS sensible del sistema (login de owner_admin con código de respaldo).
+  // Ahora se falla CERRADO, mismo patrón que el resto de check_rate_limit en
+  // el repo.
+  if (rateLimitError) {
+    console.error("backup-codes verify check_rate_limit error:", rateLimitError.message);
+    return NextResponse.json(
+      { error: "Service temporarily unavailable. Try again later." },
+      { status: 503 }
+    );
+  }
   if (rateLimitData && rateLimitData[0]?.allowed === false) {
     return NextResponse.json(
       { error: "Too many attempts. Try again later." },

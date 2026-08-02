@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, ShieldAlert, AlertTriangle, CheckCircle2 } from "lucide-react";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 import { useTranslations } from "next-intl";
@@ -48,11 +48,7 @@ export default function PipedaPage() {
   const [newRequest, setNewRequest] = useState({ clientUserId: "", requestType: "access", correctionDetails: "" });
   const [newIncident, setNewIncident] = useState({ description: "", severity: "unknown" });
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -70,7 +66,11 @@ export default function PipedaPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function createRequest() {
     if (!newRequest.clientUserId.trim()) return;

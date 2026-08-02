@@ -10,7 +10,7 @@ import {
 } from "@/lib/pricing";
 import { type PricingRule, type RuleContext } from "@/lib/rules";
 import { getZoneDemand } from "@/lib/zone-demand";
-import { getVancouverTodayString } from "@/lib/date-utils";
+import { getVancouverTodayString, getDayOfWeekFromDateString } from "@/lib/date-utils";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
 
@@ -48,10 +48,10 @@ function getSupabaseClient() {
         return cookieStore.get(name)?.value;
       },
       set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options });
+        cookieStore.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
       },
       remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options });
+        cookieStore.set({ name, value: "", ...options, httpOnly: true, secure: true, sameSite: "lax" });
       },
     },
   });
@@ -115,13 +115,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calcular día de la semana y preferencia según la fecha elegida
-    const selectedDate = new Date(`${serviceDate}T00:00:00`);
-    if (isNaN(selectedDate.getTime())) {
+    // Calcular día de la semana y preferencia según la fecha elegida.
+    // Fix (auditoría externa, hallazgo A10): antes se usaba
+    // `new Date(\`${serviceDate}T00:00:00\`).getDay()`, que interpreta el
+    // string como hora LOCAL DEL RUNTIME -- si el servidor corre en una zona
+    // horaria distinta a Vancouver, un cambio de horario de verano/entorno
+    // podía desalinear el día calculado. `getDayOfWeekFromDateString` calcula
+    // el día de la semana directamente de los componentes Y/M/D del string,
+    // sin depender de ninguna zona horaria del runtime.
+    const [selYear, selMonth, selDay] = String(serviceDate).split("-").map(Number);
+    if (!selYear || !selMonth || !selDay || isNaN(new Date(selYear, selMonth - 1, selDay).getTime())) {
       return NextResponse.json({ error: "Invalid serviceDate" }, { status: 400 });
     }
 
-    const dayOfWeek = selectedDate.getDay();
+    const dayOfWeek = getDayOfWeekFromDateString(serviceDate);
     const isPreferredDay = dayOfWeek >= 1 && dayOfWeek <= 5; // lun-vie preferidos
 
     // Leer tarifa objetivo vigente
@@ -229,11 +236,17 @@ export async function POST(request: NextRequest) {
         addon_zones_charge: breakdown.addonZonesCharge,
         rule_adjustment: breakdown.ruleAdjustment,
         applied_rules: breakdown.appliedRules,
-        subtotal: subtotalAfterRules,
+        // Fix CRÍTICO (auditoría externa de integridad financiera,
+        // 2026-08-02): quotes.subtotal y quotes.hold_amount son INTEGER en
+        // dólares (sin decimales); subtotalAfterRules puede traer fracción
+        // de dólar. Redondeo explícito aquí, mismo criterio que
+        // src/app/api/quote/route.ts -- ver comentario allá y migración 311
+        // (COMMENT ON COLUMN) para el detalle completo.
+        subtotal: Math.round(subtotalAfterRules),
         gst,
         pst,
         total,
-        hold_amount: holdAmount,
+        hold_amount: Math.round(holdAmount),
         price_frozen_until: freeze.toISOString(),
         updated_at: new Date().toISOString(),
       })

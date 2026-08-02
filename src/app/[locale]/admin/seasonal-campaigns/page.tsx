@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Sparkles, CheckCircle2, XCircle, Send, CloudRain } from "lucide-react";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
@@ -57,11 +57,7 @@ export default function SeasonalCampaignsPage() {
     highPollen: false,
   });
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -79,7 +75,11 @@ export default function SeasonalCampaignsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function evaluate() {
     setEvaluating(true);

@@ -13,7 +13,7 @@
 // badge "confirmed / declared in plan" que sí tenía la otra, y
 // /admin/recuperacion-desastres ahora solo redirige aquí (ver su page.tsx).
 // AdminDashboardClient.tsx y AdminNav.tsx apuntan ambos a esta misma URL.
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, ShieldCheck, ShieldAlert, AlertTriangle, PlayCircle, ClipboardEdit } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -81,11 +81,7 @@ export default function DrDrillPage() {
   const [saving, setSaving] = useState(false);
   const [manualForm, setManualForm] = useState({ testedScope: "", manualResult: "pass" as DrillResult, notes: "" });
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -104,7 +100,11 @@ export default function DrDrillPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function runRestoreVerification() {
     setRunning(true);

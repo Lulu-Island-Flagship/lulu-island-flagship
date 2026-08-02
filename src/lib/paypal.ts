@@ -180,11 +180,16 @@ export interface PayPalRefundResult {
  * @param amount Monto a reembolsar en dólares CAD (opcional; si se omite,
  *   PayPal reembolsa el monto completo de la captura).
  * @param noteToPayer Nota visible para el pagador (opcional).
+ * @param originId Identificador único de la fila/operación de BD que origina
+ *   este reembolso (ej. orders.id, o el id de una fila de refunds/claims).
+ *   Ver nota sobre idempotencyKey más abajo (punto 5, auditoría de
+ *   integridad financiera 2026-08-02).
  */
 export async function refundPayPalCapture(
   captureId: string,
   amount?: number,
-  noteToPayer?: string
+  noteToPayer?: string,
+  originId?: string
 ): Promise<PayPalRefundResult> {
   try {
     const accessToken = await getAccessToken();
@@ -206,18 +211,24 @@ export async function refundPayPalCapture(
     // (se devolvería la respuesta del primer reembolso), y nuestro código
     // creería que se procesó el segundo.
     //
-    // OJO: se incluye el monto para diferenciar reembolsos de distinto
-    // valor, pero DELIBERADAMENTE se mantiene determinística (sin UUID
-    // aleatorio) -- el único llamador actual (cron/paypal-refunds) reintenta
-    // la MISMA orden con el MISMO monto en corridas posteriores si el
-    // intento anterior falló (status "failed" -> se vuelve a recoger), y
-    // necesitamos que ESE reintento SÍ sea deduplicado por PayPal si la
-    // primera llamada en realidad se procesó pero la respuesta se perdió
-    // (timeout de red, etc.) -- una key aleatoria por llamada rompería esa
-    // protección contra reembolso duplicado, que es un riesgo mayor que el
-    // caso hipotético (hoy no implementado) de dos reembolsos parciales
-    // legítimos de idéntico monto sobre la misma captura.
-    const idempotencyKey = `refund:${captureId}:${amount !== undefined ? amount.toFixed(2) : "full"}`;
+    // Fix MEDIO (auditoría externa de integridad financiera, 2026-08-02):
+    // captureId+amount seguía sin ser suficientemente único -- DOS
+    // reembolsos parciales legítimos y DISTINTOS sobre la MISMA captura por
+    // el MISMO monto (ej. dos claims de garantía separados de $20 cada uno)
+    // colisionarían igual, y el segundo sería silenciosamente ignorado por
+    // PayPal (se devolvería la respuesta cacheada del primero). Se agrega
+    // `originId` -- el identificador único de la fila/operación de BD que
+    // origina ESTE reembolso en particular (ej. orders.id) -- a la key. Esto
+    // mantiene la propiedad importante que motivó el fix anterior (un
+    // reintento del MISMO origen con el MISMO monto sigue siendo
+    // determinístico y se deduplica correctamente si la llamada anterior se
+    // procesó pero la respuesta se perdió), mientras que dos orígenes
+    // distintos con el mismo monto ya no colisionan. Si no se pasa
+    // originId (compatibilidad hacia atrás), se preserva el comportamiento
+    // anterior.
+    const idempotencyKey = `refund:${captureId}:${amount !== undefined ? amount.toFixed(2) : "full"}${
+      originId ? `:${originId}` : ""
+    }`;
 
     const res = await fetch(`${getPayPalBaseUrl()}/v2/payments/captures/${captureId}/refund`, {
       method: "POST",

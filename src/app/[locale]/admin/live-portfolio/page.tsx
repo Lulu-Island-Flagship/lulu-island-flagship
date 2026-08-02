@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import { Loader2, CheckCircle2, XCircle, Images } from "lucide-react";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
@@ -36,11 +36,7 @@ export default function LivePortfolioAdminPage() {
   // en AdminRolesClient.tsx y otros) antes de ejecutar el reject.
   const [pendingRejectId, setPendingRejectId] = useState<string | null>(null);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -57,7 +53,11 @@ export default function LivePortfolioAdminPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function act(id: string, action: "approve" | "reject") {
     setActing(id);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, Truck, Plus, X, MapPin, AlertTriangle, ShieldAlert } from "lucide-react";
@@ -39,11 +39,7 @@ export default function VehiclesPage() {
   const [editingInsuranceId, setEditingInsuranceId] = useState<string | null>(null);
   const [editInsuranceValue, setEditInsuranceValue] = useState("");
 
-  useEffect(() => {
-    loadVehicles();
-  }, []);
-
-  async function loadVehicles() {
+  const loadVehicles = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -60,7 +56,11 @@ export default function VehiclesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    loadVehicles();
+  }, [loadVehicles]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();

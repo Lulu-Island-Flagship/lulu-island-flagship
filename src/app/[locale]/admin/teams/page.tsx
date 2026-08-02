@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Users, Plus } from "lucide-react";
 
@@ -31,11 +31,7 @@ export default function AdminTeamsPage() {
   const [color, setColor] = useState("#0F2A4A");
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -52,7 +48,11 @@ export default function AdminTeamsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function createTeam() {
     if (!name.trim()) return;

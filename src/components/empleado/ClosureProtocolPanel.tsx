@@ -284,7 +284,7 @@ export function ClosureProtocolPanel({ orderId, noSmartphoneFlow }: ClosureProto
                     className="w-20 h-20 rounded-lg object-cover border"
                   />
                 ) : (
-                  <label className="inline-flex items-center gap-1 text-xs text-gray-500 cursor-pointer hover:text-brand-gold">
+                  <label className="inline-flex items-center gap-1 text-xs text-gray-500 cursor-pointer hover:text-brand-gold-dark">
                     <Camera className="w-3.5 h-3.5" />
                     <span>{uploadingSignature ? "Uploading..." : "Photo of signed receipt (required)"}</span>
                     <input

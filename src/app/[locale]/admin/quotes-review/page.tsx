@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import { Loader2, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
@@ -30,7 +30,7 @@ export default function QuotesReviewPage() {
   const [error, setError] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  async function loadQuotes() {
+  const loadQuotes = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -57,11 +57,11 @@ export default function QuotesReviewPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     loadQuotes();
-  }, []);
+  }, [loadQuotes]);
 
   async function handleReview(quoteId: string, action: "approve" | "reject") {
     setProcessingId(quoteId);

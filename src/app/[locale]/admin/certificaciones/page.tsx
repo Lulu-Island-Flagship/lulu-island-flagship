@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, ShieldCheck, AlertTriangle, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
@@ -47,11 +47,7 @@ export default function CertificacionesPage() {
   // el modal está abierto.
   const [revokingId, setRevokingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -65,7 +61,11 @@ export default function CertificacionesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function addCertification() {
     if (!form.employeeId || !form.expiresAt) return;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Loader2, Handshake, Plus, X, Calculator } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -56,11 +56,7 @@ export default function PartnersPage() {
   // decía nada (parecía haber funcionado).
   const [confirmPayCommission, setConfirmPayCommission] = useState<Commission | null>(null);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -75,7 +71,11 @@ export default function PartnersPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function submitPartner(e: React.FormEvent) {
     e.preventDefault();

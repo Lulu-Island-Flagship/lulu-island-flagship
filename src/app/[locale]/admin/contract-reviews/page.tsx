@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, FileSignature, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
@@ -41,11 +41,7 @@ export default function ContractReviewsPage() {
   const [dismissingId, setDismissingId] = useState<string | null>(null);
   const [signingId, setSigningId] = useState<string | null>(null);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -58,7 +54,11 @@ export default function ContractReviewsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function act(id: string, body: Record<string, unknown>) {
     setBusyId(id);

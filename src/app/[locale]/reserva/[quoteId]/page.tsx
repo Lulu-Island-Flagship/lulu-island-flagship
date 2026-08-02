@@ -49,10 +49,15 @@ export default function ReservaPage() {
   const params = useParams();
   const quoteId = params?.quoteId as string;
 
-  // Detect locale from pathname for navigation
-  const locale = (typeof window !== "undefined"
-    ? window.location.pathname.split("/")[1]
-    : "en") as string;
+  // Fix (auditoría externa, hallazgo A11): antes se leía el locale de
+  // `window.location.pathname` en el primer render, lo que causaba hydration
+  // mismatch (el server-render no tiene `window` y usaba "en" como
+  // fallback, mientras el cliente podía resolver otro locale en el mismo
+  // ciclo) -- HTML distinto entre servidor y cliente. `useParams()` de
+  // next/navigation ya se usaba para `quoteId`; esta ruta también tiene
+  // `[locale]` como segmento dinámico, así que se lee del mismo hook,
+  // consistente entre servidor y cliente.
+  const locale = (params?.locale as string) || "en";
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
 
   const [quote, setQuote] = useState<QuoteData | null>(null);

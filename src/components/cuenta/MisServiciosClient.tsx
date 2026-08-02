@@ -165,7 +165,9 @@ export default function MisServiciosClient() {
     return (
       <AuthModal
         onClose={() => {
-          const locale = typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en";
+          // Fix (auditoría externa, hallazgo A11): usa el `locale` del hook
+          // useLocale() (ya en scope de este componente, línea ~97) en vez
+          // de re-derivarlo de window.location.pathname.
           const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
           window.location.href = `/${safeLocale}`;
         }}
@@ -704,6 +706,9 @@ function CancelOrderPanel({
 function NextRecurringVisitCard() {
   const t = useTranslations("cuenta.servicios.recurring");
   const router = useRouter();
+  // Fix (auditoría externa, hallazgo A11): useLocale() en vez de derivar el
+  // locale de window.location.pathname (hydration mismatch).
+  const locale = useLocale();
   const [hasContract, setHasContract] = useState<boolean | null>(null);
   const [nextDate, setNextDate] = useState<string | null>(null);
   const [contractId, setContractId] = useState<string | null>(null);
@@ -783,7 +788,6 @@ function NextRecurringVisitCard() {
         setBookError(quoteJson.error || t("quoteFailed"));
         return;
       }
-      const locale = typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en";
       const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
       router.push(`/${safeLocale}/reserva/${quoteJson.quoteId}?date=${info.nextDate}`);
     } catch {
@@ -859,6 +863,11 @@ interface LivePortfolioEntry {
  */
 function LivePortfolioNotice() {
   const t = useTranslations("cuenta.servicios.livePortfolio");
+  // Fix (auditoría externa, hallazgo A11): useLocale() en vez de derivar el
+  // locale de window.location.pathname en render (hydration mismatch: el
+  // servidor no tiene `window` y usaba "en", el cliente podía resolver otro
+  // locale en la misma pasada de render).
+  const locale = useLocale();
   const [entries, setEntries] = useState<LivePortfolioEntry[]>([]);
   const [withdrawing, setWithdrawing] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
@@ -909,7 +918,6 @@ function LivePortfolioNotice() {
   // ANTES/DESPUÉS anonimizadas (anonymous_label ya lo confirma -- el
   // backend nunca expone datos identificables aquí) usadas en marketing, y
   // un link a la política de privacidad para el detalle completo del PIPA.
-  const locale = typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en";
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
 
   return (

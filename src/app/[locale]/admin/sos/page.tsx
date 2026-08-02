@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Siren, Loader2, CheckCircle2, ClipboardCheck } from "lucide-react";
 
@@ -45,11 +45,7 @@ export default function SosPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [reviewDraft, setReviewDraft] = useState<Record<string, { evidenceSupportsLeader: boolean; notes: string }>>({});
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -66,7 +62,11 @@ export default function SosPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function acknowledge(id: string) {
     setBusyId(id);

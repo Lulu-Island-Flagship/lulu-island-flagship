@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { AlertTriangle, Loader2, ShieldAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -31,11 +31,7 @@ export default function NearMissesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load(weekStartParam?: string) {
+  const load = useCallback(async (weekStartParam?: string) => {
     setLoading(true);
     setError("");
     try {
@@ -58,7 +54,11 @@ export default function NearMissesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   function changeWeek(deltaDays: number) {
     const d = new Date(weekStart + "T12:00:00Z");

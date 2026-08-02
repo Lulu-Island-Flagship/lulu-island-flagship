@@ -4,12 +4,54 @@ import {
   Step1SubmissionError,
   ConsentRequiredError,
   DuplicateApplicationError,
+  LegalTextVersionMismatchError,
 } from "@/lib/hiring-flow/candidate-step1-service";
 import { PositionNotFoundError } from "@/lib/hiring-flow/positions-service";
 import type { Step1Input } from "@/lib/hiring-flow/step1-validator";
 import { safeErrorResponse } from "@/lib/api-errors";
 import { sendSms, isSmsProviderConfigured } from "@/lib/sms";
 import { sendEmail } from "@/lib/email";
+import { locales, defaultLocale, type Locale } from "@/i18n/config";
+
+// Fix (auditoría externa 2026-08-02, hallazgo MEDIO #3): el SMS/email de
+// confirmación de aplicación estaban hardcodeados en español sin importar
+// el idioma del candidato. El frontend (JobApplicationForm.tsx) ahora
+// manda su `locale` actual (de next-intl, useLocale()) en el body -- mismo
+// patrón de "el locale lo determina quien ya lo tiene resuelto en el
+// request" usado en telephony-router.ts (AccountLocale por registro), pero
+// acá no hay cuenta/registro previo del candidato, así que se toma del
+// contexto de la página que envía el formulario. Fallback a defaultLocale
+// ('en') si no viene o no es uno de los locales soportados.
+const APPLY_SMS_BODY: Record<Locale, (accessCode: string) => string> = {
+  en: (accessCode) =>
+    `Thank you for applying to Lulu Island Flagship. Your reference code is: ${accessCode}. Our HR team will review your application and get in touch with you.`,
+  fr: (accessCode) =>
+    `Merci d'avoir postulé chez Lulu Island Flagship. Votre code de référence est : ${accessCode}. Notre équipe RH examinera votre candidature et vous contactera.`,
+  zh: (accessCode) =>
+    `感谢您申请 Lulu Island Flagship 的职位。您的参考代码是：${accessCode}。我们的人力资源团队将审核您的申请并与您联系。`,
+};
+
+const APPLY_EMAIL_SUBJECT: Record<Locale, string> = {
+  en: "We've received your application — Lulu Island Flagship",
+  fr: "Nous avons bien reçu votre candidature — Lulu Island Flagship",
+  zh: "我们已收到您的申请 — Lulu Island Flagship",
+};
+
+const APPLY_EMAIL_BODY: Record<Locale, (firstName: string, accessCode: string) => string> = {
+  en: (firstName, accessCode) =>
+    `Hi ${firstName},\n\nThank you for applying to Lulu Island Flagship. Your reference code is: ${accessCode}\n\nOur HR team will review your application and get in touch with you about next steps.\n\nLulu Island Flagship`,
+  fr: (firstName, accessCode) =>
+    `Bonjour ${firstName},\n\nMerci d'avoir postulé chez Lulu Island Flagship. Votre code de référence est : ${accessCode}\n\nNotre équipe RH examinera votre candidature et vous contactera au sujet des prochaines étapes.\n\nLulu Island Flagship`,
+  zh: (firstName, accessCode) =>
+    `您好 ${firstName}，\n\n感谢您申请 Lulu Island Flagship 的职位。您的参考代码是：${accessCode}\n\n我们的人力资源团队将审核您的申请，并就后续步骤与您联系。\n\nLulu Island Flagship`,
+};
+
+function resolveLocale(value: unknown): Locale {
+  if (typeof value === "string" && (locales as readonly string[]).includes(value)) {
+    return value as Locale;
+  }
+  return defaultLocale;
+}
 
 // POST /api/hiring-flow/apply — punto de entrada público (sin auth) para el
 // Paso 1 del flujo de contratación de candidatos ("empleo" en el sitio
@@ -31,6 +73,15 @@ interface ApplyRequestBody {
   phone?: unknown;
   dateOfBirth?: unknown;
   consentAccepted?: unknown;
+  // Fix (auditoría externa, hallazgo CRÍTICO #2): versión del texto legal
+  // ("pipa_step1") que el candidato efectivamente vio y aceptó, obtenida
+  // por el frontend de GET /api/hiring-flow/legal-text. Ver
+  // LegalTextVersionMismatchError en candidate-step1-service.ts.
+  legalTextVersion?: unknown;
+  // Fix (auditoría externa, hallazgo MEDIO #3): locale actual del
+  // candidato (next-intl useLocale() en el frontend), para localizar el
+  // SMS/email de confirmación.
+  locale?: unknown;
 }
 
 const GENERAL_POSITION_SLUG = "general";
@@ -67,6 +118,11 @@ export async function POST(request: NextRequest) {
     dateOfBirth: typeof body.dateOfBirth === "string" ? body.dateOfBirth : "",
   };
   const consentAccepted = body.consentAccepted === true;
+  const expectedLegalTextVersion =
+    typeof body.legalTextVersion === "string" && body.legalTextVersion.length > 0
+      ? body.legalTextVersion
+      : undefined;
+  const locale = resolveLocale(body.locale);
 
   const ipAddress = extractIpAddress(request);
   const userAgent = request.headers.get("user-agent");
@@ -78,6 +134,7 @@ export async function POST(request: NextRequest) {
       ipAddress,
       userAgent,
       consentAccepted,
+      expectedLegalTextVersion,
       client: undefined,
     });
 
@@ -97,7 +154,7 @@ export async function POST(request: NextRequest) {
     // mientras no exista la UI de los Pasos 2-5, y para no tocar la lógica
     // de generación/expiración ya implementada y testeada), pero el texto ya
     // no promete una continuación de autoservicio que no existe.
-    const smsBody = `Gracias por aplicar a Lulu Island Flagship. Tu código de referencia es: ${result.accessCode}. Nuestro equipo de RRHH revisará tu aplicación y se pondrá en contacto contigo.`;
+    const smsBody = APPLY_SMS_BODY[locale](result.accessCode);
     let deliveryChannel: "sms" | "email" | "none" = "none";
 
     if (isSmsProviderConfigured() && input.phone) {
@@ -110,8 +167,8 @@ export async function POST(request: NextRequest) {
     if (deliveryChannel === "none" && input.email) {
       const emailResult = await sendEmail({
         toEmail: input.email,
-        subject: "Hemos recibido tu aplicación — Lulu Island Flagship",
-        body: `Hola ${input.firstName},\n\nGracias por aplicar a Lulu Island Flagship. Tu código de referencia es: ${result.accessCode}\n\nNuestro equipo de RRHH revisará tu aplicación y se pondrá en contacto contigo con los próximos pasos.\n\nLulu Island Flagship`,
+        subject: APPLY_EMAIL_SUBJECT[locale],
+        body: APPLY_EMAIL_BODY[locale](input.firstName, result.accessCode),
       });
       if (emailResult.status === "sent" || emailResult.status === "queued") {
         deliveryChannel = "email";
@@ -172,15 +229,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fix (auditoría externa, hallazgo CRÍTICO #2): la versión del texto
+    // legal que el candidato aceptó (mostrada por
+    // GET /api/hiring-flow/legal-text) ya no coincide con la versión
+    // activa real al momento del submit -- ver
+    // LegalTextVersionMismatchError. 409 (conflicto de estado, no error
+    // inesperado del servidor) con un código estable para que el frontend
+    // pueda recargar el texto legal y pedirle al candidato que vuelva a
+    // aceptar.
+    if (error instanceof LegalTextVersionMismatchError) {
+      console.error("error:", error);
+      return NextResponse.json({ error: "legal_text_outdated" }, { status: 409 });
+    }
+
     // Fix (auditoría externa, hallazgo confirmado): antes no había ninguna
     // verificación de duplicados -- ver DuplicateApplicationError y la
     // migración 297_hiring_flow_candidates_dedup_unique_index.sql. 409 en
     // vez de 500 porque esto no es un error inesperado del servidor, es un
     // conflicto legítimo con el estado actual de los datos (ya existe una
     // aplicación activa para este email/teléfono).
+    //
+    // Fix (auditoría externa 2026-08-02, hallazgo MEDIO #4): el body de
+    // este 409 devolvía el mismo mensaje genérico "Ocurrió un error
+    // interno" que safeErrorResponse usa para errores 500 inesperados
+    // (fix de una ronda de auditoría anterior que oculta detalle interno
+    // sensible) -- eso hacía que el frontend no pudiera distinguir "ya
+    // aplicaste antes" de un error real de servidor, y el candidato veía
+    // un mensaje que no explicaba nada ni le decía qué hacer. El código
+    // "duplicate_application" SÍ es seguro de exponer (no es información
+    // interna del servidor, es un hecho sobre el propio request del
+    // candidato) -- se devuelve como campo `error` estable para que el
+    // frontend lo reconozca y muestre un mensaje localizado específico.
     if (error instanceof DuplicateApplicationError) {
       console.error("error:", error);
-      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 409 });
+      return NextResponse.json({ error: "duplicate_application" }, { status: 409 });
     }
 
     if (error instanceof PositionNotFoundError) {

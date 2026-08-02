@@ -511,6 +511,18 @@ async function persistAssignments(
 ) {
   let assigned = 0;
   let skippedLocked = 0;
+  // Fix auditoría de seguridad externa (2026-08-02): persistAssignments
+  // descartaba silenciosamente el {error} de la consulta de locked_by_admin,
+  // del DELETE y del INSERT en assignments -- un fallo real de DB (no solo
+  // el caso ya documentado arriba de RLS bloqueando por falta de sesión, ya
+  // resuelto usando SUPABASE_SERVICE_ROLE_KEY) pasaba completamente
+  // invisible: `assigned` simplemente no se incrementaba, sin ningún rastro
+  // en logs ni en dispatch_runs.notes. Se acumulan los errores reales y se
+  // devuelven al caller, que los registra en dispatch_runs.notes y en
+  // console.error -- un cron no puede abortar toda la corrida por una orden
+  // individual (las demás órdenes de la ventana igual deben publicarse),
+  // pero el error ya no debe quedar mudo.
+  const errors: string[] = [];
   for (const p of proposals) {
     if (p.proposedEmployeeIds.length === 0) continue;
 
@@ -518,19 +530,28 @@ async function persistAssignments(
     // manualmente durante la ventana 5:00-5:30 PM (POST /api/admin/dispatch
     // marca locked_by_admin=true) -- la decisión humana gana siempre, el
     // publicador automático NO debe borrarla ni reemplazarla.
-    const { data: lockedRows } = await supabase
+    const { data: lockedRows, error: lockedError } = await supabase
       .from("assignments")
       .select("id")
       .eq("order_id", p.orderId)
       .eq("locked_by_admin", true)
       .limit(1);
 
+    if (lockedError) {
+      errors.push(`order ${p.orderId}: failed to check locked_by_admin: ${lockedError.message}`);
+      continue;
+    }
+
     if (lockedRows && lockedRows.length > 0) {
       skippedLocked++;
       continue;
     }
 
-    await supabase.from("assignments").delete().eq("order_id", p.orderId);
+    const { error: deleteError } = await supabase.from("assignments").delete().eq("order_id", p.orderId);
+    if (deleteError) {
+      errors.push(`order ${p.orderId}: failed to clear previous assignments: ${deleteError.message}`);
+      continue;
+    }
 
     const assignments = p.proposedEmployeeIds.map((employeeId) => ({
       order_id: p.orderId,
@@ -540,9 +561,13 @@ async function persistAssignments(
     }));
 
     const { error } = await supabase.from("assignments").insert(assignments);
-    if (!error) assigned += assignments.length;
+    if (!error) {
+      assigned += assignments.length;
+    } else {
+      errors.push(`order ${p.orderId}: failed to insert assignments: ${error.message}`);
+    }
   }
-  return { assigned, skippedLocked };
+  return { assigned, skippedLocked, errors };
 }
 
 // GET /api/cron/dispatch-scheduler
@@ -602,7 +627,17 @@ export async function GET(request: NextRequest) {
       const hasRedAlerts = discrepancies.length > 0 || maxTeamSizeCorrections.length > 0;
       const approval = evaluateTeamSixAutoApproval(availableTeams, hasRedAlerts);
       const autoApproved = approval.autoApproveDefault;
-      const { assigned, skippedLocked } = await persistAssignments(supabase, proposals, autoApproved);
+      const { assigned, skippedLocked, errors: persistErrors } = await persistAssignments(
+        supabase,
+        proposals,
+        autoApproved
+      );
+      if (persistErrors.length > 0) {
+        console.error(
+          `dispatch-scheduler (phase=${phase}): ${persistErrors.length} assignment write(s) failed:`,
+          persistErrors
+        );
+      }
       await supabase.from("dispatch_runs").insert({
         run_date: targetDate,
         phase,
@@ -641,7 +676,20 @@ export async function GET(request: NextRequest) {
       const { proposals, availableTeams, pendingLanguage, discrepancies } = await buildProposals(supabase, today);
       const fallback = await recordAndEscalateDispatchDiscrepancies(supabase, discrepancies);
       const unassigned = proposals.filter((p) => p.proposedEmployeeIds.length === 0);
-      const assigned = await persistAssignments(supabase, proposals, true);
+      // Fix auditoría de seguridad externa (2026-08-02): antes se asignaba
+      // el objeto completo {assigned, skippedLocked, errors} devuelto por
+      // persistAssignments a `assigned` y se guardaba directo en
+      // orders_assigned (columna numérica) -- nunca se desestructuró el
+      // campo `assigned` real, así que dispatch_runs.orders_assigned quedaba
+      // con un objeto serializado en vez del conteo real de esta fase de
+      // simulación de las 12PM.
+      const { assigned, errors: persistErrors } = await persistAssignments(supabase, proposals, true);
+      if (persistErrors.length > 0) {
+        console.error(
+          `dispatch-scheduler (phase=${phase}): ${persistErrors.length} assignment write(s) failed:`,
+          persistErrors
+        );
+      }
       await supabase.from("dispatch_runs").insert({
         run_date: today,
         phase,

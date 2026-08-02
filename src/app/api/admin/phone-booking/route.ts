@@ -511,9 +511,13 @@ export async function POST(request: NextRequest) {
         addon_zones_charge: baseBreakdown.addonZonesCharge,
         rule_adjustment: ruleAdjustment,
         applied_rules: appliedRules,
-        subtotal: subtotalAfterRules,
+        // Fix CRÍTICO (auditoría externa de integridad financiera,
+        // 2026-08-02): quotes.subtotal/hold_amount son INTEGER en dólares;
+        // redondeo explícito, mismo criterio que src/app/api/quote/route.ts
+        // (ver comentario allá y migración 311).
+        subtotal: Math.round(subtotalAfterRules),
         gst, pst, total: totalAfterRules,
-        hold_amount: holdAmount,
+        hold_amount: Math.round(holdAmount),
         estimated_labor_cost: estimatedLaborCost,
         estimated_margin_contribution: marginContribution,
         price_frozen_until: freeze.toISOString(),

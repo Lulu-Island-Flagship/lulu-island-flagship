@@ -98,6 +98,32 @@ export class DuplicateApplicationError extends Error {
   }
 }
 
+// Fix (auditoría externa 2026-08-02, hallazgo CRÍTICO #2): el candidato
+// ahora obtiene el texto legal real vía GET /api/hiring-flow/legal-text
+// (ver esa ruta) y el frontend envía de vuelta la versión exacta que se le
+// mostró (`legalTextVersion`). Si para cuando llega el submit la versión
+// activa cambió (ej. legal actualizó/activó una nueva versión entre que el
+// candidato cargó el formulario y lo envió), el texto que efectivamente
+// aceptó ya no es el texto legal vigente -- registrar el consentimiento
+// contra la versión nueva sería mentir sobre qué aceptó el candidato. En
+// vez de eso se rechaza explícitamente para que el frontend recargue el
+// texto legal y el candidato vuelva a aceptar el vigente.
+export class LegalTextVersionMismatchError extends Error {
+  readonly expectedVersion: string;
+  readonly currentVersion: string;
+
+  constructor(expectedVersion: string, currentVersion: string) {
+    super(
+      `Legal text version mismatch: candidate consented to version "${expectedVersion}", ` +
+        `but the currently active version is "${currentVersion}". The legal text was updated ` +
+        `since this form was loaded.`
+    );
+    this.name = "LegalTextVersionMismatchError";
+    this.expectedVersion = expectedVersion;
+    this.currentVersion = currentVersion;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Nota de atomicidad candidato + consentimiento (actualizada)
 // ---------------------------------------------------------------------------
@@ -334,6 +360,12 @@ export interface SubmitStep1ApplicationParams {
   ipAddress: string;
   userAgent: string | null;
   consentAccepted: boolean;
+  // Versión del texto legal ("pipa_step1") que el candidato efectivamente
+  // vio y aceptó en el frontend (obtenida de GET
+  // /api/hiring-flow/legal-text). Opcional para no romper callers/tests
+  // existentes que no la pasan, pero si viene, se valida contra la
+  // versión activa real -- ver LegalTextVersionMismatchError arriba.
+  expectedLegalTextVersion?: string;
   client?: CandidateStep1Client;
 
   // Dependencias inyectables (default = implementación real importada).
@@ -394,6 +426,17 @@ export async function submitStep1Application(
     undefined,
     resolved
   );
+
+  // (d.1) Si el frontend indicó qué versión le mostró al candidato, debe
+  // coincidir con la versión activa real resuelta arriba -- ver
+  // LegalTextVersionMismatchError. Chequeado ANTES de insertar nada, mismo
+  // criterio que (c).
+  if (
+    params.expectedLegalTextVersion !== undefined &&
+    params.expectedLegalTextVersion !== legalTextVersion
+  ) {
+    throw new LegalTextVersionMismatchError(params.expectedLegalTextVersion, legalTextVersion);
+  }
 
   // (e) Insertar candidato + consentimiento en una sola operación atómica
   // (RPC submit_step1_candidate, 268 -- ver "Nota de atomicidad" arriba).

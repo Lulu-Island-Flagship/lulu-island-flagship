@@ -207,10 +207,10 @@ function getSupabaseClient() {
         return cookieStore.get(name)?.value;
       },
       set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options });
+        cookieStore.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
       },
       remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options });
+        cookieStore.set({ name, value: "", ...options, httpOnly: true, secure: true, sameSite: "lax" });
       },
     },
   });
@@ -240,8 +240,17 @@ export async function POST(request: NextRequest) {
       p_ip_address: user.id,
       p_max_requests: 30,
     });
+    // Fix (auditoría externa, hallazgo CRÍTICO): antes, si el RPC fallaba, el
+    // error solo se logueaba y la petición seguía como si no hubiera límite
+    // -- fuerza bruta sin restricción en un fallo de infraestructura. Ahora
+    // se falla CERRADO (mismo patrón que /api/staff/resolve-login y
+    // /api/recovery/*).
     if (rateLimitError) {
       console.error("Rate limit check error:", rateLimitError);
+      return NextResponse.json(
+        { error: "Service temporarily unavailable. Try again later." },
+        { status: 503 }
+      );
     } else if (rateLimitData && !rateLimitData[0]?.allowed) {
       const resetAt = rateLimitData[0]?.reset_at;
       return NextResponse.json(
@@ -624,11 +633,27 @@ export async function POST(request: NextRequest) {
         addon_zones_charge: baseBreakdown.addonZonesCharge,
         rule_adjustment: ruleAdjustment,
         applied_rules: appliedRules,
-        subtotal: subtotalAfterRules,
+        // Fix CRÍTICO (auditoría externa de integridad financiera,
+        // 2026-08-02): quotes.subtotal y quotes.hold_amount son columnas
+        // INTEGER en DÓLARES (sin decimales), mientras que total/gst/pst son
+        // NUMERIC(10,2) y sí preservan centavos. subtotalAfterRules viene de
+        // computeTaxBreakdown() con aritmética en centavos y puede traer
+        // fracción de dólar (ej. 123.45) -- escribirlo tal cual en una
+        // columna INTEGER dependía de que Postgres/el driver truncaran o
+        // redondearan implícitamente, sin que quedara documentado en el
+        // código qué pasaba con esos centavos. Se redondea aquí de forma
+        // EXPLÍCITA (Math.round) para que la pérdida de precisión sea
+        // intencional y visible, no implícita. holdAmount ya sale entero de
+        // calculateHold(), pero se redondea igual por defensa. La migración
+        // completa de estas columnas a centavos (o a NUMERIC) es un cambio
+        // de esquema mayor, fuera de alcance de este fix -- ver migración
+        // 311 (COMMENT ON COLUMN) que documenta esta unidad a nivel de
+        // esquema para prevenir que se repita el mismo error en otro lugar.
+        subtotal: Math.round(subtotalAfterRules),
         gst,
         pst,
         total: totalAfterRules,
-        hold_amount: holdAmount,
+        hold_amount: Math.round(holdAmount),
         estimated_labor_cost: estimatedLaborCost,
         estimated_margin_contribution: marginContribution,
         price_frozen_until: freeze.toISOString(),

@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Wallet, Search, User, CheckCircle2, X } from "lucide-react";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { formatCurrency } from "@/lib/format";
+import { formatVancouverDate } from "@/lib/date-utils";
 
 interface WalletTransaction {
   id: string;
@@ -385,7 +386,7 @@ export default function AdminWalletClient() {
               <div key={tx.id} className="p-3 flex items-center justify-between text-sm">
                 <div>
                   <p className="text-brand-ink">{tx.description || TRANSACTION_TYPE_LABEL[tx.type] || tx.type}</p>
-                  <p className="text-xs text-gray-400">{new Date(tx.created_at).toLocaleDateString("en-CA")}</p>
+                  <p className="text-xs text-gray-400">{formatVancouverDate(tx.created_at, "en")}</p>
                 </div>
                 <span className={tx.type === "debit" || tx.type === "payout" ? "text-state-danger" : "text-state-success"}>
                   {tx.type === "debit" || tx.type === "payout" ? "-" : "+"}

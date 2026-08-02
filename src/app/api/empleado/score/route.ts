@@ -14,6 +14,11 @@ import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
 
+// Fix (auditoría externa, hallazgo A12): esta ruta usa `cookies()`
+// (request-time) -- sin esto Next intentaba pre-renderizarla en build,
+// generando warnings y riesgo de caché incorrecta.
+export const dynamic = "force-dynamic";
+
 function getSupabaseClient() {
   const cookieStore = cookies();
   return createServerClient(
@@ -25,10 +30,10 @@ function getSupabaseClient() {
           return cookieStore.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options });
+          cookieStore.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
         },
         remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options });
+          cookieStore.set({ name, value: "", ...options, httpOnly: true, secure: true, sameSite: "lax" });
         },
       },
     }

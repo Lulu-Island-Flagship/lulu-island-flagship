@@ -5,13 +5,18 @@
 // llegas hoy?", etc.) aunque el resto del portal de empleado (dashboard,
 // checkin, score, etc.) está hardcodeado en inglés -- confirmado en vivo
 // visitando /en/empleado/ritual con una cuenta de prueba: toda la pantalla
-// aparecía en español dentro de la ruta /en/. Se traduce todo el texto
-// visible al inglés para que coincida con el resto del portal, en vez de
-// introducir next-intl solo aquí (ninguna otra página de /empleado lo usa
-// tampoco; hacerlo consistente en las 12 páginas es un cambio más grande,
-// fuera de alcance de este fix puntual).
+// aparecía en español dentro de la ruta /en/.
+//
+// Fix (auditoría externa 2026-08-02, hallazgo MEDIO #5): el fix anterior
+// solo tradujo el texto a inglés fijo -- seguía sin funcionar para /fr/ o
+// /zh/. NextIntlClientProvider ya está montado en empleado/layout.tsx (el
+// resto de páginas del portal de empleado, como el dashboard, ya lo
+// consumen), así que ahora sí se usa next-intl (useTranslations) con las
+// claves nuevas bajo "employee.ritual" en messages/{en,fr,zh}.json en vez
+// de strings hardcodeados.
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Loader2, Users, CloudSun, Trophy, DollarSign, Award, AlertTriangle, ShieldAlert } from "lucide-react";
 import { EmpleadoBackHeader } from "@/components/empleado/EmpleadoBackHeader";
 import { supabase } from "@/lib/supabase";
@@ -34,6 +39,7 @@ interface CierreData {
 }
 
 export default function ShiftRitualPage() {
+  const t = useTranslations("employee.ritual");
   const params = useParams();
   const locale = (params?.locale as string) || "en";
   const [inicio, setInicio] = useState<InicioData | null>(null);
@@ -80,13 +86,13 @@ export default function ShiftRitualPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setReadinessError(data.error || "Could not send the request");
+        setReadinessError(data.error || t("couldNotSendRequest"));
         return;
       }
-      setReadinessResult(data.decision?.reason || "Request sent.");
+      setReadinessResult(data.decision?.reason || t("requestSent"));
       setShowReadinessForm(false);
     } catch {
-      setReadinessError("Network error");
+      setReadinessError(t("networkError"));
     } finally {
       setReadinessSubmitting(false);
     }
@@ -105,16 +111,14 @@ export default function ShiftRitualPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setChemicalAlertError(data.error || "Could not save your status");
+        setChemicalAlertError(data.error || t("couldNotSaveStatus"));
         return;
       }
       setChemicalAlertResult(
-        data.alertCreated
-          ? "Alert logged: a supervisor will be notified to reassign risk tasks if there's no response within 10 min."
-          : "Status saved. No risk detected today."
+        data.alertCreated ? t("chemicalAlertLogged") : t("statusSavedNoRisk")
       );
     } catch {
-      setChemicalAlertError("Network error");
+      setChemicalAlertError(t("networkError"));
     } finally {
       setChemicalAlertSubmitting(false);
     }
@@ -131,9 +135,9 @@ export default function ShiftRitualPage() {
         ]);
         if (inicioRes.ok) setInicio(await inicioRes.json());
         if (cierreRes.ok) setCierre(await cierreRes.json());
-        if (!inicioRes.ok && !cierreRes.ok) setError("Couldn't load");
+        if (!inicioRes.ok && !cierreRes.ok) setError(t("loadError"));
       } catch {
-        setError("Network error");
+        setError(t("networkError"));
       } finally {
         setLoading(false);
       }
@@ -175,7 +179,7 @@ export default function ShiftRitualPage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-brand-ice">
-        <EmpleadoBackHeader title="Shift Ritual" backHref={backHref} />
+        <EmpleadoBackHeader title={t("headerTitle")} backHref={backHref} />
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
         </div>
@@ -185,19 +189,19 @@ export default function ShiftRitualPage() {
 
   return (
     <main className="min-h-screen bg-brand-ice">
-      <EmpleadoBackHeader title="Shift Ritual" backHref={backHref} />
+      <EmpleadoBackHeader title={t("headerTitle")} backHref={backHref} />
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">{error}</div>}
 
       <div>
-        <h1 className="text-lg font-bold text-brand-ink mb-3">Shift Start</h1>
+        <h1 className="text-lg font-bold text-brand-ink mb-3">{t("shiftStart")}</h1>
         <div className="bg-white rounded-xl border p-4 space-y-3">
           <div className="flex items-start gap-2">
             <Users className="w-4 h-4 text-brand-wave-blue shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-brand-ink">Your team today</p>
+              <p className="text-sm font-medium text-brand-ink">{t("yourTeamToday")}</p>
               <p className="text-xs text-gray-500">
-                {inicio?.teammates.length ? inicio.teammates.map((t) => t.name).join(", ") : "No teammates assigned today."}
+                {inicio?.teammates.length ? inicio.teammates.map((mate) => mate.name).join(", ") : t("noTeammates")}
               </p>
             </div>
           </div>
@@ -205,11 +209,16 @@ export default function ShiftRitualPage() {
           <div className="flex items-start gap-2">
             <CloudSun className="w-4 h-4 text-brand-gold shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-brand-ink">Weather & traffic</p>
+              <p className="text-sm font-medium text-brand-ink">{t("weatherTraffic")}</p>
               <p className="text-xs text-gray-500">
                 {inicio?.conditions.status === "ok"
-                  ? `${inicio.conditions.condition}${inicio.conditions.delayMinutes ? ` — estimated delay ${inicio.conditions.delayMinutes} min` : ""}`
-                  : "No weather/traffic provider configured yet."}
+                  ? inicio.conditions.delayMinutes
+                    ? t("estimatedDelay", {
+                        condition: inicio.conditions.condition ?? "",
+                        minutes: inicio.conditions.delayMinutes,
+                      })
+                    : inicio.conditions.condition
+                  : t("noWeatherProvider")}
               </p>
             </div>
           </div>
@@ -217,15 +226,15 @@ export default function ShiftRitualPage() {
           <div className="flex items-start gap-2">
             <Trophy className="w-4 h-4 text-brand-gold-dark shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-brand-ink">This week&apos;s top 3</p>
+              <p className="text-sm font-medium text-brand-ink">{t("top3Title")}</p>
               {inicio?.top3.length ? (
                 <ol className="text-xs text-gray-500 list-decimal list-inside">
-                  {inicio.top3.map((t, i) => (
-                    <li key={i}>{t.teamName}</li>
+                  {inicio.top3.map((entry, i) => (
+                    <li key={i}>{entry.teamName}</li>
                   ))}
                 </ol>
               ) : (
-                <p className="text-xs text-gray-500">No data yet this week.</p>
+                <p className="text-xs text-gray-500">{t("noTop3Data")}</p>
               )}
             </div>
           </div>
@@ -236,14 +245,14 @@ export default function ShiftRitualPage() {
         <div className="flex items-start gap-2">
           <ShieldAlert className="w-4 h-4 text-brand-wave-blue shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-sm font-medium text-brand-ink">How are you arriving today?</p>
-            <p className="text-xs text-gray-500 mb-2">Only used for team wellbeing, never identified individually.</p>
+            <p className="text-sm font-medium text-brand-ink">{t("arrivalQuestion")}</p>
+            <p className="text-xs text-gray-500 mb-2">{t("wellbeingPrivacyNote")}</p>
             <div className="flex gap-2 mb-2">
               {(["happy", "neutral", "sad"] as Mood[]).map((m) => (
                 <button
                   key={m}
                   type="button"
-                  aria-label={`Mood: ${m}`}
+                  aria-label={t("moodAriaLabel", { mood: m })}
                   aria-pressed={mood === m}
                   onClick={() => setMood(m)}
                   className={`flex-1 py-2 rounded-lg text-lg border-2 transition-colors ${mood === m ? "border-brand-navy bg-brand-navy/5" : "border-gray-200"}`}
@@ -255,31 +264,31 @@ export default function ShiftRitualPage() {
             <label className="flex items-center gap-2 text-xs text-gray-600 mb-1">
               <input
                 type="checkbox"
-                aria-label="Slept 6+ hours"
+                aria-label={t("sleptWellAria")}
                 checked={sleptWell === true}
                 onChange={(e) => setSleptWell(e.target.checked ? true : false)}
               />
-              Slept 6+ hours
+              {t("sleptWell")}
             </label>
             <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
               <input
                 type="checkbox"
-                aria-label="I have a task with chemical products today"
+                aria-label={t("chemicalRiskTaskAria")}
                 checked={hasChemicalRiskTaskToday}
                 onChange={(e) => setHasChemicalRiskTaskToday(e.target.checked)}
               />
-              I have a task with chemical products today
+              {t("chemicalRiskTask")}
             </label>
             {chemicalAlertError && <p className="text-xs text-red-600 mb-1">{chemicalAlertError}</p>}
             {chemicalAlertResult && <p className="text-xs text-state-success mb-1">{chemicalAlertResult}</p>}
             <button
               type="button"
-              aria-label="Log my mood and wellbeing status"
+              aria-label={t("loggingAria")}
               onClick={submitWellbeingCheckin}
               disabled={chemicalAlertSubmitting || mood === null}
               className="w-full bg-brand-navy text-white py-2 rounded-lg text-xs font-medium disabled:opacity-50"
             >
-              {chemicalAlertSubmitting ? "Sending..." : "Log my status"}
+              {chemicalAlertSubmitting ? t("sending") : t("logStatus")}
             </button>
           </div>
         </div>
@@ -288,32 +297,32 @@ export default function ShiftRitualPage() {
           <div className="flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-state-danger shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-brand-ink">Not ready for your shift?</p>
-              <p className="text-xs text-gray-500 mb-2">Illness, family emergency, or no transportation.</p>
+              <p className="text-sm font-medium text-brand-ink">{t("notReadyQuestion")}</p>
+              <p className="text-xs text-gray-500 mb-2">{t("notReadyDescription")}</p>
               {!showReadinessForm ? (
                 <button
                   type="button"
                   onClick={() => setShowReadinessForm(true)}
                   className="text-xs text-brand-navy font-medium hover:underline"
                 >
-                  Report that I&apos;m not ready
+                  {t("reportNotReady")}
                 </button>
               ) : (
                 <form onSubmit={submitReadiness} className="space-y-2">
                   <select
-                    aria-label="Notice type"
+                    aria-label={t("noticeTypeAria")}
                     value={readinessType}
                     onChange={(e) => setReadinessType(e.target.value as ReadinessRequestType)}
                     className="w-full border rounded-lg px-2 py-1.5 text-xs"
                   >
-                    <option value="illness">Illness</option>
-                    <option value="family_emergency">Family emergency</option>
-                    <option value="no_transport">No transportation</option>
+                    <option value="illness">{t("illness")}</option>
+                    <option value="family_emergency">{t("familyEmergency")}</option>
+                    <option value="no_transport">{t("noTransport")}</option>
                   </select>
                   <input
                     type="number"
-                    aria-label="Hours of advance notice"
-                    placeholder="Hours of advance notice"
+                    aria-label={t("noticeHoursAria")}
+                    placeholder={t("noticeHoursPlaceholder")}
                     value={noticeHours}
                     onChange={(e) => setNoticeHours(e.target.value)}
                     className="w-full border rounded-lg px-2 py-1.5 text-xs"
@@ -325,18 +334,18 @@ export default function ShiftRitualPage() {
                   <div className="flex gap-2">
                     <button
                       type="submit"
-                      aria-label="Send not-ready-for-shift notice"
+                      aria-label={t("sendAria")}
                       disabled={readinessSubmitting}
                       className="flex-1 bg-state-danger text-white py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
                     >
-                      {readinessSubmitting ? "Sending..." : "Send"}
+                      {readinessSubmitting ? t("sending") : t("send")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowReadinessForm(false)}
                       className="flex-1 border border-gray-300 py-1.5 rounded-lg text-xs"
                     >
-                      Cancel
+                      {t("cancel")}
                     </button>
                   </div>
                 </form>
@@ -351,20 +360,20 @@ export default function ShiftRitualPage() {
           a un empleado que recién está empezando su turno. */}
       {jornadaEnded && (
         <div>
-          <h1 className="text-lg font-bold text-brand-ink mb-3">Shift End</h1>
+          <h1 className="text-lg font-bold text-brand-ink mb-3">{t("shiftEnd")}</h1>
           <div className="bg-white rounded-xl border p-4 space-y-3">
             <div className="flex items-start gap-2">
               <DollarSign className="w-4 h-4 text-state-success shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-brand-ink">Today&apos;s earnings</p>
+                <p className="text-sm font-medium text-brand-ink">{t("todaysEarnings")}</p>
                 <p className="text-xs text-gray-500">{cierre?.earnings.summaryText ?? "—"}</p>
               </div>
             </div>
             <div className="flex items-start gap-2">
               <Award className="w-4 h-4 text-brand-gold shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-brand-ink">Badges</p>
-                <p className="text-xs text-gray-500">{cierre?.badgeCount ?? 0} badge(s) earned</p>
+                <p className="text-sm font-medium text-brand-ink">{t("badges")}</p>
+                <p className="text-xs text-gray-500">{t("badgesEarned", { count: cierre?.badgeCount ?? 0 })}</p>
               </div>
             </div>
           </div>

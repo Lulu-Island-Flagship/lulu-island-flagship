@@ -149,24 +149,12 @@
       "schedule": "0 10 * * *"
     },
     {
-      "path": "/api/cron/safety-abort-escalation",
-      "schedule": "0 12 * * *"
-    },
-    {
-      "path": "/api/cron/wellbeing-chemical-reassign",
-      "schedule": "0 13 * * *"
-    },
-    {
       "path": "/api/cron/evaluate-badges",
       "schedule": "0 7 * * *"
     },
     {
       "path": "/api/cron/verify-hash-chains",
       "schedule": "0 4 * * *"
-    },
-    {
-      "path": "/api/cron/key-escalation-check",
-      "schedule": "0 16 * * *"
     },
     {
       "path": "/api/cron/qc-rework-expiry",

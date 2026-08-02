@@ -63,10 +63,22 @@ export async function POST(request: NextRequest) {
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip") ||
     "unknown";
-  const { data: rateLimitData } = await serviceClient.rpc("check_rate_limit", {
+  const { data: rateLimitData, error: rateLimitError } = await serviceClient.rpc("check_rate_limit", {
     p_ip_address: `staff-resolve-login:${ip}`,
     p_max_requests: 20,
   });
+  // Fix (auditoría externa, hallazgo CRÍTICO): antes, si el RPC fallaba
+  // (error de red, timeout de BD), `error` se ignoraba y el código seguía
+  // como si no hubiera límite -- fuerza bruta sin restricción en un fallo de
+  // infraestructura. Ahora se falla CERRADO: si el RPC no responde, se
+  // rechaza la petición en vez de dejarla pasar.
+  if (rateLimitError) {
+    console.error("[staff/resolve-login] check_rate_limit error:", rateLimitError.message);
+    return NextResponse.json(
+      { error: "Service temporarily unavailable. Try again later.", reason: "rate_limit_unavailable" },
+      { status: 503 }
+    );
+  }
   if (rateLimitData && rateLimitData[0]?.allowed === false) {
     return NextResponse.json(
       { error: "Too many attempts. Try again later.", reason: "rate_limited" },

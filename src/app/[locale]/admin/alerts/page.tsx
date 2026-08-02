@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, Siren, Clock, CheckCircle2, Inbox } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -32,11 +32,7 @@ export default function UnifiedAlertsInboxPage() {
   const [error, setError] = useState("");
   const [acting, setActing] = useState<string | null>(null);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -53,7 +49,11 @@ export default function UnifiedAlertsInboxPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function act(id: string, action: "acknowledge" | "resolve") {
     setActing(id);

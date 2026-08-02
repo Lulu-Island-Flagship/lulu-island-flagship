@@ -74,14 +74,14 @@ export function getSupabaseClient() {
         // src/app/[locale]/admin/layout.tsx.
         set(name: string, value: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value, ...options });
+            cookieStore.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
           } catch {
             // No-op: esperado cuando se llama desde un Server Component.
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value: "", ...options });
+            cookieStore.set({ name, value: "", ...options, httpOnly: true, secure: true, sameSite: "lax" });
           } catch {
             // No-op: esperado cuando se llama desde un Server Component.
           }

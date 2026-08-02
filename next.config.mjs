@@ -118,6 +118,51 @@ const nextConfig = {
           //     se hace en este fix para no arriesgar romper la hidratación
           //     de toda la app.
           //   - connect-src: se deja el wildcard de Supabase (ver arriba).
+          //
+          // Propuesta concreta para CSP por nonce (auditoría de seguridad
+          // 2026-08-02, evaluada y NO implementada en este fix -- ver
+          // justificación abajo):
+          //
+          //   1. next.config.mjs: quitar la entrada 'Content-Security-Policy'
+          //      de este headers() -- pasaría a construirse dinámicamente en
+          //      middleware.ts (headers estáticos de next.config.mjs no
+          //      pueden variar por request, y el nonce debe ser distinto en
+          //      cada uno).
+          //   2. middleware.ts: en la función `middleware()`, generar un
+          //      nonce por request (`crypto.randomUUID()` o
+          //      `Buffer.from(crypto.getRandomValues(new
+          //      Uint8Array(16))).toString('base64')`), añadirlo como header
+          //      de request (`x-nonce`, vía `NextResponse.next({ request: {
+          //      headers } })`) y construir el mismo string de
+          //      Content-Security-Policy de arriba pero con
+          //      `script-src 'self' 'nonce-${nonce}' https://js.stripe.com`
+          //      en vez de 'unsafe-inline', seteándolo como header de
+          //      response en cada rama de retorno de middleware() (ruteo de
+          //      idioma, redirects de /admin, /empleado, /cuenta, y las
+          //      respuestas de los tres prefijos /api protegidos).
+          //   3. src/app/[locale]/layout.tsx (root layout): leer el nonce
+          //      con `headers().get('x-nonce')` y pasarlo explícitamente a
+          //      cualquier <script> propio (actualmente no hay ninguno
+          //      custom fuera de lo que Next.js inyecta automáticamente).
+          //
+          //   Por qué NO se implementa en este fix: bajo Next.js 14.2.35
+          //   (esta app), leer `headers()` en el root layout para obtener el
+          //   nonce fuerza renderizado dinámico (opt-out de static
+          //   optimization) para TODA página que herede ese layout -- es
+          //   decir, el sitio completo, incluidas landing pages hoy
+          //   estáticas. Ese trade-off de performance/costo de servidor
+          //   recién se elimina en Next.js >=15.2 (soporte de nonce con
+          //   static rendering). Aplicarlo ahora, sin poder levantar el
+          //   dev server ni correr un build completo de forma interactiva
+          //   en este entorno para verificar que ninguna página quede rota
+          //   (hidratación, RSC streaming, todas las rutas bajo
+          //   src/app/[locale]/**), sería una implementación a medias de
+          //   alto riesgo -- se prefiere documentar la ruta concreta y
+          //   dejar la decisión (y su verificación con `next build` +
+          //   smoke test real) para cuando se pueda probar interactivamente,
+          //   idealmente junto con la eventual actualización a Next.js 15.x
+          //   (ver auditoría de dependencias, mismo commit) que resuelve
+          //   ambos problemas a la vez.
           {
             key: 'Content-Security-Policy',
             value: [

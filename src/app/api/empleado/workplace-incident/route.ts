@@ -14,10 +14,10 @@ function getSupabaseClient() {
         return cookieStore.get(name)?.value;
       },
       set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options });
+        cookieStore.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
       },
       remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options });
+        cookieStore.set({ name, value: "", ...options, httpOnly: true, secure: true, sameSite: "lax" });
       },
     },
   });

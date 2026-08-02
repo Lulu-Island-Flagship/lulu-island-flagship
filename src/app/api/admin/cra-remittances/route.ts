@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { generateFullYearSchedule, isRemittanceOverdue } from "@/lib/cra-remittances";
+import { getVancouverTodayString } from "@/lib/date-utils";
 
 /**
  * GET /api/admin/cra-remittances?year=2026 — v8.3 E9.4.
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const year = parseInt(searchParams.get("year") || String(new Date().getUTCFullYear()), 10);
+  const year = parseInt(searchParams.get("year") || getVancouverTodayString().slice(0, 4), 10);
   if (!Number.isFinite(year) || year < 2020 || year > 2100) {
     return NextResponse.json({ error: "invalid year" }, { status: 400 });
   }
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayISO = getVancouverTodayString();
   const enriched = (fullYear || []).map((p) => ({
     ...p,
     overdue: isRemittanceOverdue(p.due_date, p.status as "pending" | "filed", todayISO),

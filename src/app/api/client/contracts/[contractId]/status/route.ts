@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { getVancouverTodayString } from "@/lib/date-utils";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -11,10 +12,10 @@ function getSupabaseClient() {
         return cookieStore.get(name)?.value;
       },
       set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options });
+        cookieStore.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
       },
       remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options });
+        cookieStore.set({ name, value: "", ...options, httpOnly: true, secure: true, sameSite: "lax" });
       },
     },
   });
@@ -112,7 +113,7 @@ export async function PATCH(
     .update({
       status: newStatus,
       updated_at: new Date().toISOString(),
-      ...(newStatus === "cancelled" ? { end_date: new Date().toISOString().slice(0, 10) } : {}),
+      ...(newStatus === "cancelled" ? { end_date: getVancouverTodayString() } : {}),
     })
     .eq("id", contractId)
     .select("id, status")

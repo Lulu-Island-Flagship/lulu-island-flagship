@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, CheckCircle2, Circle } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 
@@ -18,11 +18,7 @@ export default function LegacyMigrationPage() {
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/admin/legacy-migration", { credentials: "include" });
@@ -33,7 +29,11 @@ export default function LegacyMigrationPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function complete(itemKey: string) {
     setBusyKey(itemKey);

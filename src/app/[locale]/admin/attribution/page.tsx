@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, TrendingUp, Plus, X, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -35,11 +35,7 @@ export default function AttributionPage() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ channel: "", spendDollars: "", notes: "" });
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -55,7 +51,11 @@ export default function AttributionPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function submitSpend(e: React.FormEvent) {
     e.preventDefault();

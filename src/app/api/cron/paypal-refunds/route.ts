@@ -68,10 +68,15 @@ export async function GET(request: NextRequest) {
       // (src/lib/paypal.ts::refundPayPalCapture) y, si falla, deja el estado
       // en "failed" (no "pending") + una alerta unificada para que un humano
       // se entere, en vez de fallar en silencio para siempre.
+      // originId = order.id (fix MEDIO, auditoría 2026-08-02, ver
+      // src/lib/paypal.ts): hace la idempotency key única por orden, no solo
+      // por captureId+amount, para que dos reembolsos legítimos distintos
+      // del mismo monto sobre la misma captura de PayPal no colisionen.
       const refundResult = await refundPayPalCapture(
         order.paypal_transaction_id,
         Number(order.paypal_advance_amount),
-        "Reembolso por cancelación de servicio Lulu Island"
+        "Reembolso por cancelación de servicio Lulu Island",
+        order.id
       );
 
       if (refundResult.success) {

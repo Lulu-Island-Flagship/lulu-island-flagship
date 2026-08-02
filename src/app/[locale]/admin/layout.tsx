@@ -48,14 +48,14 @@ export default async function AdminLayout({
         // truena en cuanto el token necesita refrescarse.
         set(name: string, value: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value, ...options });
+            cookieStore.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
           } catch {
             // No-op: esperado en Server Components, ver comentario arriba.
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value: "", ...options });
+            cookieStore.set({ name, value: "", ...options, httpOnly: true, secure: true, sameSite: "lax" });
           } catch {
             // No-op: esperado en Server Components, ver comentario arriba.
           }

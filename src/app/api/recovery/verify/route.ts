@@ -53,10 +53,17 @@ export async function POST(request: NextRequest) {
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip") ||
     "unknown";
-  const { data: rateLimitData } = await serviceClient.rpc("check_rate_limit", {
+  const { data: rateLimitData, error: rateLimitError } = await serviceClient.rpc("check_rate_limit", {
     p_ip_address: `access-recovery-verify:${ip}`,
     p_max_requests: 10,
   });
+  // Fix (auditoría externa, hallazgo CRÍTICO): fallar CERRADO si el RPC de
+  // rate limit falla, en vez de dejar pasar la petición como si no hubiera
+  // límite.
+  if (rateLimitError) {
+    console.error("[recovery/verify] check_rate_limit error:", rateLimitError.message);
+    return NextResponse.json({ error: "Service temporarily unavailable. Try again later." }, { status: 503 });
+  }
   if (rateLimitData && rateLimitData[0]?.allowed === false) {
     return NextResponse.json({ error: "Too many attempts. Try again later." }, { status: 429 });
   }

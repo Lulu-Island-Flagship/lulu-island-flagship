@@ -72,10 +72,10 @@ function getSupabaseClient() {
           return cookieStore.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options });
+          cookieStore.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
         },
         remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options });
+          cookieStore.set({ name, value: "", ...options, httpOnly: true, secure: true, sameSite: "lax" });
         },
       },
     }
@@ -367,6 +367,45 @@ export async function POST(request: NextRequest) {
     if (existingOrder) {
       return NextResponse.json(
         { orderId: existingOrder.id, status: existingOrder.status, message: "Order already exists for this quote" },
+        { status: 409 }
+      );
+    }
+
+    // Fix CRÍTICO (auditoría externa de integridad financiera, 2026-08-02):
+    // el bloqueo de la quote (UPDATE quotes SET status='reserved') vivía
+    // DESPUÉS de crear la orden y verificar/procesar el pago (ver más abajo,
+    // donde antes solo se emitía una alerta P1 si ese UPDATE fallaba). Si el
+    // UPDATE fallaba, la quote seguía en 'pending' con una orden ya creada y
+    // pagada -- un segundo checkout concurrente sobre la MISMA quote podía
+    // pasar todos los checks de arriba (que no verifican quoteRow.status) y
+    // crear una SEGUNDA orden real sobre el mismo presupuesto. Fix: el
+    // bloqueo se mueve aquí, ANTES de tocar Stripe/PayPal y ANTES de crear la
+    // orden, usando compare-and-swap (UPDATE ... WHERE status='pending').
+    // Si el CAS afecta 0 filas, alguien más (otro request concurrente, u otro
+    // estado ya asignado a esta quote) ya la reservó -- se aborta aquí, antes
+    // de cualquier efecto secundario real (Stripe, PayPal, orden), devolviendo
+    // un error claro en vez de seguir adelante.
+    const { data: casRows, error: casError } = await supabase
+      .from("quotes")
+      .update({ status: "reserved" })
+      .eq("id", quoteId)
+      .eq("status", "pending")
+      .select("id");
+
+    if (casError) {
+      console.error(`CRITICAL: fallo al intentar bloquear (CAS) la quote ${quoteId} antes de procesar el pago:`, casError);
+      return NextResponse.json(
+        { error: "Unable to reserve this quote. Please try again." },
+        { status: 500 }
+      );
+    }
+
+    if (!casRows || casRows.length !== 1) {
+      // 0 filas afectadas: la quote ya no está en 'pending' (ya fue
+      // reservada por otro request concurrente, o está en otro estado).
+      // Nunca se llegó a tocar Stripe/PayPal ni a crear una orden.
+      return NextResponse.json(
+        { error: "This quote has already been reserved or is no longer available. Please generate a new quote." },
         { status: 409 }
       );
     }
@@ -753,6 +792,21 @@ export async function POST(request: NextRequest) {
           releaseError
         );
       }
+      // La quote ya fue bloqueada (CAS -> 'reserved') ANTES de este INSERT,
+      // pero ninguna orden real llegó a crearse -- revertir a 'pending' para
+      // que el cliente pueda reintentar el checkout sobre la misma quote en
+      // vez de quedar "reservada" para siempre sin ninguna orden detrás.
+      const { error: revertError } = await supabase
+        .from("quotes")
+        .update({ status: "pending" })
+        .eq("id", quoteId)
+        .eq("status", "reserved");
+      if (revertError) {
+        console.error(
+          `CRITICAL: fallo al revertir quote ${quoteId} a 'pending' tras error de INSERT de orden -- la quote puede quedar bloqueada indefinidamente, requiere corrección manual:`,
+          revertError
+        );
+      }
       return NextResponse.json(
         { error: orderError.message },
         { status: 500 }
@@ -814,43 +868,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update quote status to reserved.
-    // Fix (auditoría externa, verificado 2026-07-31): este UPDATE no
-    // esperaba/chequeaba su resultado. La orden ya fue creada e insertada
-    // (pagada / con hold autorizado) en este punto -- si este UPDATE fallaba
-    // en silencio, la quote quedaba "pending" para siempre mientras la orden
-    // ya existía "confirmed", permitiendo que otro checkout reutilizara la
-    // misma quote y creara una SEGUNDA orden duplicada sobre el mismo
-    // presupuesto. No revertimos la orden ya creada (el pago/hold ya es
-    // real y el cliente ya tiene una reserva válida) -- en vez de eso,
-    // alertamos para intervención manual y dejamos evidencia clara en logs,
-    // igual que el patrón ya usado en este archivo para fallos no
-    // bloqueantes post-orden (shadow ledger, dispatchCommunication).
-    const { error: quoteUpdateError } = await supabase
-      .from("quotes")
-      .update({ status: "reserved" })
-      .eq("id", quoteId);
-
-    if (quoteUpdateError) {
-      console.error(
-        `CRITICAL: fallo al marcar quote ${quoteId} como "reserved" tras crear la orden ${order.id}. ` +
-          `Riesgo de doble reserva sobre la misma quote. Error:`,
-        quoteUpdateError
-      );
-      try {
-        await publishUnifiedAlert(supabase, {
-          sourceModule: "stripe_confirm",
-          sourceTable: "quotes",
-          sourceId: quoteId,
-          tier: "respond_10min",
-          severity: "p1_urgent",
-          title: "Quote no se pudo marcar como reserved tras crear la orden — riesgo de doble reserva",
-          summary: `Orden ${order.id} fue creada con éxito para la quote ${quoteId}, pero el UPDATE de quotes.status a "reserved" falló: ${quoteUpdateError.message}. Verificar manualmente que la quote no se reutilice para otra orden.`,
-        });
-      } catch (alertErr) {
-        console.error("Fallo adicional al publicar alerta de quote no actualizada:", alertErr);
-      }
-    }
+    // Nota (auditoría externa de integridad financiera, 2026-08-02): la
+    // quote ya fue bloqueada como 'reserved' vía CAS ANTES de procesar el
+    // pago y crear la orden (ver arriba, antes de `const stripe =
+    // assertStripe()`). Ya no hace falta un segundo UPDATE aquí -- ese era
+    // precisamente el bug: el bloqueo ocurría DESPUÉS de crear la orden y
+    // procesar el pago, dejando una ventana donde un fallo en el UPDATE
+    // permitía una segunda orden sobre la misma quote.
 
     // Fix 2026-07-24 (auditoría externa): el UPDATE de committed_teams con
     // optimistic lock que vivía aquí (DESPUÉS del INSERT de la orden) se

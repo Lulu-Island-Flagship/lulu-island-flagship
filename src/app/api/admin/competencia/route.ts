@@ -88,11 +88,24 @@ export async function GET(request: NextRequest) {
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setUTCDate(ninetyDaysAgo.getUTCDate() - 90);
 
-    const { data: recentOrders } = await supabase
+    // Fix auditoría de seguridad externa (2026-08-02): estas 3 consultas
+    // descartaban {error} y trataban cualquier fallo de DB igual que "sin
+    // datos" -- exactamente lo que el comentario de arriba dice que este
+    // endpoint NUNCA debe hacer ("nunca un número inventado"). Con un error
+    // silenciado, zoneMarginData quedaría vacío y el admin vería "sin datos
+    // de margen" o, peor, un promedio calculado sobre una muestra parcial
+    // sin saber que faltaban filas -- ambos casos son un número no confiable
+    // presentado como si fuera el real. Se aborta la ruta completa con 500
+    // si cualquiera de las tres falla.
+    const { data: recentOrders, error: recentOrdersError } = await supabase
       .from("orders")
       .select("id, quotes(zone)")
       .eq("status", "completed")
       .gte("service_date", ninetyDaysAgo.toISOString().slice(0, 10));
+    if (recentOrdersError) {
+      console.error("admin/competencia error (recentOrders):", recentOrdersError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
 
     type QuoteJoin = { zone: string } | { zone: string }[] | null;
     const orderIdsByZone = new Map<string, string[]>();
@@ -108,7 +121,10 @@ export async function GET(request: NextRequest) {
 
     const allRelevantOrderIds = Array.from(orderIdsByZone.values()).flat();
     if (allRelevantOrderIds.length > 0) {
-      const [{ data: reserves }, { data: payrollEntries }] = await Promise.all([
+      const [
+        { data: reserves, error: reservesError },
+        { data: payrollEntries, error: payrollError },
+      ] = await Promise.all([
         supabase.from("chargeback_reserves").select("order_id, captured_amount").in("order_id", allRelevantOrderIds),
         supabase
           .from("payroll_entries")
@@ -116,6 +132,10 @@ export async function GET(request: NextRequest) {
           .in("order_id", allRelevantOrderIds)
           .is("deleted_at", null),
       ]);
+      if (reservesError || payrollError) {
+        console.error("admin/competencia error (reserves/payrollEntries):", reservesError, payrollError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
 
       const collectedByOrder = new Map<string, number>();
       for (const r of reserves || []) {

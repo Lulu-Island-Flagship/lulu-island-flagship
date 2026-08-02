@@ -28,6 +28,8 @@
  * valor neutral documentado de la escala cuando no hay datos de ocupación).
  */
 
+import { addDaysToDateString, getVancouverTodayString } from "@/lib/date-utils";
+
 export interface CapacitySlotAggregate {
   maxTeams: number;
   committedTeams: number;
@@ -54,8 +56,8 @@ export function computeZoneDemandScore(slots: CapacitySlotAggregate[]): number {
 /**
  * Consulta capacity_slots y devuelve el score 0-100. `serviceDate` en
  * formato YYYY-MM-DD; si es null, usa la ventana rolling de 14 días desde
- * hoy (America/Vancouver ya se maneja aguas arriba en el caller -- esta
- * función solo recibe strings YYYY-MM-DD ya resueltos).
+ * "hoy" en America/Vancouver (calculado aquí mismo con getVancouverTodayString,
+ * no con la hora local del runtime/UTC -- fix auditoría, ver date-utils.ts).
  *
  * `supabase` se tipa laxo a propósito (SupabaseClient real tiene un tipo de
  * query builder muy amplio y encadenado que no vale la pena replicar aquí
@@ -83,10 +85,8 @@ export async function getZoneDemand(
       );
     }
 
-    const today = new Date().toISOString().split("T")[0];
-    const windowEnd = new Date();
-    windowEnd.setDate(windowEnd.getDate() + 13);
-    const windowEndStr = windowEnd.toISOString().split("T")[0];
+    const today = getVancouverTodayString();
+    const windowEndStr = addDaysToDateString(today, 13);
 
     const { data, error } = await supabase
       .from("capacity_slots")

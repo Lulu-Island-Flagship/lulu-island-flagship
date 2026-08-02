@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, Wallet, Gift } from "lucide-react";
 import { StatusBanner } from "@/components/cuenta/StatusBanner";
 import { supabase } from "@/lib/supabase";
 import { AuthModal } from "@/components/cotizador/AuthModal";
-import { toIntlLocale, formatCurrency } from "@/lib/format";
-import { formatServiceDateDisplay } from "@/lib/date-utils";
+import { formatCurrency } from "@/lib/format";
+import { formatServiceDateDisplay, formatVancouverDate } from "@/lib/date-utils";
 
 interface WalletTransaction {
   id: string;
@@ -89,7 +90,13 @@ export default function WalletPage() {
   const [error, setError] = useState("");
   const [applying, setApplying] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState("");
-  const locale = typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "en";
+  // Fix (auditoría externa, hallazgo A11): antes se leía el locale de
+  // `window.location.pathname`, causando hydration mismatch (servidor no
+  // tiene `window`, usaba "en" de fallback, cliente podía resolver otro
+  // locale). Se usa `useParams()` de next/navigation, consistente entre
+  // servidor y cliente para esta ruta [locale]/cuenta/billetera.
+  const params = useParams();
+  const locale = (params?.locale as string) || "en";
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
   // Fix (auditoría externa 2026-07-24): mismo patrón ya aplicado en
   // MisServiciosClient.tsx -- este componente no comprobaba sesión antes de
@@ -277,8 +284,8 @@ export default function WalletPage() {
                     {tx.description || (WALLET_TX_TYPES.includes(tx.type) ? t(`transactionType.${tx.type}`) : tx.type)}
                   </p>
                   <p className="text-xs text-gray-400">
-                    {new Date(tx.created_at).toLocaleDateString(toIntlLocale(safeLocale), { timeZone: "America/Vancouver" })}
-                    {tx.expires_at && ` — ${t("expires", { date: new Date(tx.expires_at).toLocaleDateString(toIntlLocale(safeLocale)) })}`}
+                    {formatVancouverDate(tx.created_at, safeLocale)}
+                    {tx.expires_at && ` — ${t("expires", { date: formatVancouverDate(tx.expires_at, safeLocale) })}`}
                   </p>
                 </div>
                 <span className={tx.type === "debit" || tx.type === "payout" ? "text-state-danger" : "text-state-success"}>

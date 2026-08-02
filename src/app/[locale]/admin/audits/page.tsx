@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Loader2,
   CheckCircle2,
@@ -95,11 +95,7 @@ export default function AuditsPage() {
   // con el rango real del slider ni con la RPC de score de confianza.
   const dispatchProbability = Math.max(0, Math.min(1, (auditScore / 5) * (Object.values(criteria).reduce((a, b) => a + b, 0) / Object.values(criteria).length / 5)));
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -119,7 +115,11 @@ export default function AuditsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   async function submitAudit() {
     if (!selectedOrder) return;

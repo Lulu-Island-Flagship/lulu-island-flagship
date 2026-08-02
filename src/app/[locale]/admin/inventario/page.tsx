@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Package, Truck, Plus, Loader2, AlertTriangle, ShoppingCart, Check, Calendar, Tag } from "lucide-react";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
+import { formatVancouverDate } from "@/lib/date-utils";
 
 interface Supplier {
   id: string;
@@ -337,7 +338,7 @@ export default function InventarioPage() {
             {purchaseOrders.map((po) => (
               <div key={po.id} className="p-3 text-sm flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs text-gray-500">{new Date(po.created_at).toLocaleDateString("en-CA")}</p>
+                  <p className="text-xs text-gray-500">{formatVancouverDate(po.created_at, "en")}</p>
                   <p className="text-gray-700">{po.generated_reason}</p>
                   <p className="text-xs mt-1">
                     Status: <span className="font-medium">{po.status}</span>
@@ -497,7 +498,7 @@ export default function InventarioPage() {
                 <div key={c.id} className="p-3 flex justify-between text-sm">
                   <span className="font-medium">{c.inventory_items?.name} — {c.suppliers?.name}</span>
                   <span className="text-gray-500">
-                    ${(c.unit_price_cents / 100).toFixed(2)} {c.currency} (since {new Date(c.effective_from).toLocaleDateString("en-CA")})
+                    ${(c.unit_price_cents / 100).toFixed(2)} {c.currency} (since {formatVancouverDate(c.effective_from, "en")})
                   </span>
                 </div>
               ))}
@@ -545,7 +546,7 @@ export default function InventarioPage() {
               {reservations.map((r) => (
                 <div key={r.id} className="p-3 flex justify-between text-sm">
                   <span className="font-medium">{r.inventory_items?.name || r.inventory_item_id}</span>
-                  <span className="text-gray-500">{new Date(r.reserved_date).toLocaleDateString("en-CA")}</span>
+                  <span className="text-gray-500">{formatVancouverDate(r.reserved_date, "en")}</span>
                 </div>
               ))}
             </div>
@@ -582,7 +583,7 @@ export default function InventarioPage() {
           title={t("confirmApprovePO.title")}
           message={
             <span>
-              {t("confirmApprovePO.message", { date: new Date(confirmApprovePo.created_at).toLocaleDateString("en-CA") })}
+              {t("confirmApprovePO.message", { date: formatVancouverDate(confirmApprovePo.created_at, "en") })}
               <span className="block mt-2 space-y-0.5">
                 {confirmApprovePo.purchase_order_lines.map((line) => {
                   const item = items.find((i) => i.id === line.inventory_item_id);

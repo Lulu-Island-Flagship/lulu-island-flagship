@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Loader2, DollarSign, History, AlertCircle, CheckCircle2, Table2 } from "lucide-react";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 import { formatCurrency } from "@/lib/format";
+import { formatVancouverDate } from "@/lib/date-utils";
 
 // Fix (auditoría externa 2026-07-31): mismo techo que el backend
 // (src/app/api/admin/hhe-settings/route.ts) -- validar solo en el cliente
@@ -508,7 +509,7 @@ export default function AdminPricingSettingsClient() {
                 {data?.history.map((log) => (
                   <tr key={log.id}>
                     <td className="px-4 py-3 text-gray-600">
-                      {new Date(log.created_at).toLocaleDateString("en-CA")}
+                      {formatVancouverDate(log.created_at, "en")}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       {log.previous_rate !== null && log.previous_rate !== undefined

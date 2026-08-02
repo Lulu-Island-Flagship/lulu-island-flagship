@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Gift, CheckCircle2, Building2 } from "lucide-react";
 
@@ -61,11 +61,7 @@ export default function GiftsPage() {
     Number.isFinite(ltvNum) &&
     ltvNum >= 0;
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -87,7 +83,11 @@ export default function GiftsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function createGift() {
     if (!giftFormValid) {

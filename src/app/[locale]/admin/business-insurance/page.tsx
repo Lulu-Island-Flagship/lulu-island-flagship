@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, ShieldCheck, ShieldAlert, AlertTriangle, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { REQUIRED_POLICY_TYPES, REQUIRED_COVERAGE_CENTS, type PolicyType } from "@/lib/business-insurance";
@@ -47,11 +47,7 @@ export default function BusinessInsurancePage() {
     expiryDate: "",
   });
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -69,7 +65,11 @@ export default function BusinessInsurancePage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();

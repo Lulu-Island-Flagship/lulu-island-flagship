@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Users, Plus, ShieldAlert, AlertTriangle, CheckCircle2, Trash2 } from "lucide-react";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
@@ -42,11 +42,7 @@ export default function SuccessionPage() {
   // por ConfirmActionModal.
   const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -64,7 +60,11 @@ export default function SuccessionPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function addSuccessor(e: React.FormEvent) {
     e.preventDefault();

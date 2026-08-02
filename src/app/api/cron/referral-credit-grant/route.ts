@@ -78,6 +78,39 @@ export async function GET(request: NextRequest) {
 
       const nowIso = new Date().toISOString();
 
+      // Fix CRÍTICO (auditoría externa de integridad financiera, 2026-08-02):
+      // el UPDATE que marca `referrals.status = 'credited'` vivía AL FINAL de
+      // este bloque, DESPUÉS de ya haber otorgado los 2 créditos de $30 vía
+      // apply_wallet_delta -- y la query de arriba solo filtra por
+      // `status = 'pending'`, leída una vez al principio del request. Si este
+      // cron se invoca dos veces solapadas (mismo patrón de riesgo que ya se
+      // corrigió en batch-capture con dispatch_runs), ambas invocaciones
+      // podían traer el mismo referral 'pending' en su SELECT inicial y
+      // ambas otorgar el crédito completo -- doble pago real de $30+$30 (y el
+      // bono de $5 al líder) por el mismo referral. Se reclama (CAS) la fila
+      // AQUÍ, ANTES de otorgar ningún crédito: solo la invocación que
+      // efectivamente transiciona status 'pending' -> 'credited' (afecta 1
+      // fila) continúa; la perdedora nunca llega a tocar wallet ni bonos.
+      const { data: claimedReferral, error: claimError } = await supabase
+        .from("referrals")
+        .update({ status: "credited", credited_at: nowIso, first_order_id: completedOrder.id })
+        .eq("id", referral.id)
+        .eq("status", "pending")
+        .select("id");
+
+      if (claimError) {
+        console.error(`CRITICAL: fallo al reclamar (CAS) el referral ${referral.id} antes de otorgar crédito:`, claimError);
+        results.push({ referralId: referral.id, status: "claim_error" });
+        continue;
+      }
+
+      if (!claimedReferral || claimedReferral.length === 0) {
+        // Ya reclamado por otra invocación concurrente de este mismo cron --
+        // nunca se otorga el crédito dos veces.
+        results.push({ referralId: referral.id, status: "already_claimed_concurrently" });
+        continue;
+      }
+
       // Créditos de $30 a AMBAS billeteras. v8.3 fix (auditoría 2026-07-15):
       // mutación atómica vía RPC (migración 180) en vez de read-then-write
       // sin bloqueo -- este cron corre en paralelo a otros crons de
@@ -113,10 +146,8 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      await supabase
-        .from("referrals")
-        .update({ status: "credited", credited_at: nowIso, first_order_id: completedOrder.id })
-        .eq("id", referral.id);
+      // (referrals.status ya se marcó 'credited' arriba, vía el CAS que
+      // reclamó esta fila antes de otorgar cualquier crédito.)
 
       await supabase
         .from("client_profiles")

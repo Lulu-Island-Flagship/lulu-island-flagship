@@ -6,6 +6,7 @@ import { Loader2, Mail, CheckCircle2, XCircle, Gift } from "lucide-react";
 import { StatusBanner } from "./StatusBanner";
 import { supabase } from "@/lib/supabase";
 import { AuthModal } from "@/components/cotizador/AuthModal";
+import { getVancouverTodayString } from "@/lib/date-utils";
 
 interface PreferencesState {
   marketingOptIn: boolean;
@@ -235,7 +236,7 @@ export default function CommunicationPreferencesClient() {
             // fechas futuras" -- max limita el date picker del navegador a hoy;
             // la validación real (formato + fecha calendario válida + no futura)
             // vive server-side en /api/client/communication-preferences.
-            max={new Date().toISOString().slice(0, 10)}
+            max={getVancouverTodayString()}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
           <button

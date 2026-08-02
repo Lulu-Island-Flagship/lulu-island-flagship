@@ -38,7 +38,7 @@ function getSupabaseClient() {
       },
       set(name: string, value: string, options: CookieOptions) {
         try {
-          cookieStore.set({ name, value, ...options });
+          cookieStore.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
         } catch {
           // No-op: mismo caso documentado en src/lib/admin.ts (llamado
           // desde un contexto donde escribir cookies no está permitido).
@@ -46,7 +46,7 @@ function getSupabaseClient() {
       },
       remove(name: string, options: CookieOptions) {
         try {
-          cookieStore.set({ name, value: "", ...options });
+          cookieStore.set({ name, value: "", ...options, httpOnly: true, secure: true, sameSite: "lax" });
         } catch {
           // No-op, ver arriba.
         }

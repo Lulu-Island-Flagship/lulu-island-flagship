@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, MapPin, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
 
@@ -30,11 +30,7 @@ export default function SeoLocalPage() {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [napSaving, setNapSaving] = useState(false);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -53,7 +49,11 @@ export default function SeoLocalPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function completeItem(itemKey: string) {
     setBusyKey(itemKey);

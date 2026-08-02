@@ -3,7 +3,6 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { assertStripe } from "@/lib/stripe";
 import Stripe from "stripe";
 import { reconcileCapturedPaymentIntent } from "@/lib/payment-capture-reconciliation";
-import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
 import { safeErrorResponse } from "@/lib/api-errors";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -318,85 +317,48 @@ async function handleRefund(
   // `stripe_amount_refunded_cents` (migración 208) y se resta solo el
   // delta real entre el acumulado nuevo y el anterior.
   //
-  // RAÍZ-3 (2026-07-21, migración 229): total_paid_cents/card_amount_charged_cents
-  // ya están en centavos -- se resta deltaCents directo, sin la conversión
-  // a dólares que existía antes (refundedAmount = deltaCents / 100).
-  const { data: orders } = await supabase
-    .from("orders")
-    .select("id, user_id, total_paid_cents, card_amount_charged_cents, stripe_amount_refunded_cents")
-    .or(`stripe_hold_payment_intent_id.eq.${paymentIntentId},stripe_capture_payment_intent_id.eq.${paymentIntentId}`)
-    .limit(1);
+  // Fix CRÍTICO (auditoría externa de integridad financiera, 2026-08-02,
+  // migración 313): el SELECT + cálculo de delta en JS + UPDATE de arriba
+  // (sin ningún lock) tenía una carrera "lost update" -- dos eventos
+  // `charge.refunded` DISTINTOS y legítimos para la MISMA orden (Stripe no
+  // garantiza entrega serializada) podían llegar como invocaciones HTTP
+  // concurrentes de este webhook; ambas leían el mismo
+  // `stripe_amount_refunded_cents` antes de que cualquiera escribiera,
+  // así que la segunda escritura pisaba a la primera con un cálculo basado
+  // en estado ya obsoleto, perdiendo la resta de uno de los dos reembolsos
+  // reales. Se reemplaza por una única llamada a la RPC
+  // apply_stripe_refund_delta_atomic (SELECT ... FOR UPDATE + UPDATE +
+  // INSERT en shadow_ledger_entries, todo en una sola transacción SQL) --
+  // la segunda invocación concurrente se bloquea hasta que la primera
+  // termine, y entonces relee el acumulado ya actualizado, calculando su
+  // propio delta correctamente. La RPC también corrige el bug de
+  // "auditoría implacable 2026-08-01" (card_amount_charged_cents restaba
+  // el delta, no lo igualaba a total_paid_cents) y registra el
+  // shadow_ledger_entries 'warranty_refund' con idempotencyKey
+  // determinística (ON CONFLICT DO NOTHING), reemplazando el INSERT que
+  // vivía aquí antes.
+  const { data: rpcResult, error: rpcError } = await supabase.rpc(
+    "apply_stripe_refund_delta_atomic",
+    {
+      p_payment_intent_id: paymentIntentId,
+      p_charge_id: charge.id,
+      p_cumulative_refunded_cents: charge.amount_refunded ?? 0,
+    }
+  );
 
-  const order = orders?.[0];
-  if (!order) return;
+  const applied = Array.isArray(rpcResult) ? rpcResult[0] : rpcResult;
 
-  const previousRefundedCents = order.stripe_amount_refunded_cents ?? 0;
-  const newCumulativeRefundedCents = charge.amount_refunded ?? 0;
-  const deltaCents = newCumulativeRefundedCents - previousRefundedCents;
-
-  if (deltaCents <= 0) {
-    // Evento repetido/fuera de orden respecto al acumulado ya registrado;
-    // nada nuevo que restar (evita restar dos veces el mismo reembolso si
-    // Stripe reenvía el evento con el mismo acumulado).
+  if (rpcError) {
+    console.error(`apply_stripe_refund_delta_atomic RPC failed for payment_intent ${paymentIntentId} (charge ${charge.id}):`, rpcError);
     return;
   }
 
-  const newTotalPaidCents = Math.max(0, (order.total_paid_cents ?? 0) - deltaCents);
-
-  // Fix (auditoría implacable 2026-08-01, bug real confirmado): antes esta
-  // línea era `card_amount_charged_cents: newTotalPaidCents` -- igualaba la
-  // porción de TARJETA al total pagado. Son columnas con semántica distinta
-  // y el resto del repo las trata como tales: `total_paid_cents` incluye
-  // billetera y adelanto de PayPal, mientras que `card_amount_charged_cents`
-  // es SOLO lo cobrado a la tarjeta (ver /api/orders/[orderId]/cancel líneas
-  // ~290-297, que para una orden de billetera pone card=0 con total_paid>0, y
-  // batch-capture ~418-419, que suma walletAppliedCents solo al total).
-  //
-  // Efecto real del bug en una orden de pago mixto: $100 pagados = $30 de
-  // billetera + $70 de tarjeta (total_paid=10000, card=7000). Llega un
-  // reembolso de $20 -> newTotalPaidCents=8000 -> card quedaba en 8000, o sea
-  // la cifra de tarjeta SUBÍA de 7000 a 8000 a causa de un REEMBOLSO. Eso
-  // corrompe el export contable a QuickBooks (qbo-sync lee justamente
-  // card_amount_charged_cents, ver su select) y cualquier conciliación
-  // tarjeta-vs-billetera contra el depósito real del procesador.
-  //
-  // Correcto: un reembolso de Stripe devuelve dinero de la TARJETA, así que
-  // se resta el mismo delta a la porción de tarjeta, con piso en 0.
-  const newCardChargedCents = Math.max(0, (order.card_amount_charged_cents ?? 0) - deltaCents);
-
-  await supabase
-    .from("orders")
-    .update({
-      total_paid_cents: newTotalPaidCents,
-      card_amount_charged_cents: newCardChargedCents,
-      stripe_amount_refunded_cents: newCumulativeRefundedCents,
-      warranty_status: newTotalPaidCents === 0 ? "resolved_client" : undefined,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", order.id);
-
-  // B-P2-2 fix (auditoría 2026-07-21): shadow_ledger_entries tiene el tipo
-  // 'warranty_refund' declarado (shadow-ledger.ts) pero ninguna ruta del
-  // repo lo insertaba jamás -- ningún reembolso (chargeback ganado por el
-  // cliente, resolución de garantía, reembolso manual del admin vía
-  // Stripe) quedaba registrado en el ledger operativo, así que las
-  // comisiones de partner y créditos de referido ya pagados sobre esa
-  // orden nunca se marcaban para revisión/reclamo. Se registra aquí el
-  // delta real reembolsado, con idempotencyKey determinística por charge
-  // para no duplicar si Stripe reenvía el evento.
-  const { error: ledgerError } = await supabase.from("shadow_ledger_entries").insert(
-    buildShadowLedgerEntry({
-      eventType: "warranty_refund",
-      orderId: order.id,
-      userId: order.user_id ?? null,
-      amountCents: deltaCents,
-      processor: "stripe",
-      externalReference: `${charge.id}:${newCumulativeRefundedCents}`,
-      occurredAt: new Date(),
-      metadata: { payment_intent_id: paymentIntentId, charge_id: charge.id },
-    })
-  );
-  if (ledgerError && ledgerError.code !== "23505") {
-    console.error(`Failed to write shadow ledger warranty_refund entry for order ${order.id}:`, ledgerError);
+  if (!applied?.success) {
+    // 'order_not_found' o 'no_new_refund' (evento repetido/fuera de orden
+    // respecto al acumulado ya registrado) -- nada más que hacer.
+    if (applied?.reason && applied.reason !== "no_new_refund") {
+      console.error(`apply_stripe_refund_delta_atomic did not apply for payment_intent ${paymentIntentId}: ${applied.reason}`);
+    }
+    return;
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, Scale, AlertTriangle, CheckCircle2 } from "lucide-react";
@@ -52,11 +52,7 @@ export default function LegalMonitoringPage() {
     null
   );
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -73,7 +69,11 @@ export default function LegalMonitoringPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function markChecked(feedId: string, withChange: boolean) {
     setCheckingId(feedId);

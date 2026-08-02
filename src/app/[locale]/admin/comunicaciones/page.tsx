@@ -8,7 +8,7 @@
  * Acceso: la API exige rol owner_admin (recurso RBAC "finance").
  */
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Loader2, Pencil, History, Save, X, Plus } from "lucide-react";
@@ -61,11 +61,7 @@ export default function ComunicacionesPage() {
   const [draftReason, setDraftReason] = useState("");
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -78,7 +74,11 @@ export default function ComunicacionesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   function startEdit(eventKey: string, language: string, existing?: TemplateRow) {
     setEditing({ eventKey, language });

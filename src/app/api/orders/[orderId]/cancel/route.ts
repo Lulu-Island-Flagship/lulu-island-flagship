@@ -283,31 +283,19 @@ export async function POST(
     // se queda en 0 -- no hubo cargo NUEVO, solo retención de dinero ya
     // cobrado). card_amount_charged_cents es 0 porque nunca se tocó la
     // tarjeta de respaldo en esta cancelación.
-    await supabase
-      .from("orders")
-      .update({
-        hold_released_at: holdCancelled ? new Date().toISOString() : null,
-        hold_captured_at: payments.hold ? new Date().toISOString() : null,
-        total_paid_cents: isWalletOrder
-          ? Math.max(0, (order.wallet_amount_collected_cents || 0) - walletRefundedCents)
-          : penaltyChargedCents,
-        card_amount_charged_cents: isWalletOrder
-          ? 0
-          : order.payment_option === "paypal_first_time"
-            ? Math.max(0, penaltyChargedCents - Math.round((order.paypal_advance_amount || 0) * 100))
-            : penaltyChargedCents,
-        wallet_refunded_amount_cents: walletRefundedCents,
-        paypal_refund_required: paypalRefundRequired,
-        paypal_refund_status: paypalRefundRequired ? "pending" : "not_required",
-        capture_last_error: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", orderId);
-
-    if (walletRefundedCents > 0) {
-      try {
-        await supabase.from("shadow_ledger_entries").insert(
-          buildShadowLedgerEntry({
+    // Auditoría 2026-08-02 (migración 312): las 3 escrituras de abajo (UPDATE
+    // orders + hasta 2 INSERT en shadow_ledger_entries) se agrupan en una
+    // sola RPC transaccional (finalize_order_cancellation) -- ANTES de este
+    // fix, el UPDATE de orders no chequeaba `error` y los 2 INSERT quedaban
+    // en try/catch que solo logueaban: si Stripe ya cobró/reembolsó (arriba)
+    // pero cualquiera de las 3 escrituras fallaba a mitad de camino, orders/
+    // shadow_ledger_entries quedaba inconsistente sin señal clara. Ahora es
+    // atómico: o las 3 quedan persistidas, o ninguna, y el caller (aquí)
+    // recién invoca la RPC después de que todas las llamadas externas a
+    // Stripe ya tuvieron éxito (o no aplicaban).
+    const wallet_refund_entry =
+      walletRefundedCents > 0
+        ? buildShadowLedgerEntry({
             eventType: "wallet_refund",
             orderId,
             userId: order.user_id,
@@ -317,11 +305,7 @@ export async function POST(
             occurredAt: new Date(),
             metadata: { source: "orders_cancel_route", hoursUntilService: hoursLeft, paymentOption: order.payment_option },
           })
-        );
-      } catch (shadowLedgerErr) {
-        console.error(`Shadow ledger insert failed for wallet refund on order ${orderId}:`, shadowLedgerErr);
-      }
-    }
+        : null;
 
     // Fix F3 (auditoría operativa/contable 2026-07-21, verificado y
     // confirmado real): esta ruta cobra dinero real (captura de hold vía
@@ -329,15 +313,13 @@ export async function POST(
     // total_paid_cents/card_amount_charged_cents, pero NUNCA insertaba en
     // shadow_ledger_entries -- el tipo 'cancellation_penalty' ya existe en
     // shadow-ledger.ts (documentado como evento que DEBE loguearse) pero
-    // nadie lo usaba. Sin esto, la penalidad de cancelación cobrada es
-    // invisible para la reconciliación interna. Se registra solo si
-    // realmente se cobró algo (penaltyChargedCents > 0) -- una cancelación
-    // >72h con liberación completa del hold, sin cargo, no genera evento
-    // de dinero real y no debe loguearse como tal.
-    if (penaltyChargedCents > 0) {
-      try {
-        await supabase.from("shadow_ledger_entries").insert(
-          buildShadowLedgerEntry({
+    // nadie lo usaba. Se registra solo si realmente se cobró algo
+    // (penaltyChargedCents > 0) -- una cancelación >72h con liberación
+    // completa del hold, sin cargo, no genera evento de dinero real y no
+    // debe loguearse como tal.
+    const penalty_entry =
+      penaltyChargedCents > 0
+        ? buildShadowLedgerEntry({
             eventType: "cancellation_penalty",
             orderId,
             userId: order.user_id,
@@ -347,13 +329,37 @@ export async function POST(
             occurredAt: new Date(),
             metadata: { source: "orders_cancel_route", hoursUntilService: hoursLeft },
           })
-        );
-      } catch (shadowLedgerErr) {
-        // La penalidad ya fue cobrada realmente (Stripe) -- un fallo al
-        // registrar el shadow ledger no debe revertir la cancelación ya
-        // procesada, pero queda logueado para reconciliación manual.
-        console.error(`Shadow ledger insert failed for cancellation penalty on order ${orderId}:`, shadowLedgerErr);
-      }
+        : null;
+
+    const { error: finalizeError } = await supabase.rpc("finalize_order_cancellation", {
+      p_order_id: orderId,
+      p_hold_released_at: holdCancelled ? new Date().toISOString() : null,
+      p_hold_captured_at: payments.hold ? new Date().toISOString() : null,
+      p_total_paid_cents: isWalletOrder
+        ? Math.max(0, (order.wallet_amount_collected_cents || 0) - walletRefundedCents)
+        : penaltyChargedCents,
+      p_card_amount_charged_cents: isWalletOrder
+        ? 0
+        : order.payment_option === "paypal_first_time"
+          ? Math.max(0, penaltyChargedCents - Math.round((order.paypal_advance_amount || 0) * 100))
+          : penaltyChargedCents,
+      p_wallet_refunded_amount_cents: walletRefundedCents,
+      p_paypal_refund_required: paypalRefundRequired,
+      p_paypal_refund_status: paypalRefundRequired ? "pending" : "not_required",
+      p_wallet_refund_entry: wallet_refund_entry,
+      p_penalty_entry: penalty_entry,
+    });
+
+    if (finalizeError) {
+      // El dinero externo YA se movió (Stripe ya cobró/reembolsó arriba) --
+      // no se debe reintentar el cargo desde cero. Este error es CRÍTICO:
+      // requiere reconciliación manual (comparar Stripe/PayPal dashboard
+      // contra orders/shadow_ledger_entries para esta orden).
+      console.error(
+        `CRITICAL: finalize_order_cancellation RPC failed for order ${orderId} AFTER external Stripe/PayPal calls already succeeded. Manual reconciliation required. Payments:`,
+        payments,
+        finalizeError
+      );
     }
 
     // v8.3 fix (auditoría 2026-07-15): cancelar la orden nunca marcaba las

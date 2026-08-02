@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ShieldAlert, HeartPulse, Loader2, CheckCircle2, Siren, CloudUpload } from "lucide-react";
 import { EmpleadoBackHeader } from "@/components/empleado/EmpleadoBackHeader";
 import { submitGenericReportOrQueue } from "@/lib/offline-sync-client";
@@ -15,21 +16,27 @@ import { submitGenericReportOrQueue } from "@/lib/offline-sync-client";
  * rutas (/api/empleado/near-miss, /api/empleado/workplace-incident) y
  * sus páginas admin de revisión ya existían, pero ningún componente las
  * invocaba -- eran inalcanzables desde el campo.
+ *
+ * Fix (auditoría externa 2026-08-02, hallazgo MEDIO #5): toda esta página
+ * estaba hardcodeada en inglés fijo sin importar el locale de la ruta
+ * (/fr/empleado/seguridad, /zh/empleado/seguridad). Se usa next-intl
+ * (claves bajo "employee.safetyPage" en messages/{en,fr,zh}.json) --
+ * NextIntlClientProvider ya está montado en empleado/layout.tsx.
  */
 export default function SeguridadPage() {
+  const t = useTranslations("employee.safetyPage");
   const params = useParams();
   const locale = (params?.locale as string) || "en";
   const backHref = `/${locale}/empleado`;
   return (
     <main className="min-h-screen bg-brand-ice">
-      <EmpleadoBackHeader title="Safety" backHref={backHref} />
+      <EmpleadoBackHeader title={t("title")} backHref={backHref} />
       <div className="p-4 max-w-lg mx-auto space-y-6">
-        <h1 className="text-xl font-bold text-brand-ink">Safety</h1>
+        <h1 className="text-xl font-bold text-brand-ink">{t("title")}</h1>
         <div className="bg-state-danger/5 border border-state-danger/20 rounded-xl p-4 flex items-center gap-3">
           <Siren className="w-6 h-6 text-state-danger flex-shrink-0" />
           <p className="text-sm text-gray-600">
-            For an emergency, use the red <strong>SOS</strong> button in the bottom-right corner —
-            it&apos;s available on every page.
+            {t.rich("sosNotice", { strong: (chunks) => <strong>{chunks}</strong> })}
           </p>
         </div>
         <NearMissSection />
@@ -39,15 +46,15 @@ export default function SeguridadPage() {
   );
 }
 
-const NEAR_MISS_CATEGORIES = [
-  { value: "near_fall", label: "Near fall" },
-  { value: "near_chemical_mix", label: "Near chemical mix" },
-  { value: "near_bite", label: "Near bite" },
-  { value: "near_burn", label: "Near burn" },
-  { value: "other", label: "Other" },
-];
-
 function NearMissSection() {
+  const t = useTranslations("employee.safetyPage.nearMiss");
+  const NEAR_MISS_CATEGORIES = [
+    { value: "near_fall", label: t("categories.nearFall") },
+    { value: "near_chemical_mix", label: t("categories.nearChemicalMix") },
+    { value: "near_bite", label: t("categories.nearBite") },
+    { value: "near_burn", label: t("categories.nearBurn") },
+    { value: "other", label: t("categories.other") },
+  ];
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -63,7 +70,7 @@ function NearMissSection() {
 
   async function submit() {
     if (!category) {
-      setError("Please select a category.");
+      setError(t("selectCategoryError"));
       return;
     }
     setSubmitting(true);
@@ -75,7 +82,7 @@ function NearMissSection() {
         isAnonymous,
       });
       if (!result.ok) {
-        setError(result.error || "Failed to report");
+        setError(result.error || t("failedToReport"));
         return;
       }
       if (result.queued) {
@@ -86,7 +93,7 @@ function NearMissSection() {
       setCategory("");
       setDescription("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error");
+      setError(err instanceof Error ? err.message : t("networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -96,69 +103,72 @@ function NearMissSection() {
     <div className="bg-white rounded-xl shadow-elevation-1 p-5 space-y-3">
       <div className="flex items-center gap-2">
         <ShieldAlert className="w-5 h-5 text-state-warning" />
-        <h2 className="font-semibold text-brand-ink">Report a Near-Miss</h2>
+        <h2 className="font-semibold text-brand-ink">{t("title")}</h2>
       </div>
-      <p className="text-xs text-gray-500">
-        A close call, no injury — reporting this never affects your score. You can report
-        anonymously.
-      </p>
+      <p className="text-xs text-gray-500">{t("description")}</p>
       {error && <div className="text-red-600 text-sm">{error}</div>}
       {success && (
         <div className="flex items-center gap-2 text-state-success text-sm">
-          <CheckCircle2 className="w-4 h-4" /> Reported. Thank you.
+          <CheckCircle2 className="w-4 h-4" /> {t("reportedThankYou")}
         </div>
       )}
       {queued && (
         <div className="flex items-center gap-2 text-brand-navy text-sm">
-          <CloudUpload className="w-4 h-4" /> No connection — saved on this device, will send automatically.
+          <CloudUpload className="w-4 h-4" /> {t("queuedNotice")}
         </div>
       )}
+      <label htmlFor="near-miss-category" className="block text-xs text-gray-500">
+        {t("categoryLabel")}
+      </label>
       <select
-        aria-label="Near-miss category"
+        id="near-miss-category"
         value={category}
         onChange={(e) => setCategory(e.target.value)}
         className="w-full border rounded px-2 py-1.5 text-sm"
       >
-        <option value="">Select category…</option>
+        <option value="">{t("categorySelectPlaceholder")}</option>
         {NEAR_MISS_CATEGORIES.map((c) => (
           <option key={c.value} value={c.value}>
             {c.label}
           </option>
         ))}
       </select>
+      <label htmlFor="near-miss-description" className="block text-xs text-gray-500">
+        {t("descriptionLabel")}
+      </label>
       <textarea
-        aria-label="Near-miss description"
+        id="near-miss-description"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        placeholder="What happened? (optional)"
+        placeholder={t("descriptionPlaceholder")}
         className="w-full border rounded px-2 py-1.5 text-sm"
         rows={2}
       />
       <label htmlFor="near-miss-anonymous" className="flex items-center gap-2 text-xs text-gray-500">
-        <input id="near-miss-anonymous" type="checkbox" aria-label="Report anonymously" checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} />
-        Report anonymously
+        <input id="near-miss-anonymous" type="checkbox" aria-label={t("anonymousAria")} checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} />
+        {t("anonymousLabel")}
       </label>
       <button
-        aria-label="Send near-miss report"
+        aria-label={t("submitAria")}
         onClick={submit}
         disabled={submitting}
         className="w-full bg-brand-navy text-white rounded py-2 text-sm flex items-center justify-center gap-2"
       >
         {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-        Submit
+        {t("submit")}
       </button>
     </div>
   );
 }
 
-const MEDICAL_ATTENTION_OPTIONS = [
-  { value: "none", label: "None needed" },
-  { value: "first_aid", label: "First aid" },
-  { value: "clinic", label: "Clinic visit" },
-  { value: "hospital", label: "Hospital" },
-];
-
 function WorkplaceIncidentSection() {
+  const t = useTranslations("employee.safetyPage.workplaceIncident");
+  const MEDICAL_ATTENTION_OPTIONS = [
+    { value: "none", label: t("medicalAttentionOptions.none") },
+    { value: "first_aid", label: t("medicalAttentionOptions.firstAid") },
+    { value: "clinic", label: t("medicalAttentionOptions.clinic") },
+    { value: "hospital", label: t("medicalAttentionOptions.hospital") },
+  ];
   const [injuryDescription, setInjuryDescription] = useState("");
   const [bodyPartAffected, setBodyPartAffected] = useState("");
   const [medicalAttentionType, setMedicalAttentionType] = useState("none");
@@ -174,7 +184,7 @@ function WorkplaceIncidentSection() {
 
   async function submit() {
     if (!injuryDescription.trim()) {
-      setError("Please describe the injury.");
+      setError(t("describeInjuryError"));
       return;
     }
     setSubmitting(true);
@@ -189,7 +199,7 @@ function WorkplaceIncidentSection() {
         immediateActionTaken: immediateActionTaken.trim() || undefined,
       });
       if (!result.ok) {
-        setError(result.error || "Failed to report");
+        setError(result.error || t("failedToReport"));
         return;
       }
       if (result.queued) {
@@ -197,8 +207,9 @@ function WorkplaceIncidentSection() {
       } else {
         const data = result.data as { workplaceIncident: { worksafebc_report_due_at: string } };
         setSuccess(
-          "Reported. WorkSafeBC deadline: " +
-            new Date(data.workplaceIncident.worksafebc_report_due_at).toLocaleString()
+          t("reportedWithDeadline", {
+            deadline: new Date(data.workplaceIncident.worksafebc_report_due_at).toLocaleString(),
+          })
         );
       }
       setInjuryDescription("");
@@ -206,7 +217,7 @@ function WorkplaceIncidentSection() {
       setLocationDescription("");
       setImmediateActionTaken("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error");
+      setError(err instanceof Error ? err.message : t("networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -216,9 +227,9 @@ function WorkplaceIncidentSection() {
     <div className="bg-white rounded-xl shadow-elevation-1 p-5 space-y-3">
       <div className="flex items-center gap-2">
         <HeartPulse className="w-5 h-5 text-state-danger" />
-        <h2 className="font-semibold text-brand-ink">Report a Workplace Injury</h2>
+        <h2 className="font-semibold text-brand-ink">{t("title")}</h2>
       </div>
-      <p className="text-xs text-gray-500">Any actual injury, however minor. This starts the WorkSafeBC 72h clock.</p>
+      <p className="text-xs text-gray-500">{t("description")}</p>
       {error && <div className="text-red-600 text-sm">{error}</div>}
       {success && (
         <div className="flex items-center gap-2 text-state-success text-sm">
@@ -235,28 +246,35 @@ function WorkplaceIncidentSection() {
               no del momento de sincronización. Decirle a un empleado
               lesionado que el reloj "todavía no arrancó" podía retrasar
               peligrosamente que avise a su supervisor. */}
-          <CloudUpload className="w-4 h-4 flex-shrink-0" /> No connection — saved on this device, will send
-          automatically as soon as you have signal. The WorkSafeBC 72h clock is already running from the time
-          of the incident, not from when this syncs — tell your supervisor now if this is serious.
+          <CloudUpload className="w-4 h-4 flex-shrink-0" /> {t("queuedNotice")}
         </div>
       )}
+      <label htmlFor="injury-description" className="block text-xs text-gray-500">
+        {t("injuryDescriptionLabel")}
+      </label>
       <textarea
-        aria-label="Injury description"
+        id="injury-description"
         value={injuryDescription}
         onChange={(e) => setInjuryDescription(e.target.value)}
-        placeholder="Describe what happened *"
+        placeholder={t("injuryDescriptionPlaceholder")}
         className="w-full border rounded px-2 py-1.5 text-sm"
         rows={2}
       />
+      <label htmlFor="body-part-affected" className="block text-xs text-gray-500">
+        {t("bodyPartLabel")}
+      </label>
       <input
-        aria-label="Parte del cuerpo afectada"
+        id="body-part-affected"
         value={bodyPartAffected}
         onChange={(e) => setBodyPartAffected(e.target.value)}
-        placeholder="Body part affected"
+        placeholder={t("bodyPartPlaceholder")}
         className="w-full border rounded px-2 py-1.5 text-sm"
       />
+      <label htmlFor="medical-attention-type" className="block text-xs text-gray-500">
+        {t("medicalAttentionLabel")}
+      </label>
       <select
-        aria-label="Type of medical attention received"
+        id="medical-attention-type"
         value={medicalAttentionType}
         onChange={(e) => setMedicalAttentionType(e.target.value)}
         className="w-full border rounded px-2 py-1.5 text-sm"
@@ -267,18 +285,24 @@ function WorkplaceIncidentSection() {
           </option>
         ))}
       </select>
+      <label htmlFor="incident-location" className="block text-xs text-gray-500">
+        {t("locationLabel")}
+      </label>
       <input
-        aria-label="Incident location"
+        id="incident-location"
         value={locationDescription}
         onChange={(e) => setLocationDescription(e.target.value)}
-        placeholder="Location"
+        placeholder={t("locationPlaceholder")}
         className="w-full border rounded px-2 py-1.5 text-sm"
       />
+      <label htmlFor="immediate-action-taken" className="block text-xs text-gray-500">
+        {t("immediateActionLabel")}
+      </label>
       <textarea
-        aria-label="Immediate action taken"
+        id="immediate-action-taken"
         value={immediateActionTaken}
         onChange={(e) => setImmediateActionTaken(e.target.value)}
-        placeholder="Immediate action taken (optional)"
+        placeholder={t("immediateActionPlaceholder")}
         className="w-full border rounded px-2 py-1.5 text-sm"
         rows={2}
       />
@@ -288,7 +312,7 @@ function WorkplaceIncidentSection() {
         className="w-full bg-state-danger text-white rounded py-2 text-sm flex items-center justify-center gap-2"
       >
         {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-        Report Injury
+        {t("submit")}
       </button>
     </div>
   );

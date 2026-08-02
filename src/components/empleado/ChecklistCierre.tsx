@@ -718,7 +718,7 @@ export function ChecklistCierre({
                               className="w-16 h-16 rounded-lg object-cover"
                             />
                           ) : (
-                            <label className="inline-flex items-center gap-1 text-xs text-gray-500 cursor-pointer hover:text-brand-gold">
+                            <label className="inline-flex items-center gap-1 text-xs text-gray-500 cursor-pointer hover:text-brand-gold-dark">
                               <Camera className="w-3.5 h-3.5" />
                               <span>Add photo</span>
                               <input

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { getVancouverTodayString } from "@/lib/date-utils";
 
 // GET /api/admin/supplier-catalog — catálogo proveedor x producto con precio
 // histórico (v8.3 E7 punto 6). Por defecto solo trae los precios vigentes
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
         inventory_item_id: inventoryItemId,
         unit_price_cents: priceCents,
         currency: currency || "CAD",
-        effective_from: effectiveFrom || new Date().toISOString().slice(0, 10),
+        effective_from: effectiveFrom || getVancouverTodayString(),
         is_current: true,
       })
       .select()

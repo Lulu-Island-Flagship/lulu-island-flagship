@@ -36,9 +36,13 @@ cp .env.example .env.local
 > con contraseña en texto plano `"password"`). `db reset` es solo para
 > entornos locales/staging. En producción solo se aplican migraciones
 > (`supabase db push` o el flujo de CI/CD correspondiente). Como salvaguarda
-> adicional, `supabase/seed.sql` aborta automáticamente a menos que se fije
-> primero la variable de sesión `app.allow_staging_seed` (ver comentarios al
-> inicio del archivo).
+> adicional, `supabase/seed.sql` verifica en tiempo de ejecución que está
+> conectado al Postgres LOCAL que levanta `supabase start` (puerto fijo
+> 54322, `inet_server_port()`) y aborta con `RAISE EXCEPTION` si detecta
+> cualquier otro puerto -- ver el bloque `DO $$ ... $$` al inicio del
+> archivo. La contraseña de los usuarios de prueba tampoco es un literal
+> fijo: se genera aleatoriamente en cada corrida (o se puede fijar vía
+> `app.seed_password` antes de `supabase db reset`).
 
 ### 3. Configurar Auth Providers en Supabase
 
@@ -49,111 +53,44 @@ Ir a Authentication → Providers:
 - **Email**: Habilitar, confirmación opcional (OTP)
 - **Phone**: Habilitar, configurar Twilio o MessageBird para SMS
 
-### 4. Crear tablas en SQL Editor
+### 4. Aplicar el esquema de base de datos
 
-```sql
--- Tabla de cotizaciones
-CREATE TABLE quotes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id),
-  service_type TEXT NOT NULL,
-  bedrooms INTEGER,
-  bathrooms INTEGER,
-  square_feet INTEGER,
-  pets_count INTEGER DEFAULT 0,
-  pets_type TEXT DEFAULT '',
-  residents INTEGER DEFAULT 2,
-  days_since_cleaning INTEGER DEFAULT 30,
-  address TEXT,
-  zone TEXT,
-  postal_code TEXT,
-  base_price NUMERIC,
-  organic_multiplier NUMERIC,
-  organic_adjustment NUMERIC,
-  recency_multiplier NUMERIC,
-  recency_adjustment NUMERIC,
-  zone_surcharge NUMERIC DEFAULT 0,
-  logistics_surcharge NUMERIC DEFAULT 0,
-  subtotal NUMERIC,
-  gst NUMERIC,
-  pst NUMERIC,
-  total NUMERIC,
-  hold_amount NUMERIC,
-  price_frozen_until TIMESTAMPTZ,
-  status TEXT DEFAULT 'pending',
-  consent_tc BOOLEAN DEFAULT FALSE,
-  consent_pipa BOOLEAN DEFAULT FALSE,
-  consent_marketing BOOLEAN DEFAULT FALSE,
-  client_score INTEGER DEFAULT 50,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+El esquema completo (tablas, RLS, funciones, triggers) vive como migraciones
+versionadas en `supabase/migrations/` (300+ archivos) — ya no se mantiene
+como DDL manual en este README. No pegues SQL a mano en el SQL Editor; usa
+la Supabase CLI:
 
--- Tabla de perfiles de cliente
-CREATE TABLE client_profiles (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) UNIQUE,
-  score INTEGER DEFAULT 50,
-  services_count INTEGER DEFAULT 0,
-  disputes_count INTEGER DEFAULT 0,
-  no_show_count INTEGER DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+**Desarrollo local** (levanta Postgres local con Docker y aplica todas las
+migraciones + `seed.sql`):
 
--- Tabla de feature flags
-CREATE TABLE feature_flags (
-  nombre TEXT PRIMARY KEY,
-  activo BOOLEAN DEFAULT FALSE,
-  modulo TEXT,
-  descripcion TEXT
-);
+```bash
+supabase start
+supabase db reset
+```
 
--- Tabla de zonas
-CREATE TABLE zones (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  surcharge_amount NUMERIC DEFAULT 0,
-  is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+`supabase db reset` es solo para entornos locales/staging — recrea la base
+desde cero, corre todas las migraciones en orden y luego `seed.sql` con
+datos de prueba (usuarios `@example.com`, ver advertencia arriba).
 
--- Seeds de feature flags
-INSERT INTO feature_flags (nombre, activo, modulo, descripcion) VALUES
-  ('modulo_2_pagos', FALSE, 'Módulo 2', 'Stripe SetupIntent + Batch Capture'),
-  ('modulo_3_reservas', FALSE, 'Módulo 3', 'Calendario y slots de reserva'),
-  ('modulo_4_pwa', FALSE, 'Módulo 4', 'PWA del empleado'),
-  ('modulo_5_marketing', FALSE, 'Módulo 5', 'Marketing in-situ y retención'),
-  ('modulo_6_excepciones', FALSE, 'Módulo 6', 'Orquestación de excepciones');
+**Proyecto remoto (staging/producción)** — enlazar el proyecto una vez y
+aplicar solo migraciones nuevas, nunca `db reset`:
 
--- Seeds de zonas
-INSERT INTO zones (name, surcharge_amount) VALUES
-  ('Richmond (Steveston)', 0),
-  ('Richmond (City Centre)', 0),
-  ('Richmond (East)', 0),
-  ('Vancouver (West)', 25),
-  ('Vancouver (East)', 20),
-  ('Burnaby', 20),
-  ('North Shore', 30),
-  ('Surrey', 35),
-  ('Delta', 25),
-  ('New Westminster', 20);
+```bash
+supabase link --project-ref <tu-project-ref>
+supabase db push
+```
 
--- Políticas RLS (Row Level Security)
-ALTER TABLE quotes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE client_profiles ENABLE ROW LEVEL SECURITY;
+`supabase db push` aplica únicamente las migraciones que el proyecto remoto
+todavía no tiene registradas — no borra ni reinicia datos existentes. Ver
+`SUPABASE_ACCESS_TOKEN`/`SUPABASE_PROJECT_ID`/`SUPABASE_DB_PASSWORD` en
+`.env.example` para las credenciales que necesita la CLI (no la app).
 
-CREATE POLICY "Users can view own quotes" ON quotes
-  FOR SELECT USING (auth.uid() = user_id);
+Para crear una migración nueva:
 
-CREATE POLICY "Users can insert own quotes" ON quotes
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can view own profile" ON client_profiles
-  FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own profile" ON client_profiles
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+```bash
+supabase migration new nombre_descriptivo
+# editar el archivo generado en supabase/migrations/
+supabase db reset   # probar localmente antes de hacer push
 ```
 
 ### 5. Ejecutar en desarrollo

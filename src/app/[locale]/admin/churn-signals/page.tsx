@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, UserMinus, Send, X, PhoneCall, ShieldAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -39,11 +39,7 @@ export default function ChurnSignalsPage() {
     teamScoreCurrent: "",
   });
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -60,7 +56,11 @@ export default function ChurnSignalsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function resolveSignal(id: string, dismiss: boolean) {
     setBusy(id);

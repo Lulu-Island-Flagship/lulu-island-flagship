@@ -1,10 +1,48 @@
 -- Seed: datos falsos de staging para Lulu Island Flagship v8.3
 -- Ejecuta automáticamente con `supabase db reset` después de las migraciones.
--- Contraseña por defecto de todos los usuarios de prueba: "password"
+-- Contraseña de los usuarios de prueba: generada al azar en cada corrida
+-- (ver bloque "SALVAGUARDA" más abajo) -- ya NO es el literal "password".
 
 -- crypt()/gen_salt() viven en la extensión pgcrypto (schema extensions en Supabase)
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path TO public, extensions;
+
+-- ============================================================
+-- SALVAGUARDA TÉCNICA REAL: aborta si no corre contra el stack local
+-- ============================================================
+-- Señal confiable local-vs-remoto: `supabase start`/`supabase db reset`
+-- levantan Postgres en Docker escuchando en 127.0.0.1:54322 (puerto fijado
+-- en supabase/config.toml, sección [db], `port = 54322`). ese puerto NO es
+-- el que usa ningún proyecto remoto de Supabase (que se conecta por 5432
+-- directo o 6543 via pooler). Si este script se pega/ejecuta a mano en un
+-- `psql` conectado a producción, `inet_server_port()` no será 54322 y el
+-- bloque aborta antes de tocar ninguna fila.
+DO $$
+BEGIN
+  IF COALESCE(inet_server_port(), 0) <> 54322 THEN
+    RAISE EXCEPTION 'seed.sql: rechazado -- este script solo debe correr contra el stack LOCAL de Supabase (puerto Postgres esperado: 54322, detectado: %). Si estas en produccion, DETENTE: este seed borra/reescribe usuarios de prueba.', inet_server_port();
+  END IF;
+END $$;
+
+-- Contraseña de seed generada al azar por corrida (no queda un literal
+-- "password" fijo en el repo). Se puede fijar explícitamente antes de correr
+-- `supabase db reset` con: `psql -c "SELECT set_config('app.seed_password', 'xxx', false)"`
+-- si algún flujo local necesita una contraseña conocida; si no se fija, se
+-- genera una aleatoria y se imprime por NOTICE al final de este archivo.
+DO $$
+DECLARE
+  v_password text;
+BEGIN
+  BEGIN
+    v_password := current_setting('app.seed_password', true);
+  EXCEPTION WHEN OTHERS THEN
+    v_password := NULL;
+  END;
+  IF v_password IS NULL OR v_password = '' THEN
+    v_password := encode(gen_random_bytes(18), 'base64');
+  END IF;
+  PERFORM set_config('app.seed_password', v_password, true);
+END $$;
 
 -- El trigger de snapshots (E0-C6) exige motivo en todo UPDATE de tablas de
 -- configuración — el seed lo declara para toda la sesión:
@@ -20,29 +58,27 @@ SELECT set_config('app.change_reason', 'db reset: seed de staging v8.3', true);
 -- `supabase db reset` (que ejecuta este seed.sql automáticamente después de
 -- las migraciones) es una herramienta SOLO para entornos locales/staging.
 -- BORRA y recrea toda la base de datos y luego siembra usuarios de prueba
--- con contraseña en texto plano "password" (incluye un owner_admin
--- permanente, aeonwalk3r@gmail.com, y 7 cuentas @example.com). Contra un
--- proyecto de producción esto sería catastrófico e irreversible.
+-- con contraseña generada al azar (incluye un owner_admin permanente de
+-- prueba, owner-admin-seed@example.invalid, y 7 cuentas @example.com).
+-- Contra un proyecto de producción esto sería catastrófico e irreversible.
 --
 -- En producción NUNCA se debe ejecutar `supabase db reset`. Solo se aplican
 -- migraciones (`supabase db push` o el flujo de CI/CD correspondiente), que
 -- no tocan este archivo.
 --
--- NOTA (corregido 2026-07-20): una versión anterior de esta salvaguarda
--- exigía un `set_config` manual antes de correr el archivo, bloqueando con
--- RAISE EXCEPTION si no estaba presente. Se revirtió porque rompía el
--- flujo normal de `supabase start`/`db reset` en local (ambos ejecutan
--- este seed en un solo paso automático, sin oportunidad de fijar esa
--- variable antes) sin aportar protección real: `supabase db reset` es un
--- comando que SOLO opera sobre el stack local de Docker -- no existe forma
--- de que apunte al proyecto de producción por esa vía (para aplicar
--- migraciones a producción se usa `supabase db push`, que nunca ejecuta
--- seed.sql). El único escenario de riesgo real es que alguien copie este
--- archivo a mano en una sesión de `psql` conectada directo a producción --
--- contra eso, un bloqueo por variable mágica no protege nada (se bypassea
--- con la misma facilidad que se lee este comentario). La protección real
--- contra ESE escenario es la advertencia de arriba, bien visible antes de
--- cualquier INSERT.
+-- NOTA (corregido 2026-08-02): la versión anterior de esta salvaguarda solo
+-- consistía en este comentario -- no había ningún chequeo ejecutable, y el
+-- README afirmaba (incorrectamente) que existía un bloqueo real por
+-- variable de sesión `app.allow_staging_seed`. Auditoría externa señaló que
+-- eso deja sin protección técnica real el escenario de riesgo: alguien
+-- copia este archivo a mano en una sesión de `psql` conectada directo a
+-- producción. Se agregó arriba un chequeo real y automático (sin requerir
+-- ningún paso manual previo, así que no rompe `supabase start`/`db reset`):
+-- `inet_server_port() <> 54322` aborta la transacción con RAISE EXCEPTION
+-- antes de cualquier INSERT. 54322 es el puerto fijo del Postgres local que
+-- levanta el CLI de Supabase (supabase/config.toml, sección [db]); ningún
+-- proyecto remoto expone ese puerto, así que es una señal confiable de
+-- "estoy conectado al stack local", no solo un comentario de advertencia.
 
 -- ============================================================
 -- 1. Usuarios de prueba (auth.users)
@@ -85,19 +121,19 @@ INSERT INTO auth.users (
   raw_app_meta_data,
   raw_user_meta_data
 ) VALUES
-  ('00000000-0000-0000-0000-000000000000'::uuid, '3e27c46c-c0b3-4583-b33c-a2ca82024232'::uuid, 'authenticated', 'authenticated', 'owner@example.com',      crypt('password', gen_salt('bf')), now(), now(), '', '', '', '', now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Owner Admin"}'),
-  ('00000000-0000-0000-0000-000000000000'::uuid, '9739d2ba-8b59-481f-9325-f6c029ff6763'::uuid, 'authenticated', 'authenticated', 'supervisor@example.com', crypt('password', gen_salt('bf')), now(), now(), '', '', '', '', now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Supervisor Test"}'),
-  ('00000000-0000-0000-0000-000000000000'::uuid, '64e35c23-b883-470b-8f20-23ffb6f40982'::uuid, 'authenticated', 'authenticated', 'cleaner@example.com',    crypt('password', gen_salt('bf')), now(), now(), '', '', '', '', now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cleaner Test"}'),
-  ('00000000-0000-0000-0000-000000000000'::uuid, 'ceef1739-57f5-45fc-ae34-e75e7bfb12c7'::uuid, 'authenticated', 'authenticated', 'driver@example.com',     crypt('password', gen_salt('bf')), now(), now(), '', '', '', '', now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Driver Test"}'),
-  ('00000000-0000-0000-0000-000000000000'::uuid, 'a8bb80d1-1841-4dbe-a569-42d9f5d50cc3'::uuid, 'authenticated', 'authenticated', 'client_b2c@example.com', crypt('password', gen_salt('bf')), now(), now(), '', '', '', '', now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cliente B2C"}'),
-  ('00000000-0000-0000-0000-000000000000'::uuid, '93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, 'authenticated', 'authenticated', 'client_b2b@example.com', crypt('password', gen_salt('bf')), now(), now(), '', '', '', '', now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cliente B2B"}'),
-  ('00000000-0000-0000-0000-000000000000'::uuid, '7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, 'authenticated', 'authenticated', 'qc@example.com',         crypt('password', gen_salt('bf')), now(), now(), '', '', '', '', now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"QC Only Test"}'),
+  ('00000000-0000-0000-0000-000000000000'::uuid, '3e27c46c-c0b3-4583-b33c-a2ca82024232'::uuid, 'authenticated', 'authenticated', 'owner@example.com',      crypt(current_setting('app.seed_password', true), gen_salt('bf')), now(), now(), '', '', '', '', now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Owner Admin"}'),
+  ('00000000-0000-0000-0000-000000000000'::uuid, '9739d2ba-8b59-481f-9325-f6c029ff6763'::uuid, 'authenticated', 'authenticated', 'supervisor@example.com', crypt(current_setting('app.seed_password', true), gen_salt('bf')), now(), now(), '', '', '', '', now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Supervisor Test"}'),
+  ('00000000-0000-0000-0000-000000000000'::uuid, '64e35c23-b883-470b-8f20-23ffb6f40982'::uuid, 'authenticated', 'authenticated', 'cleaner@example.com',    crypt(current_setting('app.seed_password', true), gen_salt('bf')), now(), now(), '', '', '', '', now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cleaner Test"}'),
+  ('00000000-0000-0000-0000-000000000000'::uuid, 'ceef1739-57f5-45fc-ae34-e75e7bfb12c7'::uuid, 'authenticated', 'authenticated', 'driver@example.com',     crypt(current_setting('app.seed_password', true), gen_salt('bf')), now(), now(), '', '', '', '', now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Driver Test"}'),
+  ('00000000-0000-0000-0000-000000000000'::uuid, 'a8bb80d1-1841-4dbe-a569-42d9f5d50cc3'::uuid, 'authenticated', 'authenticated', 'client_b2c@example.com', crypt(current_setting('app.seed_password', true), gen_salt('bf')), now(), now(), '', '', '', '', now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cliente B2C"}'),
+  ('00000000-0000-0000-0000-000000000000'::uuid, '93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, 'authenticated', 'authenticated', 'client_b2b@example.com', crypt(current_setting('app.seed_password', true), gen_salt('bf')), now(), now(), '', '', '', '', now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Cliente B2B"}'),
+  ('00000000-0000-0000-0000-000000000000'::uuid, '7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, 'authenticated', 'authenticated', 'qc@example.com',         crypt(current_setting('app.seed_password', true), gen_salt('bf')), now(), now(), '', '', '', '', now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"QC Only Test"}'),
   -- Dueño real (Aeon): sembrado con UUID fijo para que su acceso de
   -- owner_admin sobreviva a cada `db reset` sin tener que reinsertar
   -- admin_roles a mano. Entra por el login de email+código de
   -- src/components/admin/AdminLoginScreen.tsx (signInWithOtp busca por
   -- email y autentica esta MISMA fila, no crea una cuenta duplicada).
-  ('00000000-0000-0000-0000-000000000000'::uuid, 'aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae'::uuid, 'authenticated', 'authenticated', 'aeonwalk3r@gmail.com',   crypt('password', gen_salt('bf')), now(), now(), '', '', '', '', now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Aeon Walker"}')
+  ('00000000-0000-0000-0000-000000000000'::uuid, 'aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae'::uuid, 'authenticated', 'authenticated', 'owner-admin-seed@example.invalid',   crypt(current_setting('app.seed_password', true), gen_salt('bf')), now(), now(), '', '', '', '', now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Owner Admin Seed"}')
 ON CONFLICT (id) DO UPDATE SET
   instance_id = EXCLUDED.instance_id,
   aud = EXCLUDED.aud,
@@ -129,7 +165,7 @@ INSERT INTO auth.identities (
   ('a8bb80d1-1841-4dbe-a569-42d9f5d50cc3'::uuid, 'a8bb80d1-1841-4dbe-a569-42d9f5d50cc3'::uuid, 'a8bb80d1-1841-4dbe-a569-42d9f5d50cc3', '{"sub":"a8bb80d1-1841-4dbe-a569-42d9f5d50cc3","email":"client_b2c@example.com"}', 'email', now(), now()),
   ('93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, '93e41cd3-7ef5-4892-a144-69da2cf41189'::uuid, '93e41cd3-7ef5-4892-a144-69da2cf41189', '{"sub":"93e41cd3-7ef5-4892-a144-69da2cf41189","email":"client_b2b@example.com"}', 'email', now(), now()),
   ('7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, '7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60'::uuid, '7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60', '{"sub":"7c1de5a2-0f3b-4a8d-9e56-1b2c3d4e5f60","email":"qc@example.com"}',          'email', now(), now()),
-  ('aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae'::uuid, 'aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae'::uuid, 'aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae', '{"sub":"aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae","email":"aeonwalk3r@gmail.com"}',    'email', now(), now())
+  ('aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae'::uuid, 'aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae'::uuid, 'aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae', '{"sub":"aeaeaeae-1111-4aaa-8aaa-aeaeaeaeaeae","email":"owner-admin-seed@example.invalid"}',    'email', now(), now())
 ON CONFLICT (id) DO UPDATE SET
   identity_data = EXCLUDED.identity_data,
   updated_at = now();

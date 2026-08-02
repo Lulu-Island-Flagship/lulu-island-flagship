@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, DollarSign, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -42,11 +42,7 @@ export default function EconomicParamsPage() {
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -62,7 +58,11 @@ export default function EconomicParamsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function simulate() {
     const wage = parseFloat(newWage);

@@ -27,10 +27,10 @@ function getSupabaseClient() {
           return cookieStore.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options });
+          cookieStore.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
         },
         remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options });
+          cookieStore.set({ name, value: "", ...options, httpOnly: true, secure: true, sameSite: "lax" });
         },
       },
     }
@@ -212,11 +212,27 @@ async function sendClosureCommunications(
 
   // Invariante B.2.18 (anti-gating Google/FTC): se solicita a TODOS los
   // servicios completos. Única exclusión: discrepancia crítica aún abierta.
-  const { data: openTickets } = await supabase
+  // Fix auditoría de seguridad externa (2026-08-02): si esta consulta
+  // fallaba (error de red, timeout de DB), el `|| []` trataba el error
+  // exactamente igual que "no hay disputas abiertas" -- fail-open sobre una
+  // excepción documentada de anti-gating (B.2.18): con una disputa crítica
+  // real pero invisible por el error, igual se solicitaría la reseña. Debe
+  // fallar cerrado: si no se puede verificar el estado de disputas, no se
+  // solicita la reseña (se puede reintentar en el próximo evento de
+  // completado o revisar manualmente), en vez de arriesgarse a pedir una
+  // reseña de 5 estrellas en medio de una disputa sin resolver.
+  const { data: openTickets, error: openTicketsError } = await supabase
     .from("tickets_disputas")
     .select("type, priority, status")
     .eq("order_id", orderId)
     .in("status", ["open", "in_review"]);
+
+  if (openTicketsError) {
+    console.error(
+      `[review_request] Omitido para orden ${orderId}: no se pudo verificar disputas abiertas (fail-closed): ${openTicketsError.message}`
+    );
+    return;
+  }
 
   if (hasOpenCriticalDispute(openTickets || [])) {
     console.log(
@@ -234,7 +250,16 @@ async function sendClosureCommunications(
   const reviewLink = buildReviewLink(order.review_token, baseUrl);
   const qrSvg = await buildReviewQrSvg(order.review_token, baseUrl);
 
-  await supabase.from("orders").update({ review_qr_svg: qrSvg }).eq("id", orderId);
+  const { error: qrUpdateError } = await supabase
+    .from("orders")
+    .update({ review_qr_svg: qrSvg })
+    .eq("id", orderId);
+
+  if (qrUpdateError) {
+    console.error(
+      `[review_request] Orden ${orderId}: no se pudo guardar review_qr_svg: ${qrUpdateError.message} — el link de reseña sigue funcionando, pero el QR no se persistió.`
+    );
+  }
 
   await dispatchCommunication(supabase, {
     eventKey: "review_request",

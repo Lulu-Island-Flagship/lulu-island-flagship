@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, Video, Award, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 
@@ -35,11 +35,7 @@ export default function EmployeeMarketingPage() {
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -56,7 +52,11 @@ export default function EmployeeMarketingPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function approve(featureId: string) {
     setBusyId(featureId);

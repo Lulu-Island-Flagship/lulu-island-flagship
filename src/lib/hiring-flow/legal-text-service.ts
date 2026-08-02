@@ -81,6 +81,36 @@ export class UnrenderedPlaceholderError extends Error {
   }
 }
 
+// Fix (auditoría externa 2026-08-02, hallazgo CRÍTICO #1): las migraciones
+// 255/274 sembraron texto legal placeholder ("[PLACEHOLDER -- ... NO USAR
+// EN PRODUCCIÓN]" / "[CONTENIDO ESTRUCTURAL PLACEHOLDER -- ...]") con
+// is_active = true, y llegó a servirse en producción -- consentimiento
+// inválido bajo PIPA/BC. La migración 309 desactiva esas filas, pero eso
+// por sí solo depende de que nadie vuelva a insertar/activar accidentalmente
+// una fila placeholder en el futuro (ej. un seed de prueba corrido contra
+// producción, o un admin reactivando la fila equivocada). Esta guardia es
+// la red de seguridad estructural: pase lo que pase en la DB, el texto
+// activo que se sirve JAMÁS puede contener la palabra "PLACEHOLDER" -- si
+// la contiene, se lanza un error explícito en vez de servirlo en
+// silencio, para que este bug sea imposible de reintroducir sin que algo
+// truene de inmediato.
+export class PlaceholderLegalTextError extends Error {
+  readonly textKey: string;
+  readonly version: string;
+
+  constructor(textKey: string, version: string) {
+    super(
+      `Legal text "${textKey}" version "${version}" is marked is_active but its content ` +
+        `still contains the literal word "PLACEHOLDER" -- refusing to serve it. This text ` +
+        `must be replaced with reviewed legal copy and re-activated by an explicit admin ` +
+        `operation before it can be shown to candidates/clients or used to record consent.`
+    );
+    this.name = "PlaceholderLegalTextError";
+    this.textKey = textKey;
+    this.version = version;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // extractPlaceholders — pura, testeable sin DB
 // ---------------------------------------------------------------------------
@@ -185,6 +215,14 @@ export async function renderLegalText(
   const active = rows.find((row) => row.is_active && isCurrentlyEffective(row, now));
   if (!active) {
     throw new LegalTextNotFoundError(key, "no_active_version");
+  }
+
+  // Guardia dura contra placeholder legal activo -- ver
+  // PlaceholderLegalTextError arriba. Se chequea sobre el contenido crudo
+  // ANTES de renderizar (case-insensitive: el seed usa "PLACEHOLDER" en
+  // mayúsculas, pero no dependemos de eso para la detección).
+  if (/placeholder/i.test(active.content)) {
+    throw new PlaceholderLegalTextError(key, active.version);
   }
 
   const companyName = String(await getSetting("company_name", client));

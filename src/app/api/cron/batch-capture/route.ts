@@ -226,6 +226,13 @@ export async function GET(request: NextRequest) {
       .eq("service_date", todayStr)
       .eq("status", "completed")
       .not("status", "in", "(cancelled,no_show)")
+      // Fix CRÍTICO (auditoría externa de integridad financiera, 2026-08-02):
+      // esta query filtraba por `status` pero no excluía órdenes con soft
+      // delete (deleted_at NOT NULL) -- operación puede haber dado por
+      // eliminada una orden lógicamente sin cambiar su `status`, y este cron
+      // igual la capturaba, cobrando dinero real sobre una orden que ya no
+      // debía existir para el negocio.
+      .is("deleted_at", null)
       .lt("capture_attempts", MAX_ATTEMPTS)
       .order("service_datetime", { ascending: true });
 
@@ -322,7 +329,7 @@ export async function GET(request: NextRequest) {
             error: `EXCLUDED: ${qcGate.reason} (qc_status=${qcStatus ?? "none"})`,
           });
 
-          await supabase
+          const { error: withholdError } = await supabase
             .from("orders")
             .update({
               capture_withheld_reason: qcGate.reason,
@@ -331,7 +338,14 @@ export async function GET(request: NextRequest) {
             })
             .eq("id", order.id);
 
-          await supabase.from("tickets_disputas").insert({
+          if (withholdError) {
+            results.errors.push({
+              orderId: order.id,
+              error: `Failed to mark order as capture-withheld (QC gate): ${withholdError.message}`,
+            });
+          }
+
+          const { error: ticketError } = await supabase.from("tickets_disputas").insert({
             order_id: order.id,
             type: "discrepancy",
             priority: "medium",
@@ -342,6 +356,13 @@ export async function GET(request: NextRequest) {
               quote_total_cents: quoteTotalCents,
             },
           });
+
+          if (ticketError) {
+            results.errors.push({
+              orderId: order.id,
+              error: `Failed to create tickets_disputas ticket for QC-withheld capture: ${ticketError.message}`,
+            });
+          }
 
           continue;
         }
