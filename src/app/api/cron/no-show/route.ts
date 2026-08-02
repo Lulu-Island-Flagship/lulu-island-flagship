@@ -186,7 +186,13 @@ export async function GET(request: NextRequest) {
         "id, quote_id, user_id, service_time, service_datetime, status, payment_option, stripe_hold_payment_intent_id, hold_authorized_amount_cents, hold_amount_cents, paypal_advance_amount, wallet_amount_collected_cents, stripe_customer_id, stripe_payment_method_id, quotes(total)"
       )
       .eq("service_date", today)
-      .eq("status", "confirmed");
+      .eq("status", "confirmed")
+      // Fix (auditoría externa de infraestructura, 2026-08-02): mismo bug de
+      // soft-delete que batch-capture -- sin este filtro, una orden borrada
+      // lógicamente podía ser detectada como no-show y sufrir la penalidad
+      // real de captura del hold pese a que operación ya la había dado por
+      // eliminada.
+      .is("deleted_at", null);
 
     if (ordersError) throw ordersError;
 

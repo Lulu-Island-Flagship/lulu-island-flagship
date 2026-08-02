@@ -11,6 +11,7 @@ import {
   type TrustedSuccessorRow,
 } from "@/lib/access-recovery-server";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
+import { getClientIp } from "@/lib/request-ip";
 
 /**
  * POST /api/recovery/verify — confirma el código de verificación enviado por
@@ -49,10 +50,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "code is required" }, { status: 400 });
   }
 
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
+  const ip = getClientIp(request);
   const { data: rateLimitData, error: rateLimitError } = await serviceClient.rpc("check_rate_limit", {
     p_ip_address: `access-recovery-verify:${ip}`,
     p_max_requests: 10,

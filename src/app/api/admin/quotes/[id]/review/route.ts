@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { isValidUuid } from "@/lib/validation";
 
 /**
  * POST /api/admin/quotes/[id]/review
@@ -32,6 +33,9 @@ export async function POST(
     const supabase = auth.supabase;
     const userId = auth.user.id;
     const quoteId = params.id;
+    if (!isValidUuid(quoteId)) {
+      return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+    }
     const body = await request.json();
     const { action, reason } = body;
 

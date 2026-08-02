@@ -73,9 +73,15 @@ export async function GET() {
       .map((a: { employee_id: string }) => a.employee_id)
       .filter(Boolean);
 
+    // Fix (auditoría externa, hallazgo confirmado 2026-08-02): el recurso
+    // RBAC protegido aquí es 'services' (incluye ops_coordinator), no
+    // 'employees_admin'/'payroll' -- no se debe seleccionar/exponer el
+    // email personal de los empleados en este listado. Se confirmó por
+    // grep que ningún consumidor del frontend lee employeeEmail (solo
+    // estaba declarado en el tipo, nunca renderizado) antes de quitarlo.
     const { data: employees } = await auth.supabase
       .from("employees")
-      .select("id, name, email")
+      .select("id, name")
       .in("id", employeeIds.length > 0 ? employeeIds : ["00000000-0000-0000-0000-000000000000"]);
 
     const employeeMap = new Map();
@@ -121,9 +127,6 @@ export async function GET() {
       const employeeNames = orderAssignments.length > 0
         ? orderAssignments.map((a) => employeeMap.get(a.employee_id)?.name || "Unknown").join(", ")
         : "Unassigned";
-      const employeeEmails = orderAssignments.length > 0
-        ? orderAssignments.map((a) => employeeMap.get(a.employee_id)?.email || "").filter(Boolean).join(", ")
-        : "";
       // Status consolidado: si hay múltiples asignaciones, usa el más avanzado
       const statusPriority = ["completed", "in_progress", "arrived", "en_route", "pending", "cancelled", "no_show"];
       const assignmentStatus = orderAssignments.length > 0
@@ -147,7 +150,6 @@ export async function GET() {
         orderStatus: o.status,
         assignmentStatus,
         employeeName: employeeNames,
-        employeeEmail: employeeEmails,
         address: quote?.address || "",
         zone: quote?.zone || "",
         serviceType: quote?.service_type || "",

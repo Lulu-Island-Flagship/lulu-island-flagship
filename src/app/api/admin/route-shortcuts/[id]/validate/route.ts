@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { SHORTCUT_VALIDATED_BONUS_CENTS } from "@/lib/wellbeing-bonus";
+import { isValidUuid } from "@/lib/validation";
 
 // PATCH /api/admin/route-shortcuts/[id]/validate — un supervisor valida un
-// atajo reportado. Paga el bono de +$10 UNA sola vez (validated_at es el
-// guardia: si ya tiene fecha, no se vuelve a pagar).
+// atajo reportado. Paga el bono de +$10 UNA sola vez.
+//
+// Migración 320: el UPDATE (marcar validado) y el INSERT (pagar el bono)
+// ocurren atómicamente dentro de validate_route_shortcut_atomic (CAS sobre
+// validated_at IS NULL), en vez de leer/chequear/actualizar/insertar en
+// llamadas HTTP separadas -- eso permitía que dos PATCH concurrentes pagaran
+// el bono dos veces por el mismo atajo.
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireAdminRole("wellbeing", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase || !auth.user) {
@@ -12,45 +18,49 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
   const { supabase, user } = auth;
 
-  const { data: existing, error: fetchError } = await supabase
-    .from("route_shortcuts")
-    .select("id, employee_id, validated_at")
-    .eq("id", params.id)
-    .is("deleted_at", null)
-    .single();
-
-  if (fetchError || !existing) {
-    return NextResponse.json({ error: "Route shortcut not found" }, { status: 404 });
+  if (!isValidUuid(params.id)) {
+    return NextResponse.json({ error: "ID inválido" }, { status: 400 });
   }
 
-  if (existing.validated_at) {
-    return NextResponse.json({ error: "Already validated" }, { status: 409 });
-  }
-
-  const nowISO = new Date().toISOString();
-  const { data: updated, error: updateError } = await supabase
-    .from("route_shortcuts")
-    .update({ validated_at: nowISO, validated_by: user.id })
-    .eq("id", params.id)
-    .select("id, description, uses_count, reported_at, validated_at")
+  const { data, error } = await supabase
+    .rpc("validate_route_shortcut_atomic", {
+      p_shortcut_id: params.id,
+      p_validator_user_id: user.id,
+      p_bonus_cents: SHORTCUT_VALIDATED_BONUS_CENTS,
+    })
     .single();
 
-  if (updateError) {
-    console.error("admin/route-shortcuts/[id]/validate error:", updateError);
+  if (error) {
+    if (error.message?.includes("SHORTCUT_NOT_FOUND")) {
+      return NextResponse.json({ error: "Route shortcut not found" }, { status: 404 });
+    }
+    if (error.message?.includes("SHORTCUT_ALREADY_VALIDATED")) {
+      return NextResponse.json({ error: "Already validated" }, { status: 409 });
+    }
+    console.error("admin/route-shortcuts/[id]/validate error:", error);
     return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
-  const { error: bonusError } = await supabase.from("employee_wellbeing_bonuses").insert({
-    employee_id: existing.employee_id,
-    source: "shortcut_validated",
-    bonus_cents: SHORTCUT_VALIDATED_BONUS_CENTS,
-    credit_date: nowISO.split("T")[0],
-    notes: `Atajo de ruta validado: route_shortcuts ${existing.id}`,
-  });
+  const row = data as {
+    id: string;
+    description: string;
+    uses_count: number;
+    reported_at: string;
+    validated_at: string;
+    bonus_awarded: boolean;
+  };
 
-  if (bonusError) {
-    console.error("Failed to credit shortcut bonus (shortcut already validated):", bonusError);
-  }
-
-  return NextResponse.json({ shortcut: updated, bonusAwarded: !bonusError }, { status: 200 });
+  return NextResponse.json(
+    {
+      shortcut: {
+        id: row.id,
+        description: row.description,
+        uses_count: row.uses_count,
+        reported_at: row.reported_at,
+        validated_at: row.validated_at,
+      },
+      bonusAwarded: row.bonus_awarded,
+    },
+    { status: 200 }
+  );
 }

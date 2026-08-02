@@ -1,7 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
-import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { isValidUuid } from "@/lib/validation";
+
+// Fix (pentest, hallazgo independiente #2, 2026-08-02): correctedTimestamp
+// no se validaba -- ni formato ISO 8601 ni rango razonable. Un admin (o una
+// llamada directa a la API sin pasar por la UI) podía escribir cualquier
+// string en service_logs.timestamp (fecha futura, fecha absurdamente
+// antigua, o un valor no parseable que rompiera consultas/reportes de
+// nómina río abajo). Límite de antigüedad elegido: 90 días -- suficiente
+// para cubrir cualquier disputa de horas real (que se abre poco después del
+// servicio) sin permitir reescribir historial arbitrariamente viejo.
+const MAX_CORRECTED_TIMESTAMP_AGE_DAYS = 90;
+
+function isValidCorrectedTimestamp(value: unknown): value is string {
+  if (typeof value !== "string" || value.trim() === "") return false;
+  if (isNaN(Date.parse(value))) return false;
+  const parsed = new Date(value);
+  const now = new Date();
+  if (parsed.getTime() > now.getTime()) return false;
+  const minAllowed = new Date(now.getTime() - MAX_CORRECTED_TIMESTAMP_AGE_DAYS * 24 * 60 * 60 * 1000);
+  if (parsed.getTime() < minAllowed.getTime()) return false;
+  return true;
+}
 
 /**
  * POST /api/admin/hours-disputes/[id]/resolve
@@ -52,6 +73,9 @@ export async function POST(
     const supabase = auth.supabase;
     const userId = auth.user.id;
     const ticketId = params.id;
+    if (!isValidUuid(ticketId)) {
+      return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+    }
     const body = await request.json();
     const { action, resolutionNote, correctedTimestamp } = body;
 
@@ -62,114 +86,60 @@ export async function POST(
       );
     }
 
-    const { data: ticket, error: ticketError } = await supabase
-      .from("tickets_disputas")
-      .select("id, order_id, employee_id, type, status, context")
-      .eq("id", ticketId)
+    if (correctedTimestamp !== undefined && !isValidCorrectedTimestamp(correctedTimestamp)) {
+      return NextResponse.json(
+        {
+          error:
+            `correctedTimestamp inválido: debe ser una fecha ISO 8601 válida, no futura, ` +
+            `y de no más de ${MAX_CORRECTED_TIMESTAMP_AGE_DAYS} días de antigüedad.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Migración 322: el chequeo de tipo/estado previo, la corrección de
+    // service_logs (afecta nómina) y el UPDATE final del ticket ocurren
+    // atómicamente dentro de resolve_hours_dispute_atomic (SELECT ... FOR
+    // UPDATE + misma transacción), en vez de leer/chequear/escribir
+    // service_logs/actualizar el ticket en llamadas HTTP separadas -- eso
+    // permitía que dos POST concurrentes aplicaran la corrección de horas
+    // dos veces sobre service_logs antes de que cualquiera de los dos
+    // marcara el ticket como resuelto.
+    const { data: updatedTicket, error: rpcError } = await supabase
+      .rpc("resolve_hours_dispute_atomic", {
+        p_ticket_id: ticketId,
+        p_action: action,
+        p_resolution_note: resolutionNote ?? null,
+        p_corrected_timestamp: correctedTimestamp ?? null,
+        p_resolver_user_id: userId,
+      })
       .single();
 
-    if (ticketError || !ticket) {
-      return NextResponse.json({ error: "Dispute not found" }, { status: 404 });
-    }
-
-    if (ticket.type !== "hours_dispute") {
-      return NextResponse.json({ error: "Not an hours dispute ticket" }, { status: 400 });
-    }
-
-    if (!["open", "in_review"].includes(ticket.status)) {
-      return NextResponse.json({ error: "Dispute already resolved" }, { status: 409 });
-    }
-
-    const ctx = (ticket.context as Record<string, unknown>) || {};
-    const claimedEventType = ctx.claimed_event_type as string | undefined;
-
-    if (action === "approve_correction" && correctedTimestamp) {
-      if (!claimedEventType) {
+    if (rpcError) {
+      if (rpcError.message?.includes("DISPUTE_NOT_FOUND")) {
+        return NextResponse.json({ error: "Dispute not found" }, { status: 404 });
+      }
+      if (rpcError.message?.includes("NOT_HOURS_DISPUTE")) {
+        return NextResponse.json({ error: "Not an hours dispute ticket" }, { status: 400 });
+      }
+      if (rpcError.message?.includes("DISPUTE_ALREADY_RESOLVED")) {
+        return NextResponse.json({ error: "Dispute already resolved" }, { status: 409 });
+      }
+      if (rpcError.message?.includes("MISSING_CLAIMED_EVENT_TYPE")) {
         return NextResponse.json(
           { error: "Ticket missing claimed_event_type in context — cannot apply correction" },
           { status: 500 }
         );
       }
-
-      const { data: existingLog } = await supabase
-        .from("service_logs")
-        .select("id")
-        .eq("order_id", ticket.order_id)
-        .eq("employee_id", ticket.employee_id)
-        .eq("event_type", claimedEventType)
-        .order("timestamp", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (existingLog) {
-        const { error: updateLogError } = await supabase
-          .from("service_logs")
-          .update({ timestamp: correctedTimestamp, notes: `Corrected via hours dispute ${ticketId} (admin ${userId})` })
-          .eq("id", existingLog.id);
-        if (updateLogError) {
-          console.error("admin/hours-disputes/[id]/resolve error:", updateLogError);
-          return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
-        }
-      } else {
-        // Falla técnica: el evento nunca se registró. Se crea ahora con el
-        // timestamp corregido para que la hora pagada refleje la realidad
-        // reclamada por el empleado, no un cero por ausencia de registro.
-        const { error: insertLogError } = await supabase.from("service_logs").insert({
-          order_id: ticket.order_id,
-          employee_id: ticket.employee_id,
-          event_type: claimedEventType,
-          timestamp: correctedTimestamp,
-          notes: `Created via hours dispute ${ticketId} (admin ${userId}) -- technical failure, never penalize`,
-        });
-        if (insertLogError) {
-          console.error("admin/hours-disputes/[id]/resolve error:", insertLogError);
-          return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
-        }
-      }
-    }
-
-    const { data: updatedTicket, error: updateError } = await supabase
-      .from("tickets_disputas")
-      .update({
-        status: "resolved",
-        resolved_by: userId,
-        resolved_at: new Date().toISOString(),
-        resolution_note:
-          resolutionNote ||
-          (action === "approve_correction" ? "Hours corrected" : "Dispute rejected"),
-      })
-      .eq("id", ticketId)
-      .select()
-      .single();
-
-    if (updateError) {
-      console.error("admin/hours-disputes/[id]/resolve error:", updateError);
+      console.error("admin/hours-disputes/[id]/resolve error:", rpcError);
       return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
-    // D-P1-4: la disputa se resolvió a favor del empleado. No hay cálculo
-    // automático de ajuste de nómina (ver nota arriba) -- se deja una
-    // alerta visible en la bandeja unificada para que nómina lo procese a
-    // mano. `publishUnifiedAlert` nunca lanza: si falla, no bloquea la
-    // resolución de la disputa (que ya se guardó arriba), solo se pierde la
-    // notificación.
-    if (action === "approve_correction") {
-      const alertResult = await publishUnifiedAlert(supabase, {
-        sourceModule: "hours_dispute_resolution",
-        sourceTable: "tickets_disputas",
-        sourceId: ticketId,
-        tier: "can_wait",
-        severity: "p1_urgent",
-        title: "Disputa de horas resuelta a favor del empleado — revisar ajuste de nómina",
-        summary:
-          `El ticket ${ticketId} (empleado ${ticket.employee_id}, orden ${ticket.order_id}) se resolvió corrigiendo service_logs. ` +
-          `El pago es por Day Rate, no por horas registradas: no hay ajuste automático de nómina. ` +
-          `Nómina debe revisar manualmente si corresponde compensación adicional.`,
-      });
-      if (!alertResult.success) {
-        console.error("publishUnifiedAlert failed for hours dispute resolution:", alertResult.error);
-      }
-    }
+    // D-P1-4: la alerta de nómina (cuando action === 'approve_correction')
+    // ya se publicó dentro del RPC, en la misma transacción que la
+    // resolución del ticket -- de forma best-effort (un fallo del INSERT en
+    // unified_alerts no revierte la resolución, ver EXCEPTION WHEN OTHERS
+    // en la migración 322).
 
     return NextResponse.json({ ticket: updatedTicket, action, resolvedBy: userId }, { status: 200 });
   } catch (err: Error | unknown) {

@@ -74,16 +74,34 @@ export async function POST(
       update.client_approved = action === "approve";
     }
 
-    const { data, error } = await supabase
-      .from("service_upsells")
-      .update(update)
-      .eq("id", id)
-      .select()
-      .single();
+    // Fix (pentest Kimi, race condition operativa #5): el chequeo
+    // `existing.approval_status !== "pending_admin_approval"` de arriba se
+    // lee de un SELECT hecho ANTES de este UPDATE -- dos POST concurrentes
+    // de approve/reject sobre el mismo upsell ambos pasaban ese chequeo (los
+    // dos veían "pending_admin_approval" todavía) y ambos escribían aquí: el
+    // segundo pisaba silenciosamente la decisión del primero (ej. un
+    // "approve" seguido de un "reject" concurrente podía dejar
+    // client_approved=false sobre un upsell que ya se había comisionado como
+    // aprobado, o viceversa). Se agrega `.eq("approval_status",
+    // "pending_admin_approval")` cuando la acción es approve/reject como
+    // compare-and-swap real: solo el primer UPDATE concurrente afecta una
+    // fila; el segundo no matchea ninguna (el estado ya cambió) y `data`
+    // vuelve null -> se responde 409 en vez de pisar la revisión ya hecha.
+    let query = supabase.from("service_upsells").update(update).eq("id", id);
+    if (action === "approve" || action === "reject") {
+      query = query.eq("approval_status", "pending_admin_approval");
+    }
+    const { data, error } = await query.select().maybeSingle();
 
     if (error) {
       console.error("Upsell review error:", error);
       return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
+    if (!data) {
+      return NextResponse.json(
+        { error: "Upsell does not require admin approval" },
+        { status: 409 }
+      );
     }
 
     if (action === "approve" || action === "reject") {

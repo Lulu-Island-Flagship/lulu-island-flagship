@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { isValidUuid } from "@/lib/validation";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -34,6 +35,9 @@ export async function GET(request: NextRequest) {
 
     if (!orderId) {
       return NextResponse.json({ error: "Missing orderId" }, { status: 400 });
+    }
+    if (!isValidUuid(orderId)) {
+      return NextResponse.json({ error: "orderId inválido" }, { status: 400 });
     }
 
     const supabase = getSupabaseClient();
@@ -76,6 +80,9 @@ export async function POST(request: NextRequest) {
 
     if (!orderId || !upsellType || !upsellLabel || amount === undefined) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+    if (!isValidUuid(orderId)) {
+      return NextResponse.json({ error: "orderId inválido" }, { status: 400 });
     }
 
     const supabase = getSupabaseClient();

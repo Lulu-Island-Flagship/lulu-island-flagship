@@ -95,79 +95,39 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         return NextResponse.json({ error: "signedByName is required" }, { status: 400 });
       }
 
-      const { data: currentVersion } = await auth.supabase
-        .from("contract_versions")
-        .select("version_number")
-        .eq("contract_id", review.contract_id)
-        .eq("status", "active")
-        .order("version_number", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const nextVersionNumber = (currentVersion?.version_number ?? 0) + 1;
-
-      if (currentVersion) {
-        await auth.supabase
-          .from("contract_versions")
-          .update({ status: "superseded" })
-          .eq("contract_id", review.contract_id)
-          .eq("status", "active");
-      }
-
       const forwardedFor = request.headers.get("x-forwarded-for");
       const signedIp = forwardedFor?.split(",")[0]?.trim() || null;
 
-      const { data: newVersion, error: versionError } = await auth.supabase
-        .from("contract_versions")
-        .insert({
-          contract_id: review.contract_id,
-          review_id: review.id,
-          version_number: nextVersionNumber,
-          terms_snapshot: review.proposed_terms,
-          status: "active",
-          signed_by_name: signedByName.trim(),
-          signed_ip: signedIp,
-          signed_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-      if (versionError) {
-        console.error("admin/contract-reviews/[id] error:", versionError);
+      // Fix (auditoría de integridad de datos 2026-08-02): supersede de la
+      // versión anterior + insert de la nueva contract_versions + update de
+      // service_contracts + update de contract_reviews eran 4 escrituras
+      // REST sueltas -- un fallo a mitad de camino dejaba un documento legal
+      // (contrato firmado) en un estado inconsistente. Ahora es una sola
+      // llamada RPC atómica (migración 325): o los cuatro pasos committean
+      // juntos, o ninguno lo hace.
+      const { data: rpcResult, error: rpcError } = await auth.supabase.rpc("sign_contract_review_atomic", {
+        p_review_id: id,
+        p_admin_id: auth.user.id,
+        p_signed_by_name: signedByName.trim(),
+        p_signed_ip: signedIp,
+      });
+
+      if (rpcError) {
+        console.error("admin/contract-reviews/[id] error:", rpcError);
+        if (rpcError.message?.includes("REVIEW_NOT_FOUND")) {
+          return NextResponse.json({ error: "Review not found" }, { status: 404 });
+        }
+        if (rpcError.message?.includes("REVIEW_NOT_APPROVED")) {
+          return NextResponse.json({ error: "Only an approved review can be signed" }, { status: 409 });
+        }
+        if (rpcError.message?.includes("SIGNED_BY_NAME_REQUIRED")) {
+          return NextResponse.json({ error: "signedByName is required" }, { status: 400 });
+        }
         return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
 
-      // Reflejar los términos aprobados en el contrato vigente (mismo
-      // patrón que el ajuste IPC ya aplica base_price/total).
-      const terms = review.proposed_terms as {
-        frequency?: string;
-        basePrice?: number;
-        total?: number;
-        serviceSubtype?: string;
-      } | null;
-      if (terms) {
-        await auth.supabase
-          .from("service_contracts")
-          .update({
-            frequency: terms.frequency,
-            base_price: terms.basePrice,
-            total: terms.total,
-            service_subtype: terms.serviceSubtype,
-          })
-          .eq("id", review.contract_id);
-      }
-
-      const { data: updatedReview, error: reviewUpdateError } = await auth.supabase
-        .from("contract_reviews")
-        .update({ status: "signed" })
-        .eq("id", id)
-        .select()
-        .single();
-      if (reviewUpdateError) {
-        console.error("admin/contract-reviews/[id] error:", reviewUpdateError);
-        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
-      }
-
-      return NextResponse.json({ review: updatedReview, version: newVersion }, { status: 200 });
+      const result = rpcResult as { review: unknown; version: unknown };
+      return NextResponse.json({ review: result.review, version: result.version }, { status: 200 });
     }
 
     return NextResponse.json({ error: "action must be approve, dismiss, or sign" }, { status: 400 });

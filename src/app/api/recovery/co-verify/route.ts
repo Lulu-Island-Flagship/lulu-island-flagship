@@ -17,6 +17,7 @@ import {
   renderCatalogTemplate,
   sendToSuccessor,
 } from "@/lib/access-recovery-server";
+import { getClientIp } from "@/lib/request-ip";
 
 /**
  * Vía de "doble verificación" para la aprobación humana obligatoria (paso 5
@@ -53,18 +54,15 @@ export async function POST(request: NextRequest) {
   }
 
   // v8.3 fix C-H9 (auditoría RBAC 2026-07-21): X-Forwarded-For lo controla el
-  // cliente (cualquiera puede mandar un valor distinto en cada request), así
-  // que este límite por IP es una mitigación débil, no una garantía -- no
-  // existe en este repo ninguna cabecera de IP más confiable inyectada por
-  // la plataforma (se buscó `x-vercel-ip-*`/`cf-connecting-ip`: ninguna
-  // ruta la usa hoy). Como mitigación adicional, se añade abajo un segundo
-  // límite por `requestId`, que el cliente NO puede falsificar (es un UUID
-  // que solo conoce quien ya pasó por /api/recovery/verify) y que no se
-  // resetea por cambiar de IP.
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
+  // cliente (cualquiera puede mandar un valor distinto en cada request).
+  // Fix (pentest 2026-08-02): getClientIp() ahora prioriza
+  // `x-vercel-forwarded-for`, que Vercel sobrescribe con la IP real de
+  // conexión y el cliente no puede falsificar (ver src/lib/request-ip.ts) --
+  // x-forwarded-for solo se usa como fallback fuera de Vercel. Aun así, como
+  // mitigación adicional, se añade abajo un segundo límite por `requestId`,
+  // que el cliente NO puede falsificar (es un UUID que solo conoce quien ya
+  // pasó por /api/recovery/verify) y que no se resetea por cambiar de IP.
+  const ip = getClientIp(request);
   const { data: rateLimitData, error: rateLimitError } = await serviceClient.rpc("check_rate_limit", {
     p_ip_address: `access-recovery-co-verify:${ip}`,
     p_max_requests: 10,
@@ -249,21 +247,45 @@ export async function POST(request: NextRequest) {
     // La doble verificación de 2 contactos distintos ES la aprobación humana
     // requerida (paso 5) -- ningún admin adicional necesario. Resuelve y
     // emite el código de emergencia inmediatamente.
+    //
+    // Migración 323: la transición de estado 'verified_pending_approval' ->
+    // 'approved' se reclama atómicamente vía claim_access_recovery_approval_atomic
+    // (CAS sobre status) ANTES de emitir ningún código de emergencia -- esta
+    // ruta y POST /api/admin/access-recovery (action=approve) pueden competir
+    // por la misma solicitud (un admin logueado aprobando casi al mismo
+    // tiempo que un segundo successor confirma su código), y solo la que
+    // gana el CAS debe emitir códigos. La otra ve REQUEST_ALREADY_RESOLVED y
+    // no emite un segundo juego de códigos.
+    const { error: claimError } = await serviceClient
+      .rpc("claim_access_recovery_approval_atomic", {
+        p_request_id: confirmed.id,
+        p_resolved_by: "successor_co_verification",
+        p_resolved_by_admin_user_id: null,
+        p_resolved_by_successor_id: confirmed.co_verifier_successor_id,
+      })
+      .single();
+
+    if (claimError) {
+      if (claimError.message?.includes("REQUEST_ALREADY_RESOLVED")) {
+        // Ya fue aprobada por la otra vía (un admin logueado) una fracción
+        // de segundo antes -- el código de verificación de este successor
+        // era correcto, pero no hay nada más que hacer: no se emite un
+        // segundo juego de códigos de emergencia.
+        return NextResponse.json({
+          status: "approved",
+          message: "Solicitud ya fue aprobada por un administrador. No se emitió un código adicional.",
+        });
+      }
+      console.error("[recovery/co-verify confirm] claim error:", claimError.message);
+      return NextResponse.json({ error: "Verification failed" }, { status: 500 });
+    }
+
     const owners = await getActiveOwnerAdmins(serviceClient);
     if (owners.length === 0) {
       // No debería pasar en un sistema configurado correctamente, pero si
-      // pasa, NO se emite ningún código -- se deja la solicitud aprobada
-      // pero sin código, y queda rastro para investigación manual en vez de
-      // fallar silenciosamente o inventar un destinatario.
-      await serviceClient
-        .from("access_recovery_requests")
-        .update({
-          status: "approved",
-          resolved_at: new Date().toISOString(),
-          resolved_by: "successor_co_verification:no_owner_admin_found",
-          resolved_by_successor_id: confirmed.co_verifier_successor_id,
-        })
-        .eq("id", confirmed.id);
+      // pasa, NO se emite ningún código -- la solicitud ya quedó 'approved'
+      // por el CAS de arriba, y queda rastro para investigación manual en
+      // vez de fallar silenciosamente o inventar un destinatario.
       await logRecoveryAuditEvent(serviceClient, {
         requestId: confirmed.id,
         eventType: "admin_approved",
@@ -277,17 +299,6 @@ export async function POST(request: NextRequest) {
     }
 
     const issuedCodes = await issueEmergencyAccessCodes(serviceClient);
-
-    await serviceClient
-      .from("access_recovery_requests")
-      .update({
-        status: "approved",
-        resolved_at: new Date().toISOString(),
-        resolved_by: "successor_co_verification",
-        resolved_by_successor_id: confirmed.co_verifier_successor_id,
-        emergency_code_issued_at: new Date().toISOString(),
-      })
-      .eq("id", confirmed.id);
 
     await logRecoveryAuditEvent(serviceClient, {
       requestId: confirmed.id,

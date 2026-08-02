@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { isValidUuid } from "@/lib/validation";
 
 // PATCH /api/admin/vehicles/[id] — actualizar seguro/registro/mantenimiento de un vehículo.
 // v8.3 E7: el bloqueo REAL de asignación con seguro vencido vive en el trigger
@@ -13,6 +14,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 
   try {
+    if (!isValidUuid(params.id)) {
+      return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+    }
+
     const body = await request.json();
     const {
       name,

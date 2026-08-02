@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { assertStripe } from "@/lib/stripe";
 import { reconcileCapturedPaymentIntent } from "@/lib/payment-capture-reconciliation";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { requireCronAuth } from "@/lib/cron-auth";
 
 /**
  * GET /api/cron/reconcile-payments
@@ -41,17 +42,8 @@ const SAFETY_THRESHOLD_MINUTES = 30;
 const MAX_ORDERS_PER_RUN = 200;
 
 export async function GET(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = request.headers.get("authorization");
-
-  if (!cronSecret) {
-    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
-  }
-
-  const bearer = authHeader?.replace("Bearer ", "");
-  if (bearer !== cronSecret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -86,6 +78,11 @@ export async function GET(request: NextRequest) {
       .in("status", ["completed", "no_show"])
       .not("stripe_hold_payment_intent_id", "is", null)
       .is("hold_captured_at", null)
+      // Fix (auditoría externa de infraestructura, 2026-08-02): mismo bug de
+      // soft-delete que batch-capture -- sin este filtro, el cron podía
+      // reconciliar (y por tanto reflejar como capturado) el hold de una
+      // orden que operación ya había eliminado lógicamente.
+      .is("deleted_at", null)
       .lt("updated_at", cutoffIso)
       .limit(MAX_ORDERS_PER_RUN);
 

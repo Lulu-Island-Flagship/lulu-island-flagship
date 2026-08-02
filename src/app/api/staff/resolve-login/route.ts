@@ -6,6 +6,7 @@ import {
   STAFF_PENDING_ACTIVATION_MESSAGE,
   type StaffArea,
 } from "@/lib/staff-login";
+import { getClientIp } from "@/lib/request-ip";
 
 /**
  * POST /api/staff/resolve-login — punto único de autorización del Portal de
@@ -59,10 +60,7 @@ export async function POST(request: NextRequest) {
   // atacante con una sola cuenta de Google podía golpear resolveStaffLogin en
   // loop -- mismo RPC check_rate_limit ya usado en
   // src/app/api/admin/backup-codes/verify/route.ts y src/app/api/quote/route.ts.
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
+  const ip = getClientIp(request);
   const { data: rateLimitData, error: rateLimitError } = await serviceClient.rpc("check_rate_limit", {
     p_ip_address: `staff-resolve-login:${ip}`,
     p_max_requests: 20,

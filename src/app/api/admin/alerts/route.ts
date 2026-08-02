@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { roleAllows } from "@/lib/admin-rbac";
 import { sortAlertsBySeverity, type UnifiedAlertSeverity } from "@/lib/unified-alerts";
 
 /**
@@ -13,6 +14,13 @@ import { sortAlertsBySeverity, type UnifiedAlertSeverity } from "@/lib/unified-a
  * día a día. Se usa 'risk_assessments' (owner_admin + ops_coordinator),
  * mismo patrón que el resto de módulos de excepciones de campo en esta
  * sesión.
+ *
+ * Fix (auditoría externa, hallazgo confirmado 2026-08-02): las alertas con
+ * source_module='access_recovery' (verificación de un trusted_successor
+ * recuperando acceso) se colaban en esta bandeja aunque `access_recovery`
+ * es un recurso owner_admin-only en la matriz -- un ops_coordinator con
+ * acceso a 'risk_assessments' podía ver esas alertas igual. Ahora se
+ * filtran server-side si el usuario no tiene el recurso 'access_recovery'.
  */
 export async function GET(request: NextRequest) {
   const auth = await requireAdminRole("risk_assessments", { method: request.method, url: request.url });
@@ -41,8 +49,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
+  const canSeeAccessRecovery = roleAllows(auth.roles, "access_recovery");
+  const visible = (data || []).filter(
+    (row) => canSeeAccessRecovery || row.source_module !== "access_recovery"
+  );
+
   const alerts = sortAlertsBySeverity(
-    (data || []) as { severity: UnifiedAlertSeverity; created_at: string; [key: string]: unknown }[]
+    visible as { severity: UnifiedAlertSeverity; created_at: string; [key: string]: unknown }[]
   );
 
   return NextResponse.json({ alerts }, { status: 200 });
@@ -69,6 +82,20 @@ export async function POST(request: NextRequest) {
 
   if (!body.id || (body.action !== "acknowledge" && body.action !== "resolve")) {
     return NextResponse.json({ error: "Se requiere { action: 'acknowledge'|'resolve', id }" }, { status: 400 });
+  }
+
+  // Fix (auditoría externa, hallazgo confirmado 2026-08-02): mismo control
+  // que el GET -- un ops_coordinator no debe poder acknowledge/resolve una
+  // alerta de source_module='access_recovery' (recurso owner_admin-only).
+  if (!roleAllows(auth.roles, "access_recovery")) {
+    const { data: targetAlert } = await supabase
+      .from("unified_alerts")
+      .select("source_module")
+      .eq("id", body.id)
+      .maybeSingle();
+    if (targetAlert?.source_module === "access_recovery") {
+      return NextResponse.json({ error: "Forbidden — resource 'access_recovery' requires a role you don't have" }, { status: 403 });
+    }
   }
 
   const { data: actorEmployee } = await supabase

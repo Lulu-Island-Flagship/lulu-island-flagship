@@ -52,6 +52,19 @@ const ALLOWED_INTERNAL_PATH_RE = new RegExp(
  * redirect -- solo el query string (y el hash) pueden variar, y ahí se
  * rechaza cualquier "//" o "@" para que ni siquiera un query manipulado
  * pueda inducir una interpretación de URL con otro origen.
+ *
+ * Fix (pentest 2026-08-02): antes `basePath` se validaba contra
+ * ALLOWED_INTERNAL_PATH_RE SIN normalizar segmentos "." / ".." primero. Un
+ * valor como "/en/admin/../../portal" matchea el regex (empieza con
+ * "/en/admin" y el resto cae en el grupo "(/.*)?") pero
+ * `new URL(next, request.url)` (el consumidor real en middleware/portal/
+ * auth-callback) SÍ colapsa ".."/"." al construir la URL final, resolviendo
+ * a "/portal" -- una sección que, aislada, también está en la allowlist en
+ * este caso, pero el punto es que el path que de verdad navega el browser
+ * nunca fue el que se validó. Ahora se normaliza basePath con
+ * `new URL(basePath, "http://localhost").pathname` (mismo mecanismo de
+ * colapso que usa el consumidor real) ANTES de aplicar el regex, así que la
+ * ruta validada y la ruta que efectivamente se sirve son siempre la misma.
  */
 export function isAllowedInternalPath(path: string | null | undefined): path is string {
   if (!path) return false;
@@ -62,6 +75,24 @@ export function isAllowedInternalPath(path: string | null | undefined): path is 
   const queryIndex = withoutHash.indexOf("?");
   const basePath = queryIndex === -1 ? withoutHash : withoutHash.slice(0, queryIndex);
   const queryAndHash = path.slice(basePath.length);
+
+  // Normaliza "."/".." ANTES de validar contra el regex -- ver comentario
+  // de arriba. Un origen fijo ("http://localhost") sirve solo para poder
+  // construir un WHATWG URL a partir de un path relativo; se descarta
+  // inmediatamente y solo se usa el pathname resultante, ya normalizado.
+  let normalizedBasePath: string;
+  try {
+    normalizedBasePath = new URL(basePath, "http://localhost").pathname;
+  } catch {
+    return false;
+  }
+  // Defensa en profundidad: si la normalización cambió el path (había
+  // "."/".."/dobles slashes internos que colapsaron), no confiar en el
+  // resultado a ciegas -- exigir que YA fuera exactamente el path
+  // normalizado. Esto rechaza "/en/admin/../../portal" en vez de
+  // silenciosamente re-escribirlo a "/portal" y aceptarlo: el llamador debe
+  // recibir el path canónico desde el origen, no uno que requirió cirugía.
+  if (normalizedBasePath !== basePath) return false;
 
   if (!ALLOWED_INTERNAL_PATH_RE.test(basePath)) return false;
   // Defensa en profundidad: el query string/hash no debe poder colar un

@@ -22,6 +22,7 @@ import { getZoneDemand } from "@/lib/zone-demand";
 import { calculateAddonZonesCharge } from "@/lib/pricing";
 import { fetchAddonZoneOptions } from "@/lib/addon-zones";
 import { geocodeAddress } from "@/lib/geocode";
+import { sendEmail } from "@/lib/email";
 import { calculateClientScore } from "@/lib/scoring";
 import { QUOTE_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
 import {
@@ -262,9 +263,21 @@ export async function POST(request: NextRequest) {
     if (existingProfile) {
       userId = existingProfile.id as string;
     } else {
+      // Fix (auditoría externa, hallazgo confirmado 2026-08-02): antes se
+      // creaba la cuenta con email_confirm: true basado únicamente en el
+      // booleano `consentConfirmedVerballyByCoordinator` -- un
+      // ops_coordinator podía crear una cuenta de cliente PLENAMENTE
+      // confirmada (login funcional, sin fricción) sin que el titular del
+      // correo hubiera confirmado nada él mismo. Ahora se crea SIN confirmar
+      // (email_confirm: false, mismo estado que un signup web normal antes
+      // de hacer clic en el link) y se dispara un link de confirmación de
+      // signup igual que el flujo estándar de Supabase Auth -- el cliente
+      // debe confirmarlo para poder iniciar sesión. La cotización igual se
+      // crea y se le puede enviar el link de pago (/api/stripe/confirm);
+      // esa cuenta simplemente no puede loguearse hasta confirmar.
       const { data: created, error: createErr } = await serviceRole.auth.admin.createUser({
         email: normalizedEmail,
-        email_confirm: true,
+        email_confirm: false,
         phone: clientPhone || undefined,
         user_metadata: { full_name: clientFullName || undefined, created_via: "phone_booking" },
       });
@@ -281,6 +294,41 @@ export async function POST(request: NextRequest) {
         .from("profiles")
         .update({ full_name: clientFullName || null, phone: clientPhone || null })
         .eq("id", userId);
+
+      // Envía un link de confirmación server-side, mismo mecanismo nativo
+      // de Supabase Auth (generateLink) que backup-codes/verify/route.ts ya
+      // usa en esta codebase. Se usa type "magiclink" (no "signup"): el
+      // usuario YA fue creado arriba vía createUser, y generateLink con
+      // type "signup" intenta crear el usuario de nuevo (falla con "already
+      // registered" si ya existe). "magiclink" funciona sobre un usuario ya
+      // existente sin email confirmado y, al canjearse, confirma el correo
+      // como efecto del propio login -- logrando el mismo objetivo (el
+      // titular del correo debe actuar para que la cuenta quede operativa).
+      // No bloquea la creación de la cotización si el envío falla (se
+      // loguea y se sigue) -- el coordinador puede reenviar el link de
+      // checkout por otro medio; lo importante es que la cuenta NUNCA queda
+      // auto-confirmada por decisión unilateral del coordinador.
+      const { data: confirmLink, error: confirmLinkError } = await serviceRole.auth.admin.generateLink({
+        type: "magiclink",
+        email: normalizedEmail,
+      });
+      if (confirmLinkError) {
+        console.error("phone-booking: generateLink(magiclink) error:", confirmLinkError);
+      } else if (confirmLink?.properties?.action_link) {
+        const emailResult = await sendEmail({
+          toEmail: normalizedEmail,
+          subject: "Confirm your Lulu Island Flagship account",
+          body:
+            `Hi${clientFullName ? " " + clientFullName : ""},\n\n` +
+            `A Lulu Island Flagship coordinator started a booking for you by phone. ` +
+            `Please confirm your account to manage this booking and future ones:\n\n` +
+            `${confirmLink.properties.action_link}\n\n` +
+            `If you did not request this, you can ignore this email.`,
+        });
+        if (emailResult.status === "failed") {
+          console.error("phone-booking: signup confirmation email failed to send");
+        }
+      }
     }
 
     // 2. Perfil de cliente (score, tipo de cuenta) -- mismo criterio que

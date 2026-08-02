@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole, getServiceRoleClient } from "@/lib/admin";
-import { computePurgeEligibleAt } from "@/lib/pipeda";
 import { isValidUuid } from "@/lib/validation";
 import { safeErrorResponse } from "@/lib/api-errors";
 
@@ -145,24 +144,22 @@ export async function PATCH(
         updatePayload.export_reference = exportReference!.trim();
       }
       if (reqRow.request_type === "deletion") {
-        const purgeEligibleAt = computePurgeEligibleAt(new Date());
-        updatePayload.purge_eligible_at = purgeEligibleAt.toISOString();
-
-        // v8.3 fix E-B5: cascada de soft-delete real sobre todas las tablas
-        // con `deleted_at` y una relación directa al titular -- antes solo
-        // se tocaba client_profiles. Se usa el cliente de service role: NI
-        // orders, NI quotes, NI profiles, NI client_properties tienen una
-        // política UPDATE que permita a un admin (ni siquiera owner_admin)
-        // tocar la fila de OTRO usuario -- solo "auth.uid() = user_id" (ver
-        // 001/019). Bajo el cliente RLS de la sesión del admin este UPDATE
-        // afectaría 0 filas SIN error, dejando el "borrado" en apariencia
-        // otra vez. requireAdminRole() ya autorizó el recurso "compliance"
-        // (solo owner_admin) y dejó rastro en admin_action_logs -- mismo
-        // patrón que /api/admin/access-recovery/route.ts. Cada UPDATE es
-        // independiente y no bloqueante entre sí (si una falla, las demás
-        // igual se intentan) para no dejar el borrado a medias por un solo
-        // error de una tabla secundaria; el resultado se agrega y se
-        // reporta.
+        // Fix (pentest 2026-08-02, migración 329): antes esto disparaba 6
+        // UPDATEs independientes (Promise.allSettled) desde este route
+        // handler, sin transacción -- si uno fallaba a mitad de camino, las
+        // tablas ya actualizadas quedaban con deleted_at escrito
+        // PERMANENTEMENTE aunque el resto del cascade nunca se completara
+        // (estado real a medias en la base, no solo un status mal
+        // reportado). Ahora todo el cascade (client_profiles, profiles,
+        // orders, quotes, communication_log, client_properties +
+        // data_subject_requests) corre dentro de una única función
+        // SECURITY DEFINER (pipeda_execute_deletion_cascade, ver esa
+        // migración) cuyo cuerpo revierte TODO el cascade si cualquier paso
+        // falla -- nunca queda una tabla parcialmente actualizada. La
+        // función misma decide y persiste el status final ('completed' o
+        // 'partial_failure' con `deletion_errors`), así que aquí no se
+        // arma `updatePayload` ni se hace un UPDATE aparte a
+        // data_subject_requests para este tipo de solicitud.
         const serviceClient = getServiceRoleClient();
         if (!serviceClient) {
           return NextResponse.json(
@@ -171,63 +168,21 @@ export async function PATCH(
           );
         }
 
-        const { data: clientProfile } = await serviceClient
-          .from("client_profiles")
-          .select("id")
-          .eq("user_id", reqRow.client_user_id)
-          .maybeSingle();
+        const { data: cascadeResult, error: cascadeError } = await serviceClient.rpc(
+          "pipeda_execute_deletion_cascade",
+          {
+            p_request_id: reqRow.id,
+            p_admin_user_id: auth.user.id,
+          }
+        );
 
-        const cascadeResults = await Promise.allSettled([
-          serviceClient.from("client_profiles").update({ deleted_at: nowIso }).eq("user_id", reqRow.client_user_id),
-          serviceClient.from("profiles").update({ deleted_at: nowIso }).eq("id", reqRow.client_user_id),
-          serviceClient.from("orders").update({ deleted_at: nowIso }).eq("user_id", reqRow.client_user_id).is("deleted_at", null),
-          serviceClient.from("quotes").update({ deleted_at: nowIso }).eq("user_id", reqRow.client_user_id).is("deleted_at", null),
-          serviceClient.from("communication_log").update({ deleted_at: nowIso }).eq("user_id", reqRow.client_user_id).is("deleted_at", null),
-          ...(clientProfile
-            ? [
-                serviceClient
-                  .from("client_properties")
-                  .update({ deleted_at: nowIso })
-                  .eq("client_profile_id", clientProfile.id)
-                  .is("deleted_at", null),
-              ]
-            : []),
-        ]);
-
-        const cascadeErrors = cascadeResults
-          .map((r, i) => (r.status === "fulfilled" && r.value.error ? { i, message: r.value.error.message } : null))
-          .filter((x): x is { i: number; message: string } => x !== null);
-        // Also treat a rejected promise (network/throw, not just a returned
-        // `.error`) as a cascade failure -- Promise.allSettled can report
-        // status "rejected" for the promise itself, which the mapping above
-        // did not account for.
-        const cascadeRejections = cascadeResults
-          .map((r, i) => (r.status === "rejected" ? { i, message: String(r.reason) } : null))
-          .filter((x): x is { i: number; message: string } => x !== null);
-        const allCascadeErrors = [...cascadeErrors, ...cascadeRejections];
-
-        if (allCascadeErrors.length > 0) {
-          // Fix (auditoría de integridad de datos 2026-08-01): antes, CUALQUIER
-          // resultado de la cascada (incluso con errores parciales) marcaba la
-          // solicitud como 'completed' -- un falso registro de cumplimiento
-          // PIPEDA: un auditor vería la solicitud cerrada exitosamente aunque,
-          // por ejemplo, `orders` nunca se haya borrado. Ahora, si CUALQUIER
-          // paso del cascade falla, la solicitud NO se marca 'completed' --
-          // queda en 'partial_failure' (migración 306) con el detalle de qué
-          // falló, para reintento manual. `purge_eligible_at` tampoco se
-          // confirma como si el borrado hubiera sido exitoso.
-          updatePayload.status = "partial_failure";
-          delete updatePayload.completed_at;
-          delete updatePayload.purge_eligible_at;
-
-          // Fix (auditoría 2026-07-31, item 4): antes esto se escribía en
-          // `correction_details`, columna documentada (migración 142) como
-          // exclusiva de request_type = 'correction' -- semánticamente
-          // incorrecta para una solicitud de ELIMINACIÓN y confusa para
-          // cualquiera que audite el registro después. Se usa la columna
-          // dedicada `deletion_errors` (migración 293).
-          updatePayload.deletion_errors = `[E-B5] Cascada de borrado con errores parciales: ${JSON.stringify(allCascadeErrors)}`;
+        if (cascadeError) {
+          console.error("admin/pipeda/requests/[id] cascade RPC error:", cascadeError.message);
+          return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
         }
+
+        const responseStatus = cascadeResult?.status === "partial_failure" ? 207 : 200;
+        return NextResponse.json({ request: cascadeResult }, { status: responseStatus });
       }
 
       const { data: updated, error } = await supabase
@@ -240,8 +195,7 @@ export async function PATCH(
         console.error("admin/pipeda/requests/[id] error:", error);
         return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
-      const responseStatus = updatePayload.status === "partial_failure" ? 207 : 200;
-      return NextResponse.json({ request: updated }, { status: responseStatus });
+      return NextResponse.json({ request: updated }, { status: 200 });
     }
 
     return NextResponse.json({ error: "action must be start_processing, complete, or deny" }, { status: 400 });

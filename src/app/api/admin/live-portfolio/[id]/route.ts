@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { computeWithdrawalDeadline } from "@/lib/live-portfolio";
+import { isValidUuid } from "@/lib/validation";
 
 /**
  * POST /api/admin/live-portfolio/[id] — { action: 'approve'|'reject', selectedPhotoUrl?, reason? }
@@ -18,6 +19,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const { supabase, user } = auth;
   if (!supabase || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!isValidUuid(params.id)) {
+    return NextResponse.json({ error: "ID inválido" }, { status: 400 });
   }
 
   let body: { action?: string; selectedPhotoUrl?: string; reason?: string };

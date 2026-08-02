@@ -14,6 +14,7 @@ import {
   renderCatalogTemplate,
   sendToSuccessor,
 } from "@/lib/access-recovery-server";
+import { getClientIp } from "@/lib/request-ip";
 
 /**
  * POST /api/recovery/request — inicio PÚBLICO pero muy limitado de una
@@ -53,10 +54,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
+  const ip = getClientIp(request);
   const { data: rateLimitData, error: rateLimitError } = await serviceClient.rpc("check_rate_limit", {
     p_ip_address: `access-recovery-request:${ip}`,
     p_max_requests: 5,

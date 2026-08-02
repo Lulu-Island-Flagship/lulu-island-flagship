@@ -22,7 +22,6 @@ interface AdminService {
   orderStatus: string;
   assignmentStatus: string;
   employeeName: string;
-  employeeEmail: string;
   address: string;
   zone: string;
   serviceType: string;

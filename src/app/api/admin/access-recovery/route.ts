@@ -87,43 +87,35 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "requestId is required" }, { status: 400 });
       }
 
-      const { data: reqRow, error: fetchError } = await serviceClient
-        .from("access_recovery_requests")
-        .select("id, status, successor_id, reason")
-        .eq("id", body.requestId)
-        .maybeSingle();
-
-      if (fetchError || !reqRow) {
-        return NextResponse.json({ error: "Request not found" }, { status: 404 });
-      }
-      if (reqRow.status !== "verified_pending_approval") {
-        return NextResponse.json(
-          { error: `Request status is '${reqRow.status}', expected 'verified_pending_approval'` },
-          { status: 400 }
-        );
-      }
-
-      const issuedCodes = await issueEmergencyAccessCodes(serviceClient);
-      if (issuedCodes.length === 0) {
-        return NextResponse.json({ error: "No active owner_admin account found to issue an emergency code for" }, { status: 500 });
-      }
-
-      const { error: resolveError } = await serviceClient
-        .from("access_recovery_requests")
-        .update({
-          status: "approved",
-          resolved_at: new Date().toISOString(),
-          resolved_by: `admin:${auth.user.email ?? auth.user.id}`,
-          resolved_by_admin_user_id: auth.user.id,
-          emergency_code_issued_at: new Date().toISOString(),
+      // Migración 323: la transición de estado 'verified_pending_approval' ->
+      // 'approved' se reclama atómicamente vía claim_access_recovery_approval_atomic
+      // (CAS sobre status) ANTES de emitir ningún código de emergencia -- esta
+      // ruta y POST /api/recovery/co-verify (action=confirm) pueden competir
+      // por la misma solicitud, y solo la que gana el CAS debe emitir códigos.
+      const { data: claimed, error: claimError } = await serviceClient
+        .rpc("claim_access_recovery_approval_atomic", {
+          p_request_id: body.requestId,
+          p_resolved_by: `admin:${auth.user.email ?? auth.user.id}`,
+          p_resolved_by_admin_user_id: auth.user.id,
+          p_resolved_by_successor_id: null,
         })
-        .eq("id", reqRow.id)
-        .eq("status", "verified_pending_approval");
+        .single();
 
-      if (resolveError) {
-        console.error("admin/access-recovery error:", resolveError);
+      if (claimError) {
+        if (claimError.message?.includes("REQUEST_NOT_FOUND")) {
+          return NextResponse.json({ error: "Request not found" }, { status: 404 });
+        }
+        if (claimError.message?.includes("REQUEST_ALREADY_RESOLVED")) {
+          return NextResponse.json(
+            { error: "Request is no longer in 'verified_pending_approval' status" },
+            { status: 400 }
+          );
+        }
+        console.error("admin/access-recovery error:", claimError);
         return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
+
+      const reqRow = claimed as { id: string; successor_id: string; reason: string };
 
       await logRecoveryAuditEvent(serviceClient, {
         requestId: reqRow.id,
@@ -131,6 +123,26 @@ export async function POST(request: NextRequest) {
         actorType: "admin",
         actorRef: auth.user.id,
       });
+
+      const issuedCodes = await issueEmergencyAccessCodes(serviceClient);
+      if (issuedCodes.length === 0) {
+        // La solicitud ya quedó marcada 'approved' por el CAS de arriba (no
+        // se puede revertir sin dejar una segunda escritura fuera de la
+        // transacción del CAS) -- igual que en el camino equivalente de
+        // /api/recovery/co-verify (action=confirm), se deja rastro explícito
+        // en la auditoría para revisión manual en vez de fallar
+        // silenciosamente o reintentar la aprobación.
+        await logRecoveryAuditEvent(serviceClient, {
+          requestId: reqRow.id,
+          eventType: "emergency_code_issued",
+          actorType: "system",
+          detail: "Solicitud aprobada pero NO se encontró ningún owner_admin activo -- código de emergencia no emitido",
+        });
+        return NextResponse.json(
+          { error: "Request approved, but no active owner_admin account found to issue an emergency code for. Contact support." },
+          { status: 500 }
+        );
+      }
       await logRecoveryAuditEvent(serviceClient, {
         requestId: reqRow.id,
         eventType: "emergency_code_issued",

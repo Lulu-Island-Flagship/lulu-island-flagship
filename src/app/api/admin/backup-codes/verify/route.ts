@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServiceRoleClient, getSupabaseClient } from "@/lib/admin";
 import { hashBackupCode, normalizeBackupCode } from "@/lib/backup-codes";
 import { sendEmail } from "@/lib/email";
+import { getClientIp } from "@/lib/request-ip";
 
 /**
  * v8.3 E0 — Canjea un código de respaldo por una sesión de owner_admin.
@@ -35,6 +36,33 @@ import { sendEmail } from "@/lib/email";
  * establece la sesión directamente vía Set-Cookie en la respuesta de este
  * endpoint. El cliente nunca ve el token_hash -- solo recibe un booleano de
  * éxito y recarga la página con la sesión ya activa.
+ *
+ * RIESGO RESIDUAL ACEPTADO (auditoría de infraestructura, pentest 2026-08-02):
+ * este endpoint autentica al owner_admin con UN SOLO factor -- el código de
+ * respaldo en sí -- sin pedir un segundo factor adicional (p.ej. TOTP) en el
+ * momento del canje. Implementar un segundo factor real está fuera de
+ * alcance de este fix (requeriría un flujo de enrolamiento/verificación TOTP
+ * nuevo). Mitigaciones YA existentes que reducen este riesgo, verificadas en
+ * este mismo archivo antes de aceptar el riesgo como residual:
+ *   - Rate limiting por IP (namespace "backup-code:<ip>", 8 intentos, RPC
+ *     check_rate_limit, falla CERRADO si el RPC mismo falla -- ver más abajo).
+ *   - Espacio de códigos de 96 bits (fuerza bruta no es viable en la práctica
+ *     aunque no hubiera rate limit).
+ *   - Un solo uso por código (UPDATE atómico con `used_at IS NULL`, así que
+ *     un código nunca se puede canjear dos veces ni en carrera).
+ *   - Expiración (`expires_at`, BACKUP_CODE_TTL_DAYS en src/lib/backup-codes.ts)
+ *     y revocación (`revoked_at`) explícitas.
+ *   - Rotación: generar un set nuevo desde /admin/seguridad invalida todos
+ *     los códigos anteriores (no son acumulativos).
+ *   - Alerta de seguridad inmediata por email al dueño de la cuenta en cada
+ *     canje exitoso, más rastro server-side en admin_action_logs -- un canje
+ *     no autorizado se detecta rápido aunque no se prevenga en el momento.
+ * Este endpoint es deliberadamente el mecanismo de "romper cristal" para
+ * cuando el owner_admin pierde acceso a su segundo factor normal (Google) --
+ * exigirle un segundo factor aquí también reintroduciría el mismo problema
+ * que el mecanismo existe para resolver. El riesgo aceptado es: quien posea
+ * un código de respaldo válido y no vencido obtiene la sesión sin más
+ * fricción que ese código.
  */
 
 export async function POST(request: NextRequest) {
@@ -61,10 +89,7 @@ export async function POST(request: NextRequest) {
   // es un RPC genérico ya usado en src/app/api/quote/route.ts). El espacio de
   // códigos es de 96 bits así que fuerza bruta no es viable de todos modos,
   // pero esto es defensa en profundidad barata contra intentos repetidos.
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
+  const ip = getClientIp(request);
   const { data: rateLimitData, error: rateLimitError } = await serviceClient.rpc("check_rate_limit", {
     p_ip_address: `backup-code:${ip}`,
     p_max_requests: 8,

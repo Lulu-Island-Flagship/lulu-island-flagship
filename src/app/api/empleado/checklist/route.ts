@@ -6,6 +6,7 @@ import { ensureZoneAssignment } from "@/lib/zone-assignment";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { safeErrorResponse } from "@/lib/api-errors";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { isValidUuid } from "@/lib/validation";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -38,6 +39,9 @@ export async function GET(request: NextRequest) {
 
     if (!orderId || !serviceSubtype) {
       return NextResponse.json({ error: "Missing orderId or serviceSubtype" }, { status: 400 });
+    }
+    if (!isValidUuid(orderId)) {
+      return NextResponse.json({ error: "orderId inválido" }, { status: 400 });
     }
 
     const supabase = getSupabaseClient();
@@ -211,6 +215,12 @@ export async function POST(request: NextRequest) {
 
     if (!orderId || !checklistId || !itemId || !itemLabel) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+    if (!isValidUuid(orderId)) {
+      return NextResponse.json({ error: "orderId inválido" }, { status: 400 });
+    }
+    if (!isValidUuid(checklistId)) {
+      return NextResponse.json({ error: "checklistId inválido" }, { status: 400 });
     }
 
     const supabase = getSupabaseClient();

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { isValidUuid } from "@/lib/validation";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -26,6 +27,10 @@ function getSupabaseClient() {
 // sigue activo. v8.3 E7 (D.10 #7): "SOS con GPS vivo".
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    if (!isValidUuid(params.id)) {
+      return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+    }
+
     const body = await request.json();
     const { gpsLat, gpsLng } = body;
 

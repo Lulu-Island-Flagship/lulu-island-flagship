@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { evaluateDailyCashExposure } from "@/lib/cash-reserve";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { requireCronAuth } from "@/lib/cron-auth";
 
 /**
  * POST /api/cron/cash-exposure-monitor
@@ -20,17 +21,8 @@ import { safeErrorResponse } from "@/lib/api-errors";
  */
 
 export async function GET(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = request.headers.get("authorization");
-
-  if (!cronSecret) {
-    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
-  }
-
-  const bearer = authHeader?.replace("Bearer ", "");
-  if (bearer !== cronSecret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -74,6 +66,12 @@ export async function GET(request: NextRequest) {
       .select("hold_authorized_amount_cents, hold_amount_cents")
       .eq("service_date", todayStr)
       .not("status", "in", "(cancelled,no_show)")
+      // Fix (auditoría externa de infraestructura, 2026-08-02): mismo bug de
+      // soft-delete que batch-capture -- sin este filtro, una orden borrada
+      // lógicamente seguía sumando a la exposición de caja calculada, pudiendo
+      // disparar (o suprimir) alertas basadas en un monto que ya no representa
+      // riesgo real.
+      .is("deleted_at", null)
       .is("hold_captured_at", null);
 
     if (error) {

@@ -13,6 +13,7 @@ import {
 import { computePartialCaptureDecision } from "@/lib/batch-capture-partial";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { requireCronAuth } from "@/lib/cron-auth";
 
 /**
  * POST /api/cron/batch-capture
@@ -84,17 +85,8 @@ function vancouverHour(): number {
 }
 
 export async function GET(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = request.headers.get("authorization");
-
-  if (!cronSecret) {
-    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
-  }
-
-  const bearer = authHeader?.replace("Bearer ", "");
-  if (bearer !== cronSecret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   // Vercel Cron corre en UTC. 7 PM Vancouver puede ser 2 AM o 3 AM UTC según DST.
   // Solo procesamos si en Vancouver son aproximadamente las 7 PM.

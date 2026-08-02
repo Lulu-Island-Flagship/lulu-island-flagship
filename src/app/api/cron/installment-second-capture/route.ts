@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { assertStripe } from "@/lib/stripe";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
+import { requireCronAuth } from "@/lib/cron-auth";
 
 /**
  * POST /api/cron/installment-second-capture
@@ -37,16 +38,8 @@ interface InstallmentOrderRow {
 const MAX_INSTALLMENT_SECOND_ATTEMPTS = 3;
 
 export async function GET(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = request.headers.get("authorization");
-
-  if (!cronSecret) {
-    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
-  }
-  const bearer = authHeader?.replace("Bearer ", "");
-  if (bearer !== cronSecret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

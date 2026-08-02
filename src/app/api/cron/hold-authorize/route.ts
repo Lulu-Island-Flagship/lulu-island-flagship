@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { assertStripe } from "@/lib/stripe";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { requireCronAuth } from "@/lib/cron-auth";
 
 /**
  * POST /api/cron/hold-authorize
@@ -17,20 +18,8 @@ const HOURS_WINDOW = 72;
 const MAX_ATTEMPTS = 3;
 
 export async function GET(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = request.headers.get("authorization");
-
-  if (!cronSecret) {
-    return NextResponse.json(
-      { error: "CRON_SECRET not configured" },
-      { status: 500 }
-    );
-  }
-
-  const bearer = authHeader?.replace("Bearer ", "");
-  if (bearer !== cronSecret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -60,6 +49,12 @@ export async function GET(request: NextRequest) {
       .gte("service_datetime", windowStart)
       .lte("service_datetime", windowEnd)
       .not("status", "in", "(cancelled,no_show)")
+      // Fix (auditoría externa de infraestructura, 2026-08-02): mismo bug que
+      // batch-capture -- esta query filtraba por `status` pero no excluía
+      // órdenes con soft delete (deleted_at NOT NULL), permitiendo autorizar
+      // un Hold real de tarjeta sobre una orden que operación ya dio por
+      // eliminada lógicamente.
+      .is("deleted_at", null)
       .lt("hold_attempts", MAX_ATTEMPTS)
       .order("service_datetime", { ascending: true });
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { exPostReviewOutcome } from "@/lib/safety-abort";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { isValidUuid } from "@/lib/validation";
 
 // POST /api/admin/safety-aborts/[id]/review — revisión ex-post OBLIGATORIA
 // (punto #5 de B.3: uno de los 6 únicos puntos de intervención humana
@@ -14,6 +15,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
 
   try {
+    if (!isValidUuid(params.id)) {
+      return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+    }
+
     const body = await request.json();
     const { evidenceSupportsLeader, notes } = body as { evidenceSupportsLeader: boolean; notes?: string };
 

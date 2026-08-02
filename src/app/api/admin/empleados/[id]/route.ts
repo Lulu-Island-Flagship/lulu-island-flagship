@@ -176,15 +176,36 @@ export async function PATCH(
     // Solo se dispara la invitación cuando REALMENTE hay una transición
     // false -> true (no en cada PATCH que traiga isActive:true de nuevo por
     // idempotencia del cliente admin).
+    //
+    // Fix (pentest Kimi, race condition operativa #1): antes esto era un
+    // SELECT is_active (decide en JS) seguido de un UPDATE incondicional --
+    // dos PATCH concurrentes con isActive:true ambos leían is_active=false
+    // ANTES de que cualquiera escribiera, así que ambos calculaban
+    // wasInactive=true y ambos disparaban sendEmployeeInvitation() más abajo
+    // (doble email + doble fila en communication_log). Se reemplaza por un
+    // compare-and-swap real: un UPDATE...WHERE is_active=false que solo
+    // afecta una fila para el primer request que llega; el segundo request
+    // concurrente encuentra is_active ya en true (comprometido por el
+    // primero) y su UPDATE no afecta ninguna fila -- `wasInactive` queda en
+    // false para ese segundo request y nunca se envía la invitación
+    // duplicada. El UPDATE general de abajo (languages/careerLevel/etc.)
+    // sigue corriendo después sin condición sobre is_active -- es idempotente
+    // volver a poner is_active=true si ya lo está.
     let wasInactive = false;
     if (activationRequested) {
-      const { data: before } = await supabase
+      const { data: casResult, error: casError } = await supabase
         .from("employees")
-        .select("is_active")
+        .update({ is_active: true, updated_at: new Date().toISOString() })
         .eq("id", params.id)
+        .eq("is_active", false)
         .is("deleted_at", null)
+        .select("id")
         .maybeSingle();
-      wasInactive = before ? before.is_active === false : false;
+      if (casError) {
+        console.error("admin/empleados/[id] error:", casError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
+      wasInactive = !!casResult;
     }
 
     update.updated_at = new Date().toISOString();

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { isValidUuid } from "@/lib/validation";
 
 // PUT /api/admin/checklists/[id] — editar zona existente
 export async function PUT(
@@ -18,6 +19,9 @@ export async function PUT(
 
   try {
     const { id } = await params;
+    if (!isValidUuid(id)) {
+      return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+    }
     const body = await request.json();
     const {
       zone_label,
@@ -101,6 +105,9 @@ export async function DELETE(
 
   try {
     const { id } = await params;
+    if (!isValidUuid(id)) {
+      return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+    }
     const { searchParams } = new URL(request.url);
     const force = searchParams.get("force") === "true";
 

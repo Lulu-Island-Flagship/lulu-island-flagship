@@ -3,6 +3,7 @@ import { requireAdminRole } from "@/lib/admin";
 import { evaluateSampledRejectionRate, decideGamingConsequence } from "@/lib/anti-gaming";
 import { calculatePayroll, DEFAULT_SERVICE_MINUTES, BC_MIN_WAGE_HOURLY } from "@/lib/payroll";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { isValidUuid } from "@/lib/validation";
 
 // POST /api/admin/qc/[orderId]/review — aprobar o rechazar servicio
 export async function POST(
@@ -20,6 +21,9 @@ export async function POST(
 
   try {
     const { orderId } = await params;
+    if (!isValidUuid(orderId)) {
+      return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+    }
     const body = await request.json();
     const { status, note, confirmReopenPaidOrder } = body;
 

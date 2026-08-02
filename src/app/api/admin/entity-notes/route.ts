@@ -80,6 +80,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "entityType, entityId y note son obligatorios" }, { status: 400 });
   }
 
+  // Fix (auditoría externa, hallazgo confirmado 2026-08-02): created_by
+  // nunca se poblaba en el insert, aunque la columna existe desde la
+  // migración 050 -- eso hacía imposible restringir el DELETE por autoría
+  // (ver DELETE más abajo).
+  const { data: actorEmployee } = await supabase
+    .from("employees")
+    .select("id")
+    .eq("user_id", auth.user?.id ?? "")
+    .maybeSingle();
+
   const { data, error } = await supabase
     .from("entity_notes")
     .insert({
@@ -87,6 +97,7 @@ export async function POST(request: NextRequest) {
       entity_id: body.entityId,
       note: body.note.trim(),
       suggest_context: Array.isArray(body.suggestContext) ? body.suggestContext : [],
+      created_by: actorEmployee?.id ?? null,
     })
     .select()
     .single();
@@ -111,6 +122,42 @@ export async function DELETE(request: NextRequest) {
   if (!id) {
     return NextResponse.json({ error: "id es obligatorio" }, { status: 400 });
   }
+
+  // Fix (auditoría externa, hallazgo confirmado 2026-08-02): el recurso
+  // "dispatch" incluye ops_coordinator, y este endpoint dejaba borrar
+  // CUALQUIER nota de entidad (de cualquier autor, de cualquier entidad)
+  // con solo ese rol -- sin verificar autoría. Ahora solo el empleado que
+  // creó la nota (created_by) o un owner_admin puede borrarla.
+  const isOwnerAdmin = auth.roles.includes("owner_admin");
+  if (!isOwnerAdmin) {
+    const { data: actorEmployee } = await supabase
+      .from("employees")
+      .select("id")
+      .eq("user_id", auth.user?.id ?? "")
+      .maybeSingle();
+
+    const { data: noteRow, error: noteError } = await supabase
+      .from("entity_notes")
+      .select("id, created_by")
+      .eq("id", id)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (noteError) {
+      console.error("admin/entity-notes error:", noteError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
+    if (!noteRow) {
+      return NextResponse.json({ error: "Nota no encontrada" }, { status: 404 });
+    }
+    if (!actorEmployee || noteRow.created_by !== actorEmployee.id) {
+      return NextResponse.json(
+        { error: "Forbidden — solo el autor de la nota o un owner_admin puede borrarla" },
+        { status: 403 }
+      );
+    }
+  }
+
   const { error } = await supabase.from("entity_notes").update({ deleted_at: new Date().toISOString() }).eq("id", id);
   if (error) {
     console.error("admin/entity-notes error:", error);
