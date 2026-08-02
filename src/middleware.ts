@@ -90,7 +90,15 @@ export default async function middleware(request: NextRequest) {
   // endpoint pudiera ejecutarse -- dejando el mecanismo de recuperación
   // completamente inutilizable. Se excluye por pathname EXACTO (no un prefijo
   // amplio) para no reabrir el resto de /api/admin/** a requests sin sesión.
-  if (pathname === "/api/admin/backup-codes/verify") {
+  //
+  // Fix (pentest 2026-08-02): /api/client/review también es público por diseño
+  // (review_token single-use, 24h, atado a orden). El middleware lo bloqueaba con
+  // 401, rompiendo el flujo de reseñas post-servicio. Se normaliza pathname
+  // (quita barras finales, lowercase) antes de comparar para evitar bypass por
+  // /api/client/review/ u otras variantes.
+  const normalizedPathname = pathname.replace(/\/+$/, "").toLowerCase();
+  const publicApiExceptions = ["/api/admin/backup-codes/verify", "/api/client/review"];
+  if (publicApiExceptions.includes(normalizedPathname)) {
     return NextResponse.next();
   }
 

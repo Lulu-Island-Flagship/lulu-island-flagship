@@ -7,6 +7,7 @@ import {
   computeWalletApplication,
   type WalletTransactionRecord,
 } from "@/lib/wallet";
+import { isValidUuid } from "@/lib/validation";
 
 // Fix (auditoría externa, verificado 2026-07-31): antes, si faltaban las
 // env vars de Supabase, se usaban placeholders en silencio (ver mismo fix
@@ -26,11 +27,6 @@ function getSupabaseAnonKey(): string {
   }
   return key;
 }
-
-// v8.3 fix (auditoría seguridad 2026-07-26): orderId solo se validaba como
-// string no vacío, sin comprobar que fuera un UUID válido -- un valor
-// arbitrario llegaba intacto hasta la consulta a `orders`.
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -81,7 +77,7 @@ export async function POST(request: NextRequest) {
   if (!body.orderId || typeof body.orderId !== "string") {
     return NextResponse.json({ error: "orderId es obligatorio" }, { status: 400 });
   }
-  if (!UUID_REGEX.test(body.orderId)) {
+  if (!isValidUuid(body.orderId)) {
     return NextResponse.json({ error: "orderId inválido" }, { status: 400 });
   }
 

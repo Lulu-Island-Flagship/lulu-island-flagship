@@ -33,6 +33,23 @@ describe("renderTemplate", () => {
       assert.deepEqual((e as MissingVariableError).missing, ["a", "b"]);
     }
   });
+
+  it("NO escapa HTML en variables -- los 3 consumidores actuales son texto plano", () => {
+    // Decisión documentada (ver comentario sobre renderTemplate en
+    // communications.ts, revertido 2026-08-02): SMS y el `text:` de Resend
+    // son texto plano, y OrderCommunicationTimeline.tsx renderiza el
+    // resultado como children de JSX (React ya escapa solo, sin
+    // dangerouslySetInnerHTML). Escapar acá corrompería mensajes reales con
+    // apóstrofe/&/comillas (ej. "O'Brien" -> "O&#39;Brien" en un SMS de
+    // verdad) sin cerrar ninguna vulnerabilidad real. Si algún consumidor
+    // futuro SÍ renderiza este output como HTML, el escape debe vivir en ESE
+    // punto de salida, no acá -- y este test debe borrarse/actualizarse
+    // junto con ese cambio, no antes.
+    assert.equal(
+      renderTemplate("Hola {nombre}", { nombre: "O'Brien & Sons <VIP>" }),
+      "Hola O'Brien & Sons <VIP>"
+    );
+  });
 });
 
 const msg = (over: Partial<ProposedMessage>): ProposedMessage => ({

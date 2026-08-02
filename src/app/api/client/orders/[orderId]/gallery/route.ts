@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { ORDER_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { isValidUuid } from "@/lib/validation";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -49,6 +50,10 @@ export async function GET(
   }
 
   const { orderId } = await params;
+
+  if (!isValidUuid(orderId)) {
+    return NextResponse.json({ error: "orderId inválido" }, { status: 400 });
+  }
 
   const { data: order, error: orderError } = await supabase
     .from("orders")

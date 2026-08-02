@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { computeRebookDateOptions } from "@/lib/rebook";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { isValidUuid } from "@/lib/validation";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -38,6 +39,10 @@ export async function GET(request: NextRequest, { params }: { params: { orderId:
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!isValidUuid(params.orderId)) {
+    return NextResponse.json({ error: "orderId inválido" }, { status: 400 });
   }
 
   const { data: order, error: orderError } = await supabase

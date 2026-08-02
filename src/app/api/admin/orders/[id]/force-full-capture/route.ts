@@ -3,12 +3,7 @@ import { requireAdminRole } from "@/lib/admin";
 import { assertStripe } from "@/lib/stripe";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
 import { safeErrorResponse } from "@/lib/api-errors";
-
-// Fix (revisión 2026-07-30, punto 12): params.id sin validar formato antes de
-// pasarlo a `.eq("id", params.id)` en una acción financiera de alto impacto
-// (cobro forzado). Mismo regex ya usado en
-// src/app/api/client/wallet/apply/route.ts y src/app/api/admin/wallet/route.ts.
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { isValidUuid } from "@/lib/validation";
 
 /**
  * PATCH /api/admin/orders/[id]/force-full-capture
@@ -41,7 +36,7 @@ export async function PATCH(
   }
   const { supabase } = auth;
 
-  if (!UUID_REGEX.test(params.id)) {
+  if (!isValidUuid(params.id)) {
     return NextResponse.json({ error: "id inválido" }, { status: 400 });
   }
 

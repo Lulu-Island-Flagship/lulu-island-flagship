@@ -14,6 +14,30 @@ export class MissingVariableError extends Error {
   }
 }
 
+// Fix revertido (pentest 2026-08-02, revisado 2026-08-02): un agente externo
+// (Kimi) agregó un escapeHtml() aquí sobre el argumento de que renderTemplate
+// inserta valores de usuario sin sanitizar ("XSS latente"). Se revirtió tras
+// rastrear los 3 consumidores reales de este output (los únicos que existen
+// hoy, ver send-communication.ts):
+//   1. SMS -> sendSms(): texto plano por definición del canal.
+//   2. Email -> sendEmail() -> Resend API con `text: input.body` (NO `html:`,
+//      ver email.ts línea ~78) -- también texto plano, el proveedor no lo
+//      interpreta como HTML.
+//   3. Admin timeline -> OrderCommunicationTimeline.tsx renderiza
+//      {entry.body_rendered} como children de JSX (no dangerouslySetInnerHTML)
+//      -- React ya escapa automáticamente ese contenido antes de insertarlo
+//      en el DOM.
+// Ningún consumidor interpreta este string como HTML, así que no hay sink de
+// XSS real en la ruta actual -- escapar aquí no cierra ninguna vulnerabilidad
+// existente, solo corrompe el mensaje real que recibe el cliente en
+// cualquier variable con apóstrofe, "&", comillas o </> (ej. un nombre como
+// "O'Brien" saldría como "O&#39;Brien" en un SMS de verdad). Si en el futuro
+// se agrega un canal que SÍ renderice este body como HTML (ej. un email en
+// HTML real, o un dangerouslySetInnerHTML en algún dashboard), el escape debe
+// aplicarse en ESE punto de salida específico -- no acá, donde alimenta por
+// igual a canales de texto plano. Ver test "no escapa HTML -- los 3
+// consumidores actuales son texto plano" más abajo, que documenta esta
+// decisión para que no se reintroduzca sin repetir esta verificación.
 /** Sustituye {var}. Lanza MissingVariableError si el template usa una variable no provista. */
 export function renderTemplate(
   body: string,

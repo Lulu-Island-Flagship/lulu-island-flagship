@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { isValidUuid } from "@/lib/validation";
 import {
   computeWalletCreditExpiryDate,
   computeExpiredUnusedAmount,
@@ -61,12 +62,6 @@ const GRANTABLE_TYPES: WalletTransactionType[] = ["credit", "promo", "refund"];
 const MAX_GRANT_AMOUNT_CENTS = 50_000; // $500.00 CAD por operación individual
 const IDEMPOTENCY_WINDOW_SECONDS = 10;
 
-// Fix auditoría 2026-07-30: userId llegaba de query params y se usaba
-// directo contra `client_wallets`/`wallet_transactions` sin validar formato
-// -- mismo patrón de regex ya usado para orderId en
-// src/app/api/client/wallet/apply/route.ts.
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 export async function GET(request: NextRequest) {
   const auth = await requireAdminRole("finance", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase) {
@@ -77,7 +72,7 @@ export async function GET(request: NextRequest) {
   if (!userId) {
     return NextResponse.json({ error: "userId es obligatorio" }, { status: 400 });
   }
-  if (!UUID_REGEX.test(userId)) {
+  if (!isValidUuid(userId)) {
     return NextResponse.json({ error: "userId inválido" }, { status: 400 });
   }
 
@@ -146,6 +141,12 @@ export async function POST(request: NextRequest) {
 
   if (!body.userId) {
     return NextResponse.json({ error: "userId es obligatorio" }, { status: 400 });
+  }
+  if (!isValidUuid(body.userId)) {
+    return NextResponse.json({ error: "userId inválido" }, { status: 400 });
+  }
+  if (body.orderId !== undefined && body.orderId !== null && body.orderId !== "" && !isValidUuid(body.orderId)) {
+    return NextResponse.json({ error: "orderId inválido" }, { status: 400 });
   }
   if (!body.type || !GRANTABLE_TYPES.includes(body.type)) {
     return NextResponse.json({ error: `type debe ser uno de: ${GRANTABLE_TYPES.join(", ")}` }, { status: 400 });

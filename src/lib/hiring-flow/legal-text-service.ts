@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getSetting } from "./settings-service";
+import { getSetting, getHiringFlowServiceClient } from "./settings-service";
 
 // Módulo nuevo y separado: flujo de contratación v0.4.1 (candidate hiring
 // flow). No tiene integración con el resto del sistema todavía.
@@ -163,11 +163,36 @@ export function renderTemplate(
 // renderLegalText
 // ---------------------------------------------------------------------------
 
+// Fix (2026-08-02, bug en producción -- GET /api/hiring-flow/legal-text
+// devolvía 500 "Cannot read properties of undefined (reading 'from')"):
+// renderLegalText() acepta `client` como parámetro OPCIONAL (para permitir
+// que callers con su propio cliente ya abierto -- ej. dentro de una
+// transacción -- lo reutilicen), pero fetchLegalTextRows() hacía
+// `client.from(...)` directamente sobre ese parámetro sin resolverlo nunca
+// a un cliente real cuando el caller lo omitía. El endpoint público
+// (src/app/api/hiring-flow/legal-text/route.ts) llama a
+// `renderLegalText(key)` SIN cliente -- exactamente el caso no manejado --
+// así que `client` llegaba `undefined` y `undefined.from(...)` explotaba.
+// getSetting()/getSettingOrDefault() en settings-service.ts ya tienen este
+// mismo patrón correcto (resolveClient: usa el cliente dado, o si no hay
+// uno, abre getHiringFlowServiceClient()); esta función nunca lo tuvo. Se
+// replica aquí en vez de aceptar `undefined` en silencio.
+function resolveLegalTextsClient(client?: LegalTextsClient): LegalTextsClient {
+  const resolved = client ?? (getHiringFlowServiceClient() as LegalTextsClient | null);
+  if (!resolved) {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY no configurado: no se puede acceder a legal_texts"
+    );
+  }
+  return resolved;
+}
+
 async function fetchLegalTextRows(
-  client: LegalTextsClient,
+  client: LegalTextsClient | undefined,
   key: string
 ): Promise<LegalTextRow[]> {
-  const { data, error } = await client
+  const resolved = resolveLegalTextsClient(client);
+  const { data, error } = await resolved
     .from("legal_texts")
     .select("id, version, content, is_active, effective_from, effective_until")
     .eq("key", key);
@@ -205,7 +230,7 @@ export async function renderLegalText(
   variables: Record<string, string> = {},
   client?: LegalTextsClient
 ): Promise<{ text: string; version: string; textId: string }> {
-  const rows = await fetchLegalTextRows(client as LegalTextsClient, key);
+  const rows = await fetchLegalTextRows(client, key);
 
   if (rows.length === 0) {
     throw new LegalTextNotFoundError(key, "no_such_key");
