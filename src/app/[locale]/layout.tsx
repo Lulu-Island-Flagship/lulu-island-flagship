@@ -84,7 +84,18 @@ export async function generateMetadata({ params }: { params: { locale: string } 
       .split(',')
       .map((k: string) => k.trim()),
     icons: {
+      // Fix (2026-08-02): antes el favicon (icon-192/512.png y favicon.ico)
+      // era un círculo navy con una "L" dorada -- a tamaño de pestaña de
+      // navegador se percibía como "un círculo con un triángulo adentro".
+      // Ahora los 4 archivos (favicon.ico multi-resolución 16/32/48/64,
+      // icon-192.png, icon-512.png, apple-touch-icon.png) se regeneraron a
+      // partir del mismo ícono "Ship" (lucide-react) que se usa como logo
+      // del barquito en el header/homepage (ver <Ship /> en
+      // src/app/[locale]/page.tsx), sobre el mismo fondo navy de marca
+      // (#2E5C8A, tokens.ts / manifest.json background_color) para
+      // consistencia visual en toda la app.
       icon: "/favicon.ico",
+      apple: "/apple-touch-icon.png",
     },
     manifest: "/manifest.json",
     alternates: {
