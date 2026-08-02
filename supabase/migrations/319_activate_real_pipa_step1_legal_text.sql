@@ -30,13 +30,21 @@
 -- quedar intacta como registro de qué contenido (placeholder) se le
 -- mostró, si acaso, a cualquier candidato antes del 2026-08-01 (ver
 -- migración 309). effective_from = now(): entra en vigor de inmediato.
+--
+-- Corrección (revisión 2026-08-02): el contenido original de este archivo
+-- traía "[COMPANY_NAME]" sin rellenar en la primera línea -- un placeholder
+-- de plantilla que, al no contener la palabra literal "PLACEHOLDER", pasaba
+-- el guard de PlaceholderLegalTextError sin ser detectado, y se le habría
+-- mostrado tal cual (con el corchete) a un candidato real. Se reemplazó por
+-- el nombre real del negocio ("Lulu Island Flagship"), igual que se usa en
+-- el resto de textos legales publicados (messages/en.json).
 
 INSERT INTO legal_texts (key, version, content, is_active, effective_from)
 VALUES (
   'pipa_step1',
   'v1.1',
   E'Privacy Notice -- Personal Information Protection Act (PIPA), British Columbia\n\n'
-  '[COMPANY_NAME] collects, uses, and discloses your personal information solely for the '
+  'Lulu Island Flagship collects, uses, and discloses your personal information solely for the '
   'purposes of evaluating your job application, in accordance with the Personal Information '
   'Protection Act (PIPA) of British Columbia.\n\n'
   '1. Information we collect\n'
