@@ -44,7 +44,8 @@ export async function GET(request: NextRequest) {
     .eq("active", true);
 
   if (feedsError) {
-    return NextResponse.json({ error: feedsError.message }, { status: 500 });
+    console.error("feedsError:", feedsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const now = new Date();

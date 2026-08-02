@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { assertStripe } from "@/lib/stripe";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // Fix (revisión 2026-07-30, punto 12): params.id sin validar formato antes de
 // pasarlo a `.eq("id", params.id)` en una acción financiera de alto impacto
@@ -257,8 +258,6 @@ export async function PATCH(
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("force-full-capture fatal error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

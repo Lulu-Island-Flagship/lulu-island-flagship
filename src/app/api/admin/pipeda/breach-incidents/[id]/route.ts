@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * PATCH /api/admin/pipeda/breach-incidents/[id] — v8.3 E9.9. Registra las
@@ -78,7 +79,6 @@ export async function PATCH(
 
     return NextResponse.json({ incident: updated }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

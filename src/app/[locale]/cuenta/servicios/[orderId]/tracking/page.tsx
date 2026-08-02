@@ -34,15 +34,22 @@ export default function ServiceTrackingPage() {
 
   useEffect(() => {
     if (!orderId) return;
-    load();
-    const interval = setInterval(load, 30000);
-    return () => clearInterval(interval);
+    const controller = new AbortController();
+    load(controller.signal);
+    const interval = setInterval(() => load(controller.signal), 30000);
+    return () => {
+      clearInterval(interval);
+      controller.abort();
+    };
   }, [orderId]);
 
-  async function load() {
+  async function load(signal?: AbortSignal) {
     setError("");
     try {
-      const res = await fetch(`/api/client/orders/${orderId}/vehicle-tracking`, { credentials: "include" });
+      const res = await fetch(`/api/client/orders/${orderId}/vehicle-tracking`, {
+        credentials: "include",
+        signal,
+      });
       if (!res.ok) {
         const err = await res.json();
         setError(err.error || t("loadFailed"));
@@ -50,10 +57,16 @@ export default function ServiceTrackingPage() {
       }
       const json = await res.json();
       setData(json);
-    } catch {
+    } catch (err) {
+      // Fix (auditoría frontend 2026-08-01, item 6): el intervalo de 30s se
+      // cancela al desmontar -- AbortError es la cancelación esperada, no un
+      // error de red real, no se muestra al usuario.
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError(t("networkError"));
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
   }
 

@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { evaluateSafetyAbortEscalation, type SafetyAbortStage } from "@/lib/safety-abort";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { requireCronAuth } from "@/lib/cron-auth";
+import { getSupabaseServiceKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * v8.3 ROUND 2 — hallazgo crítico de seguridad: esta ruta usaba
@@ -19,11 +21,8 @@ import { requireCronAuth } from "@/lib/cron-auth";
  * dispatch-scheduler y wellbeing-chemical-reassign: service role para un
  * cron server-to-server, protegido por el mismo guard CRON_SECRET.
  */
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder";
-
 function getSupabaseClient() {
-  return createClient(supabaseUrl, supabaseServiceKey);
+  return createClient(getSupabaseUrl(), getSupabaseServiceKey());
 }
 
 // GET /api/cron/safety-abort-escalation — recalcula y persiste la etapa de
@@ -58,7 +57,8 @@ export async function GET(request: NextRequest) {
       .not("sos_started_at", "is", null);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Supabase query error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const nowIso = new Date().toISOString();
@@ -125,7 +125,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

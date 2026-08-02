@@ -3,13 +3,12 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { SERVICE_TYPES, type ServiceType } from "@/lib/pricing";
 import { computeClientSegment, type ClientSegment } from "@/lib/client-segmentation";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -131,7 +130,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Capacity fetch error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // Si no hay slots publicados, generar slots flexibles por defecto
@@ -279,8 +278,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Capacity API error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

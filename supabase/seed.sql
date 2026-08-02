@@ -8,7 +8,11 @@ SET search_path TO public, extensions;
 
 -- El trigger de snapshots (E0-C6) exige motivo en todo UPDATE de tablas de
 -- configuración — el seed lo declara para toda la sesión:
-SELECT set_config('app.change_reason', 'db reset: seed de staging v8.3', false);
+-- El tercer argumento `true` hace que el valor sea local a la TRANSACCIÓN
+-- (persiste a través de todos los statements del seed) en vez de local solo
+-- al comando actual (`false`), que lo perdía inmediatamente después de este
+-- SELECT y dejaba el resto del seed sin app.change_reason.
+SELECT set_config('app.change_reason', 'db reset: seed de staging v8.3', true);
 
 -- ============================================================
 -- SALVAGUARDA: este archivo NUNCA debe correr contra producción

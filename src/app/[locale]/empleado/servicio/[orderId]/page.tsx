@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
@@ -889,7 +890,13 @@ export default function ServicioPage() {
                 {!bypassCannotPhoto && (
                   <div>
                     {bypassPhotoUrl ? (
-                      <img src={bypassPhotoUrl} alt="Bypass evidence" className="w-20 h-20 rounded-lg object-cover" />
+                      <Image
+                        src={bypassPhotoUrl}
+                        alt="Bypass evidence"
+                        width={80}
+                        height={80}
+                        className="w-20 h-20 rounded-lg object-cover"
+                      />
                     ) : (
                       <label className="inline-flex items-center gap-2 text-xs font-medium bg-white border border-yellow-300 rounded-lg px-3 py-2 cursor-pointer hover:bg-yellow-100">
                         {bypassPhotoUploading ? (
@@ -924,10 +931,11 @@ export default function ServicioPage() {
 
                 {bypassCannotPhoto && (
                   <div className="space-y-1">
-                    <label className="block text-xs font-medium text-yellow-800">
+                    <label htmlFor="bypass-no-photo-justification" className="block text-xs font-medium text-yellow-800">
                       Explain why you can&apos;t take a photo (required, flagged for supervisor review)
                     </label>
                     <textarea
+                      id="bypass-no-photo-justification"
                       aria-label="Justification for not being able to take an evidence photo"
                       value={bypassNoPhotoJustification}
                       onChange={(e) => setBypassNoPhotoJustification(e.target.value)}
@@ -1055,17 +1063,28 @@ export default function ServicioPage() {
                 {(photos.length > 0 || pendingLocalPhotos.length > 0) && (
                   <div className="grid grid-cols-3 gap-2">
                     {photos.map((url, i) => (
-                      <img key={i} src={url} alt={`Photo ${i + 1}`} className="rounded-lg aspect-square object-cover" />
+                      <div key={i} className="relative aspect-square rounded-lg overflow-hidden">
+                        <Image
+                          src={url}
+                          alt={`Photo ${i + 1}`}
+                          fill
+                          sizes="(max-width: 768px) 33vw, 200px"
+                          className="object-cover"
+                        />
+                      </div>
                     ))}
                     {/* #10: previas locales de fotos aún sin sincronizar --
                         visibles de inmediato con badge, para que el
                         empleado no crea que se perdieron y las retome. */}
                     {pendingLocalPhotos.map((p) => (
-                      <div key={p.id} className="relative">
-                        <img
+                      <div key={p.id} className="relative aspect-square rounded-lg overflow-hidden">
+                        <Image
                           src={p.url}
                           alt="Photo pending sync"
-                          className="rounded-lg aspect-square object-cover opacity-80"
+                          fill
+                          unoptimized
+                          sizes="(max-width: 768px) 33vw, 200px"
+                          className="object-cover opacity-80"
                         />
                         <span className="absolute bottom-1 left-1 right-1 bg-black/70 text-white text-[10px] font-medium text-center rounded px-1 py-0.5 flex items-center justify-center gap-1">
                           <Loader2 className="w-2.5 h-2.5 animate-spin" />
@@ -1133,11 +1152,15 @@ export default function ServicioPage() {
                             <p className="text-xs text-gray-600 mt-0.5">{log.notes}</p>
                           )}
                           {log.photo_url && (
-                            <img
-                              src={log.photo_url}
-                              alt="Service photo"
-                              className="mt-2 rounded-lg w-full max-h-40 object-cover"
-                            />
+                            <div className="relative mt-2 w-full h-40 rounded-lg overflow-hidden">
+                              <Image
+                                src={log.photo_url}
+                                alt="Service photo"
+                                fill
+                                sizes="(max-width: 768px) 100vw, 400px"
+                                className="object-cover"
+                              />
+                            </div>
                           )}
                         </div>
                       </div>

@@ -270,6 +270,8 @@ export default function ReservaPage() {
 
   // Recalcular precio server-side cuando cambia la fecha (weekend surcharge)
   useEffect(() => {
+    const controller = new AbortController();
+
     async function recalculateQuote() {
       if (!serviceDate || !quote) return;
 
@@ -292,6 +294,7 @@ export default function ReservaPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ quoteId: quote.id, serviceDate }),
+          signal: controller.signal,
         });
 
         if (!res.ok) {
@@ -311,11 +314,16 @@ export default function ReservaPage() {
         const { quote: updatedQuote } = await res.json();
         setQuote(mapQuoteFromSupabase(updatedQuote));
       } catch (e) {
+        // Fix (auditoría frontend 2026-08-01, item 6): un cambio rápido de
+        // fecha antes de que responda el recálculo anterior lo cancela --
+        // AbortError es la cancelación esperada, no se loguea como fallo.
+        if (e instanceof DOMException && e.name === "AbortError") return;
         console.error("Failed to recalculate quote:", e);
       }
     }
 
     recalculateQuote();
+    return () => controller.abort();
   }, [serviceDate, quote, t]);
 
   // v8.3 fix (auditoría E1 2026-07-18): el freeze de precio (10 min, fijo)

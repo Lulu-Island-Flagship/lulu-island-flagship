@@ -81,22 +81,23 @@ export async function POST(request: NextRequest) {
       client: undefined,
     });
 
-    // Envío real del código de acceso al Paso 2. Reusa los mismos
-    // adaptadores ya en producción para el resto del sistema
-    // (src/lib/sms.ts vía Twilio, src/lib/email.ts vía Resend) -- no se
-    // reimplementa ningún cliente de proveedor nuevo aquí. Se prefiere SMS
-    // (más inmediato para un candidato que está completando el formulario
-    // en el momento) y se usa email como respaldo/complemento cuando hay
-    // dirección disponible. El código en crudo NUNCA se loguea a partir de
-    // este punto (antes se logueaba server-side como limitación temporal;
-    // ver commit anterior) -- si ambos canales fallan o no están
-    // configurados, el candidato simplemente no recibe el código todavía y
-    // el dueño debe contratar un proveedor (TWILIO_*/RESEND_API_KEY) antes
-    // de que este flujo sea utilizable en producción real. Esto es
-    // consistente con la "regla de oro de seguridad" del resto del repo:
-    // nunca se sustituye un envío real por un canal inseguro (loguear en
-    // texto plano) cuando el proveedor no está disponible.
-    const smsBody = `Tu código de acceso para continuar tu aplicación es: ${result.accessCode}. Vence en 30 minutos.`;
+    // Envío del código de acceso, generado y persistido por
+    // candidate-step1-service.ts (para cuando exista una pantalla web de
+    // canje -- ver access-code-service.ts/session-service.ts, ya
+    // implementados pero sin ninguna ruta en src/app que los invoque).
+    //
+    // Fix (auditoría CI/build/config 2026-08-01, hallazgo "flujo huérfano
+    // /empleo"): el texto anterior le decía al candidato "tu código de
+    // acceso para continuar tu aplicación", implicando que existía una
+    // pantalla donde canjearlo -- no existe ninguna (confirmado: no hay
+    // ruta bajo src/app que use access-code-service.ts o session-service.ts
+    // para candidatos). Un candidato real recibía un código de 6 dígitos
+    // que vencía en 30 minutos sin ningún lugar donde usarlo. Se sigue
+    // enviando el código (se conserva por si RRHH lo pide por teléfono
+    // mientras no exista la UI de los Pasos 2-5, y para no tocar la lógica
+    // de generación/expiración ya implementada y testeada), pero el texto ya
+    // no promete una continuación de autoservicio que no existe.
+    const smsBody = `Gracias por aplicar a Lulu Island Flagship. Tu código de referencia es: ${result.accessCode}. Nuestro equipo de RRHH revisará tu aplicación y se pondrá en contacto contigo.`;
     let deliveryChannel: "sms" | "email" | "none" = "none";
 
     if (isSmsProviderConfigured() && input.phone) {
@@ -109,8 +110,8 @@ export async function POST(request: NextRequest) {
     if (deliveryChannel === "none" && input.email) {
       const emailResult = await sendEmail({
         toEmail: input.email,
-        subject: "Tu código de acceso — aplicación de empleo",
-        body: `Hola ${input.firstName},\n\nTu código de acceso para continuar tu aplicación es: ${result.accessCode}\n\nEste código vence en 30 minutos.\n\nLulu Island Flagship`,
+        subject: "Hemos recibido tu aplicación — Lulu Island Flagship",
+        body: `Hola ${input.firstName},\n\nGracias por aplicar a Lulu Island Flagship. Tu código de referencia es: ${result.accessCode}\n\nNuestro equipo de RRHH revisará tu aplicación y se pondrá en contacto contigo con los próximos pasos.\n\nLulu Island Flagship`,
       });
       if (emailResult.status === "sent" || emailResult.status === "queued") {
         deliveryChannel = "email";
@@ -178,7 +179,8 @@ export async function POST(request: NextRequest) {
     // conflicto legítimo con el estado actual de los datos (ya existe una
     // aplicación activa para este email/teléfono).
     if (error instanceof DuplicateApplicationError) {
-      return NextResponse.json({ error: error.message }, { status: 409 });
+      console.error("error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 409 });
     }
 
     if (error instanceof PositionNotFoundError) {

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   Check,
   Camera,
@@ -709,9 +710,11 @@ export function ChecklistCierre({
                         {/* Photo for item */}
                         <div className="mt-2">
                           {item.photoUrl ? (
-                            <img
+                            <Image
                               src={item.photoUrl}
                               alt="Evidence"
+                              width={64}
+                              height={64}
                               className="w-16 h-16 rounded-lg object-cover"
                             />
                           ) : (

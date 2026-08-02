@@ -2,15 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { safeErrorResponse } from "@/lib/api-errors";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
   return createServerClient(
-    supabaseUrl,
-    supabaseKey,
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     {
       cookies: {
         get(name: string) {

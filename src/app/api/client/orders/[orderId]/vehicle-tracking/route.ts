@@ -2,13 +2,11 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { ORDER_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -63,7 +61,10 @@ export async function GET(
     .eq("id", orderId)
     .eq("user_id", user.id)
     .maybeSingle();
-  if (orderError) return NextResponse.json({ error: orderError.message }, { status: 500 });
+  if (orderError) {
+    console.error("orderError:", orderError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   if (!order) return NextResponse.json({ error: "Orden no encontrada" }, { status: 404 });
 
   if (order.status !== "confirmed") {
@@ -114,8 +115,10 @@ export async function GET(
     .in("status", ["pending", "en_route", "arrived", "in_progress"])
     .limit(1)
     .maybeSingle();
-  if (assignmentError) return NextResponse.json({ error: assignmentError.message }, { status: 500 });
-
+  if (assignmentError) {
+    console.error("assignmentError:", assignmentError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   if (!assignment?.employee_id) {
     return NextResponse.json(
       {
@@ -131,8 +134,10 @@ export async function GET(
     .select("vehicle_id")
     .eq("id", assignment.employee_id)
     .maybeSingle();
-  if (employeeError) return NextResponse.json({ error: employeeError.message }, { status: 500 });
-
+  if (employeeError) {
+    console.error("employeeError:", employeeError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   if (!employee?.vehicle_id) {
     return NextResponse.json(
       {
@@ -149,8 +154,10 @@ export async function GET(
     .select("current_lat, current_lng, last_location_at")
     .eq("id", employee.vehicle_id)
     .maybeSingle();
-  if (vehicleError) return NextResponse.json({ error: vehicleError.message }, { status: 500 });
-
+  if (vehicleError) {
+    console.error("vehicleError:", vehicleError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   if (!vehicle?.current_lat || !vehicle?.current_lng) {
     return NextResponse.json(
       {

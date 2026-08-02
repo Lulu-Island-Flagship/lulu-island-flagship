@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // POST /api/admin/safety-aborts/[id]/acknowledge — un admin (cualquier nivel)
 // confirma que está atendiendo el SOS. Detiene la escalación automática
@@ -36,7 +37,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     return NextResponse.json({ safetyAbort: data }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

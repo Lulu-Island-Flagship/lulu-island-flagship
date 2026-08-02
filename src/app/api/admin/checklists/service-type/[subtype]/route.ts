@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // DELETE /api/admin/checklists/service-type/[subtype]
 // Borra físicamente todas las zonas de un service_subtype,
@@ -76,7 +77,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { isChemicalAlertTimerExpired, resolveChemicalReassignment } from "@/lib/wellbeing";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { requireCronAuth } from "@/lib/cron-auth";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/cron/wellbeing-chemical-reassign — v8.3 E8 regla dura: timer de
 // 10 min sin respuesta admin => reasignación REAL, no solo detección.
@@ -53,7 +54,8 @@ export async function GET(request: NextRequest) {
       .or("resolution.eq.pending,resolution.is.null");
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Supabase query error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const expired = (pending || []).filter((a) =>
@@ -171,7 +173,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

@@ -221,7 +221,7 @@ export default function CotizadorPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState("");
 
-  const fetchPreviewQuote = useCallback(async () => {
+  const fetchPreviewQuote = useCallback(async (signal?: AbortSignal) => {
     if (
       !input.serviceType ||
       !input.squareFeet ||
@@ -242,6 +242,7 @@ export default function CotizadorPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
+        signal,
       });
 
       if (!response.ok) {
@@ -254,17 +255,29 @@ export default function CotizadorPage() {
       setQuote(q);
       setPriceFrozenUntil(new Date(q.priceFrozenUntil));
     } catch (err: Error | unknown) {
+      // Fix (auditoría frontend 2026-08-01, item 6): un cambio rápido de
+      // input/step cancela el fetch anterior -- sin esto, una respuesta
+      // tardía de una preview vieja podía pisar el estado de una más nueva
+      // (race condition clásica). AbortError es la cancelación esperada, no
+      // un error real: no se muestra al usuario.
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return;
+      }
       const message = err instanceof Error ? err.message : t("errors.genericPreview");
       setPreviewError(message);
       setQuote(null);
     } finally {
-      setPreviewLoading(false);
+      if (!signal?.aborted) {
+        setPreviewLoading(false);
+      }
     }
   }, [input]);
 
   useEffect(() => {
     if (step === "summary") {
-      fetchPreviewQuote();
+      const controller = new AbortController();
+      fetchPreviewQuote(controller.signal);
+      return () => controller.abort();
     }
   }, [step, fetchPreviewQuote]);
 

@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, DollarSign, History, AlertCircle, CheckCircle2, Table2 } from "lucide-react";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
+import { formatCurrency } from "@/lib/format";
 
 // Fix (auditoría externa 2026-07-31): mismo techo que el backend
 // (src/app/api/admin/hhe-settings/route.ts) -- validar solo en el cliente
@@ -37,6 +39,9 @@ interface PricingSettingsData {
 
 export default function AdminPricingSettingsClient() {
   const t = useTranslations("admin.pricingSettings");
+  const params = useParams();
+  const rawLocale = params?.locale as string | undefined;
+  const locale = rawLocale && ["en", "zh", "fr"].includes(rawLocale) ? rawLocale : "en";
   const [data, setData] = useState<PricingSettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -240,7 +245,7 @@ export default function AdminPricingSettingsClient() {
         <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
         {data?.current && (
           <span className="text-sm text-gray-500">
-            {t("currentRateLabel")} <strong>${data.current.target_hourly_rate}/hr</strong>
+            {t("currentRateLabel")} <strong>{formatCurrency(data.current.target_hourly_rate, locale)}/hr</strong>
           </span>
         )}
       </div>
@@ -468,7 +473,7 @@ export default function AdminPricingSettingsClient() {
                     <td className="px-4 py-3 font-medium text-brand-ink">{row.label}</td>
                     {hheTable[row.key].map((hhe, i) => (
                       <td key={i} className="px-4 py-3 text-right text-gray-600">
-                        ${Math.round(hhe * data.current!.target_hourly_rate).toLocaleString()}
+                        {formatCurrency(Math.round(hhe * data.current!.target_hourly_rate), locale)}
                       </td>
                     ))}
                   </tr>
@@ -507,11 +512,11 @@ export default function AdminPricingSettingsClient() {
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       {log.previous_rate !== null && log.previous_rate !== undefined
-                        ? `$${log.previous_rate}/hr`
+                        ? `${formatCurrency(log.previous_rate, locale)}/hr`
                         : "—"}
                     </td>
                     <td className="px-4 py-3 font-medium text-brand-ink">
-                      ${log.new_rate}/hr
+                      {formatCurrency(log.new_rate, locale)}/hr
                     </td>
                     <td className="px-4 py-3 text-gray-600">{log.reason}</td>
                   </tr>

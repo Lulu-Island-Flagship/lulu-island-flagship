@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/warranty-claims — cola de reclamos de garantía (v8.3 E5,
 // Sesión Q). Reutiliza el recurso RBAC "tickets" (mismo dominio operativo
@@ -50,7 +51,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ claims: data || [] }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

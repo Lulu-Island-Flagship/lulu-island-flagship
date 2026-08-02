@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { requireCronAuth } from "@/lib/cron-auth";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * GET /api/cron/chargeback-reserve-release
@@ -45,7 +46,8 @@ export async function GET(request: NextRequest) {
       .lte("release_date", todayStr);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Supabase query error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     let released = 0;
@@ -101,8 +103,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Chargeback reserve release error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

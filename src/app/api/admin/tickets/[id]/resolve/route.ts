@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { dispatchCommunication } from "@/lib/send-communication";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // POST /api/admin/tickets/[id]/resolve — resolver ticket
 export async function POST(
@@ -121,7 +122,6 @@ export async function POST(
 
     return NextResponse.json({ ticket: data }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

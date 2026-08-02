@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { verifyHashChain } from "@/lib/legal-monitoring";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * GET /api/cron/verify-hash-chains — v8.3 E9.4/E9.9.
@@ -56,7 +57,8 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: true });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Supabase query error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // Reconstruye el mismo `content` canónico usado al insertar (ver
@@ -94,7 +96,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

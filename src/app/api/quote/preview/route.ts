@@ -7,8 +7,6 @@ import {
   getTargetHourlyRate,
   getCurrentHHETable,
   ServiceType,
-  GST_RATE,
-  PST_RATE,
   MARGIN_FLOOR_PERCENT,
   ACTIVE_ZONES,
   SERVICE_CATEGORIES,
@@ -16,14 +14,13 @@ import {
   PET_TYPES,
   type ServiceCategory,
 } from "@/lib/pricing";
-import { applyPricingRules, type RuleContext, type PricingRule } from "@/lib/rules";
+import { type RuleContext, type PricingRule } from "@/lib/rules";
 import { getZoneDemand } from "@/lib/zone-demand";
 import { calculateAddonZonesCharge } from "@/lib/pricing";
 import { fetchAddonZoneOptions } from "@/lib/addon-zones";
 import type { QuoteInput, QuoteData } from "@/types";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 const MIN_SQUARE_FEET = 300;
 const MAX_SQUARE_FEET = 10000;
@@ -149,7 +146,7 @@ function deriveOrganicLoad(
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -232,22 +229,9 @@ export async function POST(request: NextRequest) {
       targetHourlyRate
     );
 
-    const baseBreakdown = calculatePrice(
-      serviceType as ServiceType,
-      squareFeet,
-      petsCount,
-      petsType,
-      residents,
-      daysSinceCleaning,
-      zone,
-      dayOfWeek,
-      isPreferredDay,
-      targetHourlyRate,
-      hheTable,
-      addonZonesCharge
-    );
-
-    // Aplicar motor de reglas headless
+    // Motor de reglas headless (src/lib/rules.ts): reglas + contexto se
+    // arman ANTES de llamar a calculatePrice, que ahora invoca
+    // applyPricingRules() internamente (fix auditoría externa, hallazgo #1).
     const { data: rulesData } = await supabase
       .from("pricing_rules")
       .select("id, name, description, condition_json, action_type, action_value, priority, max_applicable, is_active")
@@ -271,23 +255,8 @@ export async function POST(request: NextRequest) {
     // 14 días para la zona.
     const zoneDemand = await getZoneDemand(supabase, zone!, null);
 
-    const ruleContext: RuleContext = {
-      zone: zone!,
-      // Fix (auditoría 2026-07-31, hallazgo #5): ver el mismo fix y
-      // explicación en /api/quote/route.ts -- usar el día real de HOY del
-      // servidor como default hacía que reglas de pricing_rules
-      // condicionadas por `dayOfWeek` (ej. recargo de fin de semana)
-      // pudieran disparar de forma inconsistente en el preview según qué
-      // día de la semana sea "hoy", sin relación con la fecha de servicio
-      // que el cliente vaya a elegir después en /reserva (donde
-      // /api/quote/recalculate SÍ calcula el dayOfWeek real y autoritativo
-      // a partir de la fecha elegida). Se usa un lunes neutro, consistente
-      // con `isPreferredDay: true`.
-      dayOfWeek: dayOfWeek ?? 1,
-      isPreferredDay: isPreferredDay ?? true,
-      serviceType: serviceType!,
+    const ruleContextExtra: Partial<RuleContext> = {
       serviceSubtype: serviceSubtype!,
-      squareFeet,
       clientScore: profile.score,
       servicesCount: profile.servicesCount,
       disputesLostCount: profile.disputesLostCount,
@@ -295,16 +264,37 @@ export async function POST(request: NextRequest) {
       clientType: deriveClientType(profile.servicesCount, profile.score),
       zoneDemand,
       organicLoad: deriveOrganicLoad(petsCount, petsType, residents),
-      daysSinceCleaning,
       advanceNoticeDays: 0,
     };
 
-    const ruleResult = applyPricingRules(rules, ruleContext, baseBreakdown.basePrice, baseBreakdown.subtotal);
+    // Fix (auditoría 2026-07-31, hallazgo #5): ver el mismo fix y
+    // explicación en /api/quote/route.ts -- se usa un lunes neutro
+    // (dayOfWeek ?? 1) + isPreferredDay=true por defecto para que ninguna
+    // regla de fin de semana dispare por accidente según el día real de HOY
+    // del servidor.
+    const baseBreakdown = calculatePrice(
+      serviceType as ServiceType,
+      squareFeet,
+      petsCount,
+      petsType,
+      residents,
+      daysSinceCleaning,
+      zone,
+      dayOfWeek,
+      isPreferredDay,
+      targetHourlyRate,
+      hheTable,
+      addonZonesCharge,
+      rules,
+      ruleContextExtra
+    );
 
-    const subtotalAfterRules = Math.round(Math.max(0, baseBreakdown.subtotal + ruleResult.adjustment));
-    const gst = Math.round(subtotalAfterRules * GST_RATE * 100) / 100;
-    const pst = Math.round(subtotalAfterRules * PST_RATE * 100) / 100;
-    const totalAfterRules = Math.round((subtotalAfterRules + gst + pst) * 100) / 100;
+    // baseBreakdown.subtotal/gst/pst/total ya incluyen el ajuste real del
+    // motor de reglas (fix auditoría externa, hallazgos #1 y #2).
+    const subtotalAfterRules = baseBreakdown.subtotal;
+    const gst = baseBreakdown.gst;
+    const pst = baseBreakdown.pst;
+    const totalAfterRules = baseBreakdown.total;
     const holdAmount = calculateHold(serviceType as ServiceType, squareFeet, totalAfterRules, targetHourlyRate);
 
     const freeze = new Date(Date.now() + 10 * 60 * 1000);
@@ -313,10 +303,11 @@ export async function POST(request: NextRequest) {
     const marginContribution = subtotalAfterRules > 0 ? (subtotalAfterRules - estimatedLaborCost) / subtotalAfterRules : 0;
     const marginBelowFloor = marginContribution < MARGIN_FLOOR_PERCENT;
 
-    let adminReviewRequired = baseBreakdown.adminReviewRequired || ruleResult.flagged || marginBelowFloor;
+    // baseBreakdown.adminReviewRequired ya incluye baseBreakdown.flagged
+    // (motor de reglas); marginBelowFloor cubre el margen post-reglas.
+    let adminReviewRequired = baseBreakdown.adminReviewRequired || marginBelowFloor;
     const adminReviewReasons: string[] = [];
     if (baseBreakdown.adminReviewReason) adminReviewReasons.push(baseBreakdown.adminReviewReason);
-    if (ruleResult.flagReason) adminReviewReasons.push(ruleResult.flagReason);
     if (marginBelowFloor) {
       adminReviewReasons.push(
         `Margen de contribución ${(marginContribution * 100).toFixed(1)}% por debajo del ${(
@@ -341,8 +332,8 @@ export async function POST(request: NextRequest) {
       zoneSurcharge: baseBreakdown.zoneSurcharge,
       logisticsSurcharge: baseBreakdown.logisticsSurcharge,
       addonZonesCharge: baseBreakdown.addonZonesCharge,
-      ruleAdjustment: ruleResult.adjustment,
-      appliedRules: ruleResult.appliedRules,
+      ruleAdjustment: baseBreakdown.ruleAdjustment,
+      appliedRules: baseBreakdown.appliedRules,
       subtotal: subtotalAfterRules,
       gst,
       pst,
@@ -370,21 +361,17 @@ export async function POST(request: NextRequest) {
       {
         quote,
         serverCalculated: true,
-        appliedRules: ruleResult.appliedRules,
+        appliedRules: baseBreakdown.appliedRules,
         adminReviewRequired,
         adminReviewReason: adminReviewReasons.join("; ") || undefined,
         accountType,
         b2bReviewRequired: accountType === "b2b" || accountType === "government",
-        blocked: ruleResult.blocked,
-        blockReason: ruleResult.blockReason,
+        blocked: baseBreakdown.blocked,
+        blockReason: baseBreakdown.blockReason,
       },
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    console.error("Quote preview API error:", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
-      { status: 500 }
-    );
+    return safeErrorResponse(err);
   }
 }

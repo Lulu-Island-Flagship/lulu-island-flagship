@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { evaluateSampledRejectionRate, decideGamingConsequence } from "@/lib/anti-gaming";
 import { calculatePayroll, DEFAULT_SERVICE_MINUTES, BC_MIN_WAGE_HOURLY } from "@/lib/payroll";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // POST /api/admin/qc/[orderId]/review — aprobar o rechazar servicio
 export async function POST(
@@ -352,7 +353,6 @@ export async function POST(
 
     return NextResponse.json({ review: data, gamingDetection }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

@@ -9,9 +9,7 @@ import AdminNav from "@/components/admin/AdminNav";
 import AdminBreadcrumbs from "@/components/admin/AdminBreadcrumbs";
 import type { AdminRole } from "@/lib/admin-rbac";
 import { isAllowedInternalPath } from "@/lib/safe-redirect";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 
 // Título base de las ~70 páginas de /admin: cada page.tsx solo necesita
 // exportar `export const metadata = { title: "..." }` con un título corto
@@ -32,8 +30,8 @@ export default async function AdminLayout({
 }) {
   const cookieStore = cookies();
   const supabase = createServerClient(
-    supabaseUrl,
-    supabaseKey,
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     {
       cookies: {
         get(name: string) {

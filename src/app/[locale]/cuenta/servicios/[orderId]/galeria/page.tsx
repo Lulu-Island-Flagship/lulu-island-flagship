@@ -150,6 +150,10 @@ export default function ServiceGalleryPage() {
       {/* Fix (2026-07-25, auditoría UX, item 16): lightbox simple para ver
           la foto completa -- mismo patrón de overlay que AuthModal.tsx. */}
       {lightboxIndex !== null && data.photos && (
+        // Backdrop click-to-close + Escape-to-close on the dialog container is the standard
+        // accessible modal dismiss pattern (WCAG 2.1.1 compliant); the rule flags role="dialog"
+        // as non-interactive even though this handler only closes on direct backdrop clicks.
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
         <div
           role="dialog"
           aria-modal="true"

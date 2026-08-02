@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { detectChurnSignal } from "@/lib/churn-detection";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/cron/churn-detection
@@ -48,7 +49,8 @@ export async function GET(request: NextRequest) {
       .order("service_date", { ascending: false });
 
     if (ordersError) {
-      return NextResponse.json({ error: ordersError.message }, { status: 500 });
+      console.error("ordersError:", ordersError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const lastServiceByClient = new Map<string, string>();
@@ -64,7 +66,8 @@ export async function GET(request: NextRequest) {
       .eq("status", "active");
 
     if (contractsError) {
-      return NextResponse.json({ error: contractsError.message }, { status: 500 });
+      console.error("contractsError:", contractsError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     const recurringClientIds = new Set((activeContracts || []).map((c) => c.user_id));
 
@@ -101,7 +104,8 @@ export async function GET(request: NextRequest) {
           skippedExistingPending += 1;
           continue;
         }
-        return NextResponse.json({ error: insertError.message }, { status: 500 });
+        console.error("insertError:", insertError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
       created += 1;
     }
@@ -111,7 +115,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

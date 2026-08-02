@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { computeBackupDueStatus } from "@/lib/backup-jobs";
 import { storeBackupCsv } from "@/lib/backup-storage";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/cron/backup-photos-manifest — v8.3 E9.10, "fotos mensual".
@@ -94,7 +95,6 @@ export async function GET(request: NextRequest) {
       { status: result.success ? 200 : 500 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

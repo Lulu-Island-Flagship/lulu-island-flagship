@@ -1,18 +1,16 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 import {
   computeExpiredUnusedAmount,
   computeAvailableWalletBalance,
   type WalletTransactionRecord,
 } from "@/lib/wallet";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
-
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -41,7 +39,10 @@ export async function GET() {
     .select("id, balance, currency")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (walletError) return NextResponse.json({ error: walletError.message }, { status: 500 });
+  if (walletError) {
+    console.error("walletError:", walletError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   if (!wallet) {
     return NextResponse.json({ balance: 0, availableBalance: 0, currency: "CAD", transactions: [] }, { status: 200 });
   }
@@ -52,8 +53,10 @@ export async function GET() {
     .eq("wallet_id", wallet.id)
     .order("created_at", { ascending: false })
     .limit(50);
-  if (txError) return NextResponse.json({ error: txError.message }, { status: 500 });
-
+  if (txError) {
+    console.error("txError:", txError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   const records: WalletTransactionRecord[] = (transactions || []).map((t) => ({
     id: t.id,
     type: t.type,

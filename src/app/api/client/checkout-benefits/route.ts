@@ -7,13 +7,11 @@ import {
   type WalletTransactionRecord,
 } from "@/lib/wallet";
 import { REFERRAL_CREDIT_CENTS } from "@/lib/referrals";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;

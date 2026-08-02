@@ -5,6 +5,7 @@ import { dispatchCommunication } from "@/lib/send-communication";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { requireCronAuth } from "@/lib/cron-auth";
 import { getVancouverTodayMidnight } from "@/lib/date-utils";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseAdmin = SupabaseClient<any, "public", any>;
@@ -457,8 +458,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("No-show cron error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

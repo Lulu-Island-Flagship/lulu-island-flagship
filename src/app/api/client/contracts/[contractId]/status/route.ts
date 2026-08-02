@@ -1,13 +1,11 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -78,7 +76,13 @@ export async function PATCH(
     .eq("id", contractId)
     .maybeSingle();
 
-  if (contractError) return NextResponse.json({ error: contractError.message }, { status: 500 });
+  if (contractError) {
+
+    console.error("contractError:", contractError);
+
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+
+  }
   if (!contract || contract.user_id !== user.id) {
     return NextResponse.json({ error: "Contract not found" }, { status: 404 });
   }
@@ -114,7 +118,12 @@ export async function PATCH(
     .select("id, status")
     .single();
 
-  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+  if (updateError) {
 
+    console.error("updateError:", updateError);
+
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+
+  }
   return NextResponse.json({ contract: updated }, { status: 200 });
 }

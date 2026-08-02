@@ -1,4 +1,4 @@
-import { randomInt, createHash } from "node:crypto";
+import { randomInt, randomBytes, createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSetting, getHiringFlowServiceClient } from "./settings-service";
 import { checkRateLimit } from "./rate-limiter";
@@ -46,6 +46,26 @@ export function generateRawCode(): string {
     code += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
   }
   return code;
+}
+
+// ---------------------------------------------------------------------------
+// generateSessionToken — pura, testeable sin DB
+// ---------------------------------------------------------------------------
+
+// Fix (auditoría de seguridad externa, 2026-08-01): session-service.ts
+// reusaba generateRawCode() (8 caracteres, alfabeto de 32 => 32^8 ≈ 1.1e12
+// combinaciones, ~40 bits de entropía) para el token de SESIÓN del
+// candidato. Un código de acceso de 8 caracteres está pensado para que un
+// humano lo tipee desde un SMS y vive días con un solo uso; un token de
+// sesión web vive horas, viaja en cada request (ej. cookie) y es el único
+// secreto que protege la sesión completa -- 40 bits es insuficiente para
+// resistir fuerza bruta/adivinanza en ese contexto (recomendación estándar:
+// >=128 bits para tokens de sesión). generateRawCode() se deja intacta para
+// donde sí es apropiada (códigos cortos tipo OTP en access-code-service.ts);
+// esta función nueva usa 32 bytes (256 bits) de crypto.randomBytes,
+// codificados en hex, específicamente para tokens de sesión.
+export function generateSessionToken(): string {
+  return randomBytes(32).toString("hex");
 }
 
 // ---------------------------------------------------------------------------

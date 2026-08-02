@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { getVancouverTodayString } from "@/lib/date-utils";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 const SERVICE_TYPES = ["regular", "deep", "move_in_out", "post_construction"] as const;
 const RANGE_LABELS = ["≤ 700 ft²", "700 – 1,500 ft²", "1,500 – 2,500 ft²", "2,500 – 3,500 ft²", "> 3,500 ft²"];
@@ -54,8 +56,7 @@ export async function GET() {
 
     return NextResponse.json({ table, rangeLabels: RANGE_LABELS }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }
 
@@ -82,34 +83,25 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "reason is required for audit log" }, { status: 400 });
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = getVancouverTodayString();
 
-    // Cerrar filas vigentes previas e insertar nuevas en una transacción
-    for (const st of SERVICE_TYPES) {
-      for (let idx = 0; idx < 5; idx++) {
-        const value = table[st][idx];
+    // Fix (auditoría de integridad de datos 2026-08-01): antes esto hacía
+    // ~20 escrituras sueltas (4 tipos × 5 rangos × [UPDATE cierre + INSERT])
+    // desde el cliente JS sin ninguna transacción -- si una fallaba a
+    // mitad de camino, las anteriores ya habían committeado y la tabla
+    // quedaba en un estado mixto. Ahora es una sola llamada RPC
+    // (migración 304) que hace las 20 celdas dentro de una función plpgsql
+    // atómica: o todas committean, o ninguna.
+    const { error: rpcError } = await auth.supabase.rpc("admin_update_hhe_table", {
+      p_table: table,
+      p_reason: reason.trim(),
+      p_admin_id: auth.user.id,
+      p_effective_date: today,
+    });
 
-        await auth.supabase
-          .from("hhe_settings")
-          .update({ effective_to: today, updated_at: new Date().toISOString() })
-          .eq("service_type", st)
-          .eq("range_index", idx)
-          .is("effective_to", null);
-
-        const { error: insertError } = await auth.supabase.from("hhe_settings").insert({
-          service_type: st,
-          range_index: idx,
-          hhe_value: value,
-          effective_from: today,
-          reason: reason.trim(),
-          created_by: auth.user.id,
-        });
-
-        if (insertError) {
-          console.error("HHE setting insert error:", insertError);
-          return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
-        }
-      }
+    if (rpcError) {
+      console.error("HHE setting update error:", rpcError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json(
@@ -121,7 +113,6 @@ export async function PATCH(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

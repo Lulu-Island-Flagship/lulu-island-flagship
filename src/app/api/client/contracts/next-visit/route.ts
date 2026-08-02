@@ -3,13 +3,11 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { computeNextRecurringDate, type ContractFrequency } from "@/lib/rebook";
 import { getVancouverTodayString } from "@/lib/date-utils";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -51,7 +49,13 @@ export async function GET(_request: NextRequest) {
     .limit(1)
     .maybeSingle();
 
-  if (contractError) return NextResponse.json({ error: contractError.message }, { status: 500 });
+  if (contractError) {
+
+    console.error("contractError:", contractError);
+
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+
+  }
   if (!contract) {
     return NextResponse.json({ hasActiveContract: false }, { status: 200 });
   }
@@ -71,7 +75,13 @@ export async function GET(_request: NextRequest) {
     .eq("id", contract.quote_id)
     .maybeSingle();
 
-  if (quoteError) return NextResponse.json({ error: quoteError.message }, { status: 500 });
+  if (quoteError) {
+
+    console.error("quoteError:", quoteError);
+
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+
+  }
   if (!quote) {
     return NextResponse.json(
       { hasActiveContract: true, error: "Original contract quote not found" },

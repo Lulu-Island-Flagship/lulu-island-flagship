@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { safeErrorResponse } from "@/lib/api-errors";
 import {
   simulatePricingRules,
   type PricingRule,
@@ -357,8 +358,6 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Pricing rules simulate error:", err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

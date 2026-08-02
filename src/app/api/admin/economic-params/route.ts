@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { calculateMinimumWageImpact, listAffectedContracts } from "@/lib/economic-params";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/economic-params — parametros vigentes
 export async function GET(request: NextRequest) {
@@ -84,8 +85,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ impact, affectedContractsCount: affected.filter((a) => a.needsAdjustment).length }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }
 
@@ -123,7 +123,6 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ result: data }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

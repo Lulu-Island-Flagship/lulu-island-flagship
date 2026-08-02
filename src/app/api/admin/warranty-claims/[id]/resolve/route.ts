@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { dispatchCommunication } from "@/lib/send-communication";
 import { loadDisputeResolutionContext } from "../../_shared";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 type FinalAction = "free_recleaning" | "explain_no_action" | "dismiss";
 const VALID_FINAL_ACTIONS: FinalAction[] = ["free_recleaning", "explain_no_action", "dismiss"];
@@ -201,7 +202,6 @@ export async function POST(
 
     return NextResponse.json({ claim: updatedClaim, decision }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

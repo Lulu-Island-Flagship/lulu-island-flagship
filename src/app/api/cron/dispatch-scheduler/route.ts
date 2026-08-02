@@ -14,6 +14,8 @@ import {
 import { evaluateTeamSixAutoApproval } from "@/lib/dispatch-approval";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { evaluateOvertimeRejection } from "@/lib/schedule-7030";
+import { getSupabaseServiceKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * v8.3 ROUND 2 — hallazgo crítico de auditoría de flujo: este cron construía
@@ -38,11 +40,8 @@ import { evaluateOvertimeRejection } from "@/lib/schedule-7030";
  * protección sigue siendo el guard CRON_SECRET ya existente al inicio del
  * handler GET.
  */
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder";
-
 function getSupabaseClient() {
-  return createClient(supabaseUrl, supabaseServiceKey);
+  return createClient(getSupabaseUrl(), getSupabaseServiceKey());
 }
 
 function getVancouverNow(): Date {
@@ -856,8 +855,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Dispatch scheduler error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

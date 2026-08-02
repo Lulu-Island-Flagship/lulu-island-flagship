@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/vehicles — lista de vehículos
 export async function GET() {
@@ -23,9 +24,7 @@ export async function GET() {
 
     return NextResponse.json({ vehicles: data || [] }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Vehicles API error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }
 
@@ -62,7 +61,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ vehicle: data }, { status: 201 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

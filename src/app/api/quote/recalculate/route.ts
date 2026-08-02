@@ -7,14 +7,12 @@ import {
   getTargetHourlyRate,
   getCurrentHHETable,
   ServiceType,
-  GST_RATE,
-  PST_RATE,
 } from "@/lib/pricing";
-import { applyPricingRules, type PricingRule, type RuleContext } from "@/lib/rules";
+import { type PricingRule, type RuleContext } from "@/lib/rules";
 import { getZoneDemand } from "@/lib/zone-demand";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getVancouverTodayString } from "@/lib/date-utils";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 function deriveClientType(servicesCount: number, clientScore: number): "new" | "returning" | "elite" {
   if (servicesCount === 0) return "new";
@@ -44,7 +42,7 @@ function daysBetween(a: string, b: string): number {
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -130,26 +128,9 @@ export async function POST(request: NextRequest) {
     const targetHourlyRate = await getTargetHourlyRate(supabase);
     const hheTable = await getCurrentHHETable(supabase);
 
-    // Recalcular precio con los nuevos parámetros de día. addon_zones_charge
-    // ya fue validado y persistido al crear la quote (v8.3 E4, D.7) — la
-    // selección de zonas add-on no cambia por elegir fecha, así que se
-    // reutiliza el monto guardado en vez de volver a resolverlo.
-    const breakdown = calculatePrice(
-      quote.service_type as ServiceType,
-      quote.square_feet,
-      quote.pets_count,
-      quote.pets_type,
-      quote.residents,
-      quote.days_since_cleaning,
-      quote.zone,
-      dayOfWeek,
-      isPreferredDay,
-      targetHourlyRate,
-      hheTable,
-      quote.addon_zones_charge ?? 0
-    );
-
-    // Reaplicar motor de reglas con el nuevo contexto de día
+    // Reglas de pricing activas + contexto de día se arman ANTES de llamar a
+    // calculatePrice, que ahora invoca applyPricingRules() internamente (fix
+    // auditoría externa, hallazgo #1).
     const { data: rulesData } = await supabase
       .from("pricing_rules")
       .select("id, name, description, condition_json, action_type, action_value, priority, max_applicable, is_active")
@@ -174,7 +155,7 @@ export async function POST(request: NextRequest) {
       .eq("user_id", user.id)
       .single();
 
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = getVancouverTodayString();
     const advanceNoticeDays = daysBetween(todayStr, serviceDate);
 
     // Fix (auditoría externa, hallazgo confirmado): ver src/lib/zone-demand.ts.
@@ -182,13 +163,8 @@ export async function POST(request: NextRequest) {
     // ocupación real de ESE día para la zona, no el promedio rolling.
     const zoneDemand = await getZoneDemand(supabase, quote.zone, serviceDate);
 
-    const ruleContext: RuleContext = {
-      zone: quote.zone,
-      dayOfWeek,
-      isPreferredDay,
-      serviceType: quote.service_type,
+    const ruleContextExtra: Partial<RuleContext> = {
       serviceSubtype: quote.service_subtype,
-      squareFeet: quote.square_feet,
       clientScore: profile?.score ?? quote.client_score ?? 50,
       servicesCount: profile?.services_count ?? 0,
       disputesLostCount: profile?.disputes_lost_count ?? 0,
@@ -196,24 +172,45 @@ export async function POST(request: NextRequest) {
       clientType: deriveClientType(profile?.services_count ?? 0, profile?.score ?? quote.client_score ?? 50),
       zoneDemand,
       organicLoad: deriveOrganicLoad(quote.pets_count, quote.pets_type, quote.residents),
-      daysSinceCleaning: quote.days_since_cleaning,
       advanceNoticeDays,
     };
 
-    const ruleResult = applyPricingRules(rules, ruleContext, breakdown.basePrice, breakdown.subtotal);
+    // Recalcular precio con los nuevos parámetros de día. addon_zones_charge
+    // ya fue validado y persistido al crear la quote (v8.3 E4, D.7) — la
+    // selección de zonas add-on no cambia por elegir fecha, así que se
+    // reutiliza el monto guardado en vez de volver a resolverlo.
+    const breakdown = calculatePrice(
+      quote.service_type as ServiceType,
+      quote.square_feet,
+      quote.pets_count,
+      quote.pets_type,
+      quote.residents,
+      quote.days_since_cleaning,
+      quote.zone,
+      dayOfWeek,
+      isPreferredDay,
+      targetHourlyRate,
+      hheTable,
+      quote.addon_zones_charge ?? 0,
+      rules,
+      ruleContextExtra
+    );
 
     // Las reglas de bloqueo no deberían activarse en recálculo si la quote ya fue aceptada,
-    // pero si lo hacen, mantenemos el precio original y reportamos la discrepancia.
-    if (ruleResult.blocked) {
-      console.warn("Quote recalculate blocked by rule after date selection:", ruleResult.blockReason);
+    // pero si lo hacen, calculatePrice ya deja el subtotal/total sin el ajuste
+    // de reglas (ver src/lib/rules.ts applyPricingRules: blocked corta antes
+    // de acumular adjustment) -- solo reportamos la discrepancia.
+    if (breakdown.blocked) {
+      console.warn("Quote recalculate blocked by rule after date selection:", breakdown.blockReason);
     }
 
-    const subtotalAfterRules = ruleResult.blocked
-      ? breakdown.subtotal
-      : Math.round(Math.max(0, breakdown.subtotal + ruleResult.adjustment));
-    const gst = Math.round(subtotalAfterRules * GST_RATE * 100) / 100;
-    const pst = Math.round(subtotalAfterRules * PST_RATE * 100) / 100;
-    const total = Math.round((subtotalAfterRules + gst + pst) * 100) / 100;
+    // breakdown.subtotal/gst/pst/total ya incluyen el ajuste real del motor
+    // de reglas, calculado en centavos enteros (fix auditoría externa,
+    // hallazgos #1 y #2).
+    const subtotalAfterRules = breakdown.subtotal;
+    const gst = breakdown.gst;
+    const pst = breakdown.pst;
+    const total = breakdown.total;
     const holdAmount = calculateHold(
       quote.service_type as ServiceType,
       quote.square_feet,
@@ -230,8 +227,8 @@ export async function POST(request: NextRequest) {
         is_preferred_day: isPreferredDay,
         logistics_surcharge: breakdown.logisticsSurcharge,
         addon_zones_charge: breakdown.addonZonesCharge,
-        rule_adjustment: ruleResult.blocked ? 0 : ruleResult.adjustment,
-        applied_rules: ruleResult.blocked ? [] : ruleResult.appliedRules,
+        rule_adjustment: breakdown.ruleAdjustment,
+        applied_rules: breakdown.appliedRules,
         subtotal: subtotalAfterRules,
         gst,
         pst,
@@ -247,7 +244,8 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       console.error("Quote recalculate update error:", updateError);
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      console.error("updateError:", updateError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json(
@@ -262,10 +260,6 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    console.error("Quote recalculate error:", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
-      { status: 500 }
-    );
+    return safeErrorResponse(err);
   }
 }

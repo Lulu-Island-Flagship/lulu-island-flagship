@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Key, Loader2, ChevronLeft, AlertTriangle, Check, Eye, EyeOff, Camera, CloudUpload } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { submitGenericReportOrQueue } from "@/lib/offline-sync-client";
@@ -18,13 +19,6 @@ interface KeyLog {
   created_at: string;
 }
 
-const METHODS: { value: KeyMethod; label: string }[] = [
-  { value: "in_person", label: "In person" },
-  { value: "lockbox", label: "Lockbox" },
-  { value: "third_party", label: "Third party" },
-  { value: "problem", label: "Access problem" },
-];
-
 export default function LlavesPage() {
   const router = useRouter();
   const params = useParams();
@@ -36,6 +30,14 @@ export default function LlavesPage() {
   // router de Next, no de window.
   const locale = (params?.locale as string) || "en";
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
+  const t = useTranslations("employee.keysScreen");
+
+  const METHODS: { value: KeyMethod; label: string }[] = [
+    { value: "in_person", label: t("methodInPerson") },
+    { value: "lockbox", label: t("methodLockbox") },
+    { value: "third_party", label: t("methodThirdParty") },
+    { value: "problem", label: t("methodProblem") },
+  ];
 
   const [logs, setLogs] = useState<KeyLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,14 +102,14 @@ export default function LlavesPage() {
         .upload(fileName, file, { contentType: file.type });
       if (uploadError) {
         console.error("Signature upload error:", uploadError);
-        setSignatureError("Couldn't upload the evidence. Please try again.");
+        setSignatureError(t("uploadError"));
         return;
       }
       const { data: publicUrlData } = supabase.storage.from("service-photos").getPublicUrl(fileName);
       setSignatureUrl(publicUrlData.publicUrl);
     } catch (e) {
       console.error("Signature photo error:", e);
-      setSignatureError("Connection error uploading the evidence. Please try again.");
+      setSignatureError(t("uploadConnectionError"));
     } finally {
       setUploadingSignature(false);
     }
@@ -127,7 +129,7 @@ export default function LlavesPage() {
         signatureUrl: method === "third_party" ? signatureUrl : undefined,
       });
       if (!result.ok) {
-        setError(result.error || "Error saving the record.");
+        setError(result.error || t("saveError"));
         return;
       }
       setLockboxCode("");
@@ -157,13 +159,13 @@ export default function LlavesPage() {
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
           <button
             onClick={() => router.push(`/${safeLocale}/empleado/servicio/${orderId}`)}
-            aria-label="Back"
+            aria-label={t("back")}
             className="text-white/70 hover:text-white"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <h1 className="font-semibold text-sm flex items-center gap-2">
-            <Key className="w-4 h-4" /> Key Handling
+            <Key className="w-4 h-4" /> {t("headerTitle")}
           </h1>
         </div>
       </header>
@@ -172,7 +174,7 @@ export default function LlavesPage() {
         {pendingProblem && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <span>There&apos;s an access problem reported and pending resolution. If 15 min pass without a response from admin, it gets documented as a no-show.</span>
+            <span>{t("pendingProblemBanner")}</span>
           </div>
         )}
 
@@ -181,7 +183,7 @@ export default function LlavesPage() {
         ) : (
           <>
             <form onSubmit={submit} className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3">
-              <h2 className="text-sm font-semibold text-brand-ink">Log access</h2>
+              <h2 className="text-sm font-semibold text-brand-ink">{t("logAccess")}</h2>
               <div className="grid grid-cols-2 gap-2">
                 {METHODS.map((m) => (
                   <button
@@ -201,8 +203,8 @@ export default function LlavesPage() {
                 <div className="relative">
                   <input
                     type={showLockboxCode ? "text" : "password"}
-                    aria-label="Lockbox code"
-                    placeholder="Lockbox code"
+                    aria-label={t("lockboxCodeLabel")}
+                    placeholder={t("lockboxCodePlaceholder")}
                     value={lockboxCode}
                     onChange={(e) => setLockboxCode(e.target.value)}
                     className="w-full text-sm border rounded-lg px-3 py-2 pr-10"
@@ -210,7 +212,7 @@ export default function LlavesPage() {
                   <button
                     type="button"
                     onClick={() => setShowLockboxCode((v) => !v)}
-                    aria-label={showLockboxCode ? "Hide lockbox code" : "Show lockbox code"}
+                    aria-label={showLockboxCode ? t("hideLockboxCode") : t("showLockboxCode")}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     {showLockboxCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -223,23 +225,22 @@ export default function LlavesPage() {
                   <input
                     id="keys-confirm-returned"
                     type="checkbox"
-                    aria-label="I confirm I returned the keys to the client"
+                    aria-label={t("confirmReturnedLabel")}
                     checked={confirmedReturned}
                     onChange={(e) => setConfirmedReturned(e.target.checked)}
                   />
-                  I confirm I returned the keys to the client
+                  {t("confirmReturnedLabel")}
                 </label>
               )}
 
               {method === "third_party" && (
                 <div className="space-y-2">
                   <p className="text-xs text-gray-500">
-                    Evidence required: photo of the note/receipt signed by the third party who handed over or
-                    received the keys.
+                    {t("thirdPartyEvidenceText")}
                   </p>
                   {signatureUrl ? (
                     <div className="flex items-center gap-2 text-xs text-state-success">
-                      <Check className="w-4 h-4" /> Evidence uploaded
+                      <Check className="w-4 h-4" /> {t("evidenceUploaded")}
                     </div>
                   ) : (
                     <label className="flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-lg px-3 py-3 text-sm text-gray-500 cursor-pointer">
@@ -248,7 +249,7 @@ export default function LlavesPage() {
                       ) : (
                         <Camera className="w-4 h-4" />
                       )}
-                      {uploadingSignature ? "Uploading..." : "Take/attach photo of the signed evidence"}
+                      {uploadingSignature ? t("uploading") : t("takeAttachPhoto")}
                       <input
                         type="file"
                         accept="image/*"
@@ -266,7 +267,7 @@ export default function LlavesPage() {
                         // pero inequívoco para cualquier lector de pantalla y
                         // para el escáner, mismo criterio que el checkbox de
                         // "I confirm I returned the keys" above.
-                        aria-label="Take or attach photo of the signed evidence"
+                        aria-label={t("takeAttachPhotoAria")}
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) void handleSignaturePhoto(file);
@@ -281,15 +282,14 @@ export default function LlavesPage() {
 
               {method === "problem" && (
                 <p className="text-xs text-gray-500">
-                  This notifies admin immediately. If there&apos;s no response in 15 min, it escalates automatically.
+                  {t("problemMethodText")}
                 </p>
               )}
 
               {error && <p className="text-xs text-red-600">{error}</p>}
               {queued && (
                 <p className="text-xs text-brand-navy flex items-center gap-1">
-                  <CloudUpload className="w-3.5 h-3.5" /> No connection: saved on this device, will send
-                  automatically as soon as signal returns.
+                  <CloudUpload className="w-3.5 h-3.5" /> {t("queuedMessage")}
                 </p>
               )}
 
@@ -298,12 +298,12 @@ export default function LlavesPage() {
                 disabled={submitting || !canSubmitThirdParty}
                 className="w-full flex items-center justify-center gap-2 bg-brand-navy text-white px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
               >
-                <Check className="w-4 h-4" /> Save
+                <Check className="w-4 h-4" /> {t("save")}
               </button>
             </form>
 
             <div className="bg-white rounded-xl shadow-elevation-1 divide-y">
-              {logs.length === 0 && <p className="p-4 text-sm text-gray-500">No records yet.</p>}
+              {logs.length === 0 && <p className="p-4 text-sm text-gray-500">{t("noRecordsYet")}</p>}
               {logs.map((l) => (
                 <div key={l.id} className="p-3 text-sm">
                   <span className="font-medium capitalize">{l.method.replace("_", " ")}</span>

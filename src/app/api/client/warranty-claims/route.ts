@@ -3,13 +3,12 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { validateWarrantyClaimInput, isWarrantyClaimEligible, WARRANTY_CLAIM_WINDOW_DAYS } from "@/lib/warranty-claim-validation";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -48,7 +47,7 @@ export async function GET() {
 
   if (error) {
     console.error("client/warranty-claims fetch error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   return NextResponse.json({ claims: claims || [] }, { status: 200 });
@@ -107,7 +106,8 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (orderError) {
-      return NextResponse.json({ error: orderError.message }, { status: 500 });
+      console.error("orderError:", orderError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const serviceClient = createClient(supabaseUrl, serviceKey);
+    const serviceClient = createClient(getSupabaseUrl(), serviceKey);
     const { data: refundEntries, error: refundError } = await serviceClient
       .from("shadow_ledger_entries")
       .select("id")
@@ -215,7 +215,8 @@ export async function POST(request: NextRequest) {
       .eq("order_id", orderId);
 
     if (checklistError) {
-      return NextResponse.json({ error: checklistError.message }, { status: 500 });
+      console.error("checklistError:", checklistError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const realZones = new Set(
@@ -269,7 +270,8 @@ export async function POST(request: NextRequest) {
           { status: 409 }
         );
       }
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      console.error("insertError:", insertError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     if (photoUrls && photoUrls.length > 0) {
@@ -291,7 +293,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ claim }, { status: 201 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

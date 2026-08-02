@@ -3,13 +3,12 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { formatAggregatedRows } from "@/lib/team-ranking";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { getVancouverTodayString } from "@/lib/date-utils";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -48,11 +47,16 @@ export async function GET() {
   const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id);
   if (!employee) return NextResponse.json({ error: empError }, { status: empStatus });
 
-  const weekStart = mostRecentMonday(new Date());
+  // Fix (auditoría timezone): mostRecentMonday opera en UTC -- se le pasa el
+  // "hoy" de Vancouver anclado a mediodía UTC en vez de `new Date()` (que
+  // usa el día calendario UTC del servidor, desfasado varias horas cada
+  // tarde/noche de Vancouver).
+  const weekStart = mostRecentMonday(new Date(`${getVancouverTodayString()}T12:00:00Z`));
 
   const { data, error } = await supabase.rpc("get_team_top3", { p_week_start: weekStart });
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Supabase query error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const rows = (data || []).map((r: { team_id: string; team_name: string; composite_score: number }) => ({

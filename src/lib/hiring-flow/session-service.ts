@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSetting, getHiringFlowServiceClient } from "./settings-service";
-import { generateRawCode, hashCode } from "./access-code-service";
+import { generateSessionToken, hashCode } from "./access-code-service";
 
 // Módulo nuevo y separado: flujo de contratación v0.4.1 (candidate hiring
 // flow). Fase 3: Autenticación y Seguridad Base.
@@ -93,7 +93,12 @@ export async function createSession(
     );
   }
 
-  const rawToken = generateRawCode();
+  // Fix (auditoría de seguridad externa, 2026-08-01): antes usaba
+  // generateRawCode() (8 caracteres, ~40 bits de entropía, pensado para
+  // códigos OTP cortos tipeados por humanos) para el token de sesión, que
+  // vive horas y es el único secreto que protege la sesión completa. Ahora
+  // usa generateSessionToken() (32 bytes / 256 bits de crypto.randomBytes).
+  const rawToken = generateSessionToken();
   const tokenHash = hashCode(rawToken);
   const now = new Date();
   const expiresAt = new Date(now.getTime() + durationHours * 60 * 60 * 1000);

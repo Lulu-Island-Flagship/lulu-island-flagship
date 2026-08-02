@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { Camera, AlertTriangle, Send, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { ErrorBanner } from "@/components/empleado/ErrorBanner";
@@ -102,8 +103,9 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+        <label htmlFor="discrepancy-description" className="block text-xs font-medium text-gray-600 mb-1">Description</label>
         <textarea
+          id="discrepancy-description"
           aria-label="Condition discrepancy description"
           value={note}
           onChange={(e) => setNote(e.target.value)}
@@ -115,13 +117,15 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
 
       {/* Photos */}
       <div>
-        <label className="block text-xs font-medium text-gray-600 mb-2">Photos (required: 2 recommended)</label>
+        <p className="block text-xs font-medium text-gray-600 mb-2">Photos (required: 2 recommended)</p>
         <div className="flex flex-wrap gap-2">
           {photos.map((url, i) => (
-            <img
+            <Image
               key={i}
               src={url}
               alt={`Discrepancy photo ${i + 1}`}
+              width={80}
+              height={80}
               className="w-20 h-20 rounded-lg object-cover"
             />
           ))}

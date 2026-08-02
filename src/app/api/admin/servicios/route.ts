@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/servicios — servicios de hoy con % de checklist completado
 export async function GET() {
@@ -19,7 +20,9 @@ export async function GET() {
     });
     const today = vancouverDate.split(",")[0]; // formato YYYY-MM-DD
 
-    // También devolver la fecha para diagnóstico
+    // También devolver la fecha para diagnóstico (UTC, distinta a `today`
+    // cerca de medianoche Vancouver -- se conserva intencionalmente para
+    // detectar ese desfase, no es un bug).
     const utcDate = new Date().toISOString().split("T")[0];
 
     // Obtener órdenes de hoy
@@ -169,8 +172,6 @@ export async function GET() {
 
     return NextResponse.json({ services: enriched, today, utcDate }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Admin services error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

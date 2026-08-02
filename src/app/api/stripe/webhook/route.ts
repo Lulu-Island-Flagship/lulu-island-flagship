@@ -4,6 +4,7 @@ import { assertStripe } from "@/lib/stripe";
 import Stripe from "stripe";
 import { reconcileCapturedPaymentIntent } from "@/lib/payment-capture-reconciliation";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseAdmin = SupabaseClient<any, "public", any>;
@@ -47,9 +48,7 @@ export async function POST(request: NextRequest) {
   try {
     event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown webhook error";
-    console.error("Stripe webhook signature verification failed:", message);
-    return NextResponse.json({ error: message }, { status: 400 });
+    return safeErrorResponse(err, 400, "Invalid webhook signature");
   }
 
   try {
@@ -142,9 +141,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown webhook handler error";
-    console.error("Stripe webhook handler error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }
 

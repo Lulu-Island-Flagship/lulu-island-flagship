@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { safeErrorResponse } from "@/lib/api-errors";
 import {
   computeBcStatutoryHolidays,
   decideStatHolidayEligibility,
@@ -50,8 +51,10 @@ export async function GET(request: NextRequest) {
       .from("employees")
       .select("id, hire_date")
       .eq("is_active", true);
-    if (employeesError) return NextResponse.json({ error: employeesError.message }, { status: 500 });
-
+    if (employeesError) {
+      console.error("employeesError:", employeesError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     const windowStart = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     let eligibleCount = 0;
@@ -127,7 +130,10 @@ export async function GET(request: NextRequest) {
       const { error: insertError } = await supabase
         .from("statutory_holiday_pay")
         .upsert(inserts, { onConflict: "employee_id,holiday_date", ignoreDuplicates: true });
-      if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
+      if (insertError) {
+        console.error("insertError:", insertError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
     }
 
     return NextResponse.json(
@@ -135,7 +141,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

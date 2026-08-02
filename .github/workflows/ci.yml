@@ -16,8 +16,24 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Typecheck
+        timeout-minutes: 10
         run: npx tsc --noEmit
+      - name: Lint
+        timeout-minutes: 10
+        # --max-warnings=60: techo TEMPORAL. No se pudo correr `npm run lint`
+        # completo de punta a punta en el entorno de la auditoría (2026-08-01)
+        # para medir el conteo real de warnings existentes (la auditoría
+        # previa estimó ~60). Este techo existe solo para no romper CI de
+        # golpe con el ruido preexistente mientras se agregan jsx-a11y y
+        # react-hooks/recommended (.eslintrc.json) -- DEBE bajar a 0 apenas
+        # se corra lint una vez en CI y se arreglen/confirmen los hallazgos
+        # reales. No subir este número; solo bajarlo.
+        run: npm run lint -- --max-warnings=60
+      - name: Build
+        timeout-minutes: 10
+        run: npm run build
       - name: Tests
+        timeout-minutes: 10
         run: npm test
       - name: Tokens de diseño — cero hex de marca fuera de la fuente única
         run: |

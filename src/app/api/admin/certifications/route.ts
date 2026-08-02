@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { computeCertificationStatus } from "@/lib/certifications";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * GET/POST /api/admin/certifications — v8.3 E9.4 / E7 / D.9 Doc 3.
@@ -114,7 +115,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ certification: created }, { status: 201 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

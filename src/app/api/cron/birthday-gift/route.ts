@@ -4,6 +4,7 @@ import { dispatchCommunication } from "@/lib/send-communication";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { computeWalletCreditExpiryDate } from "@/lib/wallet";
 import { computeBirthdayGiftEligibility, DEFAULT_BIRTHDAY_GIFT_CENTS } from "@/lib/rebook";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/cron/birthday-gift — v8.3 E5.12
@@ -56,7 +57,8 @@ export async function GET(request: NextRequest) {
       .not("birth_date", "is", null);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Supabase query error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     let granted = 0;
@@ -119,7 +121,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

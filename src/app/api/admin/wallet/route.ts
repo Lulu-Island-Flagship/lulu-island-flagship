@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import {
@@ -213,6 +214,26 @@ export async function POST(request: NextRequest) {
   const nowIso = new Date().toISOString();
   const expiresAt = isExpiringWalletCreditType(body.type) ? computeWalletCreditExpiryDate(nowIso) : null;
 
+  // Fix (auditoría de seguridad externa 2026-08-01, migración 301): además
+  // del chequeo de ventana de 10s de arriba (best-effort, a nivel de app),
+  // se pasa un request_id real al RPC -- wallet_transactions tiene ahora un
+  // UNIQUE parcial en (wallet_id, request_id) (migración 301), así que dos
+  // llamadas con el mismo request_id nunca insertan dos filas, ni siquiera
+  // bajo una carrera real entre dos requests concurrentes (algo que el
+  // chequeo "leer los últimos N segundos" de arriba no puede garantizar por
+  // sí solo). El request_id se deriva determinísticamente del admin que
+  // ejecuta la acción + wallet + type + amount + description + un bucket de
+  // tiempo del mismo tamaño que IDEMPOTENCY_WINDOW_SECONDS, para que un
+  // doble clic/retry dentro de esa ventana calcule EXACTAMENTE el mismo
+  // request_id sin depender de que el frontend genere y reenvíe una
+  // idempotency key explícita.
+  const idempotencyBucket = Math.floor(Date.now() / (IDEMPOTENCY_WINDOW_SECONDS * 1000));
+  const requestId = createHash("sha256")
+    .update(
+      [auth.user.id, wallet.id, body.type, amountCents, trimmedDescription ?? "", idempotencyBucket].join("|")
+    )
+    .digest("hex");
+
   // v8.3 fix (auditoría 2026-07-15): mutación atómica vía RPC (migración 180)
   // en vez de leer balance + calcular en JS + UPDATE sin bloqueo -- ese
   // patrón permitía "lost updates" si dos operaciones tocaban la misma
@@ -225,6 +246,7 @@ export async function POST(request: NextRequest) {
     p_delta: amountCents,
     p_description: trimmedDescription,
     p_expires_at: expiresAt,
+    p_request_id: requestId,
   });
   if (rpcError) {
     console.error("admin/wallet error:", rpcError);

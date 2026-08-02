@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { isFeedBlind } from "@/lib/pipeda";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * GET /api/admin/legal-monitoring — v8.3 E9.7. Panel de los 7 entes
@@ -134,7 +135,6 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ feed, alert }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

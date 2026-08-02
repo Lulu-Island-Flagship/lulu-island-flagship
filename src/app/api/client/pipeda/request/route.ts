@@ -3,9 +3,8 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { computeRequestDueAt, isRequestOverdue } from "@/lib/pipeda";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * GET/POST /api/client/pipeda/request — v8.3 fix E-B5 (auditoría
@@ -41,7 +40,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholde
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -59,7 +58,7 @@ function getSupabaseClient() {
 function getServiceClient() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceKey) return null;
-  return createClient(supabaseUrl, serviceKey);
+  return createClient(getSupabaseUrl(), serviceKey);
 }
 
 const SELF_SERVICE_REQUEST_TYPES = ["access", "deletion"] as const;
@@ -95,7 +94,8 @@ export async function GET() {
     .order("requested_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Supabase query error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const now = new Date();
@@ -147,7 +147,8 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (existingError) {
-      return NextResponse.json({ error: existingError.message }, { status: 500 });
+      console.error("existingError:", existingError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     if (existingOpen) {
       return NextResponse.json(
@@ -173,12 +174,12 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Supabase query error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ request: created }, { status: 201 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

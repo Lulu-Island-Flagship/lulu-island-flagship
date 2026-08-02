@@ -4,13 +4,12 @@ import { NextResponse } from "next/server";
 import { getMorningConditions } from "@/lib/traffic-conditions-provider";
 import { formatAggregatedRows } from "@/lib/team-ranking";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { getVancouverTodayString } from "@/lib/date-utils";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -100,7 +99,8 @@ export async function GET() {
 
   const conditions = zone ? await getMorningConditions({ zone, date: today }) : null;
 
-  const weekStart = mostRecentMonday(new Date());
+  // Fix (auditoría timezone): ver comentario equivalente en empleado/team-ranking.
+  const weekStart = mostRecentMonday(new Date(`${getVancouverTodayString()}T12:00:00Z`));
   const { data: rankingData } = await supabase.rpc("get_team_top3", { p_week_start: weekStart });
   const top3 = formatAggregatedRows(
     (rankingData || []).map((r: { team_id: string; team_name: string; composite_score: number }) => ({

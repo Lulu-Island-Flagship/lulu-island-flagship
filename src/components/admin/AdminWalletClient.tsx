@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Wallet, Search, User, CheckCircle2, X } from "lucide-react";
 import { useFocusTrap } from "@/lib/useFocusTrap";
+import { formatCurrency } from "@/lib/format";
 
 interface WalletTransaction {
   id: string;
@@ -21,8 +23,13 @@ interface ClientSearchResult {
   phone: string | null;
 }
 
-function formatDollars(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+// Fix (auditoría frontend 2026-08-01, item 8): antes formateaba a mano con
+// `$${(cents / 100).toFixed(2)}`, fijo en inglés e ignorando el locale del
+// admin -- se unifica con formatCurrency (src/lib/format.ts), la misma
+// fuente única de verdad que ya usa el resto del sitio para moneda
+// localizada CAD.
+function formatDollars(cents: number, locale: string): string {
+  return formatCurrency(cents / 100, locale);
 }
 
 function describeClient(c: ClientSearchResult | null, noNameLabel: string): string {
@@ -34,6 +41,9 @@ function describeClient(c: ClientSearchResult | null, noNameLabel: string): stri
 
 export default function AdminWalletClient() {
   const t = useTranslations("admin.wallet");
+  const params = useParams();
+  const rawLocale = params?.locale as string | undefined;
+  const locale = rawLocale && ["en", "zh", "fr"].includes(rawLocale) ? rawLocale : "en";
   const TRANSACTION_TYPE_LABEL: Record<string, string> = {
     credit: t("transactionTypeLabels.credit"),
     debit: t("transactionTypeLabels.debit"),
@@ -73,12 +83,20 @@ export default function AdminWalletClient() {
       setSearchResults([]);
       return;
     }
+    // Fix (auditoría frontend 2026-08-01, item 6): el debounce ya evitaba
+    // disparar un fetch por cada tecla, pero si el admin seguía escribiendo
+    // mientras una búsqueda anterior seguía en vuelo, esa respuesta tardía
+    // podía llegar DESPUÉS de la más reciente y pisar los resultados con
+    // datos obsoletos. AbortController cancela la petición anterior en
+    // cuanto empieza una nueva.
+    const controller = new AbortController();
     searchDebounceRef.current = setTimeout(async () => {
       setSearching(true);
       setSearchError("");
       try {
         const res = await fetch(`/api/admin/wallet/search-client?q=${encodeURIComponent(query.trim())}`, {
           credentials: "include",
+          signal: controller.signal,
         });
         if (res.ok) {
           const data = await res.json();
@@ -94,18 +112,22 @@ export default function AdminWalletClient() {
           setSearchResults([]);
           setSearchError(t("searchError"));
         }
-      } catch {
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
         // Mismo caso que arriba pero para fallos de red/fetch -- antes el
         // catch estaba vacío y el admin no tenía forma de distinguir "sin
         // resultados" de "la búsqueda ni siquiera corrió".
         setSearchResults([]);
         setSearchError(t("searchError"));
       } finally {
-        setSearching(false);
+        if (!controller.signal.aborted) {
+          setSearching(false);
+        }
       }
     }, 300);
     return () => {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      controller.abort();
     };
   }, [query]);
 
@@ -195,7 +217,7 @@ export default function AdminWalletClient() {
       const grantedAmount = grantForm.amountDollars;
       setSuccessMessage(
         t("successMessage", {
-          amount: `$${Number(grantedAmount).toFixed(2)}`,
+          amount: formatCurrency(Number(grantedAmount), locale),
           type: TRANSACTION_TYPE_LABEL[grantForm.type] || grantForm.type,
           client: describeClient(selectedClient, t("noNameOnFile")),
         })
@@ -301,8 +323,8 @@ export default function AdminWalletClient() {
             <Wallet className="w-6 h-6 text-brand-gold-dark" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-brand-ink">{formatDollars(availableBalance)}</p>
-            <p className="text-xs text-gray-500">{t("availableBalanceLabel", { balance: formatDollars(wallet.balance) })}</p>
+            <p className="text-2xl font-bold text-brand-ink">{formatDollars(availableBalance, locale)}</p>
+            <p className="text-xs text-gray-500">{t("availableBalanceLabel", { balance: formatDollars(wallet.balance, locale) })}</p>
           </div>
         </div>
       )}
@@ -367,7 +389,7 @@ export default function AdminWalletClient() {
                 </div>
                 <span className={tx.type === "debit" || tx.type === "payout" ? "text-state-danger" : "text-state-success"}>
                   {tx.type === "debit" || tx.type === "payout" ? "-" : "+"}
-                  {formatDollars(Math.abs(tx.amount))}
+                  {formatDollars(Math.abs(tx.amount), locale)}
                 </span>
               </div>
             ))}
@@ -383,7 +405,7 @@ export default function AdminWalletClient() {
             <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
               <p><strong>{t("confirmModal.clientLabel")}</strong> {describeClient(selectedClient, t("noNameOnFile"))}</p>
               <p><strong>{t("confirmModal.typeLabel")}</strong> <span className="capitalize">{TRANSACTION_TYPE_LABEL[grantForm.type] || grantForm.type}</span></p>
-              <p><strong>{t("confirmModal.amountLabel")}</strong> ${Number(grantForm.amountDollars || 0).toFixed(2)}</p>
+              <p><strong>{t("confirmModal.amountLabel")}</strong> {formatCurrency(Number(grantForm.amountDollars || 0), locale)}</p>
               {grantForm.description && <p><strong>{t("confirmModal.descriptionLabel")}</strong> {grantForm.description}</p>}
             </div>
             <p className="text-xs text-gray-500">

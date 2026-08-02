@@ -279,7 +279,6 @@ export default function DashboardMetricsPanel() {
                 onChange={(e) => setFixedCostsInput(e.target.value)}
                 className="w-full px-2 py-1 text-sm border rounded-md"
                 placeholder={t("fixedCosts.placeholder")}
-                autoFocus
               />
               {fixedCostsError && <p className="text-xs text-state-danger">{fixedCostsError}</p>}
               <div className="flex gap-2">

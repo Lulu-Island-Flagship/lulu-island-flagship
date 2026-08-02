@@ -91,7 +91,10 @@ export async function POST(request: NextRequest) {
     .eq("id", body.orderId)
     .eq("user_id", user.id)
     .maybeSingle();
-  if (orderError) return NextResponse.json({ error: orderError.message }, { status: 500 });
+  if (orderError) {
+    console.error("orderError:", orderError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   if (!order) return NextResponse.json({ error: "Orden no encontrada" }, { status: 404 });
 
   // Fix (auditoría externa, verificado 2026-07-31): `status` se seleccionaba
@@ -120,7 +123,10 @@ export async function POST(request: NextRequest) {
     .select("*")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (walletError) return NextResponse.json({ error: walletError.message }, { status: 500 });
+  if (walletError) {
+    console.error("walletError:", walletError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   if (!wallet || wallet.balance <= 0) {
     return NextResponse.json({ error: "No hay saldo de billetera disponible." }, { status: 400 });
   }
@@ -131,8 +137,10 @@ export async function POST(request: NextRequest) {
     .eq("wallet_id", wallet.id)
     .order("created_at", { ascending: false })
     .limit(200);
-  if (txError) return NextResponse.json({ error: txError.message }, { status: 500 });
-
+  if (txError) {
+    console.error("txError:", txError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   const records: WalletTransactionRecord[] = (transactions || []).map((t) => ({
     id: t.id,
     type: t.type,
@@ -172,60 +180,53 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No hay saldo disponible para aplicar (puede estar vencido)." }, { status: 400 });
   }
 
-  // v8.3 fix (auditoría 2026-07-15): mutación atómica vía RPC (migración 180)
-  // en vez de read-then-write sin bloqueo.
-  const { data: rpcResult, error: rpcError } = await supabase.rpc("apply_wallet_delta", {
-    p_wallet_id: wallet.id,
-    p_user_id: user.id,
+  // Fix (auditoría de integridad de datos 2026-08-01): antes esto era un
+  // read-then-write de DOS pasos (débito de billetera vía apply_wallet_delta,
+  // luego UPDATE aparte de orders.wallet_amount_used_cents) con reversión
+  // manual compensatoria si el segundo paso fallaba. El problema real no era
+  // solo la falta de atomicidad entre esos dos pasos -- era que ninguno de
+  // los dos bloqueaba la fila de `orders`, así que el cron de Batch Capture
+  // (7PM) podía capturar esta MISMA orden en la ventana entre la lectura del
+  // pedido (arriba, líneas ~88-116) y esta escritura, cobrando el 100% por
+  // tarjeta/PayPal sin ver el crédito de billetera todavía aplicado.
+  //
+  // Ahora es una sola llamada RPC (migración 307) que hace SELECT ... FOR
+  // UPDATE sobre `orders` ANTES de aplicar el débito, revalida elegibilidad
+  // bajo ese lock, aplica el débito de billetera y actualiza la orden -- todo
+  // en una transacción atómica. Cualquier UPDATE concurrente sobre esta orden
+  // (incluido el del batch capture) espera hasta que esta transacción hace
+  // commit, cerrando la ventana de carrera por completo. Ya no se necesita
+  // reversión manual: si algo falla a mitad de la función SQL, Postgres
+  // revierte todo el bloque automáticamente.
+  const { data: rpcResult, error: rpcError } = await supabase.rpc("apply_wallet_credit_to_order", {
     p_order_id: order.id,
-    p_type: "debit",
-    p_delta: -applyCents,
+    p_user_id: user.id,
+    p_wallet_id: wallet.id,
+    p_apply_cents: applyCents,
     p_description: `Aplicado a orden ${order.id}`,
   });
-  if (rpcError) return NextResponse.json({ error: rpcError.message }, { status: 500 });
-  const newBalance = rpcResult?.[0]?.new_balance ?? wallet.balance - applyCents;
 
-  // RAÍZ-3 (2026-07-21, migración 229): wallet_amount_used_cents ya está en
-  // centavos -- se guarda applyCents directo, sin dividir por 100. Antes esta
-  // línea truncaba a dólares enteros (applyDollars = applyCents / 100) y
-  // guardaba eso en una columna INTEGER dólares, perdiendo centavos y
-  // descuadrando el ledger contra client_wallets/wallet_transactions (B-P0-5).
-  const { data: updatedOrder, error: orderUpdateError } = await supabase
-    .from("orders")
-    .update({ wallet_amount_used_cents: applyCents, updated_at: nowIso })
-    .eq("id", order.id)
-    .select("id, wallet_amount_used_cents")
-    .single();
-
-  if (orderUpdateError) {
-    // Fix (auditoría externa, verificado 2026-07-31): el débito de billetera
-    // (apply_wallet_delta arriba) ya es real y atómico en este punto -- si
-    // este UPDATE de `orders` fallara sin más, el cliente quedaría con el
-    // saldo ya descontado pero la orden SIN reflejar el crédito aplicado
-    // (wallet_amount_used_cents seguiría en su valor previo), así que el
-    // Batch Capture de las 7PM le cobraría el 100% por tarjeta/PayPal de
-    // todas formas -- crédito perdido + cobro completo, dinero real del
-    // cliente perdido dos veces. Se revierte el débito (crédito de vuelta,
-    // mismo RPC atómico) antes de responder con error, en vez de dejar el
-    // wallet desincronizado de la orden.
-    const { error: reversalError } = await supabase.rpc("apply_wallet_delta", {
-      p_wallet_id: wallet.id,
-      p_user_id: user.id,
-      p_order_id: order.id,
-      p_type: "credit",
-      p_delta: applyCents,
-      p_description: `Reversión automática: fallo al reflejar crédito en orden ${order.id}`,
-    });
-    if (reversalError) {
-      console.error(
-        `CRITICAL: wallet debit for order ${order.id} could not be reflected on the order AND the compensating reversal also failed. Manual reconciliation required. Debit RPC succeeded (${applyCents} cents), order update error:`,
-        orderUpdateError,
-        "reversal error:",
-        reversalError
-      );
+  if (rpcError) {
+    console.error("client/wallet/apply error:", rpcError);
+    const msg = rpcError.message || "";
+    if (msg.includes("ORDER_NOT_FOUND")) {
+      return NextResponse.json({ error: "Orden no encontrada" }, { status: 404 });
     }
-    return NextResponse.json({ error: orderUpdateError.message }, { status: 500 });
+    if (msg.includes("ORDER_NOT_CONFIRMED")) {
+      return NextResponse.json({ error: "No se puede aplicar crédito a esta orden en su estado actual." }, { status: 400 });
+    }
+    if (msg.includes("ORDER_ALREADY_CAPTURED")) {
+      return NextResponse.json({ error: "Esta orden ya fue cobrada; no se puede aplicar crédito ahora." }, { status: 400 });
+    }
+    if (msg.includes("WALLET_CREDIT_ALREADY_APPLIED")) {
+      return NextResponse.json({ error: "Ya se aplicó crédito de billetera a esta orden." }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
+
+  const result = rpcResult?.[0];
+  const newBalance = result?.new_balance ?? wallet.balance - applyCents;
+  const updatedOrder = { id: result?.order_id ?? order.id, wallet_amount_used_cents: result?.wallet_amount_used_cents ?? applyCents };
 
   return NextResponse.json({ appliedCents: applyCents, newWalletBalance: newBalance, order: updatedOrder }, { status: 200 });
 }

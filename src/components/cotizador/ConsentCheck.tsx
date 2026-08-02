@@ -38,6 +38,9 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
       <h3 className="font-semibold text-brand-ink">{t("title")}</h3>
 
       {/* Terms & Conditions */}
+      {/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- htmlFor correctly
+          targets the checkbox below; the rule's static analysis can't see the translated text
+          content rendered via t()/t.rich() inside, and flags a false "no accessible text". */}
       <label htmlFor="consent-tc" className="flex items-start gap-3 p-4 rounded-lg border-2 border-gray-200 hover:border-brand-wave-blue cursor-pointer transition-all">
         <input
           id="consent-tc"
@@ -111,6 +114,7 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
       </label>
 
       {/* Marketing - CASL */}
+      {/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- see consent-tc above */}
       <label htmlFor="consent-marketing" className="flex items-start gap-3 p-4 rounded-lg border-2 border-gray-200 hover:border-brand-wave-blue cursor-pointer transition-all">
         <input
           id="consent-marketing"
@@ -145,6 +149,7 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
       </label>
 
       {/* Photo Marketing */}
+      {/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- see consent-tc above */}
       <label htmlFor="consent-photo-marketing" className="flex items-start gap-3 p-4 rounded-lg border-2 border-gray-200 hover:border-brand-wave-blue cursor-pointer transition-all">
         <input
           id="consent-photo-marketing"

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Image from "next/image";
 import { Check, Loader2, ShieldCheck, Banknote, Camera } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { ErrorBanner } from "@/components/empleado/ErrorBanner";
@@ -275,9 +276,11 @@ export function ClosureProtocolPanel({ orderId, noSmartphoneFlow }: ClosureProto
 
               <div>
                 {altPaymentSignatureUrl ? (
-                  <img
+                  <Image
                     src={altPaymentSignatureUrl}
                     alt="Signed receipt"
+                    width={80}
+                    height={80}
                     className="w-20 h-20 rounded-lg object-cover border"
                   />
                 ) : (

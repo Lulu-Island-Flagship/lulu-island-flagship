@@ -495,7 +495,7 @@ export default function EmpleadoPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pending": return "bg-gray-100 text-gray-600";
-      case "en_route": return "bg-brand-gold/10 text-brand-gold";
+      case "en_route": return "bg-brand-gold/10 text-brand-gold-dark";
       case "arrived": return "bg-state-success/10 text-state-success";
       case "in_progress": return "bg-brand-navy/10 text-brand-navy";
       case "completed": return "bg-state-success/10 text-state-success";

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { computeBackupDueStatus } from "@/lib/backup-jobs";
 import { storeBackupCsv } from "@/lib/backup-storage";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/cron/backup-clients — v8.3 E9.10, "clientes semanal".
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
       )
       .order("user_id", { ascending: true });
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) { console.error("Supabase query error:", error); return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 }); }
 
     const headers = [
       "user_id",
@@ -91,7 +92,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ rowCount: rows.length, ...result }, { status: result.success ? 200 : 500 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

@@ -5,15 +5,13 @@ import { isKitchenTimerExpired } from "@/lib/kitchen-timer";
 import { ensureZoneAssignment } from "@/lib/zone-assignment";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { safeErrorResponse } from "@/lib/api-errors";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
   return createServerClient(
-    supabaseUrl,
-    supabaseKey,
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     {
       cookies: {
         get(name: string) {

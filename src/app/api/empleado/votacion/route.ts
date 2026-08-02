@@ -2,15 +2,15 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { getVancouverTodayString } from "@/lib/date-utils";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
   return createServerClient(
-    supabaseUrl,
-    supabaseKey,
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     {
       cookies: {
         get(name: string) {
@@ -41,7 +41,7 @@ async function getRecentTeammateIds(
   supabase: ReturnType<typeof getSupabaseClient>,
   employeeId: string
 ): Promise<Set<string>> {
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getVancouverTodayString();
   const sinceStr = new Date(Date.now() - RECENT_TEAMMATE_DAYS * 24 * 60 * 60 * 1000)
     .toISOString()
     .split("T")[0];
@@ -127,7 +127,8 @@ export async function GET() {
       .in("id", Array.from(teammateIds));
 
     if (peersError) {
-      return NextResponse.json({ error: peersError.message }, { status: 500 });
+      console.error("peersError:", peersError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // Votos ya emitidos esta semana
@@ -138,7 +139,8 @@ export async function GET() {
       .eq("week_start", weekStart);
 
     if (votesError) {
-      return NextResponse.json({ error: votesError.message }, { status: 500 });
+      console.error("votesError:", votesError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const votedSet = new Set((myVotes || []).map((v) => v.target_employee_id));
@@ -151,8 +153,7 @@ export async function GET() {
 
     return NextResponse.json({ peers: result, weekStart }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }
 
@@ -210,7 +211,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (checkError && checkError.code !== "PGRST116") {
-      return NextResponse.json({ error: checkError.message }, { status: 500 });
+      console.error("checkError:", checkError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     if (existingVote) {
       return NextResponse.json({ error: "Already voted for this peer this week" }, { status: 409 });
@@ -255,12 +257,12 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Supabase query error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ vote: data }, { status: 201 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

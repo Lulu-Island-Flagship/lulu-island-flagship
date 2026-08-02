@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { dispatchCommunication } from "@/lib/send-communication";
 import { getVancouverTodayString } from "@/lib/date-utils";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/cron/pre-review-survey
@@ -48,7 +49,8 @@ export async function GET(request: NextRequest) {
       .is("pre_review_survey_sent_at", null);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Supabase query error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     let sent = 0;
@@ -86,7 +88,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ evaluated: (orders || []).length, sent, results }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

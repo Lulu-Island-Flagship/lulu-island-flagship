@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { requireCronAuth } from "@/lib/cron-auth";
+import { getSupabaseServiceKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * GET /api/cron/appeal-deadline-check
@@ -24,11 +26,8 @@ import { requireCronAuth } from "@/lib/cron-auth";
 
 const APPROACHING_WINDOW_HOURS = 12;
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder";
-
 function getSupabaseClient() {
-  return createClient(supabaseUrl, supabaseServiceKey);
+  return createClient(getSupabaseUrl(), getSupabaseServiceKey());
 }
 
 export async function GET(request: NextRequest) {
@@ -55,7 +54,8 @@ export async function GET(request: NextRequest) {
       .not("appeal_deadline", "is", null);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Supabase query error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     let approachingAlerted = 0;
@@ -114,7 +114,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

@@ -1,3 +1,6 @@
+import { getVancouverTodayString, getVancouverTomorrowString } from "./date-utils";
+import { applyPricingRules, type PricingRule, type RuleContext } from "./rules";
+
 export const TARIFA_OBJETIVO_HORA = 70; // $CAD/hr — fallback y referencia; la tarifa real se lee de pricing_settings
 export const MINIMUM_WAGE_BC = 18.25; // $CAD/hr vigente 2026-06-01
 export const DEFAULT_LABOR_HOURLY = 25.0; // estimación conservadora (incluye carga básica)
@@ -458,47 +461,44 @@ export interface BookingAvailability {
  * Regla única de disponibilidad de reserva por fecha (corte de las 5 PM
  * hora de Vancouver). Fuente ÚNICA de verdad: tanto el date-picker de la UI
  * (src/components/reserva/DatePicker.tsx) como el endpoint autoritativo de
- * confirmación de pago (src/app/api/stripe/confirm/route.ts) llaman a esta
- * función. Antes cada uno reimplementaba su propia versión de la regla y
- * podían divergir -- p. ej. el date-picker permitía seleccionar cualquier
- * fecha futura después del corte (salvo "mañana"), pero el endpoint de
- * confirmación rechazaba CUALQUIER fecha futura una vez pasadas las 5 PM,
- * generando una conversión fallida confusa en checkout (auditoría externa,
- * verificado 2026-08-01).
+ * confirmación de pago (src/app/api/stripe/confirm/route.ts) y
+ * src/app/api/capacity/route.ts llaman a esta función.
  *
- * Regla vigente (verificada contra la lógica real y ya enforced de
- * confirm/route.ts, no modificada aquí -- solo unificada):
+ * Regla vigente (corregida 2026-08-01, auditoría externa -- hallazgo
+ * confirmado): el corte de las 5 PM representa "ya no da tiempo de preparar
+ * el equipo para MAÑANA", no una prohibición general de reservar. La versión
+ * anterior comparaba la hora actual contra BOOKING_CUTOFF_HOUR para
+ * CUALQUIER fecha futura, así que después de las 5 PM se rechazaba incluso
+ * una reserva para dentro de dos semanas -- un bug de disponibilidad, no una
+ * regla de negocio real.
  *  - Hoy NUNCA es reservable (mínimo 1 día de anticipación).
- *  - Cualquier fecha futura deja de ser reservable si, al momento de la
- *    consulta, ya son las BOOKING_CUTOFF_HOUR (17:00) hora de Vancouver
- *    o más tarde.
+ *  - Mañana (el día calendario inmediatamente siguiente a hoy, hora de
+ *    Vancouver) deja de ser reservable si, al momento de la consulta, ya son
+ *    las BOOKING_CUTOFF_HOUR (17:00) hora de Vancouver o más tarde.
+ *  - Pasado mañana en adelante SIEMPRE es reservable (sujeto a disponibilidad
+ *    de cupo), sin importar la hora actual.
  */
 export function checkBookingDateAllowed(targetDate: string): BookingAvailability {
   const now = new Date();
-  const vancouverParts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Vancouver",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(now);
-
-  const y = vancouverParts.find((p) => p.type === "year")?.value;
-  const m = vancouverParts.find((p) => p.type === "month")?.value;
-  const d = vancouverParts.find((p) => p.type === "day")?.value;
-  const hr = vancouverParts.find((p) => p.type === "hour")?.value;
-  if (!y || !m || !d || !hr) return { allowed: false, reason: "too_soon" };
-
-  const todayStr = `${y}-${m}-${d}`;
+  const todayStr = getVancouverTodayString();
 
   if (targetDate <= todayStr) {
     return { allowed: false, reason: "too_soon" };
   }
 
-  if (Number(hr) >= BOOKING_CUTOFF_HOUR) {
-    return { allowed: false, reason: "past_cutoff" };
+  const tomorrowStr = getVancouverTomorrowString();
+  if (targetDate === tomorrowStr) {
+    const hourPart = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Vancouver",
+      hour: "2-digit",
+      hour12: false,
+    })
+      .formatToParts(now)
+      .find((p) => p.type === "hour")?.value;
+
+    if (hourPart !== undefined && Number(hourPart) >= BOOKING_CUTOFF_HOUR) {
+      return { allowed: false, reason: "past_cutoff" };
+    }
   }
 
   return { allowed: true };
@@ -534,6 +534,58 @@ export interface PriceBreakdown {
   estimatedMarginContribution: number;
   adminReviewRequired: boolean;
   adminReviewReason?: string;
+  /** Fix (auditoría externa, hallazgo #1): propagado desde el motor de reglas
+   *  real (src/lib/rules.ts applyPricingRules) -- antes calculatePrice nunca
+   *  lo invocaba y estos campos quedaban hardcodeados. */
+  blocked: boolean;
+  blockReason?: string;
+  flagged: boolean;
+  flagReason?: string;
+}
+
+/**
+ * Fix (auditoría externa, hallazgo #2): antes el subtotal se manejaba en
+ * dólares enteros (Math.round sin decimales) mientras GST/PST se redondeaban
+ * por separado a centavos, y algunos call sites volvían a Math.round() el
+ * subtotal después de sumarle el ajuste de reglas (perdiendo los centavos que
+ * una regla `price_add`/`price_multiplier` pudiera introducir). Eso podía
+ * producir subtotal + gst + pst !== total. Este helper hace TODA la
+ * aritmética interna en centavos enteros (sin floats fraccionarios) y solo
+ * convierte a dólares al final, para el único propósito de mostrar/persistir
+ * el valor -- así el cuadre subtotal+gst+pst=total queda garantizado por
+ * construcción.
+ */
+export function computeTaxBreakdown(subtotalDollars: number): {
+  subtotal: number;
+  gst: number;
+  pst: number;
+  total: number;
+} {
+  const subtotalCents = Math.round(Math.max(0, subtotalDollars) * 100);
+  const gstCents = Math.round(subtotalCents * GST_RATE);
+  const pstCents = Math.round(subtotalCents * PST_RATE);
+  const totalCents = subtotalCents + gstCents + pstCents;
+
+  return {
+    subtotal: subtotalCents / 100,
+    gst: gstCents / 100,
+    pst: pstCents / 100,
+    total: totalCents / 100,
+  };
+}
+
+function deriveDefaultOrganicLoad(
+  petsCount: number,
+  petsType: string,
+  residents: number
+): RuleContext["organicLoad"] {
+  if (petsCount >= 3 || residents >= 5) return "high";
+  const hasLongHair =
+    petsType.toLowerCase().includes("long") ||
+    petsType.toLowerCase().includes("largo") ||
+    petsType.toLowerCase().includes("multiple");
+  if (hasLongHair || residents >= 3) return "medium";
+  return "low";
 }
 
 export function calculatePrice(
@@ -548,7 +600,16 @@ export function calculatePrice(
   isPreferredDay?: boolean,
   targetHourlyRate: number = TARIFA_OBJETIVO_HORA,
   hheTable: Record<ServiceType, number[]> = HHE_TABLE,
-  addonZonesCharge: number = 0
+  addonZonesCharge: number = 0,
+  // Fix (auditoría externa, hallazgo #1 -- CRÍTICO): el motor de reglas
+  // headless (src/lib/rules.ts) existía pero calculatePrice nunca lo
+  // invocaba, así que `ruleAdjustment`/`appliedRules` salían siempre
+  // hardcodeados a 0/[]. Ambos parámetros son opcionales (default: sin
+  // reglas activas ni contexto extra) para no romper llamadas existentes que
+  // todavía no pasen reglas -- pero ahora, si se pasan, el motor real se
+  // aplica y su resultado es el que efectivamente afecta subtotal/total.
+  rules: PricingRule[] = [],
+  ruleContextExtra: Partial<RuleContext> = {}
 ): PriceBreakdown {
   // Validar squareFeet para evitar precios absurdos
   const MAX_SQUARE_FEET = 10000;
@@ -579,15 +640,57 @@ export function calculatePrice(
 
   const subtotalBeforeRules =
     basePrice + organicAdjustment + recencyAdjustment + zoneSurcharge + logisticsSurcharge + safeAddonZonesCharge;
-  const gst = Math.round(subtotalBeforeRules * GST_RATE * 100) / 100;
-  const pst = Math.round(subtotalBeforeRules * PST_RATE * 100) / 100;
-  const totalBeforeRules = Math.round((subtotalBeforeRules + gst + pst) * 100) / 100;
 
   const estimatedLaborCost = estimateLaborCost(serviceType, validatedSquareFeet, hheTable);
   const estimatedMarginContribution = calculateMarginContribution(subtotalBeforeRules, estimatedLaborCost);
-  const adminReviewRequired = marginIsBelowFloor(subtotalBeforeRules, estimatedLaborCost);
+  const marginAdminReviewRequired = marginIsBelowFloor(subtotalBeforeRules, estimatedLaborCost);
 
-  const holdAmount = calculateHoldWithRate(serviceType, validatedSquareFeet, totalBeforeRules, targetHourlyRate);
+  // Construir el RuleContext con los datos disponibles en esta función. Los
+  // campos que calculatePrice no conoce (score de cliente, tipo de cuenta,
+  // demanda de zona, antelación de reserva, etc.) los provee el caller vía
+  // ruleContextExtra -- si no los provee, se usan defaults conservadores
+  // (equivalentes a "sin reglas activas" para condiciones que dependan de
+  // ellos, ya que un contexto por defecto no debería disparar reglas
+  // agresivas segmentadas).
+  const ruleContext: RuleContext = {
+    zone: zoneName,
+    dayOfWeek: dayOfWeek ?? 1,
+    isPreferredDay: isPreferredDay ?? true,
+    serviceType,
+    serviceSubtype: ruleContextExtra.serviceSubtype ?? "",
+    squareFeet: validatedSquareFeet,
+    clientScore: ruleContextExtra.clientScore ?? 50,
+    servicesCount: ruleContextExtra.servicesCount ?? 0,
+    disputesLostCount: ruleContextExtra.disputesLostCount ?? 0,
+    accountType: ruleContextExtra.accountType ?? "b2c",
+    clientType: ruleContextExtra.clientType ?? "new",
+    zoneDemand: ruleContextExtra.zoneDemand ?? 50,
+    organicLoad: ruleContextExtra.organicLoad ?? deriveDefaultOrganicLoad(petsCount, petsType, residents),
+    daysSinceCleaning,
+    advanceNoticeDays: ruleContextExtra.advanceNoticeDays ?? 0,
+  };
+
+  const ruleResult = applyPricingRules(rules, ruleContext, basePrice, subtotalBeforeRules);
+
+  // Fix (auditoría externa, hallazgo #2): toda la aritmética de
+  // subtotal/GST/PST/total se hace en centavos enteros dentro de
+  // computeTaxBreakdown, incluyendo el ajuste real de reglas -- ya no se
+  // pierde precisión redondeando el subtotal a dólares enteros antes de
+  // sumarle el ajuste.
+  const taxBreakdown = computeTaxBreakdown(subtotalBeforeRules + ruleResult.adjustment);
+
+  const holdAmount = calculateHoldWithRate(serviceType, validatedSquareFeet, taxBreakdown.total, targetHourlyRate);
+
+  const adminReviewRequired = marginAdminReviewRequired || ruleResult.flagged;
+  const adminReviewReasons: string[] = [];
+  if (marginAdminReviewRequired) {
+    adminReviewReasons.push(
+      `Margen de contribución estimado ${(estimatedMarginContribution * 100).toFixed(1)}% está por debajo del piso del ${(MARGIN_FLOOR_PERCENT * 100).toFixed(0)}%`
+    );
+  }
+  if (ruleResult.flagged && ruleResult.flagReason) {
+    adminReviewReasons.push(ruleResult.flagReason);
+  }
 
   return {
     basePrice,
@@ -598,18 +701,20 @@ export function calculatePrice(
     zoneSurcharge,
     logisticsSurcharge,
     addonZonesCharge: safeAddonZonesCharge,
-    ruleAdjustment: 0,
-    appliedRules: [],
-    subtotal: subtotalBeforeRules,
-    gst,
-    pst,
-    total: totalBeforeRules,
+    ruleAdjustment: ruleResult.adjustment,
+    appliedRules: ruleResult.appliedRules,
+    subtotal: taxBreakdown.subtotal,
+    gst: taxBreakdown.gst,
+    pst: taxBreakdown.pst,
+    total: taxBreakdown.total,
     holdAmount,
     estimatedLaborCost,
     estimatedMarginContribution,
     adminReviewRequired,
-    adminReviewReason: adminReviewRequired
-      ? `Margen de contribución estimado ${(estimatedMarginContribution * 100).toFixed(1)}% está por debajo del piso del ${(MARGIN_FLOOR_PERCENT * 100).toFixed(0)}%`
-      : undefined,
+    adminReviewReason: adminReviewReasons.length > 0 ? adminReviewReasons.join("; ") : undefined,
+    blocked: ruleResult.blocked,
+    blockReason: ruleResult.blockReason,
+    flagged: ruleResult.flagged,
+    flagReason: ruleResult.flagReason,
   };
 }

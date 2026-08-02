@@ -13,15 +13,14 @@ import { haversineDistance, ARRIVAL_GEOFENCE_RADIUS_METERS } from "@/lib/geocode
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { getVancouverOffset } from "@/lib/date-utils";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
   return createServerClient(
-    supabaseUrl,
-    supabaseKey,
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     {
       cookies: {
         get(name: string) {
@@ -615,7 +614,8 @@ export async function POST(request: NextRequest) {
 
     if (logError) {
       console.error("Service log error:", logError);
-      return NextResponse.json({ error: logError.message }, { status: 500 });
+      console.error("logError:", logError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     if (isGeofenceBypass) {
@@ -650,8 +650,6 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Service event error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

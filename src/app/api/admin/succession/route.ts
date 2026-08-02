@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { immediateActivationReason, type ImmediateTrigger } from "@/lib/succession";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * GET /api/admin/succession — estado de Modo Sucesión + personas de
@@ -147,7 +148,8 @@ export async function POST(request: NextRequest) {
         result = await supabase.from("succession_status").insert(update).select().single();
       }
       if (result.error) {
-        return NextResponse.json({ error: result.error.message }, { status: 500 });
+        console.error("succession_status upsert error:", result.error);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
 
       return NextResponse.json({ status: result.data }, { status: 200 });
@@ -155,7 +157,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: "Unrecognized action" }, { status: 400 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { getVancouverTodayString } from "@/lib/date-utils";
 
 // GET /api/admin/wellbeing?date=YYYY-MM-DD — SOLO agregado, nunca individual.
 // v8.3 E8: get_wellbeing_aggregate() es la unica funcion que puede leer
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const date = searchParams.get("date") || new Date().toISOString().split("T")[0];
+  const date = searchParams.get("date") || getVancouverTodayString();
 
   const { data, error } = await supabase.rpc("get_wellbeing_aggregate", { p_date: date });
 

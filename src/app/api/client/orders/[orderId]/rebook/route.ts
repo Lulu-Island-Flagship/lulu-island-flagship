@@ -3,13 +3,11 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { computeRebookDateOptions } from "@/lib/rebook";
 import { getVancouverTodayString } from "@/lib/date-utils";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -48,7 +46,13 @@ export async function GET(request: NextRequest, { params }: { params: { orderId:
     .eq("id", params.orderId)
     .maybeSingle();
 
-  if (orderError) return NextResponse.json({ error: orderError.message }, { status: 500 });
+  if (orderError) {
+
+    console.error("orderError:", orderError);
+
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+
+  }
   if (!order || order.user_id !== user.id) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
@@ -67,7 +71,13 @@ export async function GET(request: NextRequest, { params }: { params: { orderId:
     .eq("id", order.quote_id)
     .maybeSingle();
 
-  if (quoteError) return NextResponse.json({ error: quoteError.message }, { status: 500 });
+  if (quoteError) {
+
+    console.error("quoteError:", quoteError);
+
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+
+  }
   if (!quote) {
     return NextResponse.json({ error: "Original quote not found" }, { status: 404 });
   }

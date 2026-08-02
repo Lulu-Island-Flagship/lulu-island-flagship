@@ -26,7 +26,13 @@ export const BRAND = {
   navyLight: "#3E6D9E",   // hover / estados activos
   waveBlue: "#3A6E9E",    // secundario, links, iconografía (5.38:1 sobre blanco)
   gold: "#E3AAB8",        // acento blush — SOLO acentos e insignias, nunca fondos grandes ni texto de cuerpo
-  goldDark: "#8A3A46",    // blush con contraste AA real sobre blanco (7.57:1 — ver tests/lib/a11y-audit.test.ts)
+  // Fix (2026-08-01, a petición del usuario: "que el color no tenga negro en
+  // él"): el valor anterior (#8A3A46) técnicamente no tenía negro mezclado,
+  // pero leía como un marrón apagado. #772238 es el MISMO matiz rosa/blush
+  // de `gold` (~345° de tono) llevado a saturación alta (~63%) y luminosidad
+  // baja (~30%) -- un vino/burdeos puro, sin desaturar hacia gris/negro --
+  // y da 10.1:1 de contraste sobre blanco (mejor que el 7.57:1 anterior).
+  goldDark: "#772238",    // blush saturado, sin negro mezclado (10.1:1 sobre blanco — ver tests/lib/a11y-audit.test.ts)
   ink: "#1F2E3D",         // texto principal (13.8:1 sobre blanco)
   ice: "#EAF4FB",         // fondo secundario — celeste muy pálido
   white: "#FFFFFF",       // fondo primario

@@ -6,6 +6,7 @@ import {
   summarizeLegalChangesForReview,
 } from "@/lib/contract-review";
 import { getVancouverTodayString } from "@/lib/date-utils";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/cron/contract-review-scan — v8.3 E9.8.
@@ -53,8 +54,10 @@ export async function GET(request: NextRequest) {
       .from("service_contracts")
       .select("id, start_date, frequency, base_price, total, service_subtype, review_triggered_for_anniversary")
       .eq("status", "active");
-    if (contractsError) return NextResponse.json({ error: contractsError.message }, { status: 500 });
-
+    if (contractsError) {
+      console.error("contractsError:", contractsError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     const { data: allAlerts } = await supabase
       .from("legal_change_alerts")
       .select("id, change_description, detected_at")
@@ -147,7 +150,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ evaluated: (contracts || []).length, reviewsCreated, results }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

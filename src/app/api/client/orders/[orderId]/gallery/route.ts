@@ -2,13 +2,11 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { ORDER_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -58,7 +56,10 @@ export async function GET(
     .eq("id", orderId)
     .eq("user_id", user.id)
     .maybeSingle();
-  if (orderError) return NextResponse.json({ error: orderError.message }, { status: 500 });
+  if (orderError) {
+    console.error("orderError:", orderError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   if (!order) return NextResponse.json({ error: "Orden no encontrada" }, { status: 404 });
 
   if (order.status !== "completed") {
@@ -76,16 +77,20 @@ export async function GET(
     .from("service_checklist_items")
     .select("id, item_label, is_completed, photo_url, notes, sop_checklists(zone, zone_label)")
     .eq("order_id", orderId);
-  if (checklistError) return NextResponse.json({ error: checklistError.message }, { status: 500 });
-
+  if (checklistError) {
+    console.error("checklistError:", checklistError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   const { data: logs, error: logsError } = await supabase
     .from("service_logs")
     .select("event_type, timestamp, notes")
     .eq("order_id", orderId)
     .in("event_type", ["t_in", "t_out", "note"])
     .order("timestamp", { ascending: true });
-  if (logsError) return NextResponse.json({ error: logsError.message }, { status: 500 });
-
+  if (logsError) {
+    console.error("logsError:", logsError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   const tIn = (logs || []).find((l) => l.event_type === "t_in")?.timestamp ?? null;
   const tOut = (logs || []).find((l) => l.event_type === "t_out")?.timestamp ?? null;
   const durationMinutes =

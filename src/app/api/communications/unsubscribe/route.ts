@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 
 /**
  * GET /api/communications/unsubscribe?token=... — unsubscribe de un toque,
@@ -20,11 +18,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "token es obligatorio" }, { status: 400 });
   }
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  const supabase = createClient(getSupabaseUrl(), getSupabaseAnonKey());
   const { data: found, error } = await supabase.rpc("unsubscribe_by_token", { p_token: token });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Supabase query error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
   if (!found) {
     return NextResponse.json({ error: "Token no encontrado" }, { status: 404 });

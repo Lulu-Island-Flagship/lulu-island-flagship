@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // PATCH /api/admin/vehicles/[id] — actualizar seguro/registro/mantenimiento de un vehículo.
 // v8.3 E7: el bloqueo REAL de asignación con seguro vencido vive en el trigger
@@ -48,7 +49,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     return NextResponse.json({ vehicle: data }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

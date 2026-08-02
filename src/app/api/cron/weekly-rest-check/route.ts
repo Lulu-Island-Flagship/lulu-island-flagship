@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { evaluateWeeklyRest, type ShiftInterval } from "@/lib/shift-rest";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/cron/weekly-rest-check — v8.3 (BC ESA s.35). Semanal: para
@@ -37,8 +38,10 @@ export async function GET(request: NextRequest) {
       .gte("timestamp", weekStart.toISOString())
       .lt("timestamp", weekEnd.toISOString())
       .order("timestamp", { ascending: true });
-    if (logsError) return NextResponse.json({ error: logsError.message }, { status: 500 });
-
+    if (logsError) {
+      console.error("logsError:", logsError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     const eventsByEmployee = new Map<string, { event_type: string; timestamp: string }[]>();
     for (const log of logs || []) {
       const list = eventsByEmployee.get(log.employee_id) || [];
@@ -82,12 +85,14 @@ export async function GET(request: NextRequest) {
       const { error: insertError } = await supabase
         .from("weekly_rest_violations")
         .upsert(inserts, { onConflict: "employee_id,week_start", ignoreDuplicates: true });
-      if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
+      if (insertError) {
+        console.error("insertError:", insertError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
     }
 
     return NextResponse.json({ employeesEvaluated, violationsFound }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

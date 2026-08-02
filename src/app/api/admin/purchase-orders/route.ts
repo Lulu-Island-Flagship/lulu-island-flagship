@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { computeReorderSuggestions, formatReorderReason, type InventoryItemStock } from "@/lib/inventory-reorder";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/purchase-orders — listar POs con sus lineas
 export async function GET(request: NextRequest) {
@@ -170,7 +171,6 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

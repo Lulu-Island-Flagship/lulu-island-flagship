@@ -4,13 +4,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { evaluateCheckinStreakBonus, CHECKIN_STREAK_BONUS_CENTS } from "@/lib/wellbeing-bonus";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { getVancouverTodayString } from "@/lib/date-utils";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -113,7 +112,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Supabase query error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // v8.3 E8 FIX-3: racha de 5 días consecutivos de checklist -> +$5 real
@@ -157,7 +157,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ checkin: data, streakBonusAwarded }, { status: 201 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

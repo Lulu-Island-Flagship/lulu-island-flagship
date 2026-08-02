@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireAdminRole } from "@/lib/admin";
+import { getVancouverTodayString } from "@/lib/date-utils";
+import { isValidUuid } from "@/lib/validation";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/admin/empleados/[id]/offboard — FIX-11: offboarding real.
@@ -53,6 +56,13 @@ export async function POST(
 
   try {
     const employeeId = params.id;
+
+    // Fix (auditoría de integridad de datos 2026-08-01): params.id no se
+    // validaba como UUID antes de usarse contra employees/payroll_ytd/etc.
+    if (!isValidUuid(employeeId)) {
+      return NextResponse.json({ error: "Invalid employee id" }, { status: 400 });
+    }
+
     const body = await request.json();
     const { terminationReason, terminationDate } = body as {
       terminationReason?: unknown;
@@ -64,7 +74,7 @@ export async function POST(
     }
 
     const supabase = auth.supabase;
-    const todayIso = new Date().toISOString().split("T")[0];
+    const todayIso = getVancouverTodayString();
     const effectiveDate = typeof terminationDate === "string" ? terminationDate : todayIso;
 
     const { data: employee, error: employeeError } = await supabase
@@ -82,192 +92,79 @@ export async function POST(
       return NextResponse.json({ error: "Employee already offboarded" }, { status: 409 });
     }
 
-    // --- 1. Desactivación (primero: ver comentario de cabecera) ---
-    const { data: updatedEmployee, error: updateError } = await supabase
-      .from("employees")
-      .update({
-        is_active: false,
-        terminated_at: new Date().toISOString(),
-        termination_reason: terminationReason.trim(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", employeeId)
-      .select("id, name, email, is_active, terminated_at, termination_reason")
-      .single();
+    // Fix (auditoría de integridad de datos 2026-08-01): los pasos 1
+    // (desactivación), 2 (pago final Vacation Pay) y 4 (liberar servicios
+    // futuros) eran 3+ llamadas REST sueltas -- si una fallaba a mitad de
+    // camino, el empleado podía quedar desactivado sin su pago final
+    // registrado, o con solo una parte de sus servicios liberados. Ahora
+    // son una sola llamada RPC (migración 305) atómica: o los tres pasos
+    // committean juntos, o ninguno lo hace. El paso 3 (revocar acceso Auth)
+    // sigue siendo una llamada a un servicio EXTERNO fuera de esta
+    // transacción SQL por diseño -- se ejecuta DESPUÉS, de forma no
+    // bloqueante, exactamente como documentaba la versión anterior de este
+    // endpoint (la desactivación debe quedar aplicada aunque el ban de Auth
+    // falle, nunca al revés).
+    const { data: rpcResult, error: rpcError } = await supabase.rpc("offboard_employee_atomic", {
+      p_employee_id: employeeId,
+      p_termination_reason: terminationReason.trim(),
+      p_effective_date: effectiveDate,
+      p_admin_id: auth.user.id,
+    });
 
-    if (updateError) {
-      console.error("admin/empleados/[id]/offboard error:", updateError);
+    if (rpcError) {
+      console.error("admin/empleados/[id]/offboard error:", rpcError);
+      if (rpcError.message?.includes("EMPLOYEE_NOT_FOUND")) {
+        return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+      }
+      if (rpcError.message?.includes("EMPLOYEE_ALREADY_OFFBOARDED")) {
+        return NextResponse.json({ error: "Employee already offboarded" }, { status: 409 });
+      }
       return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
-    // --- 2. Pago final: Vacation Pay acumulado de TODOS los años abiertos ---
-    // No solo `calendar_year` = año de la baja: si nunca se liquidó el saldo
-    // de un año anterior (no existe cierre de año automático que lo funda),
-    // ese saldo bajo BC ESA se sigue debiendo y se debe incluir aquí.
-    const calendarYear = Number(effectiveDate.slice(0, 4));
-    const { data: ytdRows } = await supabase
-      .from("payroll_ytd")
-      .select("calendar_year, ytd_vacation_pay_accrued_cents")
-      .eq("employee_id", employeeId)
-      .lte("calendar_year", calendarYear)
-      .gt("ytd_vacation_pay_accrued_cents", 0);
+    const result = rpcResult as {
+      employeeId: string;
+      userId: string | null;
+      vacationPayoutCents: number;
+      reassignedCount: number;
+      affectedOrders: { orderId: string; serviceDate: string }[];
+      inProgressOrders: { orderId: string; serviceDate: string; status: string }[];
+    };
 
-    let vacationPayoutCents = 0;
-    for (const row of ytdRows || []) {
-      const amountCents = row.ytd_vacation_pay_accrued_cents ?? 0;
-      if (amountCents <= 0) continue;
-      vacationPayoutCents += amountCents;
-      const { error: payoutError } = await supabase
-        .from("employee_final_payouts")
-        .upsert(
-          {
-            employee_id: employeeId,
-            payout_type: "vacation_pay_accrual",
-            amount_cents: amountCents,
-            payout_date: effectiveDate,
-            source_calendar_year: row.calendar_year,
-            created_by: auth.user.id,
-          },
-          { onConflict: "employee_id,payout_type,source_calendar_year" }
-        );
-      if (payoutError) {
-        console.error("admin/empleados/[id]/offboard error:", payoutError);
-        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
-      }
-    }
-
-    // --- 3. Revocación de acceso: banear la cuenta auth ---
+    // --- 3. Revocación de acceso: banear la cuenta auth (servicio externo,
+    // fuera de la transacción SQL de arriba -- ver comentario de cabecera). ---
     let accessRevoked = false;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (supabaseUrl && supabaseServiceKey && employee.user_id) {
+    if (supabaseUrl && supabaseServiceKey && result.userId) {
       const adminSupabase = createClient(supabaseUrl, supabaseServiceKey);
       // ~10 años -- Supabase no tiene un "ban permanente" real, este es el
       // equivalente práctico. Reversible por un owner_admin si se re-contrata.
-      const { error: banError } = await adminSupabase.auth.admin.updateUserById(employee.user_id, {
+      const { error: banError } = await adminSupabase.auth.admin.updateUserById(result.userId, {
         ban_duration: "87600h",
       });
       if (!banError) accessRevoked = true;
       else console.error("Offboarding: failed to revoke auth access:", banError);
     }
 
-    // --- 4. Reasignación: soltar servicios futuros no completados ---
-    const { data: futureOrders } = await supabase
-      .from("orders")
-      .select("id, service_date")
-      .gte("service_date", effectiveDate)
-      .not("status", "in", "(cancelled,completed)");
-
-    const futureOrderIds = (futureOrders || []).map((o) => o.id);
-    let reassignedCount = 0;
-    const affectedOrders: { orderId: string; serviceDate: string }[] = [];
-    const inProgressOrders: { orderId: string; serviceDate: string; status: string }[] = [];
-
-    if (futureOrderIds.length > 0) {
-      const { data: allFutureAssignments } = await supabase
-        .from("assignments")
-        .select("id, order_id, status")
-        .eq("employee_id", employeeId)
-        .in("order_id", futureOrderIds)
-        .is("deleted_at", null);
-
-      // v8.3 ROUND 2: hallazgo -- la primera versión de este endpoint soltaba
-      // TODAS las asignaciones futuras sin distinguir si el empleado ya
-      // estaba a mitad de un servicio hoy (en_route/arrived/in_progress).
-      // Soltar esa asignación silenciosamente le habría quitado el servicio
-      // de encima mientras lo está ejecutando -- ni el cliente ni el admin
-      // se enterarían de que quedó sin equipo a medio servicio. Un servicio
-      // ya en curso se deja intacto y se reporta aparte para manejo manual
-      // del admin (ej. dejar que termine, o reasignar con contexto humano);
-      // solo se sueltan automáticamente los que todavía no arrancan.
-      const orderDateById = new Map((futureOrders || []).map((o) => [o.id, o.service_date as string]));
-      const releasable = (allFutureAssignments || []).filter(
-        (a) => !["en_route", "arrived", "in_progress"].includes(a.status)
-      );
-      const inProgress = (allFutureAssignments || []).filter((a) =>
-        ["en_route", "arrived", "in_progress"].includes(a.status)
-      );
-
-      for (const a of inProgress) {
-        inProgressOrders.push({
-          orderId: a.order_id,
-          serviceDate: orderDateById.get(a.order_id) || effectiveDate,
-          status: a.status,
-        });
-      }
-
-      const futureAssignments = releasable;
-      const assignmentIds = (futureAssignments || []).map((a) => a.id);
-      if (assignmentIds.length > 0) {
-        const { error: releaseError } = await supabase
-          .from("assignments")
-          .update({ deleted_at: new Date().toISOString() })
-          .in("id", assignmentIds);
-
-        if (releaseError) {
-          console.error("admin/empleados/[id]/offboard error:", releaseError);
-          return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
-        }
-        reassignedCount = assignmentIds.length;
-
-        for (const a of futureAssignments || []) {
-          affectedOrders.push({ orderId: a.order_id, serviceDate: orderDateById.get(a.order_id) || effectiveDate });
-        }
-
-        // Ticket por cada orden liberada -- visibilidad inmediata para el
-        // admin, sin depender de que dispatch-scheduler llegue a esa fecha.
-        for (const o of affectedOrders) {
-          await supabase.from("tickets_disputas").insert({
-            order_id: o.orderId,
-            employee_id: employeeId,
-            type: "discrepancy",
-            priority: "high",
-            status: "open",
-            context: {
-              order_id: o.orderId,
-              reason: "employee_offboarded_needs_reassignment",
-              service_date: o.serviceDate,
-              source: "offboarding",
-            },
-          });
-        }
-      }
-
-      // Servicios en curso: no se tocan, pero el admin debe saberlo de
-      // inmediato -- prioridad más alta porque hay un cliente esperando un
-      // servicio con un equipo que está a punto de perder a su empleado.
-      for (const o of inProgressOrders) {
-        await supabase.from("tickets_disputas").insert({
-          order_id: o.orderId,
-          employee_id: employeeId,
-          type: "discrepancy",
-          priority: "high",
-          status: "open",
-          context: {
-            order_id: o.orderId,
-            reason: "employee_offboarded_mid_service_needs_manual_handling",
-            service_date: o.serviceDate,
-            assignment_status: o.status,
-            source: "offboarding",
-          },
-        });
-      }
-    }
+    const { data: updatedEmployee } = await supabase
+      .from("employees")
+      .select("id, name, email, is_active, terminated_at, termination_reason")
+      .eq("id", employeeId)
+      .single();
 
     return NextResponse.json(
       {
         employee: updatedEmployee,
-        vacationPayoutCents,
+        vacationPayoutCents: result.vacationPayoutCents,
         accessRevoked,
-        reassignedCount,
-        affectedOrders,
-        inProgressOrders,
+        reassignedCount: result.reassignedCount,
+        affectedOrders: result.affectedOrders,
+        inProgressOrders: result.inProgressOrders,
       },
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Offboarding error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

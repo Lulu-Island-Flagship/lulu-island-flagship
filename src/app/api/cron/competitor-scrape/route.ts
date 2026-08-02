@@ -4,13 +4,12 @@ import { cookies } from "next/headers";
 import { MAX_TRACKED_COMPETITORS, detectCompetitorAlerts, type CompetitorSnapshot } from "@/lib/competitor-tracking";
 import { scrapeCompetitor, type ScrapeConfig } from "@/lib/competitor-scraper";
 import { requireCronAuth } from "@/lib/cron-auth";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -58,7 +57,8 @@ export async function GET(request: NextRequest) {
       .select("id")
       .is("deleted_at", null);
     if (allCompError) {
-      return NextResponse.json({ error: allCompError.message }, { status: 500 });
+      console.error("allCompError:", allCompError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     const knownCompetitorIds = (allActiveCompetitors || []).map((c: { id: string }) => c.id);
 
@@ -69,7 +69,8 @@ export async function GET(request: NextRequest) {
       .eq("scrape_enabled", true)
       .not("scrape_url", "is", null);
     if (compError) {
-      return NextResponse.json({ error: compError.message }, { status: 500 });
+      console.error("compError:", compError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // Defensivo: canAddCompetitor ya impide superar el tope al insertar, pero
@@ -190,7 +191,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

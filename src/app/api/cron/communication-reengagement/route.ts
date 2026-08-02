@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { evaluateReEngagement, type MarketingLogEntry } from "@/lib/communication-preferences";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/cron/communication-reengagement
@@ -43,7 +44,8 @@ export async function GET(request: NextRequest) {
       .eq("marketing_opt_in", true);
 
     if (profilesError) {
-      return NextResponse.json({ error: profilesError.message }, { status: 500 });
+      console.error("profilesError:", profilesError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     let evaluated = 0;
@@ -87,7 +89,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ evaluated, autoUnsubscribed }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

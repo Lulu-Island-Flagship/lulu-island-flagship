@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { evaluatePendingPurchaseOrders, type PendingPurchaseOrder } from "@/lib/purchase-order-escalation";
 import { captureError } from "@/lib/observability";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/cron/purchase-order-reminders
@@ -50,7 +51,8 @@ export async function GET(request: NextRequest) {
       .is("deleted_at", null);
 
     if (fetchError) {
-      return NextResponse.json({ error: fetchError.message }, { status: 500 });
+      console.error("fetchError:", fetchError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const nowIso = new Date().toISOString();
@@ -96,7 +98,6 @@ export async function GET(request: NextRequest) {
     );
   } catch (err: Error | unknown) {
     captureError(err, { route: "cron/purchase-order-reminders" });
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

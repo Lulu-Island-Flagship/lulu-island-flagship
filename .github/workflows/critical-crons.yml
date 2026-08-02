@@ -17,9 +17,25 @@
 # la cadencia exacta de 2 min hay que migrar a Vercel Pro o a un servicio
 # como cron-job.org que sí soporta 1 min.
 #
-# Requiere el secret CRON_SECRET configurado en este repo (Settings →
-# Secrets and variables → Actions), con el mismo valor que ya está en
-# Vercel → Project Settings → Environment Variables.
+# Requiere:
+#  - El secret CRON_SECRET configurado en este repo (Settings → Secrets and
+#    variables → Actions → Secrets), con el mismo valor que ya está en
+#    Vercel → Project Settings → Environment Variables.
+#  - La variable CRON_BASE_URL configurada en este repo (Settings → Secrets
+#    and variables → Actions → Variables), ej. "https://luluislandflagship.ca"
+#    (sin slash final). Antes estaba hardcodeada en cada step -- ahora vive
+#    en un solo lugar y permite apuntar a un entorno de staging sin editar
+#    este archivo. ACCIÓN MANUAL REQUERIDA: crear esta variable antes del
+#    próximo run programado, o los 10 crons fallarán con URL vacía.
+#
+# Auditoría 2026-08-01 (CI/build/config): se agregaron `timeout-minutes` (un
+# cron colgado no debe bloquear el runner indefinidamente ni solaparse con
+# la siguiente corrida), `concurrency` con `cancel-in-progress: false` (un
+# cron de seguridad/financiero en curso NUNCA debe cancelarse a mitad de
+# camino solo porque llegó el siguiente tick -- se deja que termine y el
+# siguiente arranca después) y reintentos vía `curl --retry` (una falla de
+# red transitoria de 1 request ya no descarta un tick completo de un cron
+# crítico de seguridad).
 
 name: Critical Crons (sub-daily safety/financial)
 
@@ -35,68 +51,98 @@ on:
     - cron: "0 * * * *"
   workflow_dispatch: {}
 
+env:
+  # curl con reintentos: 3 intentos, 2s entre intentos, reintenta también en
+  # códigos de error HTTP (no solo fallos de red) -- un cron de seguridad no
+  # debe perder un tick por un 502/503 transitorio del proveedor.
+  CURL_RETRY_FLAGS: --retry 3 --retry-delay 2 --retry-all-errors
+
 jobs:
   every-5-min:
     if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 2
+    concurrency:
+      # cancel-in-progress: false -- nunca cancelar un cron de seguridad en
+      # curso solo porque ya llegó el siguiente tick de 5 min.
+      group: critical-crons-every-5-min
+      cancel-in-progress: false
     steps:
       - name: safety-abort-escalation
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
         run: |
-          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/safety-abort-escalation"
+          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/safety-abort-escalation"
       - name: wellbeing-chemical-reassign
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
         run: |
-          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/wellbeing-chemical-reassign"
+          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/wellbeing-chemical-reassign"
       - name: key-escalation-check
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
         run: |
-          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/key-escalation-check"
+          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/key-escalation-check"
 
   every-15-min:
     if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 2
+    concurrency:
+      group: critical-crons-every-15-min
+      cancel-in-progress: false
     steps:
       - name: no-show
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
         run: |
-          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/no-show"
+          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/no-show"
       - name: dispatch-scheduler
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
         run: |
-          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/dispatch-scheduler"
+          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/dispatch-scheduler"
 
   hourly:
     if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 2
+    concurrency:
+      group: critical-crons-hourly
+      cancel-in-progress: false
     steps:
       - name: hold-authorize
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
         run: |
-          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/hold-authorize"
+          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/hold-authorize"
       - name: capture-remainder
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
         run: |
-          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/capture-remainder"
+          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/capture-remainder"
       - name: cash-exposure-monitor
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
         run: |
-          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/cash-exposure-monitor"
+          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/cash-exposure-monitor"
       - name: appeal-deadline-check
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
         run: |
-          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/appeal-deadline-check"
+          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/appeal-deadline-check"
       - name: reconcile-payments
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
         run: |
-          curl -sf -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "https://luluislandflagship.ca/api/cron/reconcile-payments"
+          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/reconcile-payments"

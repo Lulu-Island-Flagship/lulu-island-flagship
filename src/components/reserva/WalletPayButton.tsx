@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useStripe } from "@stripe/react-stripe-js";
 import { useTranslations } from "next-intl";
 import { CheckCircle2, Loader2, QrCode, ExternalLink } from "lucide-react";
@@ -209,7 +210,14 @@ export function WalletPayButton({
     <div className="space-y-3">
       {status === "pending" && walletType === "wechat_pay" && qrCodeUrl && (
         <div className="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-lg">
-          <img src={qrCodeUrl} alt={t("scanQrInstruction")} className="w-48 h-48" />
+          <Image
+            src={qrCodeUrl}
+            alt={t("scanQrInstruction")}
+            width={192}
+            height={192}
+            unoptimized
+            className="w-48 h-48"
+          />
           <p className="text-sm text-gray-600 flex items-center gap-1">
             <QrCode className="w-4 h-4" /> {t("scanQrInstruction")}
           </p>

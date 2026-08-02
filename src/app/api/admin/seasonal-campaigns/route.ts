@@ -6,6 +6,7 @@ import {
   type SeasonalCampaign,
 } from "@/lib/demand-signals";
 import { dispatchCommunication } from "@/lib/send-communication";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * GET /api/admin/seasonal-campaigns — catálogo de 5 campañas + evaluaciones
@@ -256,7 +257,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: "Unrecognized action" }, { status: 400 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

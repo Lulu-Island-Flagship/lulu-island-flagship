@@ -18,6 +18,7 @@ import {
 import { isSmsProviderConfigured } from "@/lib/sms";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // Fix (auditoría externa, verificado 2026-07-31): antes, si faltaban las
 // env vars de Supabase, se usaban valores placeholder ("https://placeholder
@@ -905,8 +906,6 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Confirm reservation error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

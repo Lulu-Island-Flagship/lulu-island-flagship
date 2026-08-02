@@ -15,6 +15,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
+import { getVancouverTodayString } from "@/lib/date-utils";
 
 interface OrderAssignment {
   assignmentId: string;
@@ -69,7 +70,7 @@ interface EmployeeOption {
 }
 
 function todayIso(): string {
-  return new Date().toISOString().split("T")[0];
+  return getVancouverTodayString();
 }
 
 const LANGUAGE_BADGE: Record<OrderSummary["languageMatch"], { className: string }> = {

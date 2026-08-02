@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { decideCandidateEligibility, buildAnonymousLabel } from "@/lib/live-portfolio";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/cron/live-portfolio-scan — v8.3 E5.15 "Live Portfolio"
@@ -50,8 +51,13 @@ export async function GET(request: NextRequest) {
       .eq("status", "completed")
       .gte("service_date", since.toISOString().slice(0, 10));
 
-    if (ordersError) return NextResponse.json({ error: ordersError.message }, { status: 500 });
+    if (ordersError) {
 
+      console.error("ordersError:", ordersError);
+
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+
+    }
     let candidatesCreated = 0;
     const results: { orderId: string; eligible: boolean; reasons?: string[] }[] = [];
 
@@ -149,7 +155,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

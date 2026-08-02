@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 const PARTNER_TYPES = ["real_estate_agent", "property_manager", "veterinarian", "builder"];
 
@@ -61,7 +62,6 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ partner: data }, { status: 201 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

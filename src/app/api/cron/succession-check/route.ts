@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { evaluateSuccessionStatus } from "@/lib/succession";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/cron/succession-check
@@ -53,7 +54,8 @@ export async function GET(request: NextRequest) {
       .limit(1);
 
     if (rolesError) {
-      return NextResponse.json({ error: rolesError.message }, { status: 500 });
+      console.error("rolesError:", rolesError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     if (!ownerRoles || ownerRoles.length === 0) {
       // No debería pasar nunca (invariante: nunca sin owner_admin, ver
@@ -71,7 +73,8 @@ export async function GET(request: NextRequest) {
       .limit(1);
 
     if (actionsError) {
-      return NextResponse.json({ error: actionsError.message }, { status: 500 });
+      console.error("actionsError:", actionsError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const lastEngagementIso: string | null = writeActions && writeActions.length > 0
@@ -118,8 +121,7 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }
 

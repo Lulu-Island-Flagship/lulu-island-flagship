@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { assertStripe } from "@/lib/stripe";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/cron/hold-authorize
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Hold authorize fetch error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const results = {
@@ -170,8 +171,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Hold authorize job error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

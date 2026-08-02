@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getMorningConditions, shouldNotifyClientOfDelay } from "@/lib/traffic-conditions-provider";
 import { dispatchCommunication } from "@/lib/send-communication";
 import { getVancouverTodayString } from "@/lib/date-utils";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/cron/morning-conditions-check
@@ -50,7 +51,8 @@ export async function GET(request: NextRequest) {
       .not("status", "in", "(cancelled,no_show,completed)");
 
     if (ordersError) {
-      return NextResponse.json({ error: ordersError.message }, { status: 500 });
+      console.error("ordersError:", ordersError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     type OrderRow = { id: string; quotes: { user_id: string; zone: string; address: string } | null };
@@ -86,7 +88,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ zonesEvaluated: zones.length, zoneResults, notified }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

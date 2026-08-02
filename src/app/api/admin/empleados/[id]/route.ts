@@ -5,6 +5,8 @@ import { isValidLanguageLevels } from "@/lib/employee-languages";
 import { CAREER_LEVEL_ORDER } from "@/lib/career-path";
 import { renderTemplate, MissingVariableError } from "@/lib/communications";
 import { sendEmail } from "@/lib/email";
+import { isValidUuid } from "@/lib/validation";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // PATCH /api/admin/empleados/[id] — idiomas + nivel de fluidez (C.3),
 // promoción manual de nivel de carrera (D.11), y activación de un empleado
@@ -32,6 +34,13 @@ export async function PATCH(
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
   const { supabase } = auth;
+
+  // Fix (auditoría de integridad de datos 2026-08-01): params.id se usaba
+  // directo contra `employees` (incluido el RPC set_employee_banking_info,
+  // que escribe SIN/datos bancarios cifrados) sin validar que fuera un UUID.
+  if (!isValidUuid(params.id)) {
+    return NextResponse.json({ error: "Invalid employee id" }, { status: 400 });
+  }
 
   try {
     const body = await request.json();
@@ -208,8 +217,7 @@ export async function PATCH(
 
     return NextResponse.json({ employee: data, invitation }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }
 

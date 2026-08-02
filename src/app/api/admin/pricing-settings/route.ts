@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { getVancouverTodayString } from "@/lib/date-utils";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * GET /api/admin/pricing-settings
@@ -45,8 +47,7 @@ export async function GET() {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }
 
@@ -75,7 +76,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "reason is required for audit log" }, { status: 400 });
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = getVancouverTodayString();
     const newEffectiveFrom = effectiveFrom && /^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom)
       ? effectiveFrom
       : today;
@@ -113,7 +114,8 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
       if (rpcError.code === "22023") {
-        return NextResponse.json({ error: rpcError.message }, { status: 400 });
+        console.error("rpcError:", rpcError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 400 });
       }
       console.error("Pricing settings RPC error:", rpcError);
       return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
@@ -154,7 +156,6 @@ export async function PATCH(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

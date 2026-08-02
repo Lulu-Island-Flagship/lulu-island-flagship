@@ -161,7 +161,7 @@ export function TimeSlotPicker({
       <p className="text-xs text-gray-500">
         {t("serviceWindow")}
         {weekend && (
-          <span className="block text-brand-gold mt-1">
+          <span className="block text-brand-gold-dark mt-1">
             {t("weekendSurcharge")}
           </span>
         )}

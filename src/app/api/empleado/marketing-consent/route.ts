@@ -4,13 +4,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { evaluateEmployeeMarketingVisibility } from "@/lib/employee-marketing";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { safeErrorResponse } from "@/lib/api-errors";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -50,7 +48,8 @@ export async function GET() {
     .is("deleted_at", null);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Supabase query error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   const features = (data || []).map((f) => ({
@@ -102,7 +101,7 @@ export async function POST(request: NextRequest) {
         .from("employee_marketing_features")
         .update({ employee_consented_at: nowIso, employee_consent_withdrawn_at: null, updated_at: nowIso })
         .eq("id", existing.id);
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) { console.error("Supabase query error:", error); return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 }); }
       return NextResponse.json({ ok: true }, { status: 200 });
     }
     const { data, error } = await supabase
@@ -110,7 +109,7 @@ export async function POST(request: NextRequest) {
       .insert({ employee_id: employee.id, feature_type: featureType, employee_consented_at: nowIso })
       .select()
       .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) { console.error("Supabase query error:", error); return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 }); }
     return NextResponse.json({ feature: data }, { status: 201 });
   }
 
@@ -122,7 +121,7 @@ export async function POST(request: NextRequest) {
       .from("employee_marketing_features")
       .update({ employee_consent_withdrawn_at: nowIso, updated_at: nowIso })
       .eq("id", existing.id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) { console.error("Supabase query error:", error); return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 }); }
     return NextResponse.json({ ok: true }, { status: 200 });
   }
 

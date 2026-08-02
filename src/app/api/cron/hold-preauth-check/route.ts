@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { assertStripe } from "@/lib/stripe";
 import { decideHoldRevalidationAction } from "@/lib/hold-revalidation";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * GET /api/cron/hold-preauth-check
@@ -84,7 +85,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Hold preauth-check fetch error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     for (const order of orders || []) {
@@ -248,8 +249,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, ...results }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Hold preauth-check job error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

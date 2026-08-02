@@ -5,6 +5,7 @@ import { decideQboSyncAction, evaluateQboDivergence, type QboSyncRetryState } fr
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { requireCronAuth } from "@/lib/cron-auth";
 import { stripe } from "@/lib/stripe";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // Fix (auditoría externa 2026-07-31, hallazgo confirmado): el fee de Stripe
 // exportado a QBO usaba una fórmula ESTIMADA (2.9% + $0.30) en vez del fee
@@ -161,7 +162,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("QBO sync fetch error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const results: { orderId: string; status: string; error?: string }[] = [];
@@ -399,8 +400,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("QBO sync cron error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

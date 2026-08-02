@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { isValidUuid } from "@/lib/validation";
 
 /**
  * GET /api/admin/orders/[id]/communication-log — v8.3 E6.3: "Timeline de
@@ -17,6 +18,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { id } = await params;
+
+  // Fix (auditoría de integridad de datos 2026-08-01): id no se validaba
+  // como UUID antes de usarse en la query contra communication_log.
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: "Invalid order id" }, { status: 400 });
+  }
 
   const { data, error } = await auth.supabase
     .from("communication_log")

@@ -15,7 +15,21 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 //     updated_by UUID
 //   )
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+// Fix (auditoría de seguridad externa, 2026-08-01): antes, si faltaba
+// NEXT_PUBLIC_SUPABASE_URL, se caía en silencio a
+// "https://placeholder.supabase.co". Aquí es más grave que en otros lugares
+// del repo: getHiringFlowServiceClient() (abajo) sigue devolviendo un
+// cliente "válido" mientras SUPABASE_SERVICE_ROLE_KEY exista, así que la
+// service role key REAL viajaría hacia ese dominio placeholder inexistente
+// en vez de fallar de forma explícita. Se lanza un error claro en vez de
+// permitir esa fuga silenciosa. Mismo patrón que src/lib/admin.ts.
+function getSupabaseUrl(): string {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL no está configurado");
+  }
+  return url;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SettingsAdmin = SupabaseClient<any, "public", any>;
@@ -162,7 +176,7 @@ export function castValue(
 export function getHiringFlowServiceClient(): SettingsAdmin | null {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceKey) return null;
-  return createClient(supabaseUrl, serviceKey);
+  return createClient(getSupabaseUrl(), serviceKey);
 }
 
 function resolveClient(client?: SettingsAdmin): SettingsAdmin {

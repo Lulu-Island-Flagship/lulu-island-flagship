@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { roleAllows } from "@/lib/admin-rbac";
+import { getVancouverTodayString } from "@/lib/date-utils";
 import { calculateTeamRequirements, getHHEForRange, type ServiceType } from "@/lib/pricing";
 import { evaluateWorkday, type WorkBlock } from "@/lib/workday";
 import { evaluateScheduleChange, classifySchedule, calculateContingencyGuaranteedPay, type ScheduleBlock } from "@/lib/schedule-7030";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/admin/dispatch
@@ -195,9 +197,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Dispatch error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }
 
@@ -237,7 +237,7 @@ export async function GET(request: NextRequest) {
     const dateParam = searchParams.get("date");
     const targetDate = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
       ? dateParam
-      : new Date().toISOString().split("T")[0];
+      : getVancouverTodayString();
 
     const { data: orders, error: ordersError } = await supabase
       .from("orders")
@@ -478,8 +478,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Dispatch GET error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

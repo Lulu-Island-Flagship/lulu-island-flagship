@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole, getServiceRoleClient } from "@/lib/admin";
+import { safeErrorResponse } from "@/lib/api-errors";
 import {
   getActiveSuccessors,
   issueEmergencyAccessCodes,
@@ -197,7 +198,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: "Unrecognized action" }, { status: 400 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

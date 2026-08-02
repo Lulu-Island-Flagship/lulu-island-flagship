@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/tickets — cola de tickets priorizada
 export async function GET(request: NextRequest) {
@@ -55,8 +56,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ tickets: sorted }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }
 
@@ -94,7 +94,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ticket: data }, { status: 201 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

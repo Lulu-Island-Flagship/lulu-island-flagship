@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { computeRequestDueAt, isRequestOverdue } from "@/lib/pipeda";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * GET/POST /api/admin/pipeda/requests — v8.3 E9.9. Los tres derechos del
@@ -99,7 +100,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ request: created }, { status: 201 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

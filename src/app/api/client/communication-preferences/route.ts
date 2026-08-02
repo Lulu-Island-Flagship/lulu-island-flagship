@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 
 // v8.3 fix (auditoría seguridad 2026-07-26): el regex original
 // (/^\d{4}-\d{2}-\d{2}$/) solo valida el FORMATO -- "2023-99-99" pasaba
@@ -36,12 +37,9 @@ function isValidPastBirthDate(value: string): boolean {
   return true;
 }
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
-
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -71,35 +69,33 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Fix (auditoría en vivo 2026-08-01, confirmado por prueba E2E real): un
-  // cliente recién registrado (login por email/teléfono/Google/Apple) NO
-  // tiene todavía una fila en client_profiles -- esa tabla solo se crea hoy
-  // al generar su primera cotización/orden (no hay trigger en auth.users,
-  // ver migraciones 001-300: ningún on_auth_user_created). .single() sobre
-  // 0 filas devuelve el error crudo de PostgREST "Cannot coerce the result
-  // to a single JSON object" (PGRST116), y este endpoint lo reenviaba tal
-  // cual al cliente -- un cliente real probando /cuenta/preferencias por
-  // primera vez, antes de su primer servicio, veía ese texto técnico en
-  // pantalla en vez de la página de preferencias. upsert() con
-  // onConflict "user_id" crea la fila con los defaults de la migración 001
-  // (marketing_opt_in = false, etc.) si no existía, sin tocar nada si ya
-  // existía -- misma política RLS "Users insert own client profile"
-  // (migración 018) que ya permite este insert desde el propio cliente.
-  // ignoreDuplicates se deja en false (default) a propósito: con
-  // ignoreDuplicates:true, PostgREST arma un ON CONFLICT DO NOTHING, que no
-  // devuelve fila por RETURNING cuando la fila YA existía -- exactamente el
-  // caso más común (cliente que ya tiene client_profiles) -- y el .single()
-  // de abajo volvería a fallar. El upsert por defecto hace un
-  // ON CONFLICT (user_id) DO UPDATE de un único campo (user_id = user_id,
-  // no-op real), que sí devuelve la fila completa en ambos casos.
+  // Fix (auditoría de integridad de datos 2026-08-01): un GET no debe tener
+  // side effects (viola la semántica HTTP) -- la versión anterior hacía un
+  // upsert() que INSERTABA una fila en client_profiles como efecto
+  // secundario de una simple lectura. Un cliente recién registrado (sin
+  // client_profiles todavía, porque esa tabla solo se crea hoy en su primera
+  // cotización/orden) simplemente no tiene preferencias guardadas todavía --
+  // se devuelven los defaults de la migración 001 sin escribir nada. La
+  // creación real del perfil sigue viviendo en el flujo de POST/quote
+  // correspondiente (getOrCreateClientProfile()); si el cliente cambia una
+  // preferencia, el POST de abajo (que sí es una escritura legítima) crea
+  // la fila si hace falta.
   const { data, error } = await supabase
     .from("client_profiles")
-    .upsert({ user_id: user.id }, { onConflict: "user_id" })
     .select("marketing_opt_in, marketing_opt_in_updated_at, auto_unsubscribed_at, birth_date")
-    .single();
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Supabase query error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
+
+  if (!data) {
+    return NextResponse.json(
+      { marketingOptIn: false, updatedAt: null, autoUnsubscribedAt: null, birthDate: null },
+      { status: 200 }
+    );
   }
 
   return NextResponse.json(
@@ -173,7 +169,8 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Supabase query error:", error);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
   }
 
   return NextResponse.json(

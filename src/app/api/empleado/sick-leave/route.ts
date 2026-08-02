@@ -5,9 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { calculatePayroll, BC_MIN_WAGE_HOURLY } from "@/lib/payroll";
 import { decideSickLeaveEligibility } from "@/lib/sick-leave";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // v8.3 auditoría 2026-07-21 (D-P0-2, migración 213): la escritura real de
 // pay_type='paid'/paid_amount_cents ahora requiere service-role -- la RLS
@@ -18,12 +17,12 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
 function getServiceClient() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceKey) return null;
-  return createClient(supabaseUrl, serviceKey);
+  return createClient(getSupabaseUrl(), serviceKey);
 }
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -219,13 +218,12 @@ export async function POST(request: NextRequest) {
       if (error.code === "23505") {
         return NextResponse.json({ error: "Already reported an absence for this date" }, { status: 409 });
       }
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json({ request: created, minWageHourlyReference: BC_MIN_WAGE_HOURLY }, { status: 201 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }
 
@@ -248,7 +246,7 @@ export async function GET() {
     .gte("absence_date", `${currentYear}-01-01`)
     .order("absence_date", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error("Supabase query error:", error); return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 }); }
 
   return NextResponse.json({ requests: requests || [] }, { status: 200 });
 }

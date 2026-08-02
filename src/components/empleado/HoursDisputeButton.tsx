@@ -102,8 +102,9 @@ export function HoursDisputeButton({
             admin confirms the correction. A technical failure never counts against you.
           </p>
           <div>
-            <label className="text-xs text-gray-600 block mb-1">What time should it have been?</label>
+            <label htmlFor="hours-dispute-claimed-time" className="text-xs text-gray-600 block mb-1">What time should it have been?</label>
             <input
+              id="hours-dispute-claimed-time"
               type="time"
               aria-label="Time it should have been logged"
               value={claimedTime}
@@ -112,8 +113,9 @@ export function HoursDisputeButton({
             />
           </div>
           <div>
-            <label className="text-xs text-gray-600 block mb-1">What happened?</label>
+            <label htmlFor="hours-dispute-reason" className="text-xs text-gray-600 block mb-1">What happened?</label>
             <textarea
+              id="hours-dispute-reason"
               aria-label="What happened"
               value={reason}
               onChange={(e) => setReason(e.target.value)}

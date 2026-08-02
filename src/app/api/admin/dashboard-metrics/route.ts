@@ -7,6 +7,8 @@ import {
   semaphoreForMinThreshold,
   DASHBOARD_THRESHOLDS,
 } from "@/lib/dashboard-metrics";
+import { getVancouverTodayString } from "@/lib/date-utils";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * GET /api/admin/dashboard-metrics
@@ -28,13 +30,15 @@ export async function GET() {
   const { supabase } = auth;
 
   try {
-    const now = new Date();
-    const windowStart = new Date(now);
-    windowStart.setDate(windowStart.getDate() - 30);
+    // Fix (auditoría timezone): antes usaba `new Date()` (medianoche/día UTC del
+    // servidor), que se desfasa del día calendario real de Vancouver durante
+    // varias horas cada tarde/noche. Se ancla todo al día de Vancouver.
+    const todayIso = getVancouverTodayString();
+    const windowStart = new Date(`${todayIso}T12:00:00Z`);
+    windowStart.setUTCDate(windowStart.getUTCDate() - 30);
     const windowStartIso = windowStart.toISOString().split("T")[0];
-    const todayIso = now.toISOString().split("T")[0];
 
-    const monthStartIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+    const monthStartIso = `${todayIso.slice(0, 7)}-01`;
 
     // ---- 1. Servicios sin disputa (últimos 30 días) ----
     const { count: completedCount, error: completedError } = await supabase
@@ -279,8 +283,6 @@ export async function GET() {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("dashboard-metrics fatal error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

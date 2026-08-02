@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { dispatchCommunication } from "@/lib/send-communication";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 const NPS_SURVEY_INTERVAL_DAYS = 91; // trimestral (E10.13)
 
@@ -41,7 +42,8 @@ export async function GET(request: NextRequest) {
       .select("user_id")
       .eq("status", "completed");
     if (ordersError) {
-      return NextResponse.json({ error: ordersError.message }, { status: 500 });
+      console.error("ordersError:", ordersError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     const eligibleUserIds = Array.from(new Set((completedOrders || []).map((o: { user_id: string }) => o.user_id)));
 
@@ -96,7 +98,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ evaluated: eligibleUserIds.length, sent, results }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

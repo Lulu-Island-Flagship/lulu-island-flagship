@@ -4,15 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { haversineDistance, MEETING_POINT_RADIUS_METERS } from "@/lib/geocode";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { getVancouverTodayString, getVancouverOffset } from "@/lib/date-utils";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
   return createServerClient(
-    supabaseUrl,
-    supabaseKey,
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     {
       cookies: {
         get(name: string) {
@@ -72,7 +71,8 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (lastEventError) {
-      return NextResponse.json({ error: lastEventError.message }, { status: 500 });
+      console.error("lastEventError:", lastEventError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const lastEventType = lastJornadaEvent?.event_type ?? null;
@@ -159,7 +159,8 @@ export async function POST(request: NextRequest) {
 
     if (logError) {
       console.error("Jornada log error:", logError);
-      return NextResponse.json({ error: logError.message }, { status: 500 });
+      console.error("logError:", logError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json(
@@ -174,8 +175,6 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Jornada error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

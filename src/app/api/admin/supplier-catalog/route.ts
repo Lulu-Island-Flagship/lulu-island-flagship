@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/supplier-catalog — catálogo proveedor x producto con precio
 // histórico (v8.3 E7 punto 6). Por defecto solo trae los precios vigentes
@@ -113,7 +114,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ catalogEntry: data }, { status: 201 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

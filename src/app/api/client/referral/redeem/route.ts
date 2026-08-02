@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 import {
   normalizeReferralCode,
   decideSameIpFraudFlag,
@@ -9,12 +10,9 @@ import {
   isReferralBanActive,
 } from "@/lib/referrals";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
-
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -90,7 +88,10 @@ export async function POST(request: NextRequest) {
     .select("id, referred_by_code, referral_banned_until")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (myProfileError) return NextResponse.json({ error: myProfileError.message }, { status: 500 });
+  if (myProfileError) {
+    console.error("myProfileError:", myProfileError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   if (existingProfile) {
     myProfile = existingProfile;
   } else {
@@ -136,8 +137,10 @@ export async function POST(request: NextRequest) {
     .select("id, user_id, referral_code")
     .eq("referral_code", code)
     .maybeSingle();
-  if (referrerError) return NextResponse.json({ error: referrerError.message }, { status: 500 });
-
+  if (referrerError) {
+    console.error("referrerError:", referrerError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   if (!referrerProfile) {
     await supabase.from("referral_redemption_attempts").insert({
       referred_user_id: user.id,
@@ -241,8 +244,13 @@ export async function POST(request: NextRequest) {
     .select()
     .single();
 
-  if (referralError) return NextResponse.json({ error: referralError.message }, { status: 500 });
+  if (referralError) {
 
+    console.error("referralError:", referralError);
+
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+
+  }
   await supabase
     .from("client_profiles")
     .update({ referred_by_code: code, referral_signup_ip: clientIp, updated_at: nowIso })

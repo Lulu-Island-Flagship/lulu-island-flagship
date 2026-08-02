@@ -170,8 +170,9 @@ export function UpsellSelector({ orderId, onUpsellAdded }: UpsellSelectorProps) 
       )}
 
       <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">Notes (optional)</label>
+        <label htmlFor="upsell-notes" className="block text-xs font-medium text-gray-600 mb-1">Notes (optional)</label>
         <input
+          id="upsell-notes"
           type="text"
           aria-label="Notas sobre el upsell"
           value={notes}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/admin/hours-disputes/[id]/resolve
@@ -172,8 +173,6 @@ export async function POST(
 
     return NextResponse.json({ ticket: updatedTicket, action, resolvedBy: userId }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Hours dispute resolve error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

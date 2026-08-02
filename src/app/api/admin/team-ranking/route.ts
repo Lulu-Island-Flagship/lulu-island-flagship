@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { formatAggregatedRows } from "@/lib/team-ranking";
+import { getVancouverTodayString } from "@/lib/date-utils";
 
 // GET /api/admin/team-ranking?week_start=YYYY-MM-DD — Top 3 de EQUIPOS
 // (B.2.21: solo equipos, solo Top 3, semanal). La única fuente es la RPC
@@ -29,7 +30,9 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const weekStart = searchParams.get("week_start") || mostRecentMonday(new Date());
+  // Fix (auditoría timezone): ver comentario equivalente en empleado/team-ranking.
+  const weekStart =
+    searchParams.get("week_start") || mostRecentMonday(new Date(`${getVancouverTodayString()}T12:00:00Z`));
 
   const { data, error } = await supabase.rpc("get_team_top3", { p_week_start: weekStart });
 

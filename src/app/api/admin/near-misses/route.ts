@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { weeklyPatternSummary, type NearMissRecord } from "@/lib/near-miss-patterns";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/near-misses?weekStart=YYYY-MM-DD — dashboard semanal con patrones (D.7.8).
 // v8.3: "reporte sin penalización, anonimato opcional" — esta respuesta NUNCA incluye
@@ -65,7 +66,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

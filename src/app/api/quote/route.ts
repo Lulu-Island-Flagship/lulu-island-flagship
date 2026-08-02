@@ -8,11 +8,10 @@ import {
   getCurrentHHETable,
   CONSENT_VERSIONS,
   ServiceType,
-  GST_RATE,
-  PST_RATE,
   MARGIN_FLOOR_PERCENT,
+  computeTaxBreakdown,
 } from "@/lib/pricing";
-import { applyPricingRules, type RuleContext, type PricingRule } from "@/lib/rules";
+import { type RuleContext, type PricingRule } from "@/lib/rules";
 import { calculateAddonZonesCharge } from "@/lib/pricing";
 import { fetchAddonZoneOptions } from "@/lib/addon-zones";
 import type { QuoteInput } from "@/types";
@@ -42,9 +41,7 @@ import { getZoneDemand } from "@/lib/zone-demand";
 // silencioso de creación de client_profile (ver comentario junto a esa
 // función más abajo).
 import { captureError } from "@/lib/observability";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -204,7 +201,7 @@ function deriveOrganicLoad(
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -446,23 +443,11 @@ export async function POST(request: NextRequest) {
       availableAddonZones.some((a) => a.zone === z)
     );
 
-    // Calcular precio base en servidor
-    const baseBreakdown = calculatePrice(
-      serviceType as ServiceType,
-      squareFeet,
-      petsCount,
-      petsType,
-      residents,
-      daysSinceCleaning,
-      zone,
-      dayOfWeek,
-      isPreferredDay,
-      targetHourlyRate,
-      hheTable,
-      addonZonesCharge
-    );
-
-    // Aplicar motor de reglas headless
+    // Motor de reglas headless (src/lib/rules.ts): se leen las reglas activas
+    // y se arma el contexto ANTES de llamar a calculatePrice, que ahora
+    // invoca applyPricingRules() internamente (fix auditoría externa,
+    // hallazgo #1 -- antes calculatePrice ignoraba el motor por completo y
+    // devolvía ruleAdjustment/appliedRules hardcodeados).
     const { data: rulesData } = await supabase
       .from("pricing_rules")
       .select("id, name, description, condition_json, action_type, action_value, priority, max_applicable, is_active")
@@ -489,29 +474,8 @@ export async function POST(request: NextRequest) {
     // los próximos 14 días publicados para esta zona como proxy.
     const zoneDemand = await getZoneDemand(supabase, zone!, null);
 
-    const ruleContext: RuleContext = {
-      zone: zone!,
-      // Fix (auditoría 2026-07-31, hallazgo #5): antes se usaba
-      // `new Date().getDay()` (día real de HOY en el servidor) cuando el
-      // cliente todavía no eligió fecha de servicio (paso "summary" del
-      // cotizador) -- si hoy resultaba ser sábado/domingo, cualquier regla
-      // de pricing_rules condicionada por `dayOfWeek` (ej. recargo de fin de
-      // semana) podía disparar en el preview aunque el cliente termine
-      // eligiendo un día de semana en /reserva, y viceversa. Esto es
-      // independiente del recargo logístico fijo de calculatePrice (que ya
-      // recibe dayOfWeek/isPreferredDay = undefined en este punto y por lo
-      // tanto NO aplica ningún recargo). El día de servicio real recién se
-      // conoce y se usa para el cálculo AUTORITATIVO en
-      // /api/quote/recalculate (dayOfWeek = selectedDate.getDay()). Antes de
-      // elegir fecha, se usa un lunes (día de semana neutro, consistente con
-      // `isPreferredDay: true`) para que ninguna regla de fin de semana
-      // dispare por accidente basada en la fecha del calendario del
-      // SERVIDOR en vez de la fecha que el cliente elija.
-      dayOfWeek: dayOfWeek ?? 1,
-      isPreferredDay: isPreferredDay ?? true,
-      serviceType: serviceType!,
+    const ruleContextExtra: Partial<RuleContext> = {
       serviceSubtype: serviceSubtype!,
-      squareFeet,
       clientScore: clientProfile.score,
       servicesCount: clientProfile.services_count || 0,
       disputesLostCount: clientProfile.disputes_lost_count || 0,
@@ -519,16 +483,38 @@ export async function POST(request: NextRequest) {
       clientType: deriveClientType(clientProfile.services_count || 0, clientProfile.score),
       zoneDemand,
       organicLoad: deriveOrganicLoad(petsCount, petsType, residents),
-      daysSinceCleaning,
       advanceNoticeDays: 0, // se actualiza en /api/quote/recalculate cuando el cliente elige fecha
     };
 
-    const ruleResult = applyPricingRules(rules, ruleContext, baseBreakdown.basePrice, baseBreakdown.subtotal);
+    // Calcular precio en servidor. Fix (auditoría 2026-07-31, hallazgo #5):
+    // se usa un lunes neutro (dayOfWeek ?? 1) + isPreferredDay=true por
+    // defecto cuando el cliente todavía no eligió fecha de servicio (paso
+    // "summary" del cotizador), para que ninguna regla de pricing_rules
+    // condicionada por dayOfWeek (ej. recargo de fin de semana) dispare por
+    // accidente según el día real de HOY en el servidor. El día de servicio
+    // real recién se conoce y se usa para el cálculo AUTORITATIVO en
+    // /api/quote/recalculate.
+    const baseBreakdown = calculatePrice(
+      serviceType as ServiceType,
+      squareFeet,
+      petsCount,
+      petsType,
+      residents,
+      daysSinceCleaning,
+      zone,
+      dayOfWeek,
+      isPreferredDay,
+      targetHourlyRate,
+      hheTable,
+      addonZonesCharge,
+      rules,
+      ruleContextExtra
+    );
 
-    if (ruleResult.blocked) {
+    if (baseBreakdown.blocked) {
       return NextResponse.json(
         {
-          error: ruleResult.blockReason || "Quote blocked by pricing rule",
+          error: baseBreakdown.blockReason || "Quote blocked by pricing rule",
           code: "RULE_BLOCKED",
         },
         { status: 400 }
@@ -543,8 +529,9 @@ export async function POST(request: NextRequest) {
     const finalPrintedInvoiceRequested =
       printedInvoiceRequested !== undefined ? !!printedInvoiceRequested : !!clientProfile.printed_invoice_requested;
     const printedInvoiceCharge = computePrintedInvoiceCharge(finalPrintedInvoiceRequested, accountType as "b2c" | "b2b" | "government");
+    const appliedRules = [...baseBreakdown.appliedRules];
     if (printedInvoiceCharge > 0) {
-      ruleResult.appliedRules.push({
+      appliedRules.push({
         ruleId: "printed_invoice_surcharge",
         name: "Printed invoice by mail (+$2)",
         actionType: "price_add",
@@ -553,11 +540,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Recalcular totales con ajuste de reglas (subtotal siempre entero para DB)
-    const subtotalAfterRules = Math.round(Math.max(0, baseBreakdown.subtotal + ruleResult.adjustment + printedInvoiceCharge));
-    const gst = Math.round(subtotalAfterRules * GST_RATE * 100) / 100;
-    const pst = Math.round(subtotalAfterRules * PST_RATE * 100) / 100;
-    const totalAfterRules = Math.round((subtotalAfterRules + gst + pst) * 100) / 100;
+    // baseBreakdown.subtotal/gst/pst/total ya incluyen el ajuste real del
+    // motor de reglas (computeTaxBreakdown, aritmética en centavos -- fix
+    // auditoría externa, hallazgo #2). Solo falta sumar el recargo de
+    // factura impresa, que no es una regla de pricing_rules.
+    const { subtotal: subtotalAfterRules, gst, pst, total: totalAfterRules } = computeTaxBreakdown(
+      baseBreakdown.subtotal + printedInvoiceCharge
+    );
+    const ruleAdjustment = baseBreakdown.ruleAdjustment + printedInvoiceCharge;
     const holdAmount = calculateHold(serviceType as ServiceType, squareFeet, totalAfterRules, targetHourlyRate);
 
     const freeze = new Date(Date.now() + 10 * 60 * 1000);
@@ -572,10 +562,12 @@ export async function POST(request: NextRequest) {
       subtotalAfterRules > 0 ? (subtotalAfterRules - estimatedLaborCost) / subtotalAfterRules : 0;
     const marginBelowFloor = marginContribution < MARGIN_FLOOR_PERCENT;
 
-    let adminReviewRequired = baseBreakdown.adminReviewRequired || ruleResult.flagged || marginBelowFloor;
+    // baseBreakdown.adminReviewRequired ya incluye el margen pre-reglas y
+    // baseBreakdown.flagged (motor de reglas); marginBelowFloor cubre el
+    // margen final post-reglas + factura impresa.
+    let adminReviewRequired = baseBreakdown.adminReviewRequired || marginBelowFloor;
     const adminReviewReasons: string[] = [];
     if (baseBreakdown.adminReviewReason) adminReviewReasons.push(baseBreakdown.adminReviewReason);
-    if (ruleResult.flagReason) adminReviewReasons.push(ruleResult.flagReason);
     if (marginBelowFloor) {
       adminReviewReasons.push(
         `Margen de contribución ${(marginContribution * 100).toFixed(1)}% por debajo del ${(
@@ -630,8 +622,8 @@ export async function POST(request: NextRequest) {
         logistics_surcharge: baseBreakdown.logisticsSurcharge,
         addon_zones: validatedAddonZones,
         addon_zones_charge: baseBreakdown.addonZonesCharge,
-        rule_adjustment: ruleResult.adjustment + printedInvoiceCharge,
-        applied_rules: ruleResult.appliedRules,
+        rule_adjustment: ruleAdjustment,
+        applied_rules: appliedRules,
         subtotal: subtotalAfterRules,
         gst,
         pst,
@@ -689,7 +681,7 @@ export async function POST(request: NextRequest) {
         quote: data,
         quoteId: data.id,
         serverCalculated: true,
-        appliedRules: ruleResult.appliedRules,
+        appliedRules,
         printedInvoiceCharge,
         adminReviewRequired,
         accountType,

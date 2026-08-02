@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { detectCircularRules, detectRuleConflicts, type PricingRule } from "@/lib/rules";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 const ALLOWED_ACTION_TYPES = [
   "price_multiplier",
@@ -94,8 +95,7 @@ export async function GET() {
 
     return NextResponse.json({ rules: rules || [] }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }
 
@@ -188,8 +188,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ rule }, { status: 201 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }
 
@@ -249,8 +248,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ rule }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }
 
@@ -312,7 +310,6 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true, deletedId: id }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

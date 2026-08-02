@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useTranslations } from 'next-intl';
+import Script from "next/script";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Ship, Shield, Users, Clock, Star, MapPin, LogIn } from "lucide-react";
 import { QuoteButton } from "@/components/landing/QuoteButton";
@@ -95,10 +96,13 @@ function LocalBusinessSchema() {
   };
 
   return (
-    <script
+    <Script
+      id="local-business-schema"
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-    />
+      strategy="afterInteractive"
+    >
+      {JSON.stringify(schema)}
+    </Script>
   );
 }
 

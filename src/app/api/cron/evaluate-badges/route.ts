@@ -8,6 +8,7 @@ import {
   isEligibleForPromotionReady,
 } from "@/lib/badges";
 import { requireCronAuth } from "@/lib/cron-auth";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * GET /api/cron/evaluate-badges — v8.3 E8 (D.11).
@@ -53,7 +54,8 @@ export async function GET(request: NextRequest) {
       .is("deleted_at", null);
 
     if (empError) {
-      return NextResponse.json({ error: empError.message }, { status: 500 });
+      console.error("empError:", empError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const awarded: { employeeId: string; badgeKey: string }[] = [];
@@ -139,8 +141,7 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole, getServiceRoleClient } from "@/lib/admin";
+import { safeErrorResponse } from "@/lib/api-errors";
 import {
   calculatePrice,
   calculateHold,
@@ -7,17 +8,16 @@ import {
   getCurrentHHETable,
   CONSENT_VERSIONS,
   ServiceType,
-  GST_RATE,
-  PST_RATE,
   MARGIN_FLOOR_PERCENT,
   computePrintedInvoiceCharge,
+  computeTaxBreakdown,
   ACTIVE_ZONES,
   SERVICE_CATEGORIES,
   SERVICE_SUBTYPES,
   PET_TYPES,
   type ServiceCategory,
 } from "@/lib/pricing";
-import { applyPricingRules, type RuleContext, type PricingRule, type AppliedRule } from "@/lib/rules";
+import { type RuleContext, type PricingRule, type AppliedRule } from "@/lib/rules";
 import { getZoneDemand } from "@/lib/zone-demand";
 import { calculateAddonZonesCharge } from "@/lib/pricing";
 import { fetchAddonZoneOptions } from "@/lib/addon-zones";
@@ -372,21 +372,9 @@ export async function POST(request: NextRequest) {
     const addonZonesCharge = calculateAddonZonesCharge(availableAddonZones, addonZones || [], targetHourlyRate);
     const validatedAddonZones = (addonZones || []).filter((z) => availableAddonZones.some((a) => a.zone === z));
 
-    const baseBreakdown = calculatePrice(
-      serviceType as ServiceType,
-      squareFeet!,
-      petsCount!,
-      petsType!,
-      residents!,
-      daysSinceCleaning!,
-      zone!,
-      dayOfWeek,
-      isPreferredDay,
-      targetHourlyRate,
-      hheTable,
-      addonZonesCharge
-    );
-
+    // Reglas de pricing activas + contexto se arman ANTES de llamar a
+    // calculatePrice, que ahora invoca applyPricingRules() internamente (fix
+    // auditoría externa, hallazgo #1).
     const { data: rulesData } = await serviceRole
       .from("pricing_rules")
       .select("id, name, description, condition_json, action_type, action_value, priority, max_applicable, is_active")
@@ -410,13 +398,8 @@ export async function POST(request: NextRequest) {
     // rolling de 14 días para la zona, igual que quote/route.ts.
     const zoneDemand = await getZoneDemand(serviceRole, zone!, null);
 
-    const ruleContext: RuleContext = {
-      zone: zone!,
-      dayOfWeek: dayOfWeek ?? new Date().getDay(),
-      isPreferredDay: isPreferredDay ?? true,
-      serviceType: serviceType!,
+    const ruleContextExtra: Partial<RuleContext> = {
       serviceSubtype: serviceSubtype!,
-      squareFeet: squareFeet!,
       clientScore: clientProfile.score,
       servicesCount: clientProfile.services_count || 0,
       disputesLostCount: clientProfile.disputes_lost_count || 0,
@@ -424,13 +407,28 @@ export async function POST(request: NextRequest) {
       clientType: deriveClientType(clientProfile.services_count || 0, clientProfile.score),
       zoneDemand,
       organicLoad: deriveOrganicLoad(petsCount!, petsType!, residents!),
-      daysSinceCleaning: daysSinceCleaning!,
       advanceNoticeDays: 0,
     };
 
-    const ruleResult = applyPricingRules(rules, ruleContext, baseBreakdown.basePrice, baseBreakdown.subtotal);
-    if (ruleResult.blocked) {
-      return NextResponse.json({ error: ruleResult.blockReason || "Quote blocked by pricing rule", code: "RULE_BLOCKED" }, { status: 400 });
+    const baseBreakdown = calculatePrice(
+      serviceType as ServiceType,
+      squareFeet!,
+      petsCount!,
+      petsType!,
+      residents!,
+      daysSinceCleaning!,
+      zone!,
+      dayOfWeek,
+      isPreferredDay,
+      targetHourlyRate,
+      hheTable,
+      addonZonesCharge,
+      rules,
+      ruleContextExtra
+    );
+
+    if (baseBreakdown.blocked) {
+      return NextResponse.json({ error: baseBreakdown.blockReason || "Quote blocked by pricing rule", code: "RULE_BLOCKED" }, { status: 400 });
     }
 
     // 6. Factura impresa opcional (+$2 B2C; B2B/Gov siempre incluida, ver
@@ -441,7 +439,7 @@ export async function POST(request: NextRequest) {
     const finalPrintedInvoiceRequested =
       printedInvoiceRequested !== undefined ? !!printedInvoiceRequested : !!clientProfile.printed_invoice_requested;
     const printedInvoiceCharge = computePrintedInvoiceCharge(finalPrintedInvoiceRequested, accountType);
-    const appliedRules: AppliedRule[] = [...ruleResult.appliedRules];
+    const appliedRules: AppliedRule[] = [...baseBreakdown.appliedRules];
     if (printedInvoiceCharge > 0) {
       appliedRules.push({
         ruleId: "printed_invoice_surcharge",
@@ -452,10 +450,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const subtotalAfterRules = Math.round(Math.max(0, baseBreakdown.subtotal + ruleResult.adjustment + printedInvoiceCharge));
-    const gst = Math.round(subtotalAfterRules * GST_RATE * 100) / 100;
-    const pst = Math.round(subtotalAfterRules * PST_RATE * 100) / 100;
-    const totalAfterRules = Math.round((subtotalAfterRules + gst + pst) * 100) / 100;
+    // baseBreakdown.subtotal/gst/pst/total ya incluyen el ajuste real del
+    // motor de reglas (aritmética en centavos -- fix auditoría externa,
+    // hallazgos #1 y #2). Solo falta sumar el recargo de factura impresa.
+    const { subtotal: subtotalAfterRules, gst, pst, total: totalAfterRules } = computeTaxBreakdown(
+      baseBreakdown.subtotal + printedInvoiceCharge
+    );
+    const ruleAdjustment = baseBreakdown.ruleAdjustment + printedInvoiceCharge;
     const holdAmount = calculateHold(serviceType as ServiceType, squareFeet!, totalAfterRules, targetHourlyRate);
 
     const freeze = new Date(Date.now() + 10 * 60 * 1000);
@@ -466,10 +467,9 @@ export async function POST(request: NextRequest) {
     const marginContribution = subtotalAfterRules > 0 ? (subtotalAfterRules - estimatedLaborCost) / subtotalAfterRules : 0;
     const marginBelowFloor = marginContribution < MARGIN_FLOOR_PERCENT;
 
-    let adminReviewRequired = baseBreakdown.adminReviewRequired || ruleResult.flagged || marginBelowFloor;
+    let adminReviewRequired = baseBreakdown.adminReviewRequired || marginBelowFloor;
     const adminReviewReasons: string[] = [];
     if (baseBreakdown.adminReviewReason) adminReviewReasons.push(baseBreakdown.adminReviewReason);
-    if (ruleResult.flagReason) adminReviewReasons.push(ruleResult.flagReason);
     if (marginBelowFloor) {
       adminReviewReasons.push(
         `Contribution margin ${(marginContribution * 100).toFixed(1)}% below the ${(MARGIN_FLOOR_PERCENT * 100).toFixed(0)}% floor after rules`
@@ -509,7 +509,7 @@ export async function POST(request: NextRequest) {
         logistics_surcharge: baseBreakdown.logisticsSurcharge,
         addon_zones: validatedAddonZones,
         addon_zones_charge: baseBreakdown.addonZonesCharge,
-        rule_adjustment: ruleResult.adjustment + printedInvoiceCharge,
+        rule_adjustment: ruleAdjustment,
         applied_rules: appliedRules,
         subtotal: subtotalAfterRules,
         gst, pst, total: totalAfterRules,
@@ -564,7 +564,7 @@ export async function POST(request: NextRequest) {
           logisticsSurcharge: baseBreakdown.logisticsSurcharge,
           addonZonesCharge: baseBreakdown.addonZonesCharge,
           printedInvoiceCharge,
-          ruleAdjustment: ruleResult.adjustment,
+          ruleAdjustment,
           subtotal: subtotalAfterRules,
           gst, pst, total: totalAfterRules,
           holdAmount,
@@ -577,7 +577,6 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (err: Error | unknown) {
-    console.error("Phone booking API error:", err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

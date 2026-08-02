@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireAdminRole } from "@/lib/admin";
 import type { AdminRole } from "@/lib/admin-rbac";
+import { EMAIL_REGEX, findAuthUserByEmail } from "@/lib/admin-auth-users";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * v8.3 B-2 (auditoría go-live 2026-07-20) — alta/baja de roles administrativos.
@@ -26,12 +28,6 @@ import type { AdminRole } from "@/lib/admin-rbac";
 
 const VALID_ROLES: AdminRole[] = ["owner_admin", "ops_coordinator", "qc_only"];
 
-// Fix (auditoría 2026-07-31, hallazgo confirmado): `!email.includes("@")` dejaba
-// pasar strings como "a@b" o "@@@" -- mismo problema ya identificado y arreglado
-// en src/components/cotizador/AuthModal.tsx (auditoría externa 2026-07-24).
-// Regex simple de formato, no pretende cubrir RFC 5322 completo.
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 function getAdminSupabase() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -39,46 +35,11 @@ function getAdminSupabase() {
   return createClient(supabaseUrl, supabaseServiceKey);
 }
 
-// Fix (auditoría externa 2026-07-30, BUG 4): supabase-js (^2.110.0, ver
-// package.json) no expone un método admin para buscar un usuario por email
-// directamente -- auth.admin.listUsers() solo soporta paginación manual
-// (page/perPage, ver node_modules/@supabase/supabase-js referencia
-// auth-admin-listusers). Antes se llamaba listUsers() UNA vez sin
-// paginar -- en un proyecto con más usuarios que el tamaño de página default
-// (50), el email buscado podía estar en una página no traída, y el código
-// caía en "usuario no encontrado" aunque la cuenta sí existiera, dejando
-// (potencialmente) un admin_roles huérfano si el resto del flujo asumiera
-// éxito. Este helper pagina explícitamente hasta encontrar el email o
-// agotar las páginas.
-const LIST_USERS_PAGE_SIZE = 1000;
-
-async function findAuthUserByEmail(
-  adminSupabase: NonNullable<ReturnType<typeof getAdminSupabase>>,
-  normalizedEmail: string
-) {
-  let page = 1;
-  // Tope de seguridad para no loopear indefinidamente si Supabase alguna vez
-  // devolviera un error transitorio sin marcarlo como `error` -- 500 páginas
-  // de 1000 = 500k usuarios, muy por encima de cualquier escala realista de
-  // este proyecto.
-  const MAX_PAGES = 500;
-  while (page <= MAX_PAGES) {
-    const { data, error } = await adminSupabase.auth.admin.listUsers({
-      page,
-      perPage: LIST_USERS_PAGE_SIZE,
-    });
-    if (error) {
-      console.error("findAuthUserByEmail listUsers error:", error);
-      return null;
-    }
-    const match = data.users.find((u) => u.email?.toLowerCase() === normalizedEmail);
-    if (match) return match;
-    if (data.users.length < LIST_USERS_PAGE_SIZE) return null; // última página, no había más
-    page++;
-  }
-  console.error("findAuthUserByEmail: se alcanzó MAX_PAGES sin encontrar el email ni agotar la lista");
-  return null;
-}
+// Fix (auditoría de integridad de datos 2026-08-01): EMAIL_REGEX y
+// findAuthUserByEmail (paginación completa de auth.admin.listUsers()) se
+// movieron a src/lib/admin-auth-users.ts para que POST /api/admin/empleados
+// pueda reusar exactamente esta misma lógica en vez de tener su propia copia
+// desactualizada (ver ese archivo).
 
 // GET /api/admin/roles — lista roles administrativos activos con email del usuario.
 export async function GET() {
@@ -122,9 +83,7 @@ export async function GET() {
 
     return NextResponse.json({ roles }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Admin roles list error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }
 
@@ -238,9 +197,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Admin role create error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }
 
@@ -320,8 +277,6 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ revoked: true }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Admin role revoke error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -262,9 +263,11 @@ export default function AdminServicioDetailClient() {
                         )}
 
                         {item.photoUrl && (
-                          <img
+                          <Image
                             src={item.photoUrl}
                             alt={t("evidenceAltText")}
+                            width={96}
+                            height={96}
                             className="mt-2 rounded-lg w-24 h-24 object-cover"
                           />
                         )}

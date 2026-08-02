@@ -4,6 +4,7 @@ import { refundPayPalCapture } from "@/lib/paypal";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { requireCronAuth } from "@/lib/cron-auth";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/cron/paypal-refunds
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("PayPal refunds fetch error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const results: { orderId: string; status: string; error?: string }[] = [];
@@ -142,8 +143,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("PayPal refunds cron error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

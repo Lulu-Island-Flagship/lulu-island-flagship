@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getVancouverTodayMidnight } from "@/lib/date-utils";
+import { safeErrorResponse } from "@/lib/api-errors";
 import {
   decideRestDocumentation,
   computeContinuousMinutesAfterTransit,
@@ -48,8 +49,10 @@ export async function GET(request: NextRequest) {
       .gte("timestamp", yesterdayStart.toISOString())
       .lt("timestamp", yesterdayEnd.toISOString())
       .order("timestamp", { ascending: true });
-    if (logsError) return NextResponse.json({ error: logsError.message }, { status: 500 });
-
+    if (logsError) {
+      console.error("logsError:", logsError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     const employeeIds = Array.from(new Set((logs || []).map((l) => l.employee_id)));
     const roleByEmployee = new Map<string, RestRole>();
     if (employeeIds.length > 0) {
@@ -133,7 +136,10 @@ export async function GET(request: NextRequest) {
       const { error: insertError } = await supabase
         .from("employee_rest_periods")
         .upsert(inserts, { onConflict: "employee_id,order_id_before,order_id_after", ignoreDuplicates: true });
-      if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
+      if (insertError) {
+        console.error("insertError:", insertError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
     }
 
     return NextResponse.json(
@@ -141,7 +147,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

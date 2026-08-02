@@ -1,8 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 
 /**
  * GET /api/public/live-portfolio — sin autenticación, para el marketing
@@ -18,7 +16,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholde
  * anonimizar.
  */
 export async function GET(_request: NextRequest) {
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  const supabase = createClient(getSupabaseUrl(), getSupabaseAnonKey());
 
   const { data, error } = await supabase
     .from("live_portfolio_candidates")
@@ -28,7 +26,7 @@ export async function GET(_request: NextRequest) {
     .order("approved_at", { ascending: false })
     .limit(50);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error("Supabase query error:", error); return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 }); }
 
   return NextResponse.json({ entries: data || [] }, { status: 200 });
 }

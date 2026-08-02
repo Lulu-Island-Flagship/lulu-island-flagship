@@ -8,6 +8,8 @@ import {
 import { evaluateLowScoreStreak, type WeeklyScoreRecord } from "@/lib/low-score-streak";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { requireCronAuth } from "@/lib/cron-auth";
+import { getSupabaseServiceKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /** v8.3 E5: cuántas semanas anteriores hace falta mirar para detectar una racha de 3. */
 const STREAK_LOOKBACK_WEEKS = 2;
@@ -43,11 +45,8 @@ const NEUTRAL_PEER_SCORE = 10; // 0-20, mismo valor neutral que usa recalculate_
  * anti-colusión probablemente nunca se persistieron. Mismo fix que
  * dispatch-scheduler/safety-abort-escalation/wellbeing-chemical-reassign.
  */
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder";
-
 function getSupabaseClient() {
-  return createClient(supabaseUrl, supabaseServiceKey);
+  return createClient(getSupabaseUrl(), getSupabaseServiceKey());
 }
 
 // GET /api/cron/weekly-scores — recalcular scores semanales de todos los empleados
@@ -98,7 +97,8 @@ export async function GET(request: NextRequest) {
       .eq("is_active", true);
 
     if (empError) {
-      return NextResponse.json({ error: empError.message }, { status: 500 });
+      console.error("empError:", empError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // v8.3 E5 anti-gaming: votos crudos de la semana para detectar colusión
@@ -305,7 +305,6 @@ export async function GET(request: NextRequest) {
       results,
     }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

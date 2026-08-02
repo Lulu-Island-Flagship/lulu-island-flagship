@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole, getServiceRoleClient } from "@/lib/admin";
 import { computePurgeEligibleAt } from "@/lib/pipeda";
+import { isValidUuid } from "@/lib/validation";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * PATCH /api/admin/pipeda/requests/[id] — v8.3 E9.9. Avanza el estado de
@@ -62,6 +64,13 @@ export async function PATCH(
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
   const { supabase } = auth;
+
+  // Fix (auditoría de integridad de datos 2026-08-01): params.id no se
+  // validaba como UUID antes de usarse contra data_subject_requests (y, para
+  // deletion, contra el cascade de borrado de client_profiles/orders/etc).
+  if (!isValidUuid(params.id)) {
+    return NextResponse.json({ error: "Invalid request id" }, { status: 400 });
+  }
 
   try {
     const body = await request.json();
@@ -188,19 +197,36 @@ export async function PATCH(
         const cascadeErrors = cascadeResults
           .map((r, i) => (r.status === "fulfilled" && r.value.error ? { i, message: r.value.error.message } : null))
           .filter((x): x is { i: number; message: string } => x !== null);
-        if (cascadeErrors.length > 0) {
-          // No se aborta la solicitud por esto -- client_profiles (el soft
-          // delete "central") ya se intentó igual que el resto, y el admin
-          // necesita poder cerrar el ticket dentro del SLA de 48h aunque una
-          // tabla secundaria falle. Se deja rastro en la respuesta.
-          //
+        // Also treat a rejected promise (network/throw, not just a returned
+        // `.error`) as a cascade failure -- Promise.allSettled can report
+        // status "rejected" for the promise itself, which the mapping above
+        // did not account for.
+        const cascadeRejections = cascadeResults
+          .map((r, i) => (r.status === "rejected" ? { i, message: String(r.reason) } : null))
+          .filter((x): x is { i: number; message: string } => x !== null);
+        const allCascadeErrors = [...cascadeErrors, ...cascadeRejections];
+
+        if (allCascadeErrors.length > 0) {
+          // Fix (auditoría de integridad de datos 2026-08-01): antes, CUALQUIER
+          // resultado de la cascada (incluso con errores parciales) marcaba la
+          // solicitud como 'completed' -- un falso registro de cumplimiento
+          // PIPEDA: un auditor vería la solicitud cerrada exitosamente aunque,
+          // por ejemplo, `orders` nunca se haya borrado. Ahora, si CUALQUIER
+          // paso del cascade falla, la solicitud NO se marca 'completed' --
+          // queda en 'partial_failure' (migración 306) con el detalle de qué
+          // falló, para reintento manual. `purge_eligible_at` tampoco se
+          // confirma como si el borrado hubiera sido exitoso.
+          updatePayload.status = "partial_failure";
+          delete updatePayload.completed_at;
+          delete updatePayload.purge_eligible_at;
+
           // Fix (auditoría 2026-07-31, item 4): antes esto se escribía en
           // `correction_details`, columna documentada (migración 142) como
           // exclusiva de request_type = 'correction' -- semánticamente
           // incorrecta para una solicitud de ELIMINACIÓN y confusa para
           // cualquiera que audite el registro después. Se usa la columna
-          // dedicada `deletion_errors` (migración 287).
-          updatePayload.deletion_errors = `[E-B5] Cascada de borrado con errores parciales: ${JSON.stringify(cascadeErrors)}`;
+          // dedicada `deletion_errors` (migración 293).
+          updatePayload.deletion_errors = `[E-B5] Cascada de borrado con errores parciales: ${JSON.stringify(allCascadeErrors)}`;
         }
       }
 
@@ -214,12 +240,12 @@ export async function PATCH(
         console.error("admin/pipeda/requests/[id] error:", error);
         return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
-      return NextResponse.json({ request: updated }, { status: 200 });
+      const responseStatus = updatePayload.status === "partial_failure" ? 207 : 200;
+      return NextResponse.json({ request: updated }, { status: responseStatus });
     }
 
     return NextResponse.json({ error: "action must be start_processing, complete, or deny" }, { status: 400 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

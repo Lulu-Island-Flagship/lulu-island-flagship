@@ -67,6 +67,16 @@ export function arbitrateThrottle(
     if (m.priority === "urgent" || m.category === "transactional") send.push(m);
   }
 
+  // Fix (auditoría externa, hallazgo #4): antes, si en el mismo ciclo se
+  // proponían mensajes transaccionales/urgentes Y de marketing para el
+  // MISMO usuario, ambos se enviaban -- violando la regla anti-fatiga (M13
+  // F13.3: "un cliente nunca recibe trigger físico Y campaña la misma
+  // semana"). El chequeo de `marketingSentThisWeek` solo miraba envíos de
+  // ciclos ANTERIORES, no lo que se está enviando en ESTE ciclo. Ahora se
+  // calcula el set de usuarios que van a recibir un transaccional/urgente en
+  // este mismo ciclo y se pospone cualquier marketing para ellos también.
+  const usersReceivingUrgentOrTransactionalThisCycle = new Set(send.map((m) => m.userId));
+
   // 2. Marketing: máximo UNO por usuario por semana; el de mayor peso gana
   const marketingByUser = new Map<string, ProposedMessage[]>();
   for (const m of proposed) {
@@ -76,6 +86,15 @@ export function arbitrateThrottle(
   }
 
   marketingByUser.forEach((candidates, userId) => {
+    if (usersReceivingUrgentOrTransactionalThisCycle.has(userId)) {
+      for (const m of candidates) {
+        postponed.push({
+          message: m,
+          reason: "Usuario recibe un mensaje transaccional/urgente en este mismo ciclo (M13 F13.3: no bombardear)",
+        });
+      }
+      return;
+    }
     if (marketingSentThisWeek.has(userId)) {
       for (const m of candidates) {
         postponed.push({ message: m, reason: "Usuario ya recibió marketing esta semana (M13 F13.3)" });

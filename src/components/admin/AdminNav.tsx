@@ -182,7 +182,7 @@ function DesktopDropdown({ group, pathname }: { group: NavGroup; pathname: strin
         aria-haspopup="true"
         aria-current={groupActive ? "true" : undefined}
         className={`flex items-center gap-1 text-sm transition-colors py-2 ${
-          groupActive ? "text-brand-gold font-semibold" : "hover:text-brand-gold"
+          groupActive ? "text-white font-semibold underline underline-offset-4" : "hover:text-white"
         }`}
       >
         {group.label}
@@ -269,7 +269,7 @@ export default function AdminNav({ adminPath, roles }: { adminPath: string; role
               <div key={group.label} className="border-t border-white/10">
                 <button
                   className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium ${
-                    groupActive ? "text-brand-gold" : ""
+                    groupActive ? "text-white underline underline-offset-4" : ""
                   }`}
                   onClick={() =>
                     setMobileGroupOpen((v) => (v === group.label ? null : group.label))
@@ -295,7 +295,7 @@ export default function AdminNav({ adminPath, roles }: { adminPath: string; role
                           href={link.href}
                           aria-current={active ? "page" : undefined}
                           className={`block px-8 py-2 text-sm ${
-                            active ? "text-brand-gold font-semibold" : "text-white/80 hover:text-white"
+                            active ? "text-white font-semibold underline underline-offset-4" : "text-white/80 hover:text-white"
                           }`}
                           onClick={() => setMobileOpen(false)}
                         >

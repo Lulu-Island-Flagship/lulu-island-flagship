@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { loadDisputeResolutionContext } from "../_shared";
+import { isValidUuid } from "@/lib/validation";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/warranty-claims/[id] — detalle de un reclamo con las fotos
 // de cierre de TODAS las zonas del checklist (para que el admin vea
@@ -18,6 +20,13 @@ export async function GET(
 
   try {
     const { id } = await params;
+
+    // Fix (auditoría de integridad de datos 2026-08-01): id no se validaba
+    // como UUID antes de usarse en la query.
+    if (!isValidUuid(id)) {
+      return NextResponse.json({ error: "Invalid claim id" }, { status: 400 });
+    }
+
     const ctx = await loadDisputeResolutionContext(auth.supabase, id);
 
     if ("error" in ctx) {
@@ -34,7 +43,6 @@ export async function GET(
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

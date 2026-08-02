@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { evaluateSafetyAbortEscalation } from "@/lib/safety-abort";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/safety-aborts — bandeja de SOS activos + historial.
 // v8.3 E7 (D.10 #7): usa el recurso RBAC "tickets" (ya existente en
@@ -41,7 +42,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ safetyAborts: withComputedStage }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

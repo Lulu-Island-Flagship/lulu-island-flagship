@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getSupabaseServiceKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * v8.3 AUDITORÍA RESERVA→DINERO→RESEÑA — hallazgo real (justo el último
@@ -16,11 +18,8 @@ import { createClient } from "@supabase/supabase-js";
  * confianza que ya usa buildPaymentUpdateLink/el link de actualización de
  * pago. Se usa service role, con el token como única puerta de entrada.
  */
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder";
-
 function getSupabaseClient() {
-  return createClient(supabaseUrl, supabaseServiceKey);
+  return createClient(getSupabaseUrl(), getSupabaseServiceKey());
 }
 
 function getClientIp(request: NextRequest): string {
@@ -193,7 +192,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (reviewError) {
-      return NextResponse.json({ error: reviewError.message }, { status: 500 });
+      console.error("reviewError:", reviewError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // Si sentimiento < -0.5, crear alerta
@@ -215,7 +215,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ review }, { status: 201 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

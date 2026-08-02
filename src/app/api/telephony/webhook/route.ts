@@ -10,6 +10,7 @@ import {
 } from "@/lib/telephony-router";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { maskPhoneNumber } from "@/lib/sms";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/telephony/webhook — v8.3 E6.2, Telefonía semántica.
@@ -314,9 +315,7 @@ export async function POST(request: NextRequest) {
   try {
     matrix = await buildTodayDispatchMatrix(supabase);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("[telephony/webhook] Error construyendo la matriz de despacho:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 
   // Idioma de respaldo si no hay match (no hay cuenta de la que leer el

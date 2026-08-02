@@ -4,6 +4,8 @@ import { requireAdminRole } from "@/lib/admin";
 import { SUPPORTED_LANGUAGE_CODES } from "@/lib/languages";
 import { BC_MIN_WAGE_HOURLY, DEFAULT_SERVICE_MINUTES } from "@/lib/payroll";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { EMAIL_REGEX, findAuthUserByEmail } from "@/lib/admin-auth-users";
+import { getVancouverTodayString } from "@/lib/date-utils";
 
 // v8.3 auditoría 2026-07-21 (D-P1-8): la única validación de dayRate era
 // "> 0" -- un dayRate=50 ($50/día para una jornada de 8h) equivale a
@@ -87,7 +89,10 @@ export async function POST(request: NextRequest) {
     if (typeof name !== "string" || !name.trim()) {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
     }
-    if (typeof email !== "string" || !email.trim() || !email.includes("@")) {
+    // Fix (auditoría de integridad de datos 2026-08-01): `!email.includes("@")`
+    // dejaba pasar strings como "a@b" -- se reusa el mismo regex ya arreglado
+    // en src/app/api/admin/roles/route.ts (ahora en src/lib/admin-auth-users.ts).
+    if (typeof email !== "string" || !email.trim() || !EMAIL_REGEX.test(email.trim())) {
       return NextResponse.json({ error: "A valid email is required" }, { status: 400 });
     }
     const validRoles = ["cleaner", "supervisor", "driver"];
@@ -145,14 +150,16 @@ export async function POST(request: NextRequest) {
     );
 
     if (inviteError) {
-      const { data: existingUsers, error: listError } =
-        await adminSupabase.auth.admin.listUsers();
-      const existingAuthUser = !listError
-        ? existingUsers.users.find((u) => u.email?.toLowerCase() === normalizedEmail)
-        : undefined;
+      // Fix (auditoría de integridad de datos 2026-08-01): antes esto llamaba
+      // auth.admin.listUsers() SIN paginar (default 50 resultados) -- en un
+      // proyecto con más de 50 usuarios, el email buscado podía estar en una
+      // página no traída y el endpoint devolvía 500 aunque la cuenta sí
+      // existiera. Se reusa el mismo helper paginado ya arreglado en
+      // src/app/api/admin/roles/route.ts (ahora en src/lib/admin-auth-users.ts).
+      const existingAuthUser = await findAuthUserByEmail(adminSupabase, normalizedEmail);
 
       if (!existingAuthUser) {
-        console.error("Employee invite error:", inviteError, listError);
+        console.error("Employee invite error:", inviteError);
         return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
       authUserId = existingAuthUser.id;
@@ -171,7 +178,7 @@ export async function POST(request: NextRequest) {
         day_rate: typeof dayRate === "number" ? dayRate : 200,
         languages: Array.isArray(languages) ? languages : ["en"],
         home_zone: typeof homeZone === "string" ? homeZone.trim() || null : null,
-        hire_date: typeof hireDate === "string" ? hireDate : new Date().toISOString().split("T")[0],
+        hire_date: typeof hireDate === "string" ? hireDate : getVancouverTodayString(),
         is_active: false,
       })
       .select("id, name, email, role, phone, is_active, day_rate, languages, home_zone, hire_date, career_level, created_at")

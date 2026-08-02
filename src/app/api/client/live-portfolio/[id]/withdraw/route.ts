@@ -2,13 +2,12 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { isWithdrawalWindowOpen } from "@/lib/live-portfolio";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { isValidUuid } from "@/lib/validation";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -41,12 +40,21 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Fix (auditoría de integridad de datos 2026-08-01): params.id no se
+  // validaba como UUID antes de usarse contra live_portfolio_candidates.
+  if (!isValidUuid(params.id)) {
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  }
+
   const { data: entry, error: fetchError } = await supabase
     .from("live_portfolio_candidates")
     .select("id, client_user_id, status, approved_at")
     .eq("id", params.id)
     .maybeSingle();
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
+  if (fetchError) {
+    console.error("fetchError:", fetchError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   if (!entry || entry.client_user_id !== user.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -73,7 +81,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error("Supabase query error:", error); return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 }); }
 
   return NextResponse.json({ entry: data }, { status: 200 });
 }

@@ -156,7 +156,6 @@ export default function ConfirmActionModal({
                 <input
                   id={`confirm-action-field-${f.key}`}
                   type={f.type || "text"}
-                  autoFocus={f.autoFocus}
                   value={values[f.key] ?? ""}
                   onChange={(e) => setValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
                   placeholder={f.placeholder}

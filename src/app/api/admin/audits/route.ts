@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { isAuditSampleSelected, getMandatoryAuditTriggers } from "@/lib/field-audit-sampling";
 import { NEW_CLIENT_MAX_SERVICES } from "@/lib/client-segmentation";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/audits — servicios completados pendientes de auditoría + historial de evaluaciones
 export async function GET(request: NextRequest) {
@@ -238,8 +239,7 @@ export async function GET(request: NextRequest) {
       peerVoteAggregates: Object.fromEntries(voteMap),
     }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }
 
@@ -322,7 +322,6 @@ export async function POST(request: NextRequest) {
       clientAnnounced: shouldAnnounce,
     }, { status: 201 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

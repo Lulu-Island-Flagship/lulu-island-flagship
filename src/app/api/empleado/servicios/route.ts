@@ -2,15 +2,14 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
   return createServerClient(
-    supabaseUrl,
-    supabaseKey,
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     {
       cookies: {
         get(name: string) {
@@ -73,7 +72,8 @@ export async function GET() {
 
     if (ordersDateError) {
       console.error("Orders date fetch error:", ordersDateError);
-      return NextResponse.json({ error: ordersDateError.message }, { status: 500 });
+      console.error("ordersDateError:", ordersDateError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const todaysOrderIds = (todaysOrders || []).map((o) => o.id);
@@ -102,7 +102,8 @@ export async function GET() {
 
     if (assignError) {
       console.error("Assignments fetch error:", assignError);
-      return NextResponse.json({ error: assignError.message }, { status: 500 });
+      console.error("assignError:", assignError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     if (!assignments || assignments.length === 0) {
@@ -131,7 +132,8 @@ export async function GET() {
 
     if (ordersError) {
       console.error("Orders fetch error:", ordersError);
-      return NextResponse.json({ error: ordersError.message }, { status: 500 });
+      console.error("ordersError:", ordersError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // Paso 3: Obtener las quotes asociadas
@@ -157,7 +159,8 @@ export async function GET() {
 
     if (quotesError) {
       console.error("Quotes fetch error:", quotesError);
-      return NextResponse.json({ error: quotesError.message }, { status: 500 });
+      console.error("quotesError:", quotesError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // Crear mapas para lookup rápido
@@ -228,8 +231,6 @@ export async function GET() {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Employee services error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

@@ -10,6 +10,7 @@ import {
   type OrderClaimForCaptureDecision,
 } from "@/lib/batch-capture-eligibility";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/cron/batch-capture-retry
@@ -175,7 +176,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Batch capture retry fetch error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const results = {
@@ -571,8 +572,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Batch capture retry job error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

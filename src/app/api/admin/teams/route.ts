@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // v8.3 E8 FIX-6 — CRUD básico de equipos (teams, migración 099). La tabla
 // ya existía (identidad mínima: nombre + avatar iniciales/color, sin fotos,
@@ -69,8 +70,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ team: data }, { status: 201 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }
 
@@ -113,7 +113,6 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ team: data }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

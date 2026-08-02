@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { isKeyProblemEscalationDue, KEY_PROBLEM_ESCALATION_MINUTES } from "@/lib/key-handling";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { requireCronAuth } from "@/lib/cron-auth";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * GET /api/cron/key-escalation-check — v8.3 E7 fix de auditoría.
@@ -55,7 +56,8 @@ export async function GET(request: NextRequest) {
       .not("escalated_at", "is", null);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Supabase query error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const nowIso = new Date().toISOString();
@@ -89,7 +91,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

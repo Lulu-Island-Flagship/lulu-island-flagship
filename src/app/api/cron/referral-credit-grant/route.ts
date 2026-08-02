@@ -4,6 +4,7 @@ import { dispatchCommunication } from "@/lib/send-communication";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { computeWalletCreditExpiryDate } from "@/lib/wallet";
 import { REFERRAL_CREDIT_CENTS, LEADER_MENTION_BONUS_CENTS } from "@/lib/referrals";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/cron/referral-credit-grant — v8.3 E5.13 "Lulu Ambassador"
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
       .select("id, referrer_user_id, referred_user_id, mentioned_employee_id, created_at")
       .eq("status", "pending");
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) { console.error("Supabase query error:", error); return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 }); }
 
     let credited = 0;
     const results: { referralId: string; status: string }[] = [];
@@ -148,7 +149,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

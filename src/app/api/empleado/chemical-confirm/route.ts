@@ -3,15 +3,14 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { isValidConfirmation, detectHazard, type ChemicalConfirmationAttempt } from "@/lib/chemical-lockout";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
   return createServerClient(
-    supabaseUrl,
-    supabaseKey,
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     {
       cookies: {
         get(name: string) {
@@ -83,7 +82,8 @@ export async function GET(request: NextRequest) {
       .eq("employee_id", employee.id);
 
     if (rowsError) {
-      return NextResponse.json({ error: rowsError.message }, { status: 500 });
+      console.error("rowsError:", rowsError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     return NextResponse.json(
@@ -91,8 +91,7 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }
 
@@ -169,13 +168,13 @@ export async function POST(request: NextRequest) {
       );
 
     if (upsertError) {
-      return NextResponse.json({ error: upsertError.message }, { status: 500 });
+      console.error("upsertError:", upsertError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     activeColors.add(targetColor);
     return NextResponse.json({ ok: true, confirmedColors: Array.from(activeColors) }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

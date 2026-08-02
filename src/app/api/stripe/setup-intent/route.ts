@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { assertStripe } from "@/lib/stripe";
 import type Stripe from "stripe";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // Fix (auditoría externa, verificado 2026-07-31): antes, si faltaban las
 // env vars de Supabase, se usaban placeholders en silencio (ver mismo fix
@@ -170,8 +171,6 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("SetupIntent error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

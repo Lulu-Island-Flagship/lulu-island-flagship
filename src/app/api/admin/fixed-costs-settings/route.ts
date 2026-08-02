@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { getVancouverTodayString } from "@/lib/date-utils";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * GET/PATCH /api/admin/fixed-costs-settings
@@ -51,7 +53,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "reason is required for the audit trail" }, { status: 400 });
     }
 
-    const todayIso = new Date().toISOString().split("T")[0];
+    const todayIso = getVancouverTodayString();
     const monthlyFixedCostsCents = Math.round(monthlyFixedCostsDollars * 100);
 
     // Auditoría 2026-07-30 (Bug #3): antes esto era un update (cerrar la
@@ -74,7 +76,8 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
       if (rpcError.code === "22023") {
-        return NextResponse.json({ error: rpcError.message }, { status: 400 });
+        console.error("rpcError:", rpcError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 400 });
       }
       console.error("admin/fixed-costs-settings error:", rpcError);
       return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
@@ -82,7 +85,6 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ setting: newSetting }, { status: 200 });
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }

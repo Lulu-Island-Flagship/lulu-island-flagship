@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { assertStripe } from "@/lib/stripe";
 import { computeCancellationDecision } from "@/lib/order-cancellation";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
  * POST /api/orders/[orderId]/cancel
@@ -468,8 +469,6 @@ export async function POST(
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Cancel order error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }

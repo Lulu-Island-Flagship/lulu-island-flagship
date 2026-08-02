@@ -91,15 +91,20 @@ export default function AdminTicketsClient() {
   }, [selectedTicket]);
 
   useEffect(() => {
-    loadTickets();
+    const controller = new AbortController();
+    loadTickets(controller.signal);
+    return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
-  async function loadTickets() {
+  async function loadTickets(signal?: AbortSignal) {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/tickets?status=${statusFilter}`, { credentials: "include" });
+      const res = await fetch(`/api/admin/tickets?status=${statusFilter}`, {
+        credentials: "include",
+        signal,
+      });
       if (!res.ok) {
         const err = await res.json();
         setError(err.error || t("loadError"));
@@ -108,10 +113,16 @@ export default function AdminTicketsClient() {
       }
       const data = await res.json();
       setTickets(data.tickets || []);
-    } catch {
+    } catch (err) {
+      // Fix (auditoría frontend 2026-08-01, item 6): cambiar de filtro
+      // rápidamente cancela el fetch anterior -- AbortError es la
+      // cancelación esperada, no un error de red real.
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError(t("networkError"));
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
   }
 

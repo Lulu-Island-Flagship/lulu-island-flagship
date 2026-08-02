@@ -4,13 +4,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { computeWalletCreditExpiryDate } from "@/lib/wallet";
 import { dispatchCommunication } from "@/lib/send-communication";
 import { isEligibleForReferralCode } from "@/lib/referrals";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -70,7 +68,10 @@ export async function POST(request: NextRequest) {
     .select("id, user_id, service_date, pre_review_survey_sent_at")
     .eq("pre_review_survey_token", body.token)
     .maybeSingle();
-  if (orderError) return NextResponse.json({ error: orderError.message }, { status: 500 });
+  if (orderError) {
+    console.error("orderError:", orderError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   if (!order || order.user_id !== user.id) {
     return NextResponse.json({ error: "Encuesta no encontrada" }, { status: 404 });
   }
@@ -112,7 +113,10 @@ export async function POST(request: NextRequest) {
       })
       .select("id")
       .single();
-    if (ticketError) return NextResponse.json({ error: ticketError.message }, { status: 500 });
+    if (ticketError) {
+      console.error("ticketError:", ticketError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
     ticketId = ticket.id;
   }
 
@@ -128,8 +132,10 @@ export async function POST(request: NextRequest) {
     })
     .select()
     .single();
-  if (surveyError) return NextResponse.json({ error: surveyError.message }, { status: 500 });
-
+  if (surveyError) {
+    console.error("surveyError:", surveyError);
+    return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+  }
   // Otorgar el crédito de billetera (mismo patrón que /api/admin/wallet POST,
   // pero server-side sin pasar por el endpoint admin -- este SÍ es el
   // "sistema" otorgando, no un admin a mano).

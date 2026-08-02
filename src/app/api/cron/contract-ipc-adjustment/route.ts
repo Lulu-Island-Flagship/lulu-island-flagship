@@ -3,6 +3,7 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { calculateMinimumWageImpact } from "@/lib/economic-params";
 import { dispatchCommunication } from "@/lib/send-communication";
+import { safeErrorResponse } from "@/lib/api-errors";
 import {
   isIpcNoticeDue,
   isIpcAdjustmentDue,
@@ -178,7 +179,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Contract IPC adjustment fetch error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const results = {
@@ -283,9 +284,7 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Contract IPC adjustment job error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeErrorResponse(err);
   }
 }
 

@@ -4,9 +4,9 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateReadinessRequest, detectAbusePattern, type ReadinessRequestType } from "@/lib/wellbeing";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+import { getVancouverTodayString } from "@/lib/date-utils";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { safeErrorResponse } from "@/lib/api-errors";
 
 // v8.3 auditoría 2026-07-21 (D-P0-3, migración 213): con la RLS
 // restringida, readiness_requests solo se puede insertar como
@@ -17,12 +17,12 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
 function getServiceClient() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceKey) return null;
-  return createClient(supabaseUrl, serviceKey);
+  return createClient(getSupabaseUrl(), serviceKey);
 }
 
 function getSupabaseClient() {
   const cookieStore = cookies();
-  return createServerClient(supabaseUrl, supabaseKey, {
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "requestType inválido" }, { status: 400 });
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = getVancouverTodayString();
     const { start, end } = getQuarterRange(today);
 
     const serviceClient = getServiceClient();
@@ -84,7 +84,8 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (todaysError) {
-      return NextResponse.json({ error: todaysError.message }, { status: 500 });
+      console.error("todaysError:", todaysError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
     if (todaysRequest) {
       return NextResponse.json(
@@ -102,7 +103,8 @@ export async function POST(request: NextRequest) {
       .is("deleted_at", null);
 
     if (qError) {
-      return NextResponse.json({ error: qError.message }, { status: 500 });
+      console.error("qError:", qError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     const familyEmergenciesThisQuarter = (quarterRequests || []).filter(
@@ -163,7 +165,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      console.error("insertError:", insertError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 
     // v8.3 E9: conectar la resolución full_day_rate a la nómina real. El
@@ -197,7 +200,6 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+        return safeErrorResponse(err);
   }
 }
