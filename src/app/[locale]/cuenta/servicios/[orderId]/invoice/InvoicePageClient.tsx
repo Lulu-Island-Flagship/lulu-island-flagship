@@ -9,6 +9,8 @@ import { formatServiceDateDisplay } from "@/lib/date-utils";
 
 interface InvoiceData {
   orderId: string;
+  invoiceNumber?: string;
+  issueDate?: string;
   serviceDate: string;
   address: string | null;
   serviceType: string | null;
@@ -73,7 +75,6 @@ export default function InvoicePageClient() {
 
   return (
     <>
-      {/* Print button (hidden during print) */}
       <div className="max-w-2xl mx-auto px-4 py-4 print:hidden">
         <button
           onClick={handlePrint}
@@ -84,9 +85,7 @@ export default function InvoicePageClient() {
         </button>
       </div>
 
-      {/* Invoice (visible always, styled for print) */}
       <div className="max-w-2xl mx-auto px-6 py-8 bg-white print:max-w-full print:px-12 print:py-0">
-        {/* Header */}
         <div className="border-b-2 border-brand-navy pb-6 mb-6">
           <div className="flex justify-between items-start">
             <div>
@@ -102,7 +101,6 @@ export default function InvoicePageClient() {
           </div>
         </div>
 
-        {/* Service details */}
         <div className="mb-6">
           <h3 className="text-sm font-semibold text-brand-ink/60 uppercase tracking-wider mb-3">{t("serviceDetails")}</h3>
           <div className="grid grid-cols-2 gap-3 text-sm">
@@ -127,7 +125,6 @@ export default function InvoicePageClient() {
           </div>
         </div>
 
-        {/* Pricing */}
         <div className="border-t border-brand-ice pt-4">
           <table className="w-full text-sm">
             <tbody>
@@ -153,7 +150,6 @@ export default function InvoicePageClient() {
           </table>
         </div>
 
-        {/* Footer */}
         <div className="mt-8 pt-4 border-t border-brand-ice text-xs text-brand-ink/40 text-center">
           <p>{t("thankYou")}</p>
           <p className="mt-1">Lulu Island Flagship · Richmond, BC · Cleaning Services</p>
