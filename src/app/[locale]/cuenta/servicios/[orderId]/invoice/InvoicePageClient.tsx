@@ -74,13 +74,30 @@ export default function InvoicePageClient() {
   return (
     <>
       {/* Print button (hidden during print) */}
-      <div className="max-w-2xl mx-auto px-4 py-4 print:hidden">
+      <div className="max-w-2xl mx-auto px-4 py-4 print:hidden flex gap-3">
         <button
           onClick={handlePrint}
           className="inline-flex items-center gap-2 px-4 py-2 bg-brand-navy text-white rounded-lg text-sm font-medium hover:bg-brand-navy/90"
         >
           <Printer className="w-4 h-4" />
           {t("print")}
+        </button>
+        <button
+          onClick={async () => {
+            const res = await fetch(`/api/client/invoice/${orderId}`, { method: "POST", credentials: "include" });
+            if (!res.ok) return;
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `invoice-${orderId.slice(0, 8)}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          className="inline-flex items-center gap-2 px-4 py-2 border border-brand-navy text-brand-navy rounded-lg text-sm font-medium hover:bg-brand-ice/30 transition-colors"
+        >
+          <Download className="w-4 h-4" />
+          {t("downloadPdf")}
         </button>
       </div>
 
