@@ -8,6 +8,7 @@ import {
 } from "@/lib/wallet";
 import { REFERRAL_CREDIT_CENTS } from "@/lib/referrals";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { requireClientCaller } from "@/lib/require-client-caller";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -46,6 +47,11 @@ export async function GET() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const clientGuard = await requireClientCaller(supabase, user.id);
+  if (!clientGuard.ok) {
+    return NextResponse.json({ error: clientGuard.error }, { status: clientGuard.status });
+  }
 
   const { data: wallet } = await supabase
     .from("client_wallets")

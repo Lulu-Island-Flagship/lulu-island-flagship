@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { ORDER_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 import { isValidUuid } from "@/lib/validation";
+import { requireClientCaller } from "@/lib/require-client-caller";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -47,6 +48,11 @@ export async function GET(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const clientGuard = await requireClientCaller(supabase, user.id);
+  if (!clientGuard.ok) {
+    return NextResponse.json({ error: clientGuard.error }, { status: clientGuard.status });
   }
 
   const { orderId } = await params;

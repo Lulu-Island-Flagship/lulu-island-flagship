@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { computeRequestDueAt, isRequestOverdue } from "@/lib/pipeda";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { requireClientCaller } from "@/lib/require-client-caller";
 
 /**
  * GET/POST /api/client/pipeda/request — v8.3 fix E-B5 (auditoría
@@ -76,6 +77,11 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const clientGuard = await requireClientCaller(supabase, user.id);
+  if (!clientGuard.ok) {
+    return NextResponse.json({ error: clientGuard.error }, { status: clientGuard.status });
+  }
+
   const serviceClient = getServiceClient();
   if (!serviceClient) {
     return NextResponse.json(
@@ -114,6 +120,11 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const clientGuard = await requireClientCaller(supabase, user.id);
+  if (!clientGuard.ok) {
+    return NextResponse.json({ error: clientGuard.error }, { status: clientGuard.status });
   }
 
   try {

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { isEligibleForReferralCode, buildReferralCodeCandidate, REFERRAL_CREDIT_CENTS } from "@/lib/referrals";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { requireClientCaller } from "@/lib/require-client-caller";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -38,6 +39,11 @@ export async function GET(_request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const clientGuard = await requireClientCaller(supabase, user.id);
+  if (!clientGuard.ok) {
+    return NextResponse.json({ error: clientGuard.error }, { status: clientGuard.status });
   }
 
   // Fix (auditoría de integridad de datos 2026-08-01): un GET no debe tener

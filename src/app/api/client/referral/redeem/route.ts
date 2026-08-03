@@ -9,6 +9,7 @@ import {
   computeReferralBanExpiry,
   isReferralBanActive,
 } from "@/lib/referrals";
+import { requireClientCaller } from "@/lib/require-client-caller";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -52,6 +53,11 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const clientGuard = await requireClientCaller(supabase, user.id);
+  if (!clientGuard.ok) {
+    return NextResponse.json({ error: clientGuard.error }, { status: clientGuard.status });
   }
 
   let body: { code?: string; mentionedEmployeeId?: string };

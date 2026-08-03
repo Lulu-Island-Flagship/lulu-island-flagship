@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { validateWarrantyClaimInput, isWarrantyClaimEligible, WARRANTY_CLAIM_WINDOW_DAYS } from "@/lib/warranty-claim-validation";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { requireClientCaller } from "@/lib/require-client-caller";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -35,6 +36,11 @@ export async function GET() {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const clientGuard = await requireClientCaller(supabase, user.id);
+  if (!clientGuard.ok) {
+    return NextResponse.json({ error: clientGuard.error }, { status: clientGuard.status });
   }
 
   const { data: claims, error } = await supabase
@@ -80,6 +86,11 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const clientGuard = await requireClientCaller(supabase, user.id);
+  if (!clientGuard.ok) {
+    return NextResponse.json({ error: clientGuard.error }, { status: clientGuard.status });
   }
 
   try {

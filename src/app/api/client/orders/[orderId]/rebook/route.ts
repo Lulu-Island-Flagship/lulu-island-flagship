@@ -5,6 +5,7 @@ import { computeRebookDateOptions } from "@/lib/rebook";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 import { isValidUuid } from "@/lib/validation";
+import { requireClientCaller } from "@/lib/require-client-caller";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -39,6 +40,11 @@ export async function GET(request: NextRequest, { params }: { params: { orderId:
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const clientGuard = await requireClientCaller(supabase, user.id);
+  if (!clientGuard.ok) {
+    return NextResponse.json({ error: clientGuard.error }, { status: clientGuard.status });
   }
 
   if (!isValidUuid(params.orderId)) {

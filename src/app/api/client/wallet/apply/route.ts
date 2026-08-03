@@ -8,6 +8,7 @@ import {
   type WalletTransactionRecord,
 } from "@/lib/wallet";
 import { isValidUuid } from "@/lib/validation";
+import { requireClientCaller } from "@/lib/require-client-caller";
 
 // Fix (auditoría externa, verificado 2026-07-31): antes, si faltaban las
 // env vars de Supabase, se usaban placeholders en silencio (ver mismo fix
@@ -66,6 +67,11 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const clientGuard = await requireClientCaller(supabase, user.id);
+  if (!clientGuard.ok) {
+    return NextResponse.json({ error: clientGuard.error }, { status: clientGuard.status });
   }
 
   let body: { orderId?: string };

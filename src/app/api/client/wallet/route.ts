@@ -7,6 +7,7 @@ import {
   computeAvailableWalletBalance,
   type WalletTransactionRecord,
 } from "@/lib/wallet";
+import { requireClientCaller } from "@/lib/require-client-caller";
 
 function getSupabaseClient() {
   const cookieStore = cookies();
@@ -32,6 +33,11 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const clientGuard = await requireClientCaller(supabase, user.id);
+  if (!clientGuard.ok) {
+    return NextResponse.json({ error: clientGuard.error }, { status: clientGuard.status });
   }
 
   const { data: wallet, error: walletError } = await supabase

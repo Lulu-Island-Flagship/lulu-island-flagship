@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { requireClientCaller } from "@/lib/require-client-caller";
 
 // v8.3 fix (auditoría seguridad 2026-07-26): el regex original
 // (/^\d{4}-\d{2}-\d{2}$/) solo valida el FORMATO -- "2023-99-99" pasaba
@@ -69,6 +70,11 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const clientGuard = await requireClientCaller(supabase, user.id);
+  if (!clientGuard.ok) {
+    return NextResponse.json({ error: clientGuard.error }, { status: clientGuard.status });
+  }
+
   // Fix (auditoría de integridad de datos 2026-08-01): un GET no debe tener
   // side effects (viola la semántica HTTP) -- la versión anterior hacía un
   // upsert() que INSERTABA una fila en client_profiles como efecto
@@ -115,6 +121,11 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const clientGuard = await requireClientCaller(supabase, user.id);
+  if (!clientGuard.ok) {
+    return NextResponse.json({ error: clientGuard.error }, { status: clientGuard.status });
   }
 
   let body: { marketingOptIn?: unknown; birthDate?: unknown };
