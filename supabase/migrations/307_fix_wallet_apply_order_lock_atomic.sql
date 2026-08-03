@@ -55,8 +55,11 @@ BEGIN
   -- nivel externo, la misma validación de ownership que ya usa
   -- apply_wallet_delta: quien invoca este RPC debe ser el dueño autenticado
   -- de p_user_id/p_wallet_id (o una llamada server-side de confianza).
-  IF current_user NOT IN ('service_role', 'postgres', 'supabase_admin') THEN
-    IF auth.uid() IS NULL OR auth.uid() <> p_user_id THEN
+  -- auth.uid() lee el JWT de la sesión real (no current_user, que en
+  -- SECURITY DEFINER devuelve el dueño de la función, no el caller).
+  -- auth.uid() es NULL para llamadas service_role (sin sesión JWT).
+  IF auth.uid() IS NOT NULL THEN
+    IF auth.uid() <> p_user_id THEN
       RAISE EXCEPTION
         'apply_wallet_credit_to_order: solo el dueño autenticado de la wallet (o una llamada server-side) puede invocar esta función'
         USING ERRCODE = '42501';

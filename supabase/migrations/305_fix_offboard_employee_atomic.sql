@@ -52,7 +52,10 @@ BEGIN
   -- 2026-08-01): sin este chequeo, cualquier usuario autenticado podría
   -- invocar este RPC directo y desactivar/offboardear a CUALQUIER empleado,
   -- saltándose requireAdminRole('employees_admin') del route.ts.
-  IF current_user NOT IN ('service_role', 'postgres', 'supabase_admin') THEN
+  -- auth.uid() lee el JWT de la sesión real (no current_user, que en
+  -- SECURITY DEFINER devuelve el dueño de la función, no el caller).
+  -- auth.uid() es NULL para llamadas service_role (sin sesión JWT).
+  IF auth.uid() IS NOT NULL THEN
     IF NOT EXISTS (
       SELECT 1 FROM admin_roles WHERE user_id = auth.uid() AND deleted_at IS NULL
     ) THEN

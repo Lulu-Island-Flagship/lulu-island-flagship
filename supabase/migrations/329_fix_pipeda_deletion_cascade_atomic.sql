@@ -50,7 +50,10 @@ BEGIN
   -- por requireAdminRole('compliance') antes de llegar aquí), pero si este
   -- RPC se invocara directo con una sesión normal, exige al menos un rol
   -- admin activo en vez de confiar ciegamente en el caller.
-  IF current_user NOT IN ('service_role', 'postgres', 'supabase_admin') THEN
+  -- auth.uid() lee el JWT de la sesión real (no current_user, que en
+  -- SECURITY DEFINER devuelve el dueño de la función, no el caller).
+  -- auth.uid() es NULL para llamadas service_role (sin sesión JWT).
+  IF auth.uid() IS NOT NULL THEN
     IF NOT EXISTS (
       SELECT 1 FROM admin_roles WHERE user_id = auth.uid() AND deleted_at IS NULL
     ) THEN

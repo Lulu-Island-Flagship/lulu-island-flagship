@@ -22,14 +22,6 @@ function getSupabaseClient() {
   return createClient(getSupabaseUrl(), getSupabaseServiceKey());
 }
 
-function getClientIp(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    return forwarded.split(",")[0].trim();
-  }
-  return request.ip || "unknown";
-}
-
 // v8.3 auditoría 2026-07-21 (E-B7): offset PDT/PST real para una fecha
 // dada, en vez del "-07:00" hardcodeado que el código original etiquetaba
 // como "PST" (PST es -08:00; -07:00 es PDT) -- ese hardcode por sí solo
@@ -69,12 +61,26 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseClient();
 
-    // Rate limit: max 5 reviews per IP per day
-    const ip = getClientIp(request);
+    // Verificar orden por review_token (no por orderId directo)
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select("id, status, user_id, service_date, service_time, review_token_used_at")
+      .eq("review_token", token)
+      .single();
+
+    if (orderError || !order) {
+      return NextResponse.json({ error: "Invalid or expired review link" }, { status: 404 });
+    }
+
+    // Rate limit: max 5 review attempts per order per day.
+    // Usa el order.id como key en vez de IP — detrás de Vercel/Cloudflare
+    // getClientIp() devolvía una IP compartida, haciendo que usuarios
+    // distintos compartieran el mismo bucket de rate limit.
+    // Con order.id, cada link de reseña tiene su propio límite.
     const { data: rateData, error: rateError } = await supabase.rpc(
       "check_rate_limit",
       {
-        p_ip_address: `review_${ip}`,
+        p_ip_address: `review_${order.id}`,
         p_max_requests: 5,
       }
     );
@@ -86,17 +92,6 @@ export async function POST(request: NextRequest) {
         { error: "Rate limit exceeded. Try again later." },
         { status: 429 }
       );
-    }
-
-    // Verificar orden por review_token (no por orderId directo)
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .select("id, status, user_id, service_date, service_time, review_token_used_at")
-      .eq("review_token", token)
-      .single();
-
-    if (orderError || !order) {
-      return NextResponse.json({ error: "Invalid or expired review link" }, { status: 404 });
     }
 
     if (order.review_token_used_at) {

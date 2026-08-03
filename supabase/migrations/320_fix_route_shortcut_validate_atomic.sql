@@ -52,7 +52,10 @@ BEGIN
   -- 2026-08-01/02): sin este chequeo, cualquier usuario autenticado podría
   -- invocar este RPC directo y validar cualquier atajo, cobrando el bono sin
   -- pasar por requireAdminRole('wellbeing') del route.ts.
-  IF current_user NOT IN ('service_role', 'postgres', 'supabase_admin') THEN
+  -- auth.uid() lee el JWT de la sesión real (no current_user, que en
+  -- SECURITY DEFINER devuelve el dueño de la función, no el caller).
+  -- auth.uid() es NULL para llamadas service_role (sin sesión JWT).
+  IF auth.uid() IS NOT NULL THEN
     IF NOT EXISTS (
       SELECT 1 FROM admin_roles WHERE user_id = auth.uid() AND deleted_at IS NULL
     ) THEN
@@ -71,15 +74,15 @@ BEGIN
   -- llega a insertar.
   UPDATE route_shortcuts
   SET validated_at = now(), validated_by = p_validator_user_id
-  WHERE id = p_shortcut_id
-    AND deleted_at IS NULL
-    AND validated_at IS NULL
+  WHERE route_shortcuts.id = p_shortcut_id
+    AND route_shortcuts.deleted_at IS NULL
+    AND route_shortcuts.validated_at IS NULL
   RETURNING * INTO v_shortcut;
 
   IF NOT FOUND THEN
     -- Distingue "no existe" de "ya estaba validado" para que el route.ts
     -- pueda devolver 404 vs 409 igual que antes.
-    IF EXISTS (SELECT 1 FROM route_shortcuts WHERE id = p_shortcut_id AND deleted_at IS NULL) THEN
+    IF EXISTS (SELECT 1 FROM route_shortcuts WHERE route_shortcuts.id = p_shortcut_id AND route_shortcuts.deleted_at IS NULL) THEN
       RAISE EXCEPTION 'SHORTCUT_ALREADY_VALIDATED';
     ELSE
       RAISE EXCEPTION 'SHORTCUT_NOT_FOUND';

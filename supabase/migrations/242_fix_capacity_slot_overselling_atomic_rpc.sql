@@ -71,7 +71,10 @@ BEGIN
   -- sin crear ninguna orden real, bloqueando reservas legítimas de otros
   -- clientes (denegación de servicio sobre la capacidad, no solo un riesgo
   -- de dinero).
-  IF current_user NOT IN ('service_role', 'postgres', 'supabase_admin') THEN
+  -- auth.uid() lee el JWT de la sesión real (no current_user, que en
+  -- SECURITY DEFINER devuelve el dueño de la función, no el caller).
+  -- auth.uid() es NULL para llamadas service_role (sin sesión JWT).
+  IF auth.uid() IS NOT NULL THEN
     RAISE EXCEPTION
       'commit_capacity_slot: solo llamadas server-side pueden comprometer capacidad'
       USING ERRCODE = '42501';
@@ -147,7 +150,10 @@ DECLARE
   v_max_teams INTEGER;
   v_new_committed INTEGER;
 BEGIN
-  IF current_user NOT IN ('service_role', 'postgres', 'supabase_admin') THEN
+  -- auth.uid() lee el JWT de la sesión real (no current_user, que en
+  -- SECURITY DEFINER devuelve el dueño de la función, no el caller).
+  -- auth.uid() es NULL para llamadas service_role (sin sesión JWT).
+  IF auth.uid() IS NOT NULL THEN
     RAISE EXCEPTION
       'release_capacity_slot: solo llamadas server-side pueden liberar capacidad'
       USING ERRCODE = '42501';

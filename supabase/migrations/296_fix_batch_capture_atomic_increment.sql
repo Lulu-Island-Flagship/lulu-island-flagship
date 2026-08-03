@@ -57,7 +57,10 @@ DECLARE
   v_total_delta_cents INTEGER;
   v_capture_authorized_delta_dollars INTEGER;
 BEGIN
-  IF current_user NOT IN ('service_role', 'postgres', 'supabase_admin') THEN
+  -- auth.uid() lee el JWT de la sesión real (no current_user, que en
+  -- SECURITY DEFINER devuelve el dueño de la función, no el caller).
+  -- auth.uid() es NULL para llamadas service_role (sin sesión JWT).
+  IF auth.uid() IS NOT NULL THEN
     RAISE EXCEPTION 'apply_batch_capture_result: solo llamadas server-side pueden aplicar esta captura'
       USING ERRCODE = '42501';
   END IF;
