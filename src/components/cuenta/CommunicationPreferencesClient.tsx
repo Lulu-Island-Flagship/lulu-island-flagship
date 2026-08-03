@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2, Mail, CheckCircle2, XCircle, Gift } from "lucide-react";
+import { Loader2, Mail, CheckCircle2, XCircle, Gift, MessageCircle } from "lucide-react";
 import { StatusBanner } from "./StatusBanner";
 import { supabase } from "@/lib/supabase";
 import { AuthModal } from "@/components/cotizador/AuthModal";
@@ -13,6 +13,7 @@ interface PreferencesState {
   updatedAt: string | null;
   autoUnsubscribedAt: string | null;
   birthDate: string | null;
+  wechatNotifications: boolean;
 }
 
 export default function CommunicationPreferencesClient() {
@@ -64,6 +65,7 @@ export default function CommunicationPreferencesClient() {
         updatedAt: data.updatedAt,
         autoUnsubscribedAt: data.autoUnsubscribedAt,
         birthDate: data.birthDate,
+        wechatNotifications: data.wechatNotifications ?? false,
       });
     } catch {
       setError(t("networkError"));
@@ -213,6 +215,42 @@ export default function CommunicationPreferencesClient() {
           className="w-full bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
         >
           {saving ? t("saving") : prefs?.marketingOptIn ? t("optOut") : t("optIn")}
+        </button>
+      </div>
+
+      <div className="bg-white rounded-xl border p-5 space-y-3">
+        <div className="flex items-start gap-3">
+          <MessageCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-medium text-brand-ink text-sm">{t("wechatReminders")}</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {t("wechatRemindersDesc")}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={async () => {
+            setSaving(true);
+            setError("");
+            try {
+              const res = await fetch("/api/client/communication-preferences", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ wechatNotifications: !prefs?.wechatNotifications }),
+              });
+              if (!res.ok) throw new Error("Failed");
+              await load();
+            } catch {
+              setError(t("networkError"));
+            } finally {
+              setSaving(false);
+            }
+          }}
+          disabled={saving}
+          className="w-full bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50"
+        >
+          {saving ? t("saving") : prefs?.wechatNotifications ? t("wechatDisable") : t("wechatEnable")}
         </button>
       </div>
 

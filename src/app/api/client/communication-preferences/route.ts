@@ -88,7 +88,7 @@ export async function GET() {
   // la fila si hace falta.
   const { data, error } = await supabase
     .from("client_profiles")
-    .select("marketing_opt_in, marketing_opt_in_updated_at, auto_unsubscribed_at, birth_date")
+     .select("marketing_opt_in, marketing_opt_in_updated_at, auto_unsubscribed_at, birth_date, wechat_notifications")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -99,7 +99,7 @@ export async function GET() {
 
   if (!data) {
     return NextResponse.json(
-      { marketingOptIn: false, updatedAt: null, autoUnsubscribedAt: null, birthDate: null },
+      { marketingOptIn: false, updatedAt: null, autoUnsubscribedAt: null, birthDate: null, wechatNotifications: false },
       { status: 200 }
     );
   }
@@ -111,6 +111,7 @@ export async function GET() {
       autoUnsubscribedAt: data.auto_unsubscribed_at,
       // v8.3 E5.12: opcional, solo para el regalo de cumpleaños configurable.
       birthDate: data.birth_date,
+      wechatNotifications: (data as { wechat_notifications?: boolean }).wechat_notifications ?? false,
     },
     { status: 200 }
   );
@@ -128,7 +129,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: clientGuard.error }, { status: clientGuard.status });
   }
 
-  let body: { marketingOptIn?: unknown; birthDate?: unknown };
+  let body: { marketingOptIn?: unknown; birthDate?: unknown; wechatNotifications?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -163,6 +164,13 @@ export async function POST(request: NextRequest) {
     update.birth_date = body.birthDate;
   }
 
+  if (body.wechatNotifications !== undefined) {
+    if (typeof body.wechatNotifications !== "boolean") {
+      return NextResponse.json({ error: "wechatNotifications debe ser boolean" }, { status: 400 });
+    }
+    update.wechat_notifications = body.wechatNotifications;
+  }
+
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
@@ -176,7 +184,7 @@ export async function POST(request: NextRequest) {
   const { data, error } = await supabase
     .from("client_profiles")
     .upsert({ user_id: user.id, ...update }, { onConflict: "user_id" })
-    .select("marketing_opt_in, marketing_opt_in_updated_at, birth_date")
+    .select("marketing_opt_in, marketing_opt_in_updated_at, birth_date, wechat_notifications")
     .single();
 
   if (error) {
@@ -189,6 +197,7 @@ export async function POST(request: NextRequest) {
       marketingOptIn: data.marketing_opt_in,
       updatedAt: data.marketing_opt_in_updated_at,
       birthDate: data.birth_date,
+      wechatNotifications: (data as { wechat_notifications?: boolean }).wechat_notifications ?? false,
     },
     { status: 200 }
   );
