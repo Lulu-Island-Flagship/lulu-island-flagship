@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import {
   Loader2,
   Tag,
@@ -37,6 +37,7 @@ interface Upsell {
 
 export default function AdminUpsellsClient() {
   const t = useTranslations("admin.upsells");
+  const _locale = useLocale();
   const [upsells, setUpsells] = useState<Upsell[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
