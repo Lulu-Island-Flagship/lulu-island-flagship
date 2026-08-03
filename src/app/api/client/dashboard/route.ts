@@ -72,6 +72,31 @@ export async function GET() {
 
   const nextService = upcomingOrders && upcomingOrders.length > 0 ? upcomingOrders[0] : null;
 
+  // ── Cleaner asignado a la próxima reserva ────────────────────────────────
+  let assignedCleaner: { name: string; languages: string[] } | null = null;
+  if (nextService) {
+    const { data: assignment } = await supabase
+      .from("assignments")
+      .select("employee_id, employees:employee_id (name, languages)")
+      .eq("order_id", nextService.id)
+      .in("status", ["pending", "en_route", "arrived", "in_progress"])
+      .order("assigned_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (assignment) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const emp = (assignment as any).employees;
+      const empData = Array.isArray(emp) ? emp[0] : emp;
+      if (empData) {
+        assignedCleaner = {
+          name: empData.name ?? null,
+          languages: empData.languages ?? [],
+        };
+      }
+    }
+  }
+
   // ── Última completada (para galería / rebook) ──
   const { data: lastCompleted } = await supabase
     .from("orders")
@@ -185,6 +210,12 @@ export async function GET() {
             lastFour: defaultPaymentMethod.lastFour,
             expiryMonth: defaultPaymentMethod.expiryMonth,
             expiryYear: defaultPaymentMethod.expiryYear,
+          }
+        : null,
+      assignedCleaner: assignedCleaner
+        ? {
+            name: assignedCleaner.name,
+            languages: assignedCleaner.languages,
           }
         : null,
       alerts,

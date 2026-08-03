@@ -49,6 +49,10 @@ interface DashboardData {
     expiryMonth: number;
     expiryYear: number;
   } | null;
+  assignedCleaner: {
+    name: string;
+    languages: string[];
+  } | null;
   alerts: string[];
   servicesCount: number;
 }
@@ -119,7 +123,7 @@ export default function DashboardClient() {
     );
   }
 
-  const { profile, nextService, lastService, wallet, defaultPaymentMethod, alerts, servicesCount } = data;
+  const { profile, nextService, lastService, wallet, defaultPaymentMethod, assignedCleaner, alerts, servicesCount } = data;
   const firstName = profile.fullName?.split(" ")[0] ?? null;
   const hasWalletBalance = wallet.balanceCents > 0;
   const cardExpiryLabel = defaultPaymentMethod?.expiryMonth && defaultPaymentMethod.expiryYear
@@ -213,6 +217,14 @@ export default function DashboardClient() {
               <p className="text-brand-ice/90 text-sm mt-0.5">
                 {serviceLabel(nextService.serviceType, nextService.serviceSubtype)}
               </p>
+              {assignedCleaner && (
+                <p className="text-brand-ice/70 text-sm mt-1 flex items-center gap-1.5">
+                  <span className="inline-block w-5 h-5 rounded-full bg-brand-gold/30 text-[10px] font-bold flex items-center justify-center">
+                    {assignedCleaner.name.charAt(0)}
+                  </span>
+                  {assignedCleaner.name} {t("isYourCleaner")}
+                </p>
+              )}
             </div>
 
             {nextService.address && (

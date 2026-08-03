@@ -673,6 +673,7 @@
       "subtitleFirstTime": "Prêt pour votre premier nettoyage ?",
       "subtitle": "{count, plural, =1 {1 service terminé} other {# services terminés}}",
       "nextServiceLabel": "Votre prochain nettoyage",
+      "isYourCleaner": "est votre agent d'entretien aujourd'hui",
       "trackTeam": "Suivre votre équipe",
       "viewAllServices": "Voir tous les services",
       "noServicesYetTitle": "Réservez votre premier nettoyage",

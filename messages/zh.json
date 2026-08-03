@@ -673,6 +673,7 @@
       "subtitleFirstTime": "准备好您的第一次清洁了吗？",
       "subtitle": "{count, plural, =1 {已完成 1 次服务} other {已完成 # 次服务}}",
       "nextServiceLabel": "您的下一次清洁",
+      "isYourCleaner": "是您今天的清洁员",
       "trackTeam": "追踪团队",
       "viewAllServices": "查看所有服务",
       "noServicesYetTitle": "预约您的第一次清洁",

@@ -673,6 +673,7 @@
       "subtitleFirstTime": "Ready for your first cleaning?",
       "subtitle": "{count, plural, =1 {1 service completed} other {# services completed}}",
       "nextServiceLabel": "Your next cleaning",
+      "isYourCleaner": "is your cleaner today",
       "trackTeam": "Track your team",
       "viewAllServices": "View all services",
       "noServicesYetTitle": "Book your first cleaning",
