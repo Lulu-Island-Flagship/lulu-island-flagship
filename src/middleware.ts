@@ -157,7 +157,6 @@ export default async function middleware(request: NextRequest) {
   // pasar si la ruta es pública) -- es la misma UX que ya existe hoy para
   // cualquier visitante anónimo, en vez de una pantalla de error genérica.
   let user: User | null = null;
-  let authFailed = false;
   try {
     const supabase = createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
       cookies: {
