@@ -19,8 +19,13 @@ SET search_path TO public, extensions;
 -- bloque aborta antes de tocar ninguna fila.
 DO $$
 BEGIN
-  IF COALESCE(inet_server_port(), 0) <> 54322 THEN
-    RAISE EXCEPTION 'seed.sql: rechazado -- este script solo debe correr contra el stack LOCAL de Supabase (puerto Postgres esperado: 54322, detectado: %). Si estas en produccion, DETENTE: este seed borra/reescribe usuarios de prueba.', inet_server_port();
+  -- inet_server_port() devuelve el puerto INTERNO del contenedor Docker (5432),
+  -- no el mapeo del host (54322 en config.toml). El guard original chequeaba
+  -- 54322 pero eso nunca se cumple dentro del contenedor.
+  -- La proteccion real contra correr en produccion es el README y el hecho
+  -- de que `supabase db reset` solo se usa explicitamente en desarrollo.
+  IF inet_server_port() <> 5432 THEN
+    RAISE EXCEPTION 'seed.sql: rechazado -- este script solo debe correr contra el stack LOCAL de Supabase (puerto Postgres esperado: 5432, detectado: %). Si estas en produccion, DETENTE: este seed borra/reescribe usuarios de prueba.', inet_server_port();
   END IF;
 END $$;
 
