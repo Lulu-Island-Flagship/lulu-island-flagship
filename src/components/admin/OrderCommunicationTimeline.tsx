@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Loader2, MessageSquare, Check, CheckCheck, Clock, XCircle, PauseCircle } from "lucide-react";
 
 interface CommunicationLogEntry {
@@ -29,6 +29,7 @@ const STATUS_STYLE: Record<CommunicationLogEntry["status"], { icon: typeof Check
 /** v8.3 E6.3 — timeline cronológico de comunicación de una orden. Pensado para incrustarse en tickets/disputas. */
 export default function OrderCommunicationTimeline({ orderId }: { orderId: string }) {
   const t = useTranslations("admin.orderCommunicationTimeline");
+  const locale = useLocale();
   const [entries, setEntries] = useState<CommunicationLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -97,7 +98,7 @@ export default function OrderCommunicationTimeline({ orderId }: { orderId: strin
             {entry.body_rendered && <p className="text-xs text-gray-500">{entry.body_rendered}</p>}
             {entry.postponed_reason && <p className="text-xs text-amber-700">{entry.postponed_reason}</p>}
             <p className="text-xs text-gray-400">
-              {new Date(entry.created_at).toLocaleString("en-CA", { timeZone: "America/Vancouver" })}
+              {new Date(entry.created_at).toLocaleString(locale, { timeZone: "America/Vancouver" })}
             </p>
           </div>
         );

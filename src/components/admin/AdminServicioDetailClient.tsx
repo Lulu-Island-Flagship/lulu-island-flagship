@@ -258,7 +258,7 @@ export default function AdminServicioDetailClient() {
                         {item.completedAt && (
                           <div className="flex items-center gap-1 text-xs text-gray-400 mt-1">
                             <Clock className="w-3 h-3" />
-                            {new Date(item.completedAt).toLocaleString("en-CA")}
+                            {new Date(item.completedAt).toLocaleString(locale)}
                           </div>
                         )}
 

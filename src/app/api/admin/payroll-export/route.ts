@@ -360,74 +360,105 @@ async function handlePayrollExport(request: NextRequest, mutate: boolean) {
   const lines = buildCycleDeductions(summaries, ytdMap, yearsMap);
   const totals = totalCycleDeductions(lines);
 
-  // Fix (auditoría externa, hallazgo confirmado -- atomicidad): antes esto
-  // hacía DOS .upsert() awaited por separado por empleado (cycle_deductions
-  // y ytd), sin transacción. Un fallo entre ambos dejaba cycle_deductions
-  // escrito pero ytd sin actualizar -- y el guard de idempotencia de abajo
-  // (alreadyProcessedThisCycle, calculado desde cycle_deductions) hacía que
-  // un reintento posterior saltara el ytd para siempre, sin ninguna señal
-  // del problema. Se reemplaza por una sola llamada RPC atómica
-  // (apply_payroll_cycle_deduction, migración 246) que hace ambos upserts en
-  // la misma transacción. También se deja de asumir éxito silencioso: cada
-  // fallo se colecciona en failedEmployeeIds y se reporta en la respuesta.
+  // Fix (auditoría externa 2026-07-24, §4 — DECISIONES_PENDIENTES):
+  // apply_payroll_cycle_deduction (migración 246) ya agrupa cycle_deductions
+  // + ytd en una transacción por empleado, pero el loop secuencial de abajo
+  // no envolvía a TODOS los empleados en una sola transacción: si fallaba a
+  // mitad del loop, los primeros N quedaban escritos y el resto no, y el
+  // guard alreadyProcessedThisCycle impedía que un reintento los alcanzara.
+  //
+  // Se reemplaza por apply_payroll_cycle_deduction_batch (migración 332),
+  // que recibe un array JSON con todos los empleados y los procesa en UNA
+  // sola transacción de base de datos. Si cualquier empleado falla, la
+  // transacción entera hace rollback — ningún empleado queda a medias.
   const failedEmployeeIds: string[] = [];
   // Fix (auditoría externa 2026-07-30): todo este bloque escribe en la base
-  // de datos (RPC apply_payroll_cycle_deduction) -- solo debe correr cuando
-  // mutate=true (POST). Un GET (previsualización, `load()` en
-  // AdminNominaClient.tsx) se detiene aquí: ya tiene `lines`/`totals`
-  // calculados de forma pura arriba y puede devolverlos sin tocar nada.
-  if (mutate) {
-  for (const line of lines) {
-    const d = line.deductions;
-    const alreadyProcessed = alreadyProcessedThisCycle.has(line.employeeId);
+  // de datos (RPC batch) — solo debe correr cuando mutate=true (POST). Un
+  // GET (previsualización, `load()` en AdminNominaClient.tsx) se detiene
+  // aquí: ya tiene `lines`/`totals` calculados de forma pura arriba y puede
+  // devolverlos sin tocar nada.
+  if (mutate && lines.length > 0) {
+    interface BatchEmployeeRow {
+      employee_id: string;
+      cycle_label: string;
+      gross_cents: number;
+      cpp_cents: number;
+      cpp2_cents: number;
+      ei_employee_cents: number;
+      ei_employer_cents: number;
+      worksafebc_employer_cents: number;
+      vacation_pay_accrual_cents: number;
+      estimated_net_cents: number;
+      employer_cost_cents: number;
+      update_ytd: boolean;
+      calendar_year: number;
+      ytd_pensionable_cents: number;
+      ytd_insurable_cents: number;
+      ytd_assessable_cents: number;
+      ytd_cpp_contribution_cents: number;
+      ytd_cpp2_contribution_cents: number;
+      ytd_ei_employee_cents: number;
+      ytd_vacation_pay_accrued_cents: number;
+    }
 
-    // v8.3 (D-P0-4): estos 4 campos son ACUMULADOS del año, igual que los
-    // otros tres (ytd_pensionable/insurable/assessable, que ya llegan
-    // correctamente sumados desde buildCycleDeductions vía ytdMap). Antes
-    // se sobrescribían con el valor de ESTE ciclo únicamente -- el
-    // finiquito de vacaciones (que lee ytd_vacation_pay_accrued_cents)
-    // pagaba solo el último ciclo en vez del año completo (4% de lo
-    // debido en el caso reportado).
-    const priorContributions = ytdContributionsMap.get(line.employeeId) ?? {
-      cppContributionCents: 0,
-      cpp2ContributionCents: 0,
-      eiEmployeeCents: 0,
-      vacationPayAccruedCents: 0,
-    };
+    const batchEmployees: BatchEmployeeRow[] = lines.map((line) => {
+      const d = line.deductions;
+      const alreadyProcessed = alreadyProcessedThisCycle.has(line.employeeId);
+      const priorContributions = ytdContributionsMap.get(line.employeeId) ?? {
+        cppContributionCents: 0,
+        cpp2ContributionCents: 0,
+        eiEmployeeCents: 0,
+        vacationPayAccruedCents: 0,
+      };
 
-    const { error: rpcError } = await supabase.rpc("apply_payroll_cycle_deduction", {
-      p_employee_id: line.employeeId,
-      p_cycle_label: cycle.label,
-      p_gross_cents: d.grossCents,
-      p_cpp_cents: d.cpp.baseContributionCents,
-      p_cpp2_cents: d.cpp.cpp2ContributionCents,
-      p_ei_employee_cents: d.ei.employeeCents,
-      p_ei_employer_cents: d.ei.employerCents,
-      p_worksafebc_employer_cents: d.workSafeBc.employerCents,
-      p_vacation_pay_accrual_cents: d.vacationPayAccrualCents,
-      p_estimated_net_cents: d.estimatedNetCents,
-      p_employer_cost_cents: d.employerCostCents,
-      // v8.3 (D-P0-5): si este ciclo YA se había procesado antes para este
-      // empleado, el YTD ya lo incluye -- no volver a sumarlo. Esta es la
-      // idempotencia real (antes format=json por defecto + recargar la
-      // página bastaba para inflar el YTD).
-      p_update_ytd: !alreadyProcessed,
-      p_calendar_year: calendarYear,
-      p_ytd_pensionable_cents: d.cpp.ytdPensionableAfterCents,
-      p_ytd_insurable_cents: d.ei.ytdInsurableAfterCents,
-      p_ytd_assessable_cents: d.workSafeBc.ytdAssessableAfterCents,
-      p_ytd_cpp_contribution_cents: priorContributions.cppContributionCents + d.cpp.baseContributionCents,
-      p_ytd_cpp2_contribution_cents: priorContributions.cpp2ContributionCents + d.cpp.cpp2ContributionCents,
-      p_ytd_ei_employee_cents: priorContributions.eiEmployeeCents + d.ei.employeeCents,
-      p_ytd_vacation_pay_accrued_cents:
-        priorContributions.vacationPayAccruedCents + d.vacationPayAccrualCents,
+      return {
+        employee_id: line.employeeId,
+        cycle_label: cycle.label,
+        gross_cents: d.grossCents,
+        cpp_cents: d.cpp.baseContributionCents,
+        cpp2_cents: d.cpp.cpp2ContributionCents,
+        ei_employee_cents: d.ei.employeeCents,
+        ei_employer_cents: d.ei.employerCents,
+        worksafebc_employer_cents: d.workSafeBc.employerCents,
+        vacation_pay_accrual_cents: d.vacationPayAccrualCents,
+        estimated_net_cents: d.estimatedNetCents,
+        employer_cost_cents: d.employerCostCents,
+        update_ytd: !alreadyProcessed,
+        calendar_year: calendarYear,
+        ytd_pensionable_cents: d.cpp.ytdPensionableAfterCents,
+        ytd_insurable_cents: d.ei.ytdInsurableAfterCents,
+        ytd_assessable_cents: d.workSafeBc.ytdAssessableAfterCents,
+        ytd_cpp_contribution_cents: priorContributions.cppContributionCents + d.cpp.baseContributionCents,
+        ytd_cpp2_contribution_cents: priorContributions.cpp2ContributionCents + d.cpp.cpp2ContributionCents,
+        ytd_ei_employee_cents: priorContributions.eiEmployeeCents + d.ei.employeeCents,
+        ytd_vacation_pay_accrued_cents: priorContributions.vacationPayAccruedCents + d.vacationPayAccrualCents,
+      };
     });
 
-    if (rpcError) {
-      console.error(`payroll-export: apply_payroll_cycle_deduction falló para ${line.employeeId}:`, rpcError.message);
-      failedEmployeeIds.push(line.employeeId);
+    const { error: batchError, data: batchResult } = await supabase.rpc(
+      "apply_payroll_cycle_deduction_batch",
+      { p_employees: batchEmployees }
+    );
+
+    if (batchError) {
+      // La transacción entera hizo rollback — ningún empleado quedó a medias.
+      // Se reporta el error completo para que el admin reintente.
+      console.error("payroll-export: apply_payroll_cycle_deduction_batch falló:", batchError.message);
+      return NextResponse.json(
+        { error: "No se pudo guardar la nómina. La operación fue rechazada en su totalidad — ningún empleado quedó a medias. Reintenta el export.", cycle },
+        { status: 500 }
+      );
     }
-  }
+
+    // El RPC batch devuelve una fila por empleado con success=true.
+    // Coleccionamos cualquier fila inesperada con success=false.
+    if (batchResult) {
+      for (const row of batchResult as { employee_id: string; success: boolean; error_message: string | null }[]) {
+        if (!row.success) {
+          failedEmployeeIds.push(row.employee_id);
+        }
+      }
+    }
   } // fin if (mutate)
 
   if (failedEmployeeIds.length > 0) {
