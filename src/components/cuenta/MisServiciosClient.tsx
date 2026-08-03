@@ -21,6 +21,7 @@ import { supabase } from "@/lib/supabase";
 import { StatusBanner } from "./StatusBanner";
 import { Skeleton, SkeletonServiceList } from "@/components/ui/Skeleton";
 import { AuthModal } from "@/components/cotizador/AuthModal";
+import { ClientProfileCard } from "./ClientProfileCard";
 import { formatServiceDateDisplay, formatServiceTimeDisplay } from "@/lib/date-utils";
 import { formatCurrency } from "@/lib/format";
 
@@ -190,6 +191,7 @@ export default function MisServiciosClient() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
+      <ClientProfileCard />
       <div className="text-center">
         <h1 className="text-3xl font-bold text-brand-ink mb-2">{t("title")}</h1>
         <p className="text-gray-600">{t("subtitle")}</p>

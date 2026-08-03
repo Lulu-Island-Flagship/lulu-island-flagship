@@ -13,7 +13,7 @@
   },
   "nav": {
     "location": "里士满，卑诗省",
-    "login": "登录",
+    "login": "登录 / 注册",
     "teamPortal": "员工门户"
   },
   "hero": {
@@ -195,6 +195,7 @@
       "savedPropertyPlaceholder": "选择已保存的地址...",
       "streetLabel": "街道地址",
       "streetPlaceholder": "例如：123 Main Street, Richmond",
+      "addressSuggestionsLoading": "正在加载地址建议…",
       "bcSuggestionText": "公开记录显示约 {value} 平方英尺，是否确认？",
       "bcSuggestionCorrect": "正确",
       "bcSuggestionDifferent": "不，有出入",
@@ -263,7 +264,7 @@
     "authModal": {
       "closeAriaLabel": "关闭登录窗口",
       "verifyPhoneTitle": "验证您的手机号码",
-      "signInTitle": "登录以完成预订",
+      "signInTitle": "登录或注册以完成预订",
       "verifyPhoneDesc": "为了您的账户安全，完成预订前需要验证手机号码，仅需一分钟。",
       "sameMethodWarning": "请每次使用同一种登录方式 — 切换方式（例如先用谷歌登录，后改用邮箱）会创建一个不同的账户，您将无法访问之前的历史记录和钱包。",
       "phoneNumberLabel": "手机号码",
@@ -671,6 +672,18 @@
       "completed": "已完成",
       "cancelled": "已取消",
       "no_show": "客户爽约"
+    },
+    "profile": {
+      "editLabel": "编辑您的姓名",
+      "namePlaceholder": "您的全名",
+      "save": "保存",
+      "cancel": "取消",
+      "saving": "保存中…",
+      "savedSuccess": "已保存。",
+      "saveFailed": "无法保存您的姓名。",
+      "networkError": "网络错误",
+      "avatarAlt": "您的头像",
+      "prefilledFromGoogleNotice": "已根据您的 Google 账户预填 — 您可以随时修改。"
     },
     "servicios": {
       "title": "我的服务",

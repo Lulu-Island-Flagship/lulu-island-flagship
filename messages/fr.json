@@ -13,7 +13,7 @@
   },
   "nav": {
     "location": "Richmond, C.-B.",
-    "login": "Se connecter",
+    "login": "Se connecter / S'inscrire",
     "teamPortal": "Portail de l'équipe"
   },
   "hero": {
@@ -195,6 +195,7 @@
       "savedPropertyPlaceholder": "Sélectionner une adresse enregistrée...",
       "streetLabel": "Adresse civique",
       "streetPlaceholder": "ex. 123 Main Street, Richmond",
+      "addressSuggestionsLoading": "Chargement des suggestions d'adresse…",
       "bcSuggestionText": "Les registres publics suggèrent environ {value} pi². Confirmer?",
       "bcSuggestionCorrect": "Exact",
       "bcSuggestionDifferent": "Non, c'est différent",
@@ -263,7 +264,7 @@
     "authModal": {
       "closeAriaLabel": "Fermer la fenêtre de connexion",
       "verifyPhoneTitle": "Vérifiez votre numéro de téléphone",
-      "signInTitle": "Connectez-vous pour réserver",
+      "signInTitle": "Connectez-vous ou inscrivez-vous pour réserver",
       "verifyPhoneDesc": "Pour votre sécurité, un numéro de téléphone vérifié est requis avant de pouvoir compléter une réservation. Cela ne prend qu'une minute.",
       "sameMethodWarning": "Veuillez toujours utiliser la même méthode de connexion — changer de méthode (p. ex. Google, puis courriel) crée un compte distinct et vous perdrez l'accès à votre historique et à votre portefeuille.",
       "phoneNumberLabel": "Numéro de téléphone",
@@ -671,6 +672,18 @@
       "completed": "Terminé",
       "cancelled": "Annulé",
       "no_show": "Absence"
+    },
+    "profile": {
+      "editLabel": "Modifiez votre nom",
+      "namePlaceholder": "Votre nom complet",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "saving": "Enregistrement…",
+      "savedSuccess": "Enregistré.",
+      "saveFailed": "Impossible d'enregistrer votre nom.",
+      "networkError": "Erreur réseau",
+      "avatarAlt": "Votre photo de profil",
+      "prefilledFromGoogleNotice": "Prérempli depuis votre compte Google — vous pouvez le corriger."
     },
     "servicios": {
       "title": "Mes services",

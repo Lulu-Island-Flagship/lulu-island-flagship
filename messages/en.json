@@ -13,7 +13,7 @@
   },
   "nav": {
     "location": "Richmond, BC",
-    "login": "Sign In",
+    "login": "Sign In / Sign Up",
     "teamPortal": "Team Portal"
   },
   "hero": {
@@ -195,6 +195,7 @@
       "savedPropertyPlaceholder": "Select a saved address...",
       "streetLabel": "Street Address",
       "streetPlaceholder": "e.g. 123 Main Street, Richmond",
+      "addressSuggestionsLoading": "Loading address suggestions…",
       "bcSuggestionText": "Public records suggest ~{value} ft². Confirm it?",
       "bcSuggestionCorrect": "Correct",
       "bcSuggestionDifferent": "No, it's different",
@@ -263,7 +264,7 @@
     "authModal": {
       "closeAriaLabel": "Close sign-in modal",
       "verifyPhoneTitle": "Verify Your Phone Number",
-      "signInTitle": "Sign in to Reserve",
+      "signInTitle": "Sign In or Sign Up to Reserve",
       "verifyPhoneDesc": "For your security, we require a verified phone number before you can complete a reservation. This only takes a minute.",
       "sameMethodWarning": "Please use the same sign-in method every time — switching methods (e.g. Google, then email) creates a separate account and you'll lose access to your history and wallet.",
       "phoneNumberLabel": "Phone Number",
@@ -671,6 +672,18 @@
       "completed": "Completed",
       "cancelled": "Cancelled",
       "no_show": "No-show"
+    },
+    "profile": {
+      "editLabel": "Edit your name",
+      "namePlaceholder": "Your full name",
+      "save": "Save",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "savedSuccess": "Saved.",
+      "saveFailed": "Couldn't save your name.",
+      "networkError": "Network error",
+      "avatarAlt": "Your profile photo",
+      "prefilledFromGoogleNotice": "Prefilled from your Google account — feel free to correct it."
     },
     "servicios": {
       "title": "My Services",

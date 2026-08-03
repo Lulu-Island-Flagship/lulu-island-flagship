@@ -30,6 +30,19 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
   const [bcSuggestion, setBcSuggestion] = useState<{ squareFeet: number; confidence: string } | null>(null);
   const [bcDismissed, setBcDismissed] = useState(false);
 
+  // Autocompletado de dirección (Google Places, opcional -- ver
+  // src/lib/google-places.ts). `addressSuggestions` queda vacío y el input
+  // funciona exactamente igual que antes (texto libre) si el negocio no ha
+  // configurado GOOGLE_PLACES_API_KEY -- nunca es un requisito para poder
+  // avanzar, solo acelera el tecleo cuando está disponible.
+  const [addressSuggestions, setAddressSuggestions] = useState<{ placeId: string; description: string }[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  // Evita que la respuesta de una búsqueda vieja (ej. "123 Main") sobrescriba
+  // la lista después de que el cliente ya siguió escribiendo ("123 Main St") --
+  // mismo patrón de "cancelled" que ya usa el efecto de bcSuggestion arriba.
+  const suggestionsRequestId = React.useRef(0);
+
   // v8.3 E1.2 (D.1): sugerencia DÉBIL de BC Assessment -- nunca un hecho.
   // Se consulta una vez que hay una dirección razonable (>= 8 caracteres,
   // evita llamadas por cada tecla al empezar a escribir).
@@ -68,6 +81,82 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
       clearTimeout(timer);
     };
   }, [address]);
+
+  // Autocompletado de dirección -- mismo patrón de debounce que el efecto de
+  // BC Assessment arriba, pero independiente (endpoint y estado propios) para
+  // que uno nunca bloquee al otro. Se oculta automáticamente si el proveedor
+  // no está configurado (`available: false`) o devuelve 0 sugerencias.
+  useEffect(() => {
+    if (!address || address.trim().length < 5) {
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    let cancelled = false;
+    const requestId = ++suggestionsRequestId.current;
+    setSuggestionsLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/quote/address-autocomplete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ input: address.trim() }),
+        });
+        if (!res.ok || cancelled || requestId !== suggestionsRequestId.current) return;
+        const data = await res.json();
+        if (data.available && Array.isArray(data.suggestions)) {
+          setAddressSuggestions(data.suggestions);
+          setShowSuggestions(data.suggestions.length > 0);
+        } else {
+          setAddressSuggestions([]);
+          setShowSuggestions(false);
+        }
+      } catch {
+        setAddressSuggestions([]);
+        setShowSuggestions(false);
+      } finally {
+        if (!cancelled && requestId === suggestionsRequestId.current) setSuggestionsLoading(false);
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [address]);
+
+  // Al elegir una sugerencia: pide el detalle (dirección formateada + código
+  // postal + localidad) y lo aplica. La zona SOLO se autoselecciona si la
+  // localidad de Google coincide (sin distinguir mayúsculas) con el nombre
+  // exacto de una zona activa -- ej. "UBC" no hace match con nada que Google
+  // devuelva, así que esa zona se sigue eligiendo a mano, nunca se adivina.
+  async function handleSelectSuggestion(placeId: string, fallbackDescription: string) {
+    setShowSuggestions(false);
+    setAddressSuggestions([]);
+    try {
+      const res = await fetch("/api/quote/address-details", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placeId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.available) {
+        // Sin detalle disponible: al menos deja el texto de la sugerencia
+        // como dirección (mejor que perder la selección del cliente).
+        onChange({ address: fallbackDescription, zone, postalCode });
+        return;
+      }
+      const matchedZone = ACTIVE_ZONES.find(
+        (z) => data.city && z.name.toLowerCase() === String(data.city).toLowerCase()
+      );
+      onChange({
+        address: data.address || fallbackDescription,
+        zone: matchedZone ? matchedZone.name : zone,
+        postalCode: data.postalCode ? String(data.postalCode).toUpperCase() : postalCode,
+      });
+    } catch {
+      onChange({ address: fallbackDescription, zone, postalCode });
+    }
+  }
 
   // Regex para código postal canadiense: formato A1A 1A1 (con o sin espacio)
   const isValidCanadianPostal = (code: string): boolean => {
@@ -180,14 +269,53 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
           <MapPin className="w-5 h-5 text-brand-wave-blue" />
           {t("streetLabel")}
         </label>
-        <input
-          id="street-address-input"
-          type="text"
-          value={address}
-          onChange={(e) => onChange({ address: e.target.value, zone, postalCode })}
-          placeholder={t("streetPlaceholder")}
-          className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none transition-all"
-        />
+        <div className="relative">
+          <input
+            id="street-address-input"
+            type="text"
+            value={address}
+            onChange={(e) => onChange({ address: e.target.value, zone, postalCode })}
+            onFocus={() => setShowSuggestions(addressSuggestions.length > 0)}
+            // Delay corto para que el click en una sugerencia (abajo) registre
+            // antes de que el blur oculte la lista.
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            placeholder={t("streetPlaceholder")}
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={showSuggestions}
+            aria-controls="street-address-suggestions"
+            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none transition-all"
+          />
+          {/* Autocompletado opcional (Google Places) -- ver
+              src/lib/google-places.ts. Si el proveedor no está configurado o
+              no hay coincidencias, esta lista simplemente no aparece; el
+              campo sigue funcionando como texto libre igual que siempre. */}
+          {showSuggestions && addressSuggestions.length > 0 && (
+            <ul
+              id="street-address-suggestions"
+              role="listbox"
+              className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-md max-h-56 overflow-y-auto"
+            >
+              {addressSuggestions.map((s) => (
+                <li key={s.placeId} role="option" aria-selected="false">
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleSelectSuggestion(s.placeId, s.description)}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-brand-ice transition-colors"
+                  >
+                    {s.description}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {suggestionsLoading && (
+            <span className="sr-only" aria-live="polite">
+              {t("addressSuggestionsLoading")}
+            </span>
+          )}
+        </div>
         {bcSuggestion && !bcDismissed && bcSuggestion.squareFeet !== squareFeet && (
           <div className="mt-3 p-3 bg-brand-gold/10 border border-brand-gold/30 rounded-lg text-sm">
             <p className="text-brand-ink">
