@@ -325,14 +325,14 @@ export default function DashboardClient() {
                 <Camera className="w-3.5 h-3.5" />
                 {t("viewPhotos")}
               </Link>
-              <Link
-                href={`/${locale}/cuenta/servicios/${lastService.id}/galeria`}
-                className="inline-flex items-center gap-1 text-sm text-brand-navy/70 hover:text-brand-navy transition-colors"
-              >
-                <Repeat className="w-3.5 h-3.5" />
-                {t("bookAgain")}
-              </Link>
             </div>
+            <Link
+              href={`/${locale}/cuenta/servicios/${lastService.id}/galeria`}
+              className="flex items-center justify-center gap-2 mt-3 px-4 py-2.5 bg-brand-navy text-white rounded-xl text-sm font-medium hover:bg-brand-navy/90 transition-colors shadow-sm"
+            >
+              <Repeat className="w-4 h-4" />
+              {t("quickRebook")}
+            </Link>
           </div>
         ) : (
           <div className="bg-white rounded-2xl p-4 border border-brand-ice shadow-sm">
