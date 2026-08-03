@@ -152,7 +152,6 @@ export default function PerfilClient() {
                   maxLength={120}
                   className="flex-1 px-3 py-2 border border-brand-ice rounded-lg text-sm"
                   placeholder={t("namePlaceholder")}
-                  autoFocus
                 />
                 <button
                   onClick={saveName}
@@ -215,18 +214,6 @@ export default function PerfilClient() {
               ) : null}
             </div>
           </div>
-          <button
-            onClick={() => {
-              // Reabrir AuthModal para verificar teléfono
-              import("@/components/cotizador/AuthModal").then((mod) => {
-                // Force phone verification via the existing AuthModal flow
-                window.dispatchEvent(new CustomEvent("lulu:verifyPhone"));
-              });
-            }}
-            className="text-xs text-brand-navy/60 hover:text-brand-navy shrink-0"
-          >
-            {profile.phone ? t("editPhone") : t("addPhone")}
-          </button>
         </div>
 
         {/* Language */}

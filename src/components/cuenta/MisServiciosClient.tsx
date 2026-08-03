@@ -16,6 +16,7 @@ import {
   X,
   Repeat,
   Images,
+  Receipt,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { StatusBanner } from "./StatusBanner";
