@@ -121,6 +121,7 @@ export function SavedCardSelector({
                     disabled={disabled}
                     onChange={() => handleSelectCard(card.id)}
                     className="w-4 h-4 text-brand-navy"
+                    aria-label={`${card.provider} terminada en ${card.last_four}`}
                   />
                   <CreditCard className={`w-5 h-5 shrink-0 ${isSelected ? "text-brand-navy" : "text-brand-navy/60"}`} />
                   <div className="flex-1 min-w-0">
@@ -159,6 +160,7 @@ export function SavedCardSelector({
           disabled={disabled}
           onChange={handleUseNewCard}
           className="w-4 h-4 text-brand-navy"
+          aria-label={t("useNewCard")}
         />
         <Plus className={`w-5 h-5 shrink-0 ${usingNewCard ? "text-brand-navy" : "text-brand-navy/60"}`} />
         <span className="text-sm font-medium text-brand-ink">

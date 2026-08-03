@@ -250,7 +250,7 @@ export default function PaymentMethodsCard() {
         <div className="px-4 py-2 bg-red-50 text-red-700 text-sm flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{error}</span>
-          <button onClick={() => setError("")} className="ml-auto shrink-0">
+          <button onClick={() => setError("")} className="ml-auto shrink-0" aria-label={tCommon("close")}>
             <X className="w-4 h-4" />
           </button>
         </div>

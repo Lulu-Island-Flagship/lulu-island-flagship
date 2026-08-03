@@ -50,3 +50,9 @@ tsconfig.verify*.json
 /supabase/snippets/
 .tscout/
 tsconfig.check.json
+
+# misc workspace artifacts (logs, backups, scratch files)
+.lintout
+.tscout.log
+testfile.txt
+backups/

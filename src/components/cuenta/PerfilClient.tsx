@@ -152,6 +152,7 @@ export default function PerfilClient() {
                   maxLength={120}
                   className="flex-1 px-3 py-2 border border-brand-ice rounded-lg text-sm"
                   placeholder={t("namePlaceholder")}
+                  aria-label={t("editLabel")}
                 />
                 <button
                   onClick={saveName}

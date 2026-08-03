@@ -120,7 +120,6 @@ export function ClientProfileCard() {
               placeholder={t("namePlaceholder")}
               aria-label={t("editLabel")}
               className="flex-1 min-w-0 px-2 py-1 rounded border border-gray-300 text-sm"
-              autoFocus
             />
             <button
               type="button"
