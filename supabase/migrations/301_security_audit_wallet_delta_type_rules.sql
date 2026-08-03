@@ -242,7 +242,7 @@ $$;
 REVOKE EXECUTE ON FUNCTION apply_wallet_delta(UUID, UUID, UUID, TEXT, INTEGER, TEXT, TIMESTAMPTZ, JSONB, TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION apply_wallet_delta(UUID, UUID, UUID, TEXT, INTEGER, TEXT, TIMESTAMPTZ, JSONB, TEXT) TO authenticated, service_role;
 
-COMMENT ON FUNCTION apply_wallet_delta IS
+COMMENT ON FUNCTION apply_wallet_delta(UUID, UUID, UUID, TEXT, INTEGER, TEXT, TIMESTAMPTZ, JSONB, TEXT) IS
   'v8.3 (migración 180) + fix Kimi-C1 (migración 233) + fix auditoría de '
   'seguridad externa (migración 301, 2026-08-01): mutación atómica de '
   'client_wallets.balance + wallet_transactions, con validación de '
