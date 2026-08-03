@@ -653,6 +653,7 @@
       "billetera": "Lulu Wallet",
       "referidos": "Lulu Ambassador",
       "preferencias": "Preferences",
+      "perfil": "Profile",
       "logout": "Log out",
       "logoutError": "Couldn't log out. Please check your connection and try again."
     },
@@ -665,6 +666,41 @@
       "retrying": "Retrying…",
       "loadFailedRetry": "We couldn't load this. Check your connection and try again.",
       "networkErrorRetry": "Connection problem. Check your internet and try again."
+    },
+    "dashboard": {
+      "greeting": "Welcome back!",
+      "greetingWithName": "Welcome back, {name}!",
+      "subtitleFirstTime": "Ready for your first cleaning?",
+      "subtitle": "{count, plural, =1 {1 service completed} other {# services completed}}",
+      "nextServiceLabel": "Your next cleaning",
+      "trackTeam": "Track your team",
+      "viewAllServices": "View all services",
+      "noServicesYetTitle": "Book your first cleaning",
+      "noServicesYetDesc": "Get a free quote in under 2 minutes. No commitment needed.",
+      "noUpcomingTitle": "No upcoming cleanings",
+      "noUpcomingDesc": "Ready to book your next one? Same address, same quality.",
+      "bookFirstCleaning": "Book a cleaning",
+      "luluCredit": "Lulu Credit",
+      "viewWallet": "View wallet",
+      "addPaymentMethod": "Add payment method",
+      "lastServiceLabel": "Last cleaning",
+      "viewPhotos": "View photos",
+      "bookAgain": "Book again",
+      "quickActions": "Quick actions",
+      "manageProperties": "Manage my properties",
+      "allServices": "All services",
+      "myProperties": "My properties",
+      "walletAndPayments": "Wallet & payments",
+      "alerts": {
+        "phoneNotVerified": "Verify your phone number to book and receive service reminders."
+      },
+      "serviceTypes": {
+        "regular": "Regular cleaning",
+        "deep": "Deep cleaning",
+        "moveInOut": "Move in/out",
+        "postConstruction": "Post-construction",
+        "default": "Cleaning service"
+      }
     },
     "orderStatus": {
       "pending": "Pending",
@@ -697,6 +733,7 @@
       "defaultServiceLabel": "Cleaning service",
       "viewPhotosChecklist": "View photos & checklist",
       "trackYourTeam": "Track your team",
+      "downloadInvoice": "Download invoice",
       "amountPaid": "Amount paid: {amount}",
       "amountHeld": "Amount held: {amount}",
       "reportIssue": "Report an issue",

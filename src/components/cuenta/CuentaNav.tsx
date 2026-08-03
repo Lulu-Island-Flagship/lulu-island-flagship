@@ -24,7 +24,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Wrench, Home, Wallet, Gift, Settings, LogOut } from "lucide-react";
+import { ArrowLeft, Wrench, Home, Wallet, Gift, Settings, LogOut, User } from "lucide-react";
 
 const SECTIONS = [
   { key: "servicios", href: "servicios", icon: Wrench },
@@ -32,6 +32,7 @@ const SECTIONS = [
   { key: "billetera", href: "billetera", icon: Wallet },
   { key: "referidos", href: "referidos", icon: Gift },
   { key: "preferencias", href: "preferencias", icon: Settings },
+  { key: "perfil", href: "perfil", icon: User },
 ] as const;
 
 export function CuentaNav() {

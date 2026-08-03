@@ -157,6 +157,7 @@ export default async function middleware(request: NextRequest) {
   // pasar si la ruta es pública) -- es la misma UX que ya existe hoy para
   // cualquier visitante anónimo, en vez de una pantalla de error genérica.
   let user: User | null = null;
+  let authFailed = false;
   try {
     const supabase = createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
       cookies: {
@@ -164,10 +165,14 @@ export default async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options) {
-          response.cookies.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
+          // secure: solo en producción. En desarrollo (HTTP local), las cookies
+          // secure son rechazadas por el navegador y la sesión nunca persiste.
+          const secure = process.env.NODE_ENV === "production";
+          response.cookies.set({ name, value, ...options, httpOnly: true, secure, sameSite: "lax" });
         },
         remove(name: string, options) {
-          response.cookies.set({ name, value: '', ...options, httpOnly: true, secure: true, sameSite: "lax" });
+          const secure = process.env.NODE_ENV === "production";
+          response.cookies.set({ name, value: '', ...options, httpOnly: true, secure, sameSite: "lax" });
         },
       },
     });

@@ -279,12 +279,21 @@ export default function MisServiciosClient() {
                   </div>
                   <div className="shrink-0 flex flex-col items-end gap-2">
                     {order.status === "completed" && (
-                      <Link
-                        href={`/${locale}/cuenta/servicios/${order.id}/galeria`}
-                        className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-navy hover:underline"
-                      >
-                        {t("viewPhotosChecklist")}
-                      </Link>
+                      <>
+                        <Link
+                          href={`/${locale}/cuenta/servicios/${order.id}/galeria`}
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-navy hover:underline"
+                        >
+                          {t("viewPhotosChecklist")}
+                        </Link>
+                        <Link
+                          href={`/${locale}/cuenta/servicios/${order.id}/invoice`}
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-navy hover:underline"
+                        >
+                          <Receipt className="w-3.5 h-3.5" />
+                          {t("downloadInvoice")}
+                        </Link>
+                      </>
                     )}
                     {order.status === "confirmed" && (
                       <Link

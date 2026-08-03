@@ -10,6 +10,7 @@ import { mapQuoteFromSupabase } from "@/lib/supabase-mappers";
 import { DatePicker } from "@/components/reserva/DatePicker";
 import { TimeSlotPicker } from "@/components/reserva/TimeSlotPicker";
 import { StripeCardForm } from "@/components/reserva/StripeCardForm";
+import { SavedCardSelector } from "@/components/reserva/SavedCardSelector";
 import { ApplePayButton } from "@/components/reserva/ApplePayButton";
 import { WalletPayButton } from "@/components/reserva/WalletPayButton";
 import { ReservationSummary } from "@/components/reserva/ReservationSummary";
@@ -75,6 +76,7 @@ export default function ReservaPage() {
   // igual debe registrar una tarjeta de respaldo (paymentMethodId, arriba)
   // antes de poder confirmar -- ambas condiciones se exigen en handleConfirm.
   const [walletPaymentIntentId, setWalletPaymentIntentId] = useState("");
+  const [usingNewCard, setUsingNewCard] = useState(false);
   // Fix (auditoría 2026-07-30): Alipay diferido (y en general cualquier
   // wallet payment con 3DS/verificación adicional) puede volver del redirect
   // con redirect_status="processing" o "requires_action" en vez de
@@ -423,6 +425,24 @@ export default function ReservaPage() {
     setPaymentMethodId(pmId);
   };
 
+  const handleSavedCardSelect = async (methodId: string) => {
+    try {
+      const res = await fetch(`/api/client/payment-methods/${encodeURIComponent(methodId)}/token`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      if (data.providerToken) {
+        setPaymentMethodId(data.providerToken);
+        setUsingNewCard(false);
+      }
+    } catch {
+      // fallback: the confirmation endpoint will resolve the token
+      setPaymentMethodId(methodId);
+      setUsingNewCard(false);
+    }
+  };
+
   const handleConfirm = async () => {
     if (!quote || !serviceDate || !serviceTime || !paymentMethodId) {
       setConfirmError(t("confirm.completeAllSteps"));
@@ -698,6 +718,14 @@ export default function ReservaPage() {
                 </div>
 
                 {paymentOption === "card" && (
+                  <>
+                    <SavedCardSelector
+                      onSelectSavedCard={handleSavedCardSelect}
+                      onUseNewCard={() => setUsingNewCard(true)}
+                      usingNewCard={usingNewCard}
+                      disabled={isConfirming}
+                    />
+                    {usingNewCard && (
                   <Elements
                     stripe={stripePromise}
                     options={{
@@ -717,6 +745,8 @@ export default function ReservaPage() {
                       clientSecret={stripeClientSecret}
                     />
                   </Elements>
+                    )}
+                  </>
                 )}
 
                 {paymentOption === "paypal_first_time" && (

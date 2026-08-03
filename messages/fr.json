@@ -653,6 +653,7 @@
       "billetera": "Portefeuille Lulu",
       "referidos": "Ambassadeur Lulu",
       "preferencias": "Préférences",
+      "perfil": "Profil",
       "logout": "Déconnexion",
       "logoutError": "Impossible de se déconnecter. Vérifiez votre connexion et réessayez."
     },
@@ -665,6 +666,41 @@
       "retrying": "Nouvel essai…",
       "loadFailedRetry": "Le chargement a échoué. Vérifiez votre connexion et réessayez.",
       "networkErrorRetry": "Problème de connexion. Vérifiez votre connexion internet et réessayez."
+    },
+    "dashboard": {
+      "greeting": "Bon retour !",
+      "greetingWithName": "Bon retour, {name} !",
+      "subtitleFirstTime": "Prêt pour votre premier nettoyage ?",
+      "subtitle": "{count, plural, =1 {1 service terminé} other {# services terminés}}",
+      "nextServiceLabel": "Votre prochain nettoyage",
+      "trackTeam": "Suivre votre équipe",
+      "viewAllServices": "Voir tous les services",
+      "noServicesYetTitle": "Réservez votre premier nettoyage",
+      "noServicesYetDesc": "Obtenez un devis gratuit en moins de 2 minutes. Sans engagement.",
+      "noUpcomingTitle": "Aucun nettoyage à venir",
+      "noUpcomingDesc": "Prêt à réserver le prochain ? Même adresse, même qualité.",
+      "bookFirstCleaning": "Réserver un nettoyage",
+      "luluCredit": "Crédit Lulu",
+      "viewWallet": "Voir le portefeuille",
+      "addPaymentMethod": "Ajouter un moyen de paiement",
+      "lastServiceLabel": "Dernier nettoyage",
+      "viewPhotos": "Voir les photos",
+      "bookAgain": "Réserver à nouveau",
+      "quickActions": "Actions rapides",
+      "manageProperties": "Gérer mes propriétés",
+      "allServices": "Tous les services",
+      "myProperties": "Mes propriétés",
+      "walletAndPayments": "Portefeuille et paiements",
+      "alerts": {
+        "phoneNotVerified": "Vérifiez votre numéro de téléphone pour réserver et recevoir des rappels."
+      },
+      "serviceTypes": {
+        "regular": "Nettoyage régulier",
+        "deep": "Nettoyage en profondeur",
+        "moveInOut": "Déménagement",
+        "postConstruction": "Post-construction",
+        "default": "Service de nettoyage"
+      }
     },
     "orderStatus": {
       "pending": "En attente",
@@ -697,6 +733,7 @@
       "defaultServiceLabel": "Service de nettoyage",
       "viewPhotosChecklist": "Voir les photos et la liste de vérification",
       "trackYourTeam": "Suivre votre équipe",
+      "downloadInvoice": "Télécharger la facture",
       "amountPaid": "Montant payé : {amount}",
       "amountHeld": "Montant retenu : {amount}",
       "reportIssue": "Signaler un problème",

@@ -8,6 +8,9 @@ import { StatusBanner } from "@/components/cuenta/StatusBanner";
 import { supabase } from "@/lib/supabase";
 import { AuthModal } from "@/components/cotizador/AuthModal";
 import { formatCurrency } from "@/lib/format";
+import { Elements } from "@stripe/react-stripe-js";
+import { getStripe } from "@/lib/stripe";
+import PaymentMethodsCard from "@/components/cuenta/PaymentMethodsCard";
 import { formatServiceDateDisplay, formatVancouverDate } from "@/lib/date-utils";
 
 interface WalletTransaction {
@@ -75,6 +78,8 @@ const ORDER_STATUSES = ["pending", "confirmed", "completed", "cancelled", "no_sh
 // transactions.type — valores conocidos del backend, con fallback al tipo crudo
 // si apareciera un valor nuevo no traducido.
 const WALLET_TX_TYPES = ["credit", "debit", "refund", "promo", "payout"];
+
+const stripePromise = getStripe();
 
 export default function WalletPage() {
   const t = useTranslations("cuenta.billetera");
@@ -201,6 +206,7 @@ export default function WalletPage() {
     // (max-w-3xl mx-auto px-4 py-8) -- quedaba pegada al borde izquierdo sin
     // margen, en vez de centrada con aire lateral. Se alinea al mismo patrón
     // que ya usan esas dos páginas.
+    <Elements stripe={stripePromise}>
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
@@ -234,6 +240,8 @@ export default function WalletPage() {
           <p className="text-xs text-gray-500">{t("availableToSpend")}</p>
         </div>
       </div>
+
+      <PaymentMethodsCard />
 
       {orders.length > 0 && availableBalance > 0 && (
         <div>
@@ -298,5 +306,6 @@ export default function WalletPage() {
         )}
       </div>
     </div>
+    </Elements>
   );
 }

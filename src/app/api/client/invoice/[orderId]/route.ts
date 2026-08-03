@@ -1,0 +1,67 @@
+import { NextResponse } from "next/server";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { QUOTE_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { requireClientCaller } from "@/lib/require-client-caller";
+
+function getSupabaseClient() {
+  const cookieStore = cookies();
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
+    cookies: {
+      get(name: string) { return cookieStore.get(name)?.value; },
+      set(name: string, value: string, options: CookieOptions) {
+        cookieStore.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
+      },
+      remove(name: string, options: CookieOptions) {
+        cookieStore.set({ name, value: "", ...options, httpOnly: true, secure: true, sameSite: "lax" });
+      },
+    },
+  });
+}
+
+/**
+ * GET /api/client/invoice/[orderId] — datos para generar el invoice de una orden completada.
+ */
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ orderId: string }> }
+) {
+  const { orderId } = await params;
+  const supabase = getSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const clientGuard = await requireClientCaller(supabase, user.id);
+  if (!clientGuard.ok) return NextResponse.json({ error: clientGuard.error }, { status: clientGuard.status });
+
+  const { data: order, error } = await supabase
+    .from("orders")
+    .select(`id, service_date, status, quotes:quote_id (${QUOTE_CLIENT_COLUMNS})`)
+    .eq("id", orderId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (error || !order) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const q = (order as any).quotes;
+  const quote = Array.isArray(q) ? q[0] : q;
+  const subtotal = Number(quote?.subtotal ?? 0);
+  const gst = Number(quote?.gst ?? Math.round(subtotal * 0.05 * 100) / 100);
+  const pst = Number(quote?.pst ?? Math.round(subtotal * 0.07 * 100) / 100);
+  const total = Number(quote?.total ?? subtotal + gst + pst);
+
+  return NextResponse.json({
+    orderId: (order as { id: string }).id,
+    serviceDate: (order as { service_date: string }).service_date,
+    address: quote?.address ?? null,
+    serviceType: quote?.service_type ?? null,
+    serviceSubtype: quote?.service_subtype ?? null,
+    subtotal,
+    gst,
+    pst,
+    total,
+    status: (order as { status: string }).status,
+  });
+}
