@@ -126,6 +126,16 @@ export default function DashboardClient() {
     ? `${String(defaultPaymentMethod.expiryMonth).padStart(2, "0")}/${String(defaultPaymentMethod.expiryYear).slice(-2)}`
     : null;
 
+  // Alerta si la tarjeta por defecto vence en ≤90 días
+  const cardExpiringSoon = defaultPaymentMethod?.expiryMonth && defaultPaymentMethod.expiryYear
+    ? (() => {
+        const now = new Date();
+        const expiry = new Date(defaultPaymentMethod.expiryYear, defaultPaymentMethod.expiryMonth - 1);
+        const diffDays = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return diffDays <= 90 && diffDays >= 0;
+      })()
+    : false;
+
   // ── Helpers de etiquetas ──────────────────────────────────────────────
   const serviceTypeLabels: Record<string, string> = {
     regular: t("serviceTypes.regular"),
@@ -172,6 +182,15 @@ export default function DashboardClient() {
           <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="text-sm text-amber-800">
             <p>{t("alerts.phoneNotVerified")}</p>
+          </div>
+        </div>
+      )}
+
+      {cardExpiringSoon && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="text-sm text-amber-800">
+            <p>{t("alerts.cardExpiring", { lastFour: defaultPaymentMethod?.lastFour ?? "", date: cardExpiryLabel ?? "" })}</p>
           </div>
         </div>
       )}

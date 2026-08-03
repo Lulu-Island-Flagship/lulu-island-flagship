@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
 
     const { data: clientProfile } = await supabase
       .from("client_profiles")
-      .select("account_type, services_count, preferred_languages, phone_verified")
+      .select("account_type, services_count, preferred_languages, phone_verified, stripe_customer_id")
       .eq("user_id", quoteRow.user_id)
       .single();
 
@@ -699,7 +699,9 @@ export async function POST(request: NextRequest) {
         service_time: serviceTime,
         service_datetime: serviceDatetime.toISOString(),
         status: "confirmed",
-        stripe_customer_id: stripeCustomerId || null,
+        // v0.1 fix: si el cliente no envía el customer_id, usar el del perfil
+        // (fuente canónica 1:1). Evita customers duplicados en Stripe.
+        stripe_customer_id: stripeCustomerId || clientProfile?.stripe_customer_id || null,
         stripe_payment_method_id: paymentMethodId,
         stripe_setup_intent_id: stripeSetupIntentId,
         payment_option: selectedPaymentOption,
