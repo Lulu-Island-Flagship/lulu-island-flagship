@@ -210,6 +210,12 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(currentPath)}`,
+          // Fix (auditoría de login 2026-08-02): fuerza el selector de cuenta
+          // de Google en vez de dejar que reuse silenciosamente la sesión ya
+          // activa (ver mismo fix en StaffLoginScreen.tsx).
+          queryParams: {
+            prompt: "select_account",
+          },
         },
       });
       if (error) throw error;

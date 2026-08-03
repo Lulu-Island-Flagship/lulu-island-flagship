@@ -116,6 +116,17 @@ export default function StaffLoginScreen({ locale, error: initialError }: StaffL
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(buildPortalRedirectTarget())}`,
+          // Fix (auditoría de login 2026-08-02): sin esto, Google puede reusar
+          // silenciosamente la sesión/cookie ya activa (el "authuser" index)
+          // en vez de honrar la cuenta que el usuario clickea en el selector,
+          // cuando hay más de una cuenta de Google abierta en el navegador.
+          // No es un hueco de seguridad -- resolveStaffLogin()/admin_roles
+          // sigue rechazando cuentas sin rol -- pero causaba confusión real
+          // ("This account isn't registered as staff" con la cuenta correcta
+          // clickeada). Forzar el selector cada vez lo evita.
+          queryParams: {
+            prompt: "select_account",
+          },
         },
       });
       if (error) throw error;
