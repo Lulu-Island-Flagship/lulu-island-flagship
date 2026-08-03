@@ -23,7 +23,7 @@ import {
   Video,
   AlertOctagon,
   Sunrise,
-  Shirt,
+  TowelRack,
 } from "lucide-react";
 import type { EmployeeService } from "@/types";
 import { downloadAndCacheDayBundle } from "@/lib/offline-day-cache";
@@ -742,11 +742,15 @@ export default function EmpleadoPage() {
               <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.checkin")}</span>
             </Link>
             {/* v8.3 E7.3: ciclo de paños/inventario — antes construido pero inalcanzable */}
+            {/* Fix (2026-08-02, reporte del usuario): el ícono Shirt (camiseta)
+                se veía como ropa -- esto es sobre paños/trapos de limpieza, no
+                prendas de vestir. TowelRack (toallero) es un ícono limpio y sin
+                connotación de "trapo sucio" que representa mejor tela de limpieza. */}
             <Link
               href={`/${safeLocale}/empleado/panos`}
               className="bg-white rounded-lg shadow-elevation-1 p-2.5 flex flex-col items-center text-center gap-1 hover:shadow-elevation-2 transition-shadow"
             >
-              <Shirt className="w-4 h-4 text-brand-navy" />
+              <TowelRack className="w-4 h-4 text-brand-navy" />
               <span className="font-medium text-[11px] leading-tight text-brand-ink">{t("dashboard.cloths")}</span>
             </Link>
             {/* v8.3 E8.13: ritual de inicio/fin de jornada (equipo, clima, ranking, ganancias, insignias) */}
