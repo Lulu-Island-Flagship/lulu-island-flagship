@@ -1447,6 +1447,17 @@
       "searchAriaLabel": "Search dashboard cards",
       "searchNoResults": "No cards match your search.",
       "otherGroup": "Other",
+      "groups": {
+        "operations": "Operations",
+        "qualitySafety": "Quality & Safety",
+        "continuity": "Business Continuity & Risk",
+        "salesCustomer": "Sales & Customer",
+        "pricingFinance": "Pricing & Finance",
+        "payrollHr": "Payroll & HR",
+        "wellbeing": "Employee Wellbeing",
+        "complianceLegal": "Compliance & Legal",
+        "growthMarketing": "Growth & Marketing"
+      },
       "cards": {
         "alertInbox": {
           "title": "Alert Inbox",

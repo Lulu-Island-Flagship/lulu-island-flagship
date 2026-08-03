@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
-import { buildGroups } from "./AdminNav";
 import {
   ClipboardList,
   Users,
@@ -53,6 +52,50 @@ import DashboardMetricsPanel from "./DashboardMetricsPanel";
 import AutopilotModeBanner from "./AutopilotModeBanner";
 import { roleAllows, type AdminRole, type AdminResource } from "@/lib/admin-rbac";
 
+// Fix (2026-08-02, reporte del usuario): la agrupación anterior reusaba las
+// 4 categorías del menú de navegación (AdminNav.tsx -- Operations, Quality &
+// Risk, Sales & Customer, Finance & Settings), pensadas para ~24 links del
+// nav, no para las 45 tarjetas del dashboard. Resultado medido: 30 de las 45
+// tarjetas (dos tercios) no tenían ningún href equivalente en el nav y caían
+// todas juntas en un grupo genérico "Otros" -- cosas tan distintas como
+// Disaster Recovery, PIPEDA, Growth Metrics, Nómina y Legacy Migration
+// mezcladas sin ningún criterio visible. Agrupar "de nombre" para dos
+// tercios del dashboard es funcionalmente lo mismo que no agrupar.
+//
+// Se reemplaza por una taxonomía propia de 9 grupos, con cada tarjeta
+// declarando su grupo explícitamente (campo `group` de abajo) en vez de
+// inferirlo por un lookup de href contra el nav -- así ninguna tarjeta puede
+// caer en "Otros" por accidente (el fallback sigue existiendo como red de
+// seguridad para una tarjeta futura que alguien olvide clasificar, pero no
+// debería usarse). No se toca AdminNav.tsx / el menú superior -- ese menú
+// sigue funcionando igual que antes; este es un cambio acotado a la página
+// del dashboard, que es lo que se reportó como confuso.
+type DashboardGroupId =
+  | "operations"
+  | "qualitySafety"
+  | "continuity"
+  | "salesCustomer"
+  | "pricingFinance"
+  | "payrollHr"
+  | "wellbeing"
+  | "complianceLegal"
+  | "growthMarketing";
+
+// Orden fijo en el que se muestran los grupos (los de trabajo diario/
+// operación primero, los de crecimiento/analítica al final -- mismo criterio
+// que ya usaba AdminNav.tsx de "lo urgente arriba").
+const GROUP_ORDER: DashboardGroupId[] = [
+  "operations",
+  "qualitySafety",
+  "continuity",
+  "salesCustomer",
+  "pricingFinance",
+  "payrollHr",
+  "wellbeing",
+  "complianceLegal",
+  "growthMarketing",
+];
+
 // v8.3 fix G-3 (auditoría implacable 2026-07-20b): antes este componente no
 // recibía roles ni resource alguno -- las 45 tarjetas se mostraban a
 // cualquier cuenta admin, sin importar su rol (un qc_only veía y podía
@@ -63,7 +106,6 @@ import { roleAllows, type AdminRole, type AdminResource } from "@/lib/admin-rbac
 // por tarjeta más abajo para las que no están en AdminNav.tsx).
 export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) {
   const t = useTranslations("admin.dashboard");
-  const tNav = useTranslations("admin.nav");
   // Item 8 (auditoría 2026-07-25): antes se leía el locale con
   // window.location.pathname.split("/")[1], lo que rendería distinto en
   // servidor (SSR, "en" fijo) vs cliente (locale real) -- riesgo de
@@ -80,6 +122,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
     href: string;
     color: string;
     resource: AdminResource;
+    group: DashboardGroupId;
   }> = [
     {
       title: t("cards.alertInbox.title"),
@@ -89,6 +132,9 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-red-50 text-red-600",
       // No está en AdminNav.tsx -- API usa "risk_assessments" (src/app/api/admin/alerts/route.ts).
       resource: "risk_assessments",
+      // Consolida alertas de safety_abort, wellbeing_chemical y
+      // dispatch_discrepancy (migración 147) -- vive con Calidad y Seguridad.
+      group: "qualitySafety",
     },
     {
       title: t("cards.todaysServices.title"),
@@ -97,6 +143,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       href: `/${safeLocale}/admin/servicios`,
       color: "bg-blue-50 text-blue-600",
       resource: "services",
+      group: "operations",
     },
     {
       title: t("cards.dispatchReview.title"),
@@ -106,6 +153,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-teal-50 text-teal-600",
       // No está en AdminNav.tsx -- API usa "dispatch" (src/app/api/admin/dispatch/route.ts).
       resource: "dispatch",
+      group: "operations",
     },
     {
       title: t("cards.employees.title"),
@@ -114,6 +162,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       href: `/${safeLocale}/admin/empleados`,
       color: "bg-purple-50 text-purple-600",
       resource: "employees_admin",
+      group: "operations",
     },
     {
       title: t("cards.upsellsReview.title"),
@@ -122,6 +171,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       href: `/${safeLocale}/admin/upsells`,
       color: "bg-amber-50 text-amber-600",
       resource: "upsells_review",
+      group: "salesCustomer",
     },
     {
       title: t("cards.checklists.title"),
@@ -130,6 +180,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       href: `/${safeLocale}/admin/checklists`,
       color: "bg-green-50 text-green-600",
       resource: "checklists_sop",
+      group: "operations",
     },
     {
       title: t("cards.qcWall.title"),
@@ -138,6 +189,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       href: `/${safeLocale}/admin/qc`,
       color: "bg-indigo-50 text-indigo-600",
       resource: "qc_wall",
+      group: "qualitySafety",
     },
     {
       title: t("cards.fieldAudits.title"),
@@ -146,6 +198,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       href: `/${safeLocale}/admin/audits`,
       color: "bg-cyan-50 text-cyan-600",
       resource: "field_audits",
+      group: "qualitySafety",
     },
     {
       title: t("cards.tickets.title"),
@@ -154,6 +207,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       href: `/${safeLocale}/admin/tickets`,
       color: "bg-red-50 text-red-600",
       resource: "tickets",
+      group: "salesCustomer",
     },
     {
       title: t("cards.quoteReviews.title"),
@@ -162,6 +216,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       href: `/${safeLocale}/admin/quotes-review`,
       color: "bg-rose-50 text-rose-600",
       resource: "quotes_review",
+      group: "salesCustomer",
     },
     {
       title: t("cards.pricingRules.title"),
@@ -170,6 +225,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       href: `/${safeLocale}/admin/pricing-rules`,
       color: "bg-slate-50 text-slate-600",
       resource: "pricing_rules",
+      group: "pricingFinance",
     },
     {
       title: t("cards.pricingSettings.title"),
@@ -178,6 +234,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       href: `/${safeLocale}/admin/pricing-settings`,
       color: "bg-emerald-50 text-emerald-600",
       resource: "pricing_settings",
+      group: "pricingFinance",
     },
     {
       title: t("cards.businessInsurance.title"),
@@ -187,6 +244,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-teal-50 text-teal-600",
       // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/business-insurance/route.ts).
       resource: "finance",
+      group: "pricingFinance",
     },
     {
       title: t("cards.seasonalCampaigns.title"),
@@ -196,6 +254,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-fuchsia-50 text-fuchsia-600",
       // No está en AdminNav.tsx -- API usa "upsells_review" (src/app/api/admin/seasonal-campaigns/route.ts).
       resource: "upsells_review",
+      group: "growthMarketing",
     },
     {
       title: t("cards.succession.title"),
@@ -205,6 +264,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-indigo-50 text-indigo-600",
       // No está en AdminNav.tsx -- API usa "employees_admin" (src/app/api/admin/succession/route.ts).
       resource: "employees_admin",
+      group: "payrollHr",
     },
     {
       title: t("cards.drDrills.title"),
@@ -218,6 +278,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       // comentario en dr-drill/page.tsx). API usa "feature_flags"
       // (src/app/api/admin/dr-drill/route.ts).
       resource: "feature_flags",
+      group: "continuity",
     },
     {
       title: t("cards.weatherExceptions.title"),
@@ -227,6 +288,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-sky-50 text-sky-600",
       // No está en AdminNav.tsx -- API usa "risk_assessments" (src/app/api/admin/weather-exceptions/route.ts).
       resource: "risk_assessments",
+      group: "qualitySafety",
     },
     {
       title: t("cards.workplaceIncidents.title"),
@@ -236,6 +298,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-rose-50 text-rose-600",
       // No está en AdminNav.tsx -- API usa "risk_assessments" (src/app/api/admin/workplace-incidents/route.ts).
       resource: "risk_assessments",
+      group: "qualitySafety",
     },
     {
       title: t("cards.churnSignals.title"),
@@ -245,6 +308,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-amber-50 text-amber-600",
       // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/churn-signals/route.ts).
       resource: "finance",
+      group: "growthMarketing",
     },
     {
       title: t("cards.attribution.title"),
@@ -254,6 +318,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-lime-50 text-lime-600",
       // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/attribution/route.ts).
       resource: "finance",
+      group: "growthMarketing",
     },
     {
       title: t("cards.partners.title"),
@@ -263,6 +328,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-cyan-50 text-cyan-700",
       // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/partners/route.ts).
       resource: "finance",
+      group: "growthMarketing",
     },
     {
       title: t("cards.neighborhood.title"),
@@ -272,6 +338,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-violet-50 text-violet-600",
       // No está en AdminNav.tsx -- API usa "risk_assessments" (src/app/api/admin/neighborhood/route.ts).
       resource: "risk_assessments",
+      group: "growthMarketing",
     },
     {
       title: t("cards.experiments.title"),
@@ -281,6 +348,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-fuchsia-50 text-fuchsia-700",
       // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/experiments/route.ts).
       resource: "finance",
+      group: "growthMarketing",
     },
     {
       title: t("cards.clientSegments.title"),
@@ -290,6 +358,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-amber-50 text-amber-700",
       // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/client-segments/route.ts).
       resource: "finance",
+      group: "growthMarketing",
     },
     {
       title: t("cards.wellbeing.title"),
@@ -298,6 +367,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       href: `/${safeLocale}/admin/wellbeing`,
       color: "bg-blue-50 text-blue-700",
       resource: "wellbeing",
+      group: "wellbeing",
     },
     {
       title: t("cards.teams.title"),
@@ -306,6 +376,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       href: `/${safeLocale}/admin/teams`,
       color: "bg-indigo-50 text-indigo-700",
       resource: "teams",
+      group: "operations",
     },
     {
       title: t("cards.routeShortcuts.title"),
@@ -315,6 +386,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-cyan-50 text-cyan-700",
       // No está en AdminNav.tsx -- API usa "wellbeing" (src/app/api/admin/route-shortcuts/route.ts).
       resource: "wellbeing",
+      group: "wellbeing",
     },
     {
       title: t("cards.coworkerRotation.title"),
@@ -324,6 +396,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-teal-50 text-teal-700",
       // No está en AdminNav.tsx -- API usa "dispatch" (src/app/api/admin/coworker-rotation/route.ts).
       resource: "dispatch",
+      group: "operations",
     },
     {
       title: t("cards.livePortfolio.title"),
@@ -337,6 +410,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       // rol qc_only veía la card (por tener acceso a qc_wall) pero recibía
       // 403 al hacer clic. No está en AdminNav.tsx.
       resource: "live_portfolio_publish",
+      group: "growthMarketing",
     },
     {
       title: t("cards.seoLocal.title"),
@@ -346,6 +420,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-lime-50 text-lime-700",
       // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/seo-local/route.ts).
       resource: "finance",
+      group: "growthMarketing",
     },
     {
       title: t("cards.employeeMarketing.title"),
@@ -355,6 +430,9 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-violet-50 text-violet-700",
       // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/employee-marketing/route.ts).
       resource: "finance",
+      // Consentimiento del EMPLEADO para reels/insignias -- vive con
+      // Nómina y Personal (es un tema de RR.HH., no de campaña de marketing).
+      group: "payrollHr",
     },
     {
       title: t("cards.payrollExport.title"),
@@ -364,6 +442,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-emerald-50 text-emerald-700",
       // No está en AdminNav.tsx -- API usa "payroll" (src/app/api/admin/payroll-export/route.ts).
       resource: "payroll",
+      group: "payrollHr",
     },
     {
       title: t("cards.economicParameters.title"),
@@ -373,6 +452,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-amber-50 text-amber-700",
       // No está en AdminNav.tsx -- API usa "payroll" (src/app/api/admin/economic-params/route.ts).
       resource: "payroll",
+      group: "payrollHr",
     },
     {
       title: t("cards.legalMonitoring.title"),
@@ -382,6 +462,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-slate-50 text-slate-700",
       // No está en AdminNav.tsx -- API usa "compliance" (src/app/api/admin/legal-monitoring/route.ts).
       resource: "compliance",
+      group: "complianceLegal",
     },
     {
       title: t("cards.pipeda.title"),
@@ -391,6 +472,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-red-50 text-red-700",
       // No está en AdminNav.tsx -- API usa "compliance" (src/app/api/admin/pipeda/requests/route.ts).
       resource: "compliance",
+      group: "complianceLegal",
     },
     {
       title: t("cards.giftProgram.title"),
@@ -400,6 +482,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-pink-50 text-pink-700",
       // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/retention-gifts/route.ts).
       resource: "finance",
+      group: "growthMarketing",
     },
     {
       title: t("cards.growthMetrics.title"),
@@ -409,6 +492,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-teal-50 text-teal-800",
       // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/growth-metrics/route.ts).
       resource: "finance",
+      group: "growthMarketing",
     },
     {
       title: t("cards.entityNotes.title"),
@@ -418,6 +502,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-yellow-50 text-yellow-700",
       // No está en AdminNav.tsx -- API usa "dispatch" (src/app/api/admin/entity-notes/route.ts).
       resource: "dispatch",
+      group: "operations",
     },
     {
       title: t("cards.stressScenario.title"),
@@ -427,6 +512,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-red-50 text-red-800",
       // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/stress-scenario/route.ts).
       resource: "finance",
+      group: "continuity",
     },
     {
       title: t("cards.legacyMigration.title"),
@@ -436,6 +522,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-gray-100 text-gray-700",
       // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/legacy-migration/route.ts).
       resource: "finance",
+      group: "continuity",
     },
     {
       title: t("cards.certifications.title"),
@@ -445,6 +532,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-indigo-50 text-indigo-800",
       // No está en AdminNav.tsx -- API usa "compliance" (src/app/api/admin/certifications/route.ts).
       resource: "compliance",
+      group: "payrollHr",
     },
     {
       title: t("cards.craRemittances.title"),
@@ -453,6 +541,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       href: `/${safeLocale}/admin/cra-remittances`,
       color: "bg-emerald-50 text-emerald-800",
       resource: "compliance",
+      group: "pricingFinance",
     },
     {
       title: t("cards.backupStatus.title"),
@@ -462,6 +551,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-slate-50 text-slate-800",
       // No está en AdminNav.tsx -- API usa "compliance" (src/app/api/admin/backup-status/route.ts).
       resource: "compliance",
+      group: "continuity",
     },
     {
       title: t("cards.contractReviews.title"),
@@ -470,6 +560,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       href: `/${safeLocale}/admin/contract-reviews`,
       color: "bg-cyan-50 text-cyan-800",
       resource: "compliance",
+      group: "complianceLegal",
     },
     {
       title: t("cards.laborCompliance.title"),
@@ -480,30 +571,13 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       // No está en AdminNav.tsx -- agrega rest-periods/sick-leave/statutory-holiday-pay/
       // weekly-rest-violations, todas con "compliance" en sus APIs.
       resource: "compliance",
+      group: "complianceLegal",
     },
   ];
 
   const visibleCards = cards.filter((card) => roleAllows(roles, card.resource));
 
-  // Fix (auditoría externa 2026-07-31, item 10): ~45 tarjetas sin buscador
-  // ni agrupación visual eran difíciles de escanear. En vez de inventar
-  // categorías nuevas, se reusan los grupos que YA existen en
-  // AdminNav.tsx (buildGroups) -- son la misma taxonomía que el propio
-  // dueño definió para el menú de navegación. Las tarjetas cuyo href no
-  // tiene un link equivalente en el nav (la mayoría de las ~30 "No está en
-  // AdminNav.tsx" de arriba) caen en un grupo "Otros" al final.
   const [search, setSearch] = useState("");
-  const navGroups = buildGroups(`/${safeLocale}/admin`, tNav);
-  const hrefToGroupLabel = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const group of navGroups) {
-      for (const link of group.links) {
-        map.set(link.href, group.label);
-      }
-    }
-    return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [safeLocale]);
 
   const query = search.trim().toLowerCase();
   const filteredCards = query
@@ -513,18 +587,21 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       )
     : visibleCards;
 
+  // Agrupación directa por el campo `group` de cada tarjeta (ver taxonomía
+  // arriba) -- ya no depende de un lookup de href contra AdminNav.tsx, así
+  // que ninguna tarjeta puede caer accidentalmente en un cajón genérico.
+  // `otherGroup` se conserva solo como red de seguridad para una tarjeta
+  // futura sin `group` asignado (no debería alcanzarse nunca en la práctica).
   const otherGroupLabel = t("otherGroup");
   const groupedCards = new Map<string, typeof filteredCards>();
   for (const card of filteredCards) {
-    const groupLabel = hrefToGroupLabel.get(card.href) || otherGroupLabel;
+    const groupLabel = t(`groups.${card.group}`);
     const existing = groupedCards.get(groupLabel) || [];
     existing.push(card);
     groupedCards.set(groupLabel, existing);
   }
-  // Orden estable: primero los grupos en el mismo orden que AdminNav.tsx,
-  // "Otros" al final.
   const orderedGroupLabels = [
-    ...navGroups.map((g) => g.label).filter((label) => groupedCards.has(label)),
+    ...GROUP_ORDER.map((id) => t(`groups.${id}`)).filter((label) => groupedCards.has(label)),
     ...(groupedCards.has(otherGroupLabel) ? [otherGroupLabel] : []),
   ];
 

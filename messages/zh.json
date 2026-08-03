@@ -1447,6 +1447,17 @@
       "searchAriaLabel": "搜索面板卡片",
       "searchNoResults": "没有匹配的卡片。",
       "otherGroup": "其他",
+      "groups": {
+        "operations": "运营",
+        "qualitySafety": "质量与安全",
+        "continuity": "业务连续性与风险",
+        "salesCustomer": "销售与客户",
+        "pricingFinance": "定价与财务",
+        "payrollHr": "薪资与人事",
+        "wellbeing": "员工福祉",
+        "complianceLegal": "合规与法务",
+        "growthMarketing": "增长与营销"
+      },
       "cards": {
         "alertInbox": {
           "title": "警报收件箱",

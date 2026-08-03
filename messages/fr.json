@@ -1447,6 +1447,17 @@
       "searchAriaLabel": "Rechercher des cartes du tableau de bord",
       "searchNoResults": "Aucune carte ne correspond à votre recherche.",
       "otherGroup": "Autres",
+      "groups": {
+        "operations": "Opérations",
+        "qualitySafety": "Qualité et sécurité",
+        "continuity": "Continuité et gestion des risques",
+        "salesCustomer": "Ventes et clientèle",
+        "pricingFinance": "Tarification et finances",
+        "payrollHr": "Paie et RH",
+        "wellbeing": "Bien-être de l'équipe",
+        "complianceLegal": "Conformité et juridique",
+        "growthMarketing": "Croissance et marketing"
+      },
       "cards": {
         "alertInbox": {
           "title": "Boîte d'alertes",
