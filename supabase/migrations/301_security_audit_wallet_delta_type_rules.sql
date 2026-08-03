@@ -89,7 +89,10 @@ DECLARE
   v_order_total_cents INTEGER;
   v_self_service_credit_cap_cents CONSTANT INTEGER := 2000; -- $20 CAD
 BEGIN
-  v_is_trusted := current_user IN ('service_role', 'postgres', 'supabase_admin');
+  -- auth.uid() lee el JWT de la sesión real (no current_user, que en
+  -- SECURITY DEFINER devuelve el dueño de la función, no el caller).
+  -- auth.uid() es NULL para llamadas service_role (sin sesión JWT).
+  v_is_trusted := auth.uid() IS NULL;
 
   -- Idempotencia real a nivel de DB: si ya existe una fila para esta misma
   -- wallet + request_id, se devuelve el resultado ya persistido en vez de
