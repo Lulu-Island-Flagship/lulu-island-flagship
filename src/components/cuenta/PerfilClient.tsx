@@ -209,10 +209,24 @@ export default function PerfilClient() {
                   <CheckCircle2 className="w-3 h-3" /> {t("verified")}
                 </span>
               ) : profile.phone ? (
-                <span className="text-xs text-amber-600">{t("notVerified")}</span>
+                <span className="text-xs text-amber-600 flex items-center gap-1">
+                  {t("notVerified")}
+                </span>
               ) : null}
             </div>
           </div>
+          <button
+            onClick={() => {
+              // Reabrir AuthModal para verificar teléfono
+              import("@/components/cotizador/AuthModal").then((mod) => {
+                // Force phone verification via the existing AuthModal flow
+                window.dispatchEvent(new CustomEvent("lulu:verifyPhone"));
+              });
+            }}
+            className="text-xs text-brand-navy/60 hover:text-brand-navy shrink-0"
+          >
+            {profile.phone ? t("editPhone") : t("addPhone")}
+          </button>
         </div>
 
         {/* Language */}
