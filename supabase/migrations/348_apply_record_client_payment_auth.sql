@@ -2,7 +2,10 @@
 -- La migración 278 original se modificó en el repo pero ya estaba marcada como aplicada en producción.
 -- Este archivo aplica el fix como nueva migración para que db push lo ejecute.
 
--- Recrear la función con el guard de autorización inline
+-- La función original retorna client_payments (tipo fila), no UUID.
+-- CREATE OR REPLACE no permite cambiar el tipo de retorno → DROP primero.
+DROP FUNCTION IF EXISTS record_client_payment(UUID, UUID, UUID, INTEGER, TEXT);
+
 CREATE OR REPLACE FUNCTION record_client_payment(
   p_invoice_id UUID,
   p_client_id UUID,
