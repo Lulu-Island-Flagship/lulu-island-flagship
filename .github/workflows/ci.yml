@@ -8,6 +8,12 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      # Dummy values para que next build no truene en CI — los tests
+      # unitarios no dependen de Supabase y el build solo necesita que
+      # las variables existan (no se conecta a la base durante build).
+      NEXT_PUBLIC_SUPABASE_URL: https://ci-dummy.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-dummy-anon-key
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
