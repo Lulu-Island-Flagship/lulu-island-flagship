@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         // mientras no se haya decidido.
         await supabase
           .from("seasonal_campaign_runs")
-          .delete()
+          .update({ deleted_at: new Date().toISOString() })
           .eq("campaign_key", c.campaign_key)
           .eq("campaign_year", currentYear)
           .eq("status", "suggested");

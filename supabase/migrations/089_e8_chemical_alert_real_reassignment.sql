@@ -34,4 +34,4 @@ COMMENT ON COLUMN wellbeing_chemical_alerts.escalated_no_backup IS
 -- (distinto de dispute/discrepancy/consulta, que son de otro dominio).
 ALTER TABLE tickets_disputas DROP CONSTRAINT IF EXISTS tickets_disputas_type_check;
 ALTER TABLE tickets_disputas ADD CONSTRAINT tickets_disputas_type_check
-  CHECK (type IN ('dispute', 'discrepancy', 'consulta', 'wellbeing_no_backup'));
+  CHECK (type IN ('dispute', 'discrepancy', 'consulta', 'payment_failure', 'wellbeing_no_backup'));

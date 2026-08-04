@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { Siren, X, Loader2 } from "lucide-react";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 
@@ -61,6 +62,7 @@ const SOS_FETCH_TIMEOUT_MS = 2500;
 const SOS_FALLBACK_PHONE = process.env.NEXT_PUBLIC_SOS_EMERGENCY_PHONE || null;
 
 export function SafetyAbortButton({ orderId }: { orderId?: string }) {
+  const t = useTranslations("safetyAbort");
   const [stage, setStage] = useState<Stage>("idle");
   const [reason, setReason] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -188,7 +190,7 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
       });
       clearTimeout(timeoutId);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Could not activate SOS");
+      if (!res.ok) throw new Error(data.error || t("couldNotActivateSos"));
       const createdId = data.safetyAbort?.id as string | undefined;
       if (createdId) {
         setSafetyAbortId(createdId);
@@ -207,7 +209,7 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
       if (isNetworkFailure) {
         setStage("network_fallback");
       } else {
-        setErrorMsg(err instanceof Error ? err.message : "Network error");
+        setErrorMsg(err instanceof Error ? err.message : t("networkError"));
         setStage("error");
       }
     }
@@ -218,11 +220,11 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
       <button
         type="button"
         onClick={() => setStage("first")}
-        aria-label="Emergency safety abort"
+        aria-label={t("idleAriaLabel")}
         className="fixed bottom-5 right-5 z-50 flex items-center gap-2 bg-state-danger text-white px-4 py-3 rounded-full shadow-elevation-3 font-semibold text-sm"
       >
         <Siren className="w-5 h-5" />
-        SOS
+        {t("sos")}
       </button>
     );
   }
@@ -236,11 +238,11 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
       <button
         type="button"
         onClick={() => setMinimized(false)}
-        aria-label="SOS active — tap to view status"
+        aria-label={t("activeAriaLabel")}
         className="fixed bottom-5 right-5 z-50 flex items-center gap-2 bg-state-danger text-white px-4 py-3 rounded-full shadow-elevation-3 font-semibold text-sm animate-pulse"
       >
         <Siren className="w-5 h-5" />
-        SOS Active
+        {t("sosActive")}
       </button>
     );
   }
@@ -251,13 +253,13 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Emergency safety abort"
+        aria-label={t("dialogAriaLabel")}
         className="bg-white rounded-xl max-w-sm w-full p-6 relative"
       >
         <button
           type="button"
           onClick={dialogCloseHandler}
-          aria-label="Close"
+          aria-label={t("closeAriaLabel")}
           className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
         >
           <X className="w-5 h-5" />
@@ -266,17 +268,16 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
         {stage === "first" && (
           <>
             <Siren className="w-10 h-10 text-state-danger mb-3" />
-            <h2 className="text-lg font-bold text-brand-ink mb-2">Activate safety abort?</h2>
+            <h2 className="text-lg font-bold text-brand-ink mb-2">{t("activateTitle")}</h2>
             <p className="text-sm text-gray-600 mb-4">
-              This immediately notifies an admin with your location. Only use it for a real safety
-              risk. Confirm twice to avoid accidental activations.
+              {t("activateDescription")}
             </p>
             <button
               type="button"
               onClick={() => setStage("second")}
               className="w-full bg-state-danger text-white py-3 rounded-lg font-semibold"
             >
-              Yes, continue
+              {t("confirmFirst")}
             </button>
           </>
         )}
@@ -284,15 +285,15 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
         {stage === "second" && (
           <>
             <Siren className="w-10 h-10 text-state-danger mb-3" />
-            <h2 className="text-lg font-bold text-brand-ink mb-2">Confirm one more time</h2>
+            <h2 className="text-lg font-bold text-brand-ink mb-2">{t("confirmSecond")}</h2>
             <p className="text-sm text-gray-600 mb-3">
-              This is the final confirmation. SOS will activate immediately when you tap the button.
+              {t("confirmSecondDescription")}
             </p>
             <textarea
-              aria-label="What's happening (optional)"
+              aria-label={t("reasonAriaLabel")}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="What's happening? (optional, but helps the admin respond better)"
+              placeholder={t("reasonPlaceholder")}
               className="w-full border border-gray-300 rounded-lg p-2 text-sm mb-4"
               rows={3}
             />
@@ -301,7 +302,7 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
               onClick={confirmSecondAndSend}
               className="w-full bg-state-danger text-white py-3 rounded-lg font-semibold"
             >
-              Activate SOS now
+              {t("activateButton")}
             </button>
           </>
         )}
@@ -309,34 +310,33 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
         {stage === "sending" && (
           <div className="flex flex-col items-center py-6">
             <Loader2 className="w-8 h-8 animate-spin text-state-danger mb-3" />
-            <p className="text-sm text-gray-600">Activating SOS…</p>
+            <p className="text-sm text-gray-600">{t("activating")}</p>
           </div>
         )}
 
         {stage === "sent" && (
           <>
             <Siren className="w-10 h-10 text-state-danger mb-3" />
-            <h2 className="text-lg font-bold text-brand-ink mb-2">SOS activated</h2>
+            <h2 className="text-lg font-bold text-brand-ink mb-2">{t("sentTitle")}</h2>
             <p className="text-sm text-gray-600 mb-4">
-              An admin has been notified. If there&apos;s no response in 2 minutes, the system escalates
-              automatically. Stay in a safe place.
+              {t("sentDescription")}
             </p>
             <button type="button" onClick={minimizeDialog} className="w-full border border-gray-300 py-2.5 rounded-lg text-sm">
-              Close
+              {t("close")}
             </button>
           </>
         )}
 
         {stage === "error" && (
           <>
-            <h2 className="text-lg font-bold text-brand-ink mb-2">Couldn&apos;t activate</h2>
+            <h2 className="text-lg font-bold text-brand-ink mb-2">{t("errorTitle")}</h2>
             <p className="text-sm text-state-danger mb-4">{errorMsg}</p>
             <div className="flex gap-2">
               <button type="button" onClick={() => setStage("second")} className="flex-1 bg-state-danger text-white py-2.5 rounded-lg text-sm font-semibold">
-                Retry
+                {t("retry")}
               </button>
               <button type="button" onClick={reset} className="flex-1 border border-gray-300 py-2.5 rounded-lg text-sm">
-                Cancel
+                {t("cancel")}
               </button>
             </div>
           </>
@@ -345,12 +345,11 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
         {stage === "network_fallback" && (
           <>
             <Siren className="w-10 h-10 text-state-danger mb-3" />
-            <h2 className="text-lg font-bold text-brand-ink mb-2">No connection — call directly</h2>
+            <h2 className="text-lg font-bold text-brand-ink mb-2">{t("networkFallbackTitle")}</h2>
             <p className="text-sm text-gray-600 mb-4">
-              We couldn&apos;t send the SOS over the internet.{" "}
               {SOS_FALLBACK_PHONE
-                ? "Use one of these shortcuts to contact the on-call coordinator immediately."
-                : "If your life or safety is at risk, call 911 (or your local emergency number) directly from your phone."}
+                ? t("networkFallbackWithPhone")
+                : t("networkFallbackNoPhone")}
             </p>
             {SOS_FALLBACK_PHONE ? (
               <div className="flex flex-col gap-2 mb-4">
@@ -358,15 +357,15 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
                   href={`tel:${SOS_FALLBACK_PHONE}`}
                   className="w-full bg-state-danger text-white py-3 rounded-lg font-semibold text-center"
                 >
-                  Call now
+                  {t("callNow")}
                 </a>
                 <a
                   href={`sms:${SOS_FALLBACK_PHONE}?body=${encodeURIComponent(
-                    `SOS emergency. ${reason.trim() || "No additional details."}`
+                    `${t("smsBodyPrefix")} ${reason.trim() || t("smsNoDetails")}`
                   )}`}
                   className="w-full border border-state-danger text-state-danger py-2.5 rounded-lg font-semibold text-center"
                 >
-                  Send emergency SMS
+                  {t("sendSms")}
                 </a>
               </div>
             ) : (
@@ -374,7 +373,7 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
                 href="tel:911"
                 className="w-full bg-state-danger text-white py-3 rounded-lg font-semibold text-center block mb-4"
               >
-                Call 911
+                {t("call911")}
               </a>
             )}
             <button
@@ -382,10 +381,10 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
               onClick={() => setStage("second")}
               className="w-full border border-gray-300 py-2.5 rounded-lg text-sm mb-2"
             >
-              Retry over internet
+              {t("retryInternet")}
             </button>
             <button type="button" onClick={reset} className="w-full text-xs text-gray-400 py-1">
-              Cancel
+              {t("cancel")}
             </button>
           </>
         )}

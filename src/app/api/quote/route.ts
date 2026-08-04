@@ -10,6 +10,8 @@ import {
   ServiceType,
   MARGIN_FLOOR_PERCENT,
   computeTaxBreakdown,
+  dollarsToCents,
+  assertCentsReasonable,
 } from "@/lib/pricing";
 import { type RuleContext, type PricingRule } from "@/lib/rules";
 import { calculateAddonZonesCharge } from "@/lib/pricing";
@@ -688,7 +690,9 @@ export async function POST(request: NextRequest) {
     // v8.3 E2.10: pago fraccionado 50/50, solo informativo en esta respuesta
     // (elegibilidad + desglose sugerido) — el cliente elige explícitamente
     // useInstallmentPlan al confirmar la reserva (/api/stripe/confirm).
-    const totalCents = Math.round(Number(data.total) * 100);
+    // quotes.total is in dollars; orders.total_paid_cents must be in cents
+    const totalCents = dollarsToCents(Number(data.total));
+    assertCentsReasonable(totalCents, `quote/${data.id}/total`);
     const installmentEligible = isEligibleForInstallmentPlan(totalCents);
     const installmentSplitPreview = installmentEligible ? computeInstallmentSplit(totalCents) : null;
 

@@ -749,6 +749,7 @@
         "windowUnknown": "Impossible de déterminer la fenêtre d'annulation pour ce service.",
         "penaltyAmount": "Pénalité estimée : {amount}",
         "noPenalty": "Aucune pénalité — remboursement complet.",
+        "confirmTitle": "Annuler le service",
         "confirmPrompt": "Voulez-vous vraiment annuler ce service ? Cette action est irréversible.",
         "dismiss": "Conserver le service",
         "confirm": "Confirmer l'annulation",
@@ -793,7 +794,8 @@
         "pausing": "Mise en pause…",
         "pausePlan": "Mettre le plan en pause",
         "cancelling": "Annulation…",
-        "cancelPlan": "Annuler le plan"
+        "cancelPlan": "Annuler le plan",
+        "dismiss": "Conserver le plan"
       },
       "livePortfolio": {
         "withdrawFailed": "Impossible de retirer",
@@ -4232,10 +4234,73 @@
     "title": "Quel produit utilisez-vous ici?",
     "body": "Zone: {zone}. Choisissez le contenant qui correspond au produit que vous allez utiliser.",
     "warning": "En cas de doute, demandez à votre chef d'équipe avant d'utiliser un produit.",
-    "searchPlaceholder": "Rechercher des produits..."
+    "searchPlaceholder": "Rechercher des produits...",
+    "chlorineRiskWithProduct": "⚠️ RISQUE DE GAZ CHLORE : {product} est incompatible avec un produit déjà confirmé aujourd'hui. Ne l'utilisez dans aucune zone avant d'avoir ventilé et consulté votre responsable.",
+    "chlorineRiskGeneric": "⚠️ RISQUE DE GAZ CHLORE : ce produit est incompatible avec un autre déjà confirmé aujourd'hui. Ne l'utilisez dans aucune zone avant d'avoir ventilé et consulté votre responsable.",
+    "wrongProductForZone": "Ce n'est pas le bon produit pour cette zone. Vérifiez l'étiquette sur le contenant physique.",
+    "networkError": "Erreur réseau. Réessayez.",
+    "close": "Fermer",
+    "understood": "Compris, je vais consulter mon responsable"
+  },
+  "chemicalCodes": {
+    "red": "SALLE DE BAIN — ACIDE",
+    "blue": "CUISINE — AMMONIAQUE",
+    "green": "NEUTRE",
+    "yellow": "BOIS",
+    "white": "VITRE",
+    "black": "SOL",
+    "redZone": "Salle de bain",
+    "blueZone": "Cuisine",
+    "greenZone": "Comptoirs",
+    "yellowZone": "Surfaces / Poussière",
+    "whiteZone": "Fenêtres",
+    "blackZone": "Sols",
+    "redProduct": "Désinfectant acide",
+    "blueProduct": "Dégraissant alcalin",
+    "greenProduct": "Nettoyant neutre",
+    "yellowProduct": "Polish",
+    "whiteProduct": "Nettoyant pour vitres",
+    "blackProduct": "pH neutre",
+    "redRisk": "NE JAMAIS mélanger avec BLEU (ammoniaque) — risque de gaz chlore",
+    "blueRisk": "NE JAMAIS mélanger avec ROUGE (acide) — risque de gaz chlore",
+    "greenRisk": "Compatible avec toutes les couleurs",
+    "yellowRisk": "Jamais sur les sols — glissant",
+    "whiteRisk": "Vitres uniquement",
+    "blackRisk": "Jamais sur les comptoirs ou le bois",
+    "zone": "Zone",
+    "confirmed": "Confirmé"
+  },
+  "closureProtocol": {
+    "externalOptions": {
+      "verbal": "Confirmation verbale (client présent)",
+      "visual": "Vérification visuelle (audit du chef d’équipe)",
+      "auditor": "Auditeur présent"
+    },
+    "paymentOptions": {
+      "etransfer": "Virement électronique",
+      "cheque": "Chèque",
+      "cash": "Espèces"
+    },
+    "title": "Protocole de fermeture externe",
+    "equipmentConfirmed": "Tous les équipements et outils confirmés pour ce service",
+    "externalConfirmationLabel": "Vérification externe (exigée par le protocole)",
+    "altPaymentLabel": "Paiement alternatif (client sans smartphone)",
+    "amountReceived": "Montant reçu",
+    "uploading": "Téléchargement…",
+    "photoRequired": "Photo du reçu signé (requis)",
+    "confirmPayment": "Confirmer le paiement",
+    "error": {
+      "saveFailed": "Échec de la sauvegarde. Veuillez réessayer.",
+      "connection": "Erreur de connexion. Veuillez réessayer.",
+      "uploadFailed": "Échec du téléchargement de la photo. Veuillez réessayer.",
+      "uploadConnection": "Erreur de connexion lors du téléchargement. Veuillez réessayer."
+    },
+    "amountAriaLabel": "Montant reçu en dollars",
+    "signedReceipt": "Photo du reçu signé",
+    "photoAriaLabel": "Photo du reçu signé"
   },
   "upsells": {
-    "description": "Sélectionnez des services supplémentaires. Ceux-ci sont enregistrés pour examen par l'administrateur \u2014 ils ne modifient pas le prix actuel automatiquement.",
+    "description": "Sélectionnez des services supplémentaires. Ceux-ci sont enregistrés pour examen par l'administrateur — ils ne modifient pas le prix actuel automatiquement.",
     "adminReviewNote": "Pour examen par l'administrateur uniquement. Ne modifie pas le montant actuel.",
     "notesOptional": "Notes (facultatif)",
     "notesAriaLabel": "Notes sur le service supplémentaire",
@@ -4254,5 +4319,39 @@
       "retry": "Réessayer",
       "cta": "Retour à l'accueil"
     }
+  },
+  "safetyAbort": {
+    "sos": "SOS",
+    "sosActive": "SOS actif — les secours arrivent",
+    "idleAriaLabel": "Activer l'alerte de sécurité",
+    "activeAriaLabel": "SOS est actif. Appuyez pour voir l'état.",
+    "dialogAriaLabel": "Confirmation d'alerte de sécurité",
+    "closeAriaLabel": "Fermer la boîte de dialogue",
+    "activateTitle": "Activer l'alerte de sécurité?",
+    "activateDescription": "Cela alertera le répartiteur et votre équipe que vous avez besoin d'aide immédiate.",
+    "confirmFirst": "Oui, continuer",
+    "confirmSecond": "Confirmer une dernière fois",
+    "confirmSecondDescription": "Cette action est irréversible. Le répartiteur sera notifié immédiatement.",
+    "activateButton": "Activer SOS maintenant",
+    "activating": "Activation en cours...",
+    "sentTitle": "SOS envoyé",
+    "sentDescription": "Le répartiteur et votre équipe ont été notifiés.",
+    "close": "Fermer",
+    "cancel": "Annuler",
+    "errorTitle": "Impossible d'envoyer le SOS",
+    "networkError": "Erreur réseau. Vérifiez votre connexion et réessayez.",
+    "retry": "Réessayer",
+    "networkFallbackTitle": "Options de secours d'urgence",
+    "networkFallbackWithPhone": "Votre téléphone a du signal. Essayez ces options:",
+    "networkFallbackNoPhone": "Aucun signal téléphonique détecté. Appelez le répartiteur immédiatement depuis n'importe quel téléphone disponible.",
+    "callNow": "Appeler maintenant",
+    "sendSms": "Envoyer SMS",
+    "call911": "Appeler le 911",
+    "smsBodyPrefix": "SOS: Un employé a besoin d'aide immédiate. Localisation:",
+    "smsNoDetails": "Aucun détail supplémentaire fourni.",
+    "retryInternet": "Réessayer avec Internet",
+    "couldNotActivateSos": "Impossible d'activer le SOS. Utilisez les options de secours ci-dessous.",
+    "reasonAriaLabel": "Raison de l'alerte de sécurité",
+    "reasonPlaceholder": "Décrivez brièvement la situation (facultatif)"
   }
 }

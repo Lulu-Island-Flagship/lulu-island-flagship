@@ -11,6 +11,7 @@
 // git tracking pendiente aparte).
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { CheckCircle2 } from "lucide-react";
 import { CHEMICAL_CODES, type ChemicalCode } from "@/lib/chemical-lockout";
 
@@ -39,6 +40,7 @@ interface CodigoCromaticoProps {
 }
 
 export function CodigoCromatico({ compact = false, confirmedColors }: CodigoCromaticoProps) {
+  const t = useTranslations("chemicalCodes");
 
   if (compact) {
     return (
@@ -53,7 +55,7 @@ export function CodigoCromatico({ compact = false, confirmedColors }: CodigoCrom
                 lectores de pantalla en vez de anunciar el emoji crudo
                 (ej. "toilet emoji") sin contexto útil. */}
             <div className="text-xl mb-0.5" aria-hidden="true">{cc.icon}</div>
-            <div className="text-xs font-bold leading-tight">{cc.textEs}</div>
+            <div className="text-xs font-bold leading-tight">{t(cc.color)}</div>
           </div>
         ))}
       </div>
@@ -71,17 +73,17 @@ export function CodigoCromatico({ compact = false, confirmedColors }: CodigoCrom
           >
             <div className="text-2xl" aria-hidden="true">{cc.icon}</div>
             <div className="flex-1 min-w-0">
-              <div className="font-bold text-sm">{cc.textEs}</div>
-              <div className="text-xs opacity-80">{cc.textEn}</div>
-              <div className="text-xs mt-0.5">Zona: {cc.zoneLabel} — {cc.product}</div>
+              <div className="font-bold text-sm">{t(cc.color)}</div>
+              <div className="text-xs opacity-80">{t(cc.color)}</div>
+              <div className="text-xs mt-0.5">{t("zone")}: {t(cc.color + "Zone")} — {t(cc.color + "Product")}</div>
               {cc.riskEn && (
-                <div className="text-xs mt-1 font-medium opacity-90">⚠️ {cc.riskEn}</div>
+                <div className="text-xs mt-1 font-medium opacity-90">⚠️ {t(cc.color + "Risk")}</div>
               )}
             </div>
             {confirmedColors && isConfirmed && (
               <div className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-state-success">
                 <CheckCircle2 className="w-5 h-5" />
-                Confirmed
+                {t("confirmed")}
               </div>
             )}
           </div>

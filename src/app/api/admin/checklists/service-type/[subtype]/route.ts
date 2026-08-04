@@ -3,8 +3,7 @@ import { requireAdminRole } from "@/lib/admin";
 import { safeErrorResponse } from "@/lib/api-errors";
 
 // DELETE /api/admin/checklists/service-type/[subtype]
-// Borra físicamente todas las zonas de un service_subtype,
-// solo si NINGUNA tiene historial en service_checklist_items
+// Soft-delete (invariante B.2.9): marca deleted_at en todas las zonas de un service_subtype
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ subtype: string }> }
@@ -54,7 +53,8 @@ export async function DELETE(
       const { count, error: countError } = await supabase
         .from("sop_checklists")
         .select("id", { count: "exact", head: true })
-        .eq("service_subtype", decodedSubtype);
+        .eq("service_subtype", decodedSubtype)
+        .is("deleted_at", null);
       if (countError) {
         console.error("dryRun count error:", countError);
       }
@@ -64,11 +64,12 @@ export async function DELETE(
       );
     }
 
-    // 2. Borrar físicamente todas las zonas de este service_subtype
+    // 2. Soft-delete todas las zonas activas de este service_subtype
     const { error: deleteError } = await supabase
       .from("sop_checklists")
-      .delete()
-      .eq("service_subtype", decodedSubtype);
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("service_subtype", decodedSubtype)
+      .is("deleted_at", null);
 
     if (deleteError) {
       console.error("admin/checklists/service-type/[subtype] error:", deleteError);

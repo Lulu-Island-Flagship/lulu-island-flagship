@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { assertStripe } from "@/lib/stripe";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { dollarsToCents } from "@/lib/pricing";
 
 // Fix (auditoría externa, verificado 2026-07-31): antes, si faltaban las
 // env vars de Supabase, se usaban placeholders en silencio (ver mismo fix
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
     // quotes.total sigue en dólares (columna fuera de alcance de la
     // migración 229 que unificó orders a centavos) -- se escala x100 aquí,
     // igual que en /api/stripe/confirm.
-    const amountCents = Math.round(Number(quoteRow.total) * 100);
+    const amountCents = dollarsToCents(Number(quoteRow.total));
     if (amountCents <= 0) {
       return NextResponse.json({ error: "Invalid quote amount" }, { status: 400 });
     }

@@ -130,10 +130,10 @@ export async function DELETE(
         );
       }
 
-      // Borrado físico
+      // Soft-delete (invariante B.2.9: nunca borrado físico)
       const { error } = await supabase
         .from("sop_checklists")
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq("id", id);
 
       if (error) {
@@ -141,13 +141,13 @@ export async function DELETE(
         return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
       }
 
-      return NextResponse.json({ success: true, hardDeleted: true }, { status: 200 });
+      return NextResponse.json({ success: true, softDeleted: true }, { status: 200 });
     }
 
-    // Soft-delete por defecto
+    // Soft-delete (invariante B.2.9)
     const { data, error } = await supabase
       .from("sop_checklists")
-      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .update({ is_active: false, deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq("id", id)
       .select()
       .single();

@@ -54,6 +54,13 @@ function resolveLocale(value: unknown): Locale {
   return defaultLocale;
 }
 
+// Fix (auditoría externa 2026-08-08, Kimi): el código de acceso generado y
+// enviado por SMS/email en este endpoint NO tenía ningún lugar donde el
+// candidato pudiera canjearlo para continuar su aplicación. Se creó
+// POST /api/hiring-flow/redeem (src/app/api/hiring-flow/redeem/route.ts)
+// como el endpoint de canje. El frontend debe redirigir al candidato a una
+// página donde ingrese el código, que luego llama a /api/hiring-flow/redeem.
+//
 // POST /api/hiring-flow/apply — punto de entrada público (sin auth) para el
 // Paso 1 del flujo de contratación de candidatos ("empleo" en el sitio
 // público). Orquesta todo el trabajo real vía

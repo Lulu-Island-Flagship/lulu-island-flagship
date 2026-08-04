@@ -138,3 +138,104 @@ INSERT INTO legal_monitoring_feeds (entity_name, check_frequency) VALUES
   ('CASL', 'monthly'),
   ('ICBC', 'monthly')
 ON CONFLICT (entity_name) DO NOTHING;
+
+-- ============================================================
+-- RLS Fix (PIPEDA compliance — migration 142 created these tables
+-- without RLS; this closes the critical PII gap).
+-- ============================================================
+
+-- 1. data_subject_requests — client-self-service + supervisor oversight
+ALTER TABLE data_subject_requests ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Supervisors read data subject requests" ON data_subject_requests;
+CREATE POLICY "Supervisors read data subject requests" ON data_subject_requests
+  FOR SELECT USING (is_supervisor(auth.uid()));
+
+DROP POLICY IF EXISTS "Supervisors insert data subject requests" ON data_subject_requests;
+CREATE POLICY "Supervisors insert data subject requests" ON data_subject_requests
+  FOR INSERT WITH CHECK (is_supervisor(auth.uid()));
+
+DROP POLICY IF EXISTS "Supervisors update data subject requests" ON data_subject_requests;
+CREATE POLICY "Supervisors update data subject requests" ON data_subject_requests
+  FOR UPDATE USING (is_supervisor(auth.uid())) WITH CHECK (is_supervisor(auth.uid()));
+
+DROP POLICY IF EXISTS "Clients read own data subject requests" ON data_subject_requests;
+CREATE POLICY "Clients read own data subject requests" ON data_subject_requests
+  FOR SELECT USING (client_user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Clients insert own data subject requests" ON data_subject_requests;
+CREATE POLICY "Clients insert own data subject requests" ON data_subject_requests
+  FOR INSERT WITH CHECK (client_user_id = auth.uid());
+
+-- 2. data_breach_incidents — supervisor-only (sensitive breach PII)
+ALTER TABLE data_breach_incidents ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Supervisors read data breach incidents" ON data_breach_incidents;
+CREATE POLICY "Supervisors read data breach incidents" ON data_breach_incidents
+  FOR SELECT USING (is_supervisor(auth.uid()));
+
+DROP POLICY IF EXISTS "Supervisors insert data breach incidents" ON data_breach_incidents;
+CREATE POLICY "Supervisors insert data breach incidents" ON data_breach_incidents
+  FOR INSERT WITH CHECK (is_supervisor(auth.uid()));
+
+DROP POLICY IF EXISTS "Supervisors update data breach incidents" ON data_breach_incidents;
+CREATE POLICY "Supervisors update data breach incidents" ON data_breach_incidents
+  FOR UPDATE USING (is_supervisor(auth.uid())) WITH CHECK (is_supervisor(auth.uid()));
+
+-- 3. legal_monitoring_feeds — supervisor all, authenticated read
+ALTER TABLE legal_monitoring_feeds ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Supervisors manage legal monitoring feeds" ON legal_monitoring_feeds;
+CREATE POLICY "Supervisors manage legal monitoring feeds" ON legal_monitoring_feeds
+  FOR ALL USING (is_supervisor(auth.uid())) WITH CHECK (is_supervisor(auth.uid()));
+
+DROP POLICY IF EXISTS "Authenticated read legal monitoring feeds" ON legal_monitoring_feeds;
+CREATE POLICY "Authenticated read legal monitoring feeds" ON legal_monitoring_feeds
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+-- 4. legal_change_alerts — supervisor all, authenticated read
+ALTER TABLE legal_change_alerts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Supervisors manage legal change alerts" ON legal_change_alerts;
+CREATE POLICY "Supervisors manage legal change alerts" ON legal_change_alerts
+  FOR ALL USING (is_supervisor(auth.uid())) WITH CHECK (is_supervisor(auth.uid()));
+
+DROP POLICY IF EXISTS "Authenticated read legal change alerts" ON legal_change_alerts;
+CREATE POLICY "Authenticated read legal change alerts" ON legal_change_alerts
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+-- 5. legal_monitoring_blind_alerts — supervisor all, authenticated read
+ALTER TABLE legal_monitoring_blind_alerts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Supervisors manage blind alerts" ON legal_monitoring_blind_alerts;
+CREATE POLICY "Supervisors manage blind alerts" ON legal_monitoring_blind_alerts
+  FOR ALL USING (is_supervisor(auth.uid())) WITH CHECK (is_supervisor(auth.uid()));
+
+DROP POLICY IF EXISTS "Authenticated read blind alerts" ON legal_monitoring_blind_alerts;
+CREATE POLICY "Authenticated read blind alerts" ON legal_monitoring_blind_alerts
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+-- 6. legal_monitoring_quarterly_reviews — supervisor all, authenticated read
+ALTER TABLE legal_monitoring_quarterly_reviews ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Supervisors manage quarterly reviews" ON legal_monitoring_quarterly_reviews;
+CREATE POLICY "Supervisors manage quarterly reviews" ON legal_monitoring_quarterly_reviews
+  FOR ALL USING (is_supervisor(auth.uid())) WITH CHECK (is_supervisor(auth.uid()));
+
+DROP POLICY IF EXISTS "Authenticated read quarterly reviews" ON legal_monitoring_quarterly_reviews;
+CREATE POLICY "Authenticated read quarterly reviews" ON legal_monitoring_quarterly_reviews
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+-- 7. FK constraint: client_user_id -> auth.users(id)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'fk_data_subject_requests_client'
+      AND table_name = 'data_subject_requests'
+  ) THEN
+    ALTER TABLE data_subject_requests
+      ADD CONSTRAINT fk_data_subject_requests_client
+      FOREIGN KEY (client_user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+  END IF;
+END $$;

@@ -88,6 +88,11 @@ DECLARE
   v_new_status TEXT;
   v_payment client_payments;
 BEGIN
+  IF NOT is_supervisor(auth.uid()) THEN
+    RAISE EXCEPTION 'Only supervisors can record payments'
+      USING ERRCODE = '42501';
+  END IF;
+
   IF p_amount_cents IS NULL OR p_amount_cents <= 0 THEN
     RAISE EXCEPTION 'record_client_payment: p_amount_cents debe ser mayor a cero'
       USING ERRCODE = '22023';
@@ -166,3 +171,16 @@ COMMENT ON FUNCTION record_client_payment IS
   'de carrera entre pagos concurrentes. Rechaza pagos sobre facturas '
   '"void" y pagos que dejarían un balance negativo (falla ruidoso ante '
   'dato inconsistente en vez de permitirlo).';
+
+-- Fix de seguridad (auditoría): la función record_client_payment se creó
+-- originalmente como SECURITY DEFINER sin guard de autorización interno ni
+-- REVOKE/GRANT explícito, quedando expuesta a PUBLIC por default de Postgres.
+-- Se agrega:
+--   1. Guard inline `is_supervisor(auth.uid())` -- mismo patrón que
+--      redispatch_order_atomic (287) y receive_purchase_order (247/316).
+--   2. REVOKE explícito de PUBLIC, anon y authenticated; GRANT a
+--      authenticated (el guard interno restringe a supervisores reales).
+REVOKE ALL ON FUNCTION record_client_payment(UUID, UUID, UUID, INTEGER, TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION record_client_payment(UUID, UUID, UUID, INTEGER, TEXT) FROM anon;
+REVOKE ALL ON FUNCTION record_client_payment(UUID, UUID, UUID, INTEGER, TEXT) FROM authenticated;
+GRANT EXECUTE ON FUNCTION record_client_payment(UUID, UUID, UUID, INTEGER, TEXT) TO authenticated;

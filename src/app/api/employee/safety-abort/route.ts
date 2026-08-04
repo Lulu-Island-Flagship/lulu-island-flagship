@@ -57,6 +57,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: empError }, { status: empStatus });
     }
 
+    // v8.3 IDOR fix: verify employee is assigned to orderId before allowing the safety abort to be linked
+    if (orderId) {
+      const { data: assignment, error: assignmentError } = await supabase
+        .from("assignments")
+        .select("id")
+        .eq("order_id", orderId)
+        .eq("employee_id", employee.id)
+        .maybeSingle();
+
+      if (assignmentError) {
+        console.error("assignmentError:", assignmentError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
+      if (!assignment) {
+        return NextResponse.json({ error: "You are not assigned to this order" }, { status: 403 });
+      }
+    }
+
     const { data, error } = await supabase
       .from("safety_aborts")
       .insert({

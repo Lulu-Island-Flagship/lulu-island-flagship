@@ -749,6 +749,7 @@
         "windowUnknown": "无法确定此服务的取消窗口期。",
         "penaltyAmount": "预计罚金：{amount}",
         "noPenalty": "无罚金——全额退款。",
+        "confirmTitle": "取消服务",
         "confirmPrompt": "确定要取消此服务吗？此操作无法撤销。",
         "dismiss": "保留服务",
         "confirm": "确认取消",
@@ -793,7 +794,8 @@
         "pausing": "暂停中…",
         "pausePlan": "暂停计划",
         "cancelling": "取消中…",
-        "cancelPlan": "取消计划"
+        "cancelPlan": "取消计划",
+        "dismiss": "保留计划"
       },
       "livePortfolio": {
         "withdrawFailed": "撤回失败",
@@ -4232,10 +4234,73 @@
     "title": "您在这里使用什么产品？",
     "body": "区域: {zone}。请选择与您即将使用的产品匹配的容器。",
     "warning": "如果不确定，请在使用任何产品前咨询您的团队负责人。",
-    "searchPlaceholder": "搜索产品..."
+    "searchPlaceholder": "搜索产品...",
+    "chlorineRiskWithProduct": "⚠️ 氯气风险：{product} 与今天已确认的产品不相容。在通风并咨询主管之前，请勿在任何区域使用。",
+    "chlorineRiskGeneric": "⚠️ 氯气风险：该产品与今天已确认的产品不相容。在通风并咨询主管之前，请勿在任何区域使用。",
+    "wrongProductForZone": "这不是该区域的正确产品。请检查实物容器上的标签。",
+    "networkError": "网络错误，请重试。",
+    "close": "关闭",
+    "understood": "已了解，我会咨询主管"
+  },
+  "chemicalCodes": {
+    "red": "浴室 — 酸性",
+    "blue": "厨房 — 氨",
+    "green": "中性",
+    "yellow": "木材",
+    "white": "玻璃",
+    "black": "地板",
+    "redZone": "浴室",
+    "blueZone": "厨房",
+    "greenZone": "台面",
+    "yellowZone": "表面 / 灰尘",
+    "whiteZone": "窗户",
+    "blackZone": "地板",
+    "redProduct": "酸性消毒剂",
+    "blueProduct": "碱性去油剂",
+    "greenProduct": "中性清洁剂",
+    "yellowProduct": "抛光剂",
+    "whiteProduct": "玻璃清洁剂",
+    "blackProduct": "pH中性",
+    "redRisk": "切勿与蓝色（氨）混合 — 有氯气风险",
+    "blueRisk": "切勿与红色（酸）混合 — 有氯气风险",
+    "greenRisk": "与所有颜色兼容",
+    "yellowRisk": "切勿用于地板 — 会打滑",
+    "whiteRisk": "仅用于玻璃",
+    "blackRisk": "切勿用于台面或木材",
+    "zone": "区域",
+    "confirmed": "已确认"
+  },
+  "closureProtocol": {
+    "externalOptions": {
+      "verbal": "口头确认（客户在场）",
+      "visual": "目视验证（组长审核）",
+      "auditor": "审核员在场"
+    },
+    "paymentOptions": {
+      "etransfer": "电子转账",
+      "cheque": "支票",
+      "cash": "现金"
+    },
+    "title": "外部关闭协议",
+    "equipmentConfirmed": "已确认本次服务的所有设备和工具",
+    "externalConfirmationLabel": "外部验证（协议要求）",
+    "altPaymentLabel": "替代付款方式（客户无智能手机）",
+    "amountReceived": "收到金额",
+    "uploading": "上传中…",
+    "photoRequired": "签名收据照片（必需）",
+    "confirmPayment": "确认付款",
+    "error": {
+      "saveFailed": "保存失败，请重试。",
+      "connection": "连接错误，请重试。",
+      "uploadFailed": "照片上传失败，请重试。",
+      "uploadConnection": "上传时连接错误，请重试。"
+    },
+    "amountAriaLabel": "收到金额（美元）",
+    "signedReceipt": "签名收据照片",
+    "photoAriaLabel": "签名收据照片"
   },
   "upsells": {
-    "description": "选择附加服务。这些将记录供管理员审核 \u2014 它们不会自动更改当前价格。",
+    "description": "选择附加服务。这些将记录供管理员审核 — 它们不会自动更改当前价格。",
     "adminReviewNote": "仅供管理员审核。不会更改当前费用。",
     "notesOptional": "备注（可选）",
     "notesAriaLabel": "关于附加服务的备注",
@@ -4254,5 +4319,39 @@
       "retry": "重试",
       "cta": "返回首页"
     }
+  },
+  "safetyAbort": {
+    "sos": "紧急求救",
+    "sosActive": "SOS已激活 — 救援正在赶来",
+    "idleAriaLabel": "激活安全警报",
+    "activeAriaLabel": "SOS已激活。点击查看状态。",
+    "dialogAriaLabel": "安全警报确认",
+    "closeAriaLabel": "关闭对话框",
+    "activateTitle": "确认激活安全警报？",
+    "activateDescription": "这将通知调度中心和您的团队您需要立即帮助。",
+    "confirmFirst": "是的，继续",
+    "confirmSecond": "再次确认",
+    "confirmSecondDescription": "此操作不可撤销。调度中心将立即收到通知。",
+    "activateButton": "立即激活SOS",
+    "activating": "激活中...",
+    "sentTitle": "SOS已发送",
+    "sentDescription": "调度中心和您的团队已收到通知。",
+    "close": "关闭",
+    "cancel": "取消",
+    "errorTitle": "无法发送SOS",
+    "networkError": "网络错误。请检查连接后重试。",
+    "retry": "重试",
+    "networkFallbackTitle": "紧急备用方案",
+    "networkFallbackWithPhone": "您的手机有信号。请尝试以下选项：",
+    "networkFallbackNoPhone": "未检测到手机信号。请立即使用任何可用电话联系调度中心。",
+    "callNow": "立即拨打",
+    "sendSms": "发送短信",
+    "call911": "拨打911",
+    "smsBodyPrefix": "SOS：员工需要立即帮助。位置：",
+    "smsNoDetails": "未提供额外详情。",
+    "retryInternet": "使用网络重试",
+    "couldNotActivateSos": "无法激活SOS。请使用下方的备用方案。",
+    "reasonAriaLabel": "安全警报原因",
+    "reasonPlaceholder": "简要描述情况（可选）"
   }
 }

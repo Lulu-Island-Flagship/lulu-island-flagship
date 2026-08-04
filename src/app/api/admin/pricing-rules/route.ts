@@ -210,10 +210,50 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Reason is required for audit log" }, { status: 400 });
     }
 
-    // Validar que los campos actualizados sean válidos si se envían
-    const validation = validateRuleBody({ ...updates, reason });
-    if (!validation.valid && (updates.actionType || updates.conditionJson || updates.actionValue !== undefined)) {
-      return NextResponse.json({ error: validation.error }, { status: 400 });
+    // Mass-assignment protection: only allow whitelisted columns in PATCH updates.
+    // This prevents an admin from modifying sensitive columns (id, created_by,
+    // created_at, deleted_at, etc.) even though RBAC restricts this endpoint
+    // to admin roles (defense-in-depth).
+    const ALLOWED_UPDATE_FIELDS = [
+      "name",
+      "description",
+      "condition_json",
+      "action_type",
+      "action_value",
+      "priority",
+      "max_applicable",
+      "is_active",
+    ];
+    const sanitized = Object.fromEntries(
+      Object.entries(updates).filter(([key]) => ALLOWED_UPDATE_FIELDS.includes(key)),
+    );
+
+    // DB columns use snake_case (sanitized → .update()), but validateRuleBody
+    // expects camelCase. Map between conventions for validation.
+    const camelCased = {
+      name: sanitized.name,
+      description: sanitized.description,
+      conditionJson: sanitized.condition_json,
+      actionType: sanitized.action_type,
+      actionValue: sanitized.action_value,
+      priority: sanitized.priority,
+      maxApplicable: sanitized.max_applicable,
+      isActive: sanitized.is_active,
+      reason,
+    };
+
+    // Only validate pricing-relevant fields if at least one was provided.
+    // name, description, priority, maxApplicable, isActive, and reason can
+    // be updated independently without re-validating the full rule shape.
+    const hasPricingFields =
+      camelCased.actionType !== undefined ||
+      camelCased.conditionJson !== undefined ||
+      camelCased.actionValue !== undefined;
+    if (hasPricingFields) {
+      const validation = validateRuleBody(camelCased);
+      if (!validation.valid) {
+        return NextResponse.json({ error: validation.error }, { status: 400 });
+      }
     }
 
     const { data: previous } = await auth.supabase
@@ -226,7 +266,7 @@ export async function PATCH(request: NextRequest) {
     const { data: rule, error } = await auth.supabase
       .from("pricing_rules")
       .update({
-        ...updates,
+        ...sanitized,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)

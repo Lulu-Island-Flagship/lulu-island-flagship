@@ -92,12 +92,15 @@ export async function PATCH(
     const stripe = assertStripe();
     const neverCapturedAnything = !order.hold_captured_at && !order.capture_partial_at;
 
-    let capturedNowCents = 0;
-    let paymentIntentId: string | null = null;
+    // ────────────────────────────────────────────────────────────────────
+    // Pre-compute the capture amount so we can write the shadow ledger
+    // entry BEFORE touching Stripe. This is a hard requirement: the ledger
+    // is the source of truth and must be durable before any money moves.
+    // ────────────────────────────────────────────────────────────────────
+    let expectedCaptureCents: number;
 
     if (neverCapturedAnything) {
-      // Caso A: nada se cobró todavía -- Hold + balance por el total, igual
-      // que el flujo normal del batch de las 7PM.
+      // Caso A: nada se cobró todavía -- Hold + balance por el total.
       // RAÍZ-3 (2026-07-21, migración 229): hold_amount_cents/
       // hold_authorized_amount_cents ya están en centavos -- sin *100.
       const holdAmountCents = Math.min(
@@ -105,32 +108,139 @@ export async function PATCH(
         quoteTotal * 100
       );
       const balanceCents = Math.max(0, quoteTotal * 100 - holdAmountCents);
+      expectedCaptureCents = holdAmountCents + balanceCents;
+    } else {
+      // Caso B: ya se capturó parcialmente, queda un remanente.
+      const totalPaidCents = Number(order.total_paid_cents || 0);
+      const remainingCents = Math.min(
+        Math.round(Math.max(0, Number(order.capture_remaining_amount || 0) * 100)),
+        Math.max(0, quoteTotal * 100 - totalPaidCents)
+      );
+      if (remainingCents <= 0) {
+        return NextResponse.json({ error: "No remaining amount to force-capture" }, { status: 409 });
+      }
+      expectedCaptureCents = remainingCents;
+    }
 
-      if (holdAmountCents > 0) {
-        if (!order.stripe_hold_payment_intent_id) {
-          return NextResponse.json({ error: "Missing hold PaymentIntent" }, { status: 400 });
-        }
-        const holdPi = await stripe.paymentIntents.retrieve(order.stripe_hold_payment_intent_id);
-        if (holdPi.status === "requires_capture") {
-          await stripe.paymentIntents.capture(
-            order.stripe_hold_payment_intent_id,
-            { amount_to_capture: holdAmountCents },
-            { idempotencyKey: `${order.id}:force-full-hold-capture` }
-          );
-        } else if (holdPi.status !== "succeeded") {
-          return NextResponse.json({ error: `Hold PaymentIntent status: ${holdPi.status}` }, { status: 409 });
-        }
-        capturedNowCents += holdAmountCents;
-        paymentIntentId = order.stripe_hold_payment_intent_id;
+    // ════════════════════════════════════════════════════════════════════
+    // ORDERING IS CRITICAL: ledger must succeed before Stripe to prevent
+    // unrecorded charges. If the ledger insert fails we return 500 and
+    // NEVER call Stripe — no money moves without a ledger record.
+    // ════════════════════════════════════════════════════════════════════
+    let ledgerId: string | null = null;
+
+    if (expectedCaptureCents > 0) {
+      const ledgerEntry = buildShadowLedgerEntry({
+        eventType: "balance_captured",
+        orderId: order.id,
+        userId: order.user_id,
+        amountCents: expectedCaptureCents,
+        processor: "stripe",
+        externalReference: null, // Will be updated after Stripe returns the real PI ID
+        occurredAt: new Date(),
+        metadata: {
+          forced_full_capture: true,
+          forced_by: auth.user.id,
+          reason: reason.trim(),
+          ledger_status: "pending_stripe",
+        },
+      });
+
+      const { data: ledgerData, error: ledgerError } = await supabase
+        .from("shadow_ledger_entries")
+        .insert(ledgerEntry)
+        .select("id")
+        .single();
+
+      if (ledgerError || !ledgerData) {
+        console.error("force-full-capture: shadow_ledger pre-insert failed — refusing to charge", ledgerError);
+        return NextResponse.json(
+          { error: "Failed to record ledger entry before capture — charge aborted" },
+          { status: 500 }
+        );
       }
 
-      if (balanceCents > 0) {
-        if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
-          return NextResponse.json({ error: "Missing customer or payment method" }, { status: 400 });
+      ledgerId = ledgerData.id;
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // Now that the ledger is durable, proceed with the Stripe charge(s).
+    // ────────────────────────────────────────────────────────────────────
+    let capturedNowCents = 0;
+    let paymentIntentId: string | null = null;
+    let stripeSucceeded = false;
+
+    try {
+      if (neverCapturedAnything) {
+        // Caso A: Hold + balance.
+        const holdAmountCents = Math.min(
+          Math.round(Math.max(0, order.hold_authorized_amount_cents || order.hold_amount_cents || 0)),
+          quoteTotal * 100
+        );
+        const balanceCents = Math.max(0, quoteTotal * 100 - holdAmountCents);
+
+        if (holdAmountCents > 0) {
+          if (!order.stripe_hold_payment_intent_id) {
+            throw new Error("Missing hold PaymentIntent");
+          }
+          const holdPi = await stripe.paymentIntents.retrieve(order.stripe_hold_payment_intent_id);
+          if (holdPi.status === "requires_capture") {
+            await stripe.paymentIntents.capture(
+              order.stripe_hold_payment_intent_id,
+              { amount_to_capture: holdAmountCents },
+              { idempotencyKey: `${order.id}:force-full-hold-capture` }
+            );
+          } else if (holdPi.status !== "succeeded") {
+            throw new Error(`Hold PaymentIntent status: ${holdPi.status}`);
+          }
+          capturedNowCents += holdAmountCents;
+          paymentIntentId = order.stripe_hold_payment_intent_id;
         }
-        const balancePi = await stripe.paymentIntents.create(
+
+        if (balanceCents > 0) {
+          if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
+            throw new Error("Missing customer or payment method");
+          }
+          const balancePi = await stripe.paymentIntents.create(
+            {
+              amount: balanceCents,
+              currency: "cad",
+              customer: order.stripe_customer_id,
+              payment_method: order.stripe_payment_method_id,
+              payment_method_types: ["card"],
+              capture_method: "automatic",
+              confirm: true,
+              off_session: true,
+              description: `Admin-forced full capture for order ${order.id}`,
+              metadata: {
+                order_id: order.id,
+                quote_id: order.quote_id,
+                user_id: order.user_id,
+                charge_type: "force_full_capture",
+                forced_by: auth.user.id,
+              },
+            },
+            { idempotencyKey: `${order.id}:force-full-balance` }
+          );
+          if (balancePi.status !== "succeeded") {
+            throw new Error(`Balance PaymentIntent status: ${balancePi.status}`);
+          }
+          capturedNowCents += balanceCents;
+          paymentIntentId = balancePi.id;
+        }
+      } else {
+        // Caso B: remanente off-session.
+        const totalPaidCents = Number(order.total_paid_cents || 0);
+        const remainingCents = Math.min(
+          Math.round(Math.max(0, Number(order.capture_remaining_amount || 0) * 100)),
+          Math.max(0, quoteTotal * 100 - totalPaidCents)
+        );
+        if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
+          throw new Error("Missing customer or payment method");
+        }
+        const pi = await stripe.paymentIntents.create(
           {
-            amount: balanceCents,
+            amount: remainingCents,
             currency: "cad",
             customer: order.stripe_customer_id,
             payment_method: order.stripe_payment_method_id,
@@ -138,75 +248,78 @@ export async function PATCH(
             capture_method: "automatic",
             confirm: true,
             off_session: true,
-            description: `Admin-forced full capture for order ${order.id}`,
+            description: `Admin-forced remainder capture for order ${order.id}`,
             metadata: {
               order_id: order.id,
               quote_id: order.quote_id,
               user_id: order.user_id,
-              charge_type: "force_full_capture",
+              charge_type: "force_full_capture_remainder",
               forced_by: auth.user.id,
             },
           },
-          { idempotencyKey: `${order.id}:force-full-balance` }
+          { idempotencyKey: `${order.id}:force-full-remainder` }
         );
-        if (balancePi.status !== "succeeded") {
-          return NextResponse.json({ error: `Balance PaymentIntent status: ${balancePi.status}` }, { status: 409 });
+        if (pi.status !== "succeeded") {
+          throw new Error(`Remainder PaymentIntent status: ${pi.status}`);
         }
-        capturedNowCents += balanceCents;
-        paymentIntentId = balancePi.id;
+        capturedNowCents = remainingCents;
+        paymentIntentId = pi.id;
       }
-    } else {
-      // Caso B: ya hubo una captura parcial -- el Hold ya no sirve
-      // (limitación de Stripe: una sola captura por PaymentIntent). Se
-      // cobra el remanente pendiente como un cargo nuevo off-session.
-      const remainingCents = Math.round((order.capture_remaining_amount || 0) * 100);
-      if (remainingCents <= 0) {
-        return NextResponse.json({ error: "No remaining amount to force-capture" }, { status: 409 });
+
+      stripeSucceeded = true;
+    } catch (stripeErr) {
+      // Stripe failed after ledger was already written — mark the ledger
+      // entry as failed so we don't have an orphaned pending record.
+      console.error("force-full-capture: Stripe charge failed after ledger insert", stripeErr);
+      if (ledgerId) {
+        const { error: updateLedgerErr } = await supabase
+          .from("shadow_ledger_entries")
+          .update({
+            metadata: {
+              forced_full_capture: true,
+              forced_by: auth.user.id,
+              reason: reason.trim(),
+              ledger_status: "failed",
+              stripe_error: String(stripeErr),
+            },
+          })
+          .eq("id", ledgerId);
+        if (updateLedgerErr) {
+          console.error("CRITICAL: Failed to mark ledger entry as failed after Stripe error", updateLedgerErr);
+        }
       }
-      if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
-        return NextResponse.json({ error: "Missing customer or payment method" }, { status: 400 });
-      }
-      const pi = await stripe.paymentIntents.create(
-        {
-          amount: remainingCents,
-          currency: "cad",
-          customer: order.stripe_customer_id,
-          payment_method: order.stripe_payment_method_id,
-          payment_method_types: ["card"],
-          capture_method: "automatic",
-          confirm: true,
-          off_session: true,
-          description: `Admin-forced remainder capture for order ${order.id}`,
-          metadata: {
-            order_id: order.id,
-            quote_id: order.quote_id,
-            user_id: order.user_id,
-            charge_type: "force_full_capture_remainder",
-            forced_by: auth.user.id,
-          },
-        },
-        { idempotencyKey: `${order.id}:force-full-remainder` }
+      return NextResponse.json(
+        { error: `Stripe charge failed: ${(stripeErr as Error).message || String(stripeErr)}` },
+        { status: 500 }
       );
-      if (pi.status !== "succeeded") {
-        return NextResponse.json({ error: `Remainder PaymentIntent status: ${pi.status}` }, { status: 409 });
-      }
-      capturedNowCents = remainingCents;
-      paymentIntentId = pi.id;
     }
 
-    if (capturedNowCents > 0) {
-      await supabase.from("shadow_ledger_entries").insert(
-        buildShadowLedgerEntry({
-          eventType: "balance_captured",
-          orderId: order.id,
-          userId: order.user_id,
-          amountCents: capturedNowCents,
-          processor: "stripe",
-          externalReference: paymentIntentId,
-          occurredAt: new Date(),
-          metadata: { forced_full_capture: true, forced_by: auth.user.id, reason: reason.trim() },
+    // ────────────────────────────────────────────────────────────────────
+    // Stripe succeeded — update the ledger entry with the real
+    // PaymentIntent ID and mark it as completed.
+    // ────────────────────────────────────────────────────────────────────
+    if (ledgerId && paymentIntentId) {
+      const { error: updateLedgerErr } = await supabase
+        .from("shadow_ledger_entries")
+        .update({
+          external_reference: paymentIntentId,
+          metadata: {
+            forced_full_capture: true,
+            forced_by: auth.user.id,
+            reason: reason.trim(),
+            ledger_status: "completed",
+          },
         })
-      );
+        .eq("id", ledgerId);
+
+      if (updateLedgerErr) {
+        // The charge succeeded but we couldn't update the ledger.
+        // This is a critical reconciliation gap — log loudly.
+        console.error(
+          "CRITICAL: Stripe charge succeeded but failed to finalize ledger entry",
+          { ledgerId, paymentIntentId, capturedNowCents, error: updateLedgerErr }
+        );
+      }
     }
 
     // RAÍZ-3 (2026-07-21, migración 229): total_paid_cents/

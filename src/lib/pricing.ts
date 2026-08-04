@@ -1,6 +1,71 @@
 import { getVancouverTodayString, getVancouverTomorrowString } from "./date-utils";
 import { applyPricingRules, type PricingRule, type RuleContext } from "./rules";
 
+// ═══════════════════════════════════════════════════════════════════════════
+// UNIT CONVENTION — MONEY TYPE (migración 339, RAÍZ-3)
+// ───────────────────────────────────────────────────────────────────────────
+// QUOTES  (quotes.total, quotes.subtotal, quotes.gst, quotes.pst)
+//   → DÓLARES con centavos (Postgres NUMERIC(10,2)).
+//     calculatePrice() / computeTaxBreakdown() devuelven dólares.
+//
+// ORDERS  (orders.total_paid_cents, orders.hold_amount_cents,
+//          orders.hold_authorized_amount_cents, orders.wallet_amount_collected_cents)
+//   → CENTAVOS enteros (Postgres INTEGER / BIGINT).
+//     Migración 229 unificó orders a centavos.
+//
+// INVOICES (client_invoices.total_cents, client_invoices.tax_cents)
+//   → CENTAVOS enteros (Postgres INTEGER).
+//
+// REGLA DE ORO: cuando un valor cruza de quotes → orders/invoices,
+// SIEMPRE multiplicar × 100 con dollarsToCents() o Math.round(x * 100).
+// NUNCA asumir que un valor en dólares ya está en centavos.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Convierte dólares (NUMERIC 10,2) a centavos enteros (INTEGER).
+ * Usa Math.round para evitar errores de punto flotante (ej. 0.1 + 0.2).
+ *
+ *   dollarsToCents(250.00)  → 25000
+ *   dollarsToCents(19.99)   →  1999
+ *   dollarsToCents(0)       →     0
+ */
+export function dollarsToCents(amount: number): number {
+  return Math.round(amount * 100);
+}
+
+/**
+ * Convierte centavos enteros a dólares (NUMERIC 10,2).
+ * La división puede producir decimales; el caller decide el redondeo.
+ *
+ *   centsToDollars(25000) → 250.00
+ *   centsToDollars(1999)  →  19.99
+ */
+export function centsToDollars(cents: number): number {
+  return cents / 100;
+}
+
+/**
+ * Guarda defensiva: si un valor que DEBERÍA estar en centavos es < 100,
+ * es casi seguro que alguien pasó dólares sin convertir. Loggea un warning
+ * pero no revienta — el caller decide si lo trata como error fatal o no.
+ *
+ * Heurística: cualquier servicio de limpieza real cuesta ≥ $1.00 = 100¢.
+ * Un valor < 100¢ sugiere fuertemente que se pasaron dólares (ej. 2.50
+ * interpretado como 2.50¢ en vez de 250¢).
+ *
+ * @returns true si el valor parece razonable en centavos (≥ 100 o 0).
+ */
+export function assertCentsReasonable(cents: number, context?: string): boolean {
+  if (cents > 0 && cents < 100) {
+    console.warn(
+      `[cents-guard] SUSPICIOUS: value ${cents}¢ (< $1.00) in context "${context ?? "unknown"}". ` +
+      `This may indicate dollars were passed where cents were expected (missing ×100 conversion).`
+    );
+    return false;
+  }
+  return true;
+}
+
 export const TARIFA_OBJETIVO_HORA = 70; // $CAD/hr — fallback y referencia; la tarifa real se lee de pricing_settings
 export const MINIMUM_WAGE_BC = 18.25; // $CAD/hr vigente 2026-06-01
 export const DEFAULT_LABOR_HOURLY = 25.0; // estimación conservadora (incluye carga básica)

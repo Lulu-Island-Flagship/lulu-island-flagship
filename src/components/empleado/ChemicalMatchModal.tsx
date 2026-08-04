@@ -90,7 +90,7 @@ export function ChemicalMatchModal({
     if (localHazard.hazard) {
       setHazard(true);
       setError(
-        `CHLORINE GAS RISK: ${code.textEn} is incompatible with a product already confirmed today. Do not use it in any zone until you ventilate and check with your lead.`
+        t("chlorineRiskWithProduct", { product: code.textEn })
       );
       return;
     }
@@ -122,7 +122,7 @@ export function ChemicalMatchModal({
         setHazard(true);
         setError(
           data.error ||
-            "CHLORINE GAS RISK: this product is incompatible with one already confirmed today. Do not use it in any zone until you ventilate and check with your lead."
+            t("chlorineRiskGeneric")
         );
         return;
       }
@@ -130,10 +130,10 @@ export function ChemicalMatchModal({
       setHazard(false);
       setWrongAttempts((n) => n + 1);
       setError(
-        data.error || "That's not the correct product for this zone. Check the label on the physical container."
+        data.error || t("wrongProductForZone")
       );
     } catch {
-      setError("Network error confirming. Try again.");
+      setError(t("networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -155,7 +155,7 @@ export function ChemicalMatchModal({
             <Lock className="w-5 h-5" />
             <h2 className="text-base font-bold">{t("title")}</h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600">
+          <button type="button" onClick={onClose} aria-label={t("close")} className="text-gray-400 hover:text-gray-600">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -211,7 +211,7 @@ export function ChemicalMatchModal({
             onClick={onClose}
             className="mt-4 w-full bg-red-600 text-white py-2.5 rounded-lg text-sm font-semibold"
           >
-            Understood, I&apos;ll check with my lead
+            {t("understood")}
           </button>
         )}
       </div>

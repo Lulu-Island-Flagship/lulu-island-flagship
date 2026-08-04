@@ -126,6 +126,8 @@ export async function POST(request: NextRequest) {
     const singleSupplierId =
       resolvedSupplierIds.size === 1 ? Array.from(resolvedSupplierIds)[0] : null;
 
+    // TODO: Replace with atomic RPC function (single transaction: create PO header + lines).
+    // Pattern: similar to receive_purchase_order RPC in migration 247.
     // C-H6 (auditoría 2026-07-21): registra quién creó la PO -- sin esto no
     // había forma de detectar después que la misma persona la creó y la
     // aprobó (ver bloqueo de autoaprobación en [id]/approve/route.ts).
@@ -155,9 +157,29 @@ export async function POST(request: NextRequest) {
       };
     });
 
+    // Compensating transaction: insert lines; if that fails, soft-delete the
+    // already-committed header so we don't leave an orphaned PO.
     const { error: linesError } = await supabase.from("purchase_order_lines").insert(lines);
     if (linesError) {
-      console.error("admin/purchase-orders error:", linesError);
+      console.error("admin/purchase-orders error: failed to insert lines, attempting compensating soft-delete", linesError);
+      const { error: undoError } = await supabase
+        .from("purchase_orders")
+        .update({ deleted_at: new Date().toISOString(), is_cancelled: true })
+        .eq("id", po.id);
+
+      if (undoError) {
+        console.error(
+          "CRITICAL: Failed to soft-delete orphaned purchase_order header after lines insert failure. Manual cleanup required.",
+          {
+            headerId: po.id,
+            supplier_id: singleSupplierId,
+            inventory_item_ids: lines.map((l) => l.inventory_item_id),
+            linesError,
+            undoError,
+          }
+        );
+      }
+
       return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
 

@@ -26,6 +26,7 @@ import { ClientProfileCard } from "./ClientProfileCard";
 import { formatServiceDateDisplay, formatServiceTimeDisplay } from "@/lib/date-utils";
 import { formatCurrency } from "@/lib/format";
 import ErrorBoundary from "@/components/ui/ErrorBoundary"; // Fix M7: error boundary
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 // Fix (2026-07-25, auditoría UX, item 11): antes se mostraba
 // `order.service_date` crudo ("2026-08-03") concatenado con
@@ -615,6 +616,7 @@ function CancelOrderPanel({
   const locale = useLocale();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const hoursUntil = order.service_datetime
     ? (new Date(order.service_datetime).getTime() - Date.now()) / (1000 * 60 * 60)
@@ -639,8 +641,7 @@ function CancelOrderPanel({
     }
   }
 
-  async function handleConfirm() {
-    if (!window.confirm(t("confirmPrompt"))) return;
+  async function executeCancel() {
     setSubmitting(true);
     setError("");
     try {
@@ -648,23 +649,21 @@ function CancelOrderPanel({
         data: { session },
       } = await supabase.auth.getSession();
       if (!session?.access_token) {
-        setError(t("networkError"));
-        return;
+        throw new Error(t("networkError"));
       }
       const res = await fetch(`/api/orders/${order.id}/cancel`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
-      const json = await res.json();
       if (!res.ok) {
-        setError(json.error || t("failed"));
-        return;
+        const json = await res.json();
+        throw new Error(json.error || t("failed"));
       }
       onCancelled();
-    } catch {
-      setError(t("networkError"));
-    } finally {
+    } catch (err) {
       setSubmitting(false);
+      if (err instanceof Error) throw err;
+      throw new Error(t("networkError"));
     }
   }
 
@@ -700,7 +699,7 @@ function CancelOrderPanel({
         </button>
         <button
           type="button"
-          onClick={handleConfirm}
+          onClick={() => setShowConfirm(true)}
           disabled={submitting}
           className="inline-flex items-center gap-1.5 text-xs px-4 py-1.5 rounded-lg bg-state-danger text-white hover:opacity-90 disabled:opacity-50"
         >
@@ -708,6 +707,18 @@ function CancelOrderPanel({
           {t("confirm")}
         </button>
       </div>
+
+      {showConfirm && (
+        <ConfirmActionModal
+          title={t("confirmTitle")}
+          message={t("confirmPrompt")}
+          confirmLabel={t("confirm")}
+          cancelLabel={t("dismiss")}
+          danger
+          onConfirm={async () => { await executeCancel(); }}
+          onCancel={() => setShowConfirm(false)}
+        />
+      )}
     </div>
   );
 }
@@ -733,6 +744,7 @@ function NextRecurringVisitCard() {
   // cliente pausara o cancelara su contrato recurrente por su cuenta.
   const [statusAction, setStatusAction] = useState<"pause" | "cancel" | null>(null);
   const [statusError, setStatusError] = useState("");
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelled, setCancelled] = useState(false);
 
   useEffect(() => {
@@ -755,9 +767,6 @@ function NextRecurringVisitCard() {
 
   async function updateContractStatus(action: "pause" | "cancel") {
     if (!contractId) return;
-    if (action === "cancel" && !window.confirm(t("confirmCancel"))) {
-      return;
-    }
     setStatusAction(action);
     setStatusError("");
     try {
@@ -850,7 +859,7 @@ function NextRecurringVisitCard() {
           {statusAction === "pause" ? t("pausing") : t("pausePlan")}
         </button>
         <button
-          onClick={() => updateContractStatus("cancel")}
+          onClick={() => setShowCancelConfirm(true)}
           disabled={statusAction !== null}
           className="text-xs text-state-danger underline disabled:opacity-50"
         >
@@ -858,6 +867,18 @@ function NextRecurringVisitCard() {
         </button>
       </div>
       {statusError && <p className="text-xs text-state-danger">{statusError}</p>}
+
+      {showCancelConfirm && (
+        <ConfirmActionModal
+          title={t("cancelPlan")}
+          message={t("confirmCancel")}
+          confirmLabel={t("cancelPlan")}
+          cancelLabel={t("dismiss")}
+          danger
+          onConfirm={async () => { await updateContractStatus("cancel"); setShowCancelConfirm(false); }}
+          onCancel={() => setShowCancelConfirm(false)}
+        />
+      )}
     </div>
   );
 }

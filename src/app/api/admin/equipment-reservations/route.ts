@@ -4,7 +4,8 @@ import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/equipment-reservations — listar reservas de implementos caros
 // (v8.3 E7 punto 3: "Punto logístico ... implementos caros (vaporizador, HEPA)
-// reservables por equipo/día"). Filtro opcional ?date=YYYY-MM-DD.
+// reservables por equipo/día"). Filtro opcional de rango: ?from=YYYY-MM-DD&to=YYYY-MM-DD.
+// Paginado con .limit(50). Orden por reserved_date descendente (más recientes primero).
 export async function GET(request: NextRequest) {
   const auth = await requireAdminRole("inventory", { method: request.method, url: request.url });
   if (auth.error) {
@@ -15,7 +16,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const date = request.nextUrl.searchParams.get("date");
+  const fromDate = request.nextUrl.searchParams.get("from");
+  const toDate = request.nextUrl.searchParams.get("to");
 
   let query = supabase
     .from("equipment_reservations")
@@ -25,10 +27,14 @@ export async function GET(request: NextRequest) {
       assignments ( id, order_id, employee_id )
     `)
     .is("deleted_at", null)
-    .order("reserved_date", { ascending: true });
+    .order("reserved_date", { ascending: false })
+    .limit(50);
 
-  if (date) {
-    query = query.eq("reserved_date", date);
+  if (fromDate) {
+    query = query.gte("reserved_date", fromDate);
+  }
+  if (toDate) {
+    query = query.lte("reserved_date", toDate);
   }
 
   const { data, error } = await query;

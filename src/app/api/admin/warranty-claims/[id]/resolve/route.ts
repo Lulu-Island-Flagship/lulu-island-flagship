@@ -139,19 +139,54 @@ export async function POST(
     // Si corresponde re-limpieza, encolar la tarea para el equipo. Sin
     // employee_id específico (SET NULL permitido en tickets_disputas): el
     // reclamo no está atado a un solo empleado, es una tarea del equipo/orden.
+    // TODO: Replace with atomic RPC function for warranty resolution
     if (appliedFinalAction === "free_recleaning") {
-      await auth.supabase.from("tickets_disputas").insert({
-        order_id: claim.order_id,
-        employee_id: null,
-        type: "dispute",
-        priority: "high",
-        status: "open",
-        context: {
-          reason: "warranty_recleaning_required",
-          warranty_claim_id: id,
-          zone: claim.claim_zone,
-        },
-      });
+      try {
+        await auth.supabase.from("tickets_disputas").insert({
+          order_id: claim.order_id,
+          employee_id: null,
+          type: "dispute",
+          priority: "high",
+          status: "open",
+          context: {
+            reason: "warranty_recleaning_required",
+            warranty_claim_id: id,
+            zone: claim.claim_zone,
+          },
+        });
+      } catch (insertErr) {
+        console.error(
+          "CRITICAL: Failed to insert tickets_disputas after warranty claim resolution, attempting revert",
+          insertErr
+        );
+        // Attempt compensating revert of the warranty claim status
+        const { error: revertError } = await auth.supabase
+          .from("warranty_claims")
+          .update({
+            status: claim.status,
+            resolution_notes: null,
+            resolved_by: null,
+            resolved_at: null,
+            auto_resolved: false,
+            decision_outcome: null,
+            requires_human_review: null,
+            decided_at: null,
+            decided_by: null,
+            final_action: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id);
+        if (revertError) {
+          console.error(
+            "CRITICAL: Failed to revert warranty claim status after tickets_disputas insert failure",
+            revertError
+          );
+        }
+        return NextResponse.json(
+          { error: "Failed to create dispute ticket; claim resolution reverted" },
+          { status: 500 }
+        );
+      }
     }
 
     // Aviso al cliente — mismo evento y patrón que tickets/[id]/resolve

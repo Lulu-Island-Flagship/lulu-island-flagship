@@ -119,6 +119,24 @@ export async function POST(request: NextRequest) {
       affectedEmployeeId = affectedEmployee.id;
     }
 
+    // v8.3 IDOR fix: verify reporter is assigned to orderId before allowing the incident to be linked
+    if (orderId) {
+      const { data: assignment, error: assignmentError } = await supabase
+        .from("assignments")
+        .select("id")
+        .eq("order_id", orderId)
+        .eq("employee_id", reporter.id)
+        .maybeSingle();
+
+      if (assignmentError) {
+        console.error("assignmentError:", assignmentError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
+      if (!assignment) {
+        return NextResponse.json({ error: "You are not assigned to this order" }, { status: 403 });
+      }
+    }
+
     const { data, error } = await supabase
       .from("workplace_incidents")
       .insert({

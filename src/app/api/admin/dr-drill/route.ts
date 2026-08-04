@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { safeErrorResponse } from "@/lib/api-errors";
 import {
   evaluateDrillResult,
   computeAllDrillOverdueStatuses,
@@ -144,10 +145,11 @@ export async function POST(request: NextRequest) {
   }
 
   // drillType === 'restore_verification': corre el chequeo automático real.
+  try {
   const startedAt = Date.now();
   const { data: rpcResult, error: rpcError } = await supabase.rpc("dr_drill_integrity_check");
   if (rpcError) {
-    return NextResponse.json({ error: `Chequeo de integridad falló: ${rpcError.message}` }, { status: 500 });
+    return safeErrorResponse(rpcError, 500, "Chequeo de integridad falló. Revise los logs del servidor.");
   }
   const elapsedSeconds = body.durationSeconds ?? Math.round((Date.now() - startedAt) / 1000);
 
@@ -199,4 +201,7 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ drill, evaluation }, { status: 201 });
+  } catch (err) {
+    return safeErrorResponse(err);
+  }
 }

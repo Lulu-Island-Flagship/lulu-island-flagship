@@ -7,7 +7,7 @@ import {
   getVancouverOffset,
   getVancouverTodayMidnight,
 } from "@/lib/date-utils";
-import { checkBookingDateAllowed } from "@/lib/pricing";
+import { checkBookingDateAllowed, dollarsToCents } from "@/lib/pricing";
 import { verifyPayPalTransaction } from "@/lib/paypal";
 import { dispatchCommunication } from "@/lib/send-communication";
 import {
@@ -547,7 +547,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const expectedAmountCents = Math.round(Number(quoteRow.total) * 100);
+      const expectedAmountCents = dollarsToCents(Number(quoteRow.total));
 
       if (walletPi.status !== "succeeded") {
         return NextResponse.json(
@@ -680,7 +680,7 @@ export async function POST(request: NextRequest) {
     // solo si el cliente lo pidió explícitamente. Ver limitación documentada
     // en src/lib/installment-payment.ts: esto es metadata declarada, el
     // cobro real sigue el flujo Hold+Batch existente sin modificarse aquí.
-    const quoteTotalCents = Math.round(Number(quoteRow.total) * 100);
+    const quoteTotalCents = dollarsToCents(Number(quoteRow.total));
     const installmentRequested = useInstallmentPlan === true && isEligibleForInstallmentPlan(quoteTotalCents);
     const installmentSplit = installmentRequested ? computeInstallmentSplit(quoteTotalCents) : null;
     const installmentSecondDueAt = installmentRequested
@@ -744,7 +744,7 @@ export async function POST(request: NextRequest) {
         // centavos; holdAmount (derivado de quotes.hold_amount, dólares) se
         // escala x100 al escribirlo aquí. hold_authorized_amount_cents nace en
         // 0 igual que antes (se autoriza recién en el cron T-72h).
-        hold_amount_cents: Math.round(holdAmount * 100),
+        hold_amount_cents: dollarsToCents(holdAmount),
         hold_authorized_amount_cents: 0,
         cancellation_window_hours: 72,
         billing_postal_code: billingPostalCode,
@@ -830,7 +830,7 @@ export async function POST(request: NextRequest) {
             eventType: "paypal_advance_received",
             orderId: order.id,
             userId: user.id,
-            amountCents: Math.round(paypalAdvanceAmount * 100),
+            amountCents: dollarsToCents(paypalAdvanceAmount),
             processor: "paypal",
             externalReference: paypalTransactionId || null,
             occurredAt: new Date(),

@@ -74,6 +74,27 @@ export async function POST(request: NextRequest) {
 
     const recordedAt = new Date().toISOString();
 
+    // TODO: Replace with atomic RPC function for vehicle_tracking + vehicles update
+    // Currently two independent operations: UPDATE vehicles first (less bad to
+    // have vehicle state updated without a tracking record than the reverse).
+
+    // 1. Update vehicle current position first
+    const { error: vehicleUpdateError } = await supabase
+      .from("vehicles")
+      .update({
+        current_lat: lat,
+        current_lng: lng,
+        last_location_at: recordedAt,
+        updated_at: recordedAt,
+      })
+      .eq("id", employee.vehicle_id);
+
+    if (vehicleUpdateError) {
+      console.error("Vehicle update error:", vehicleUpdateError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
+
+    // 2. Insert tracking record
     const { error: trackingError } = await supabase.from("vehicle_tracking").insert({
       vehicle_id: employee.vehicle_id,
       lat,
@@ -84,20 +105,8 @@ export async function POST(request: NextRequest) {
 
     if (trackingError) {
       console.error("Vehicle tracking insert error:", trackingError);
-      console.error("trackingError:", trackingError);
       return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
-
-    // Actualizar ubicación actual del vehículo
-    await supabase
-      .from("vehicles")
-      .update({
-        current_lat: lat,
-        current_lng: lng,
-        last_location_at: recordedAt,
-        updated_at: recordedAt,
-      })
-      .eq("id", employee.vehicle_id);
 
     return NextResponse.json({ success: true, vehicleId: employee.vehicle_id, recordedAt }, { status: 200 });
   } catch (err: Error | unknown) {

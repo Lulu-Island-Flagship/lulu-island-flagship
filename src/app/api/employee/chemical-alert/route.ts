@@ -42,6 +42,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ alertCreated: false }, { status: 200 });
     }
 
+    // Verify assignment ownership if assignmentId is provided (IDOR fix)
+    if (assignmentId != null) {
+      const { data: assignmentData, error: assignmentError } = await supabase
+        .from("assignments")
+        .select("id")
+        .is("deleted_at", null)
+        .eq("id", assignmentId)
+        .eq("employee_id", employee.id)
+        .maybeSingle();
+
+      if (assignmentError) {
+        console.error("Assignment verification error:", assignmentError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
+
+      if (!assignmentData) {
+        return NextResponse.json({ error: "Assignment does not belong to you" }, { status: 403 });
+      }
+    }
+
     const { data, error } = await supabase
       .from("wellbeing_chemical_alerts")
       .insert({

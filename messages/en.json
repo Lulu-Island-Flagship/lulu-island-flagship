@@ -749,6 +749,7 @@
         "windowUnknown": "We couldn't determine the cancellation window for this service.",
         "penaltyAmount": "Estimated penalty: {amount}",
         "noPenalty": "No penalty — full refund.",
+        "confirmTitle": "Cancel service",
         "confirmPrompt": "Are you sure you want to cancel this service? This cannot be undone.",
         "dismiss": "Keep service",
         "confirm": "Confirm cancellation",
@@ -793,7 +794,8 @@
         "pausing": "Pausing…",
         "pausePlan": "Pause plan",
         "cancelling": "Cancelling…",
-        "cancelPlan": "Cancel plan"
+        "cancelPlan": "Cancel plan",
+        "dismiss": "Keep plan"
       },
       "livePortfolio": {
         "withdrawFailed": "Could not withdraw",
@@ -4228,14 +4230,77 @@
       }
     }
   },
+  "chemicalCodes": {
+    "red": "BATHROOM — ACID",
+    "blue": "KITCHEN — AMMONIA",
+    "green": "NEUTRAL",
+    "yellow": "WOOD",
+    "white": "GLASS",
+    "black": "FLOOR",
+    "redZone": "Bathroom",
+    "blueZone": "Kitchen",
+    "greenZone": "Countertops",
+    "yellowZone": "Surfaces / Dust",
+    "whiteZone": "Windows",
+    "blackZone": "Floors",
+    "redProduct": "Acid disinfectant",
+    "blueProduct": "Alkaline degreaser",
+    "greenProduct": "Neutral cleaner",
+    "yellowProduct": "Polish",
+    "whiteProduct": "Glass cleaner",
+    "blackProduct": "pH neutral",
+    "redRisk": "NEVER mix with BLUE (ammonia) — chlorine gas risk",
+    "blueRisk": "NEVER mix with RED (acid) — chlorine gas risk",
+    "greenRisk": "Compatible with all colors",
+    "yellowRisk": "Never on floors — slippery",
+    "whiteRisk": "Glass only",
+    "blackRisk": "Never on countertops or wood",
+    "zone": "Zone",
+    "confirmed": "Confirmed"
+  },
   "chemicalMatch": {
     "title": "What product are you using here?",
     "body": "Zone: {zone}. Pick the container that matches the product you're about to use.",
     "warning": "If you're not sure, ask your team lead before using any product.",
-    "searchPlaceholder": "Search products..."
+    "searchPlaceholder": "Search products...",
+    "chlorineRiskWithProduct": "⚠️ CHLORINE GAS RISK: {product} is incompatible with a product already confirmed today. Do not use in any zone until you have ventilated and consulted your supervisor.",
+    "chlorineRiskGeneric": "⚠️ CHLORINE GAS RISK: This product is incompatible with another already confirmed today. Do not use in any zone until you have ventilated and consulted your supervisor.",
+    "wrongProductForZone": "That's not the correct product for this zone. Check the label on the physical container.",
+    "networkError": "Network error. Please try again.",
+    "close": "Close",
+    "understood": "Understood, I'll check with my supervisor"
+  },
+  "closureProtocol": {
+    "externalOptions": {
+      "verbal": "Verbal confirmation (client present)",
+      "visual": "Visual verification (team lead audit)",
+      "auditor": "Auditor present"
+    },
+    "paymentOptions": {
+      "etransfer": "e-Transfer",
+      "cheque": "Cheque",
+      "cash": "Cash"
+    },
+    "title": "External Closure Protocol",
+    "equipmentConfirmed": "All equipment and implements confirmed for this service",
+    "externalConfirmationLabel": "External verification (required by protocol)",
+    "altPaymentLabel": "Alternative payment (client without smartphone)",
+    "amountReceived": "Amount received",
+    "uploading": "Uploading…",
+    "photoRequired": "Photo of signed receipt (required)",
+    "confirmPayment": "Confirm payment",
+    "error": {
+      "saveFailed": "Failed to save. Please try again.",
+      "connection": "Connection error. Please try again.",
+      "uploadFailed": "Failed to upload photo. Please try again.",
+      "uploadConnection": "Connection error during upload. Please try again."
+    },
+    "amountAriaLabel": "Amount received in dollars",
+    "signedReceipt": "Signed receipt photo",
+    "photoAriaLabel": "Photo of signed receipt"
   },
   "upsells": {
-    "description": "Select additional services. These are recorded for the admin to review \u2014 they do not change the current price automatically.",
+    "description": "Select additional services. These are recorded for the admin to review — they do not change the current price automatically.",
     "adminReviewNote": "For admin review only. Does not change the current charge.",
     "notesOptional": "Notes (optional)",
     "notesAriaLabel": "Notes about the upsell",
@@ -4254,5 +4319,39 @@
       "retry": "Try again",
       "cta": "Back to home"
     }
+  },
+  "safetyAbort": {
+    "sos": "SOS",
+    "sosActive": "SOS Active — help is on the way",
+    "idleAriaLabel": "Activate safety abort",
+    "activeAriaLabel": "SOS is active. Tap to view status.",
+    "dialogAriaLabel": "Safety abort confirmation",
+    "closeAriaLabel": "Close dialog",
+    "activateTitle": "Activate safety abort?",
+    "activateDescription": "This will alert dispatch and your team that you need immediate assistance.",
+    "confirmFirst": "Yes, continue",
+    "confirmSecond": "Confirm one more time",
+    "confirmSecondDescription": "This action cannot be undone. Dispatch will be notified immediately.",
+    "activateButton": "Activate SOS now",
+    "activating": "Activating...",
+    "sentTitle": "SOS Sent",
+    "sentDescription": "Dispatch and your team have been notified.",
+    "close": "Close",
+    "cancel": "Cancel",
+    "errorTitle": "Could not send SOS",
+    "networkError": "Network error. Check your connection and try again.",
+    "retry": "Retry",
+    "networkFallbackTitle": "Emergency fallback options",
+    "networkFallbackWithPhone": "Your phone has signal. Try these options:",
+    "networkFallbackNoPhone": "No phone signal detected. Call dispatch immediately from any available phone.",
+    "callNow": "Call Now",
+    "sendSms": "Send SMS",
+    "call911": "Call 911",
+    "smsBodyPrefix": "SOS: Employee needs immediate assistance. Location:",
+    "smsNoDetails": "No additional details provided.",
+    "retryInternet": "Retry with internet",
+    "couldNotActivateSos": "Could not activate SOS. Use fallback options below.",
+    "reasonAriaLabel": "Reason for safety abort",
+    "reasonPlaceholder": "Briefly describe the situation (optional)"
   }
 }

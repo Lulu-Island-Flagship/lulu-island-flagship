@@ -81,61 +81,97 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "unitPriceCents debe ser un número >= 0" }, { status: 400 });
     }
 
-    // Retira el "vigente" anterior para esta combinación proveedor+producto
-    // antes de insertar el nuevo (si no, choca con el índice único parcial).
-    // Fix M9: Rollback retire on insert failure to prevent orphaned state
-    // TODO: Replace with atomic DB function to eliminate race window
-    const { error: retireError } = await supabase
+    // ─── Compensating Transaction Pattern ─────────────────────────────────────
+    // ⚠ RACE WINDOW: This handler retires the old is_current row before
+    // inserting the new one. Between the retire UPDATE and the INSERT, a
+    // process crash or network partition leaves the (supplier, inventory_item)
+    // pair with NO is_current=true row → PO generation breaks because it reads
+    // is_current=true. The compensate-on-failure logic below mitigates the
+    // common failure case (insert rejection), but cannot help a hard crash.
+    //
+    // Only an atomic RPC function (single DB transaction: retire old + insert
+    // new) can fully close this window. Until then, if the CRITICAL restore
+    // log fires, an admin must manually set is_current=true on the most recent
+    // historical row for the affected pair.
+    // ───────────────────────────────────────────────────────────────────────────
+
+    // Step 0: Snapshot the current row so we can restore by exact id on failure.
+    const { data: oldRow, error: fetchError } = await supabase
       .from("supplier_catalog")
-      .update({ is_current: false })
+      .select("id, supplier_id, inventory_item_id, unit_price_cents, currency, effective_from, is_current, created_at")
       .eq("supplier_id", supplierId)
       .eq("inventory_item_id", inventoryItemId)
-      .eq("is_current", true);
+      .eq("is_current", true)
+      .maybeSingle();
 
-    try {
-      if (retireError) {
-        console.error("admin/supplier-catalog error:", retireError);
-        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
-      }
-
-      const { data, error } = await supabase
-        .from("supplier_catalog")
-        .insert({
-          supplier_id: supplierId,
-          inventory_item_id: inventoryItemId,
-          unit_price_cents: priceCents,
-          currency: currency || "CAD",
-          effective_from: effectiveFrom || getVancouverTodayString(),
-          is_current: true,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error("admin/supplier-catalog error:", error);
-        // Fix M9: Rollback the retire if insert fails
-        await supabase
-          .from("supplier_catalog")
-          .update({ is_current: true })
-          .eq("supplier_id", supplierId)
-          .eq("inventory_item_id", inventoryItemId)
-          .eq("is_current", false);
-        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
-      }
-
-      return NextResponse.json({ catalogEntry: data }, { status: 201 });
-    } catch (insertErr) {
-      console.error("admin/supplier-catalog insert error:", insertErr);
-      // Fix M9: Rollback the retire on exception too
-      await supabase
-        .from("supplier_catalog")
-        .update({ is_current: true })
-        .eq("supplier_id", supplierId)
-        .eq("inventory_item_id", inventoryItemId)
-        .eq("is_current", false);
-      throw insertErr;
+    if (fetchError) {
+      console.error("admin/supplier-catalog fetch error:", fetchError);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
+
+    // Step 1: Retire (if a current row exists).
+    if (oldRow) {
+      const { error: retireError } = await supabase
+        .from("supplier_catalog")
+        .update({ is_current: false })
+        .eq("id", oldRow.id);
+
+      if (retireError) {
+        console.error("admin/supplier-catalog retire error:", retireError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
+    }
+
+    // Step 2: Insert the new current row.
+    // TODO: Replace with atomic RPC function (single transaction: retire old +
+    // insert new). See migration pattern in pricing-settings for reference.
+    const { data: newRow, error: insertError } = await supabase
+      .from("supplier_catalog")
+      .insert({
+        supplier_id: supplierId,
+        inventory_item_id: inventoryItemId,
+        unit_price_cents: priceCents,
+        currency: currency || "CAD",
+        effective_from: effectiveFrom || getVancouverTodayString(),
+        is_current: true,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error("admin/supplier-catalog insert error:", insertError);
+
+      // Step 3: Compensate — restore the old row's is_current=true by exact id.
+      if (oldRow) {
+        try {
+          const { error: restoreError } = await supabase
+            .from("supplier_catalog")
+            .update({ is_current: true })
+            .eq("id", oldRow.id);
+
+          if (restoreError) {
+            console.error(
+              "CRITICAL: Failed to restore is_current after insert failure. " +
+                `supplier_id=${supplierId}, inventory_item_id=${inventoryItemId}, ` +
+                `old_row_id=${oldRow.id}. Manual fix required. Restore error:`,
+              restoreError
+            );
+          }
+        } catch (restoreErr) {
+          console.error(
+            "CRITICAL: Exception during is_current restore after insert failure. " +
+              `supplier_id=${supplierId}, inventory_item_id=${inventoryItemId}, ` +
+              `old_row_id=${oldRow.id}. Manual fix required.`,
+            restoreErr
+          );
+        }
+      }
+
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
+
+    return NextResponse.json({ catalogEntry: newRow }, { status: 201 });
   } catch (err: Error | unknown) {
-        return safeErrorResponse(err);
+    return safeErrorResponse(err);
   }
 }

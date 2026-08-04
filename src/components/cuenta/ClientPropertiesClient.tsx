@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
 import {
@@ -51,6 +52,7 @@ export default function ClientPropertiesClient() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [postalError, setPostalError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   // Fix (auditoría externa 2026-07-24): mismo patrón ya aplicado en
@@ -182,8 +184,11 @@ export default function ClientPropertiesClient() {
   }
 
   async function deleteProperty(id: string) {
-    if (!window.confirm(t("confirmDelete"))) return;
+    setConfirmDeleteId(id);
+    return;
+  }
 
+  async function executeDelete(id: string) {
     setDeletingId(id);
     setSuccessMessage("");
     try {

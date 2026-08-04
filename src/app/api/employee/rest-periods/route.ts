@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { safeErrorResponse } from "@/lib/api-errors";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 
@@ -29,28 +30,35 @@ function getSupabaseClient() {
  * tramos de tránsito NUNCA cuentan como descanso (sigue siendo trabajo).
  */
 export async function GET(_request: NextRequest) {
-  const supabase = getSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const supabase = getSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id);
-  if (!employee) return NextResponse.json({ error: empError }, { status: empStatus });
+    const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id);
+    if (!employee) return NextResponse.json({ error: empError }, { status: empStatus });
 
-  const since = new Date();
-  since.setUTCDate(since.getUTCDate() - 30);
+    const since = new Date();
+    since.setUTCDate(since.getUTCDate() - 30);
 
-  const { data: periods, error } = await supabase
-    .from("employee_rest_periods")
-    .select(
-      "id, work_date, rest_start_at, rest_end_at, duration_minutes, role_during_rest, satisfies_esa_break, reason"
-    )
-    .eq("employee_id", employee.id)
-    .gte("work_date", since.toISOString().slice(0, 10))
-    .order("rest_start_at", { ascending: false });
+    const { data: periods, error } = await supabase
+      .from("employee_rest_periods")
+      .select(
+        "id, work_date, rest_start_at, rest_end_at, duration_minutes, role_during_rest, satisfies_esa_break, reason"
+      )
+      .eq("employee_id", employee.id)
+      .gte("work_date", since.toISOString().slice(0, 10))
+      .order("rest_start_at", { ascending: false });
 
-  if (error) { console.error("Supabase query error:", error); return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 }); }
+    if (error) {
+      console.error("Supabase query error:", error);
+      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
 
-  return NextResponse.json({ periods: periods || [] }, { status: 200 });
+    return NextResponse.json({ periods: periods || [] }, { status: 200 });
+  } catch (err) {
+    return safeErrorResponse(err);
+  }
 }
