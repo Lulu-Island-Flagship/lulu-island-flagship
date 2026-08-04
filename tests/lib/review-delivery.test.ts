@@ -10,17 +10,17 @@ import {
 } from "../../src/lib/review-delivery";
 
 describe("buildReviewLink", () => {
-  it("construye el link sin doble slash", () => {
+  it("construye el link sin doble slash (ruta i18n: /review/)", () => {
     assert.equal(
       buildReviewLink("abc-123", "https://app.luluisland.ca/"),
-      "https://app.luluisland.ca/evaluar/abc-123"
+      "https://app.luluisland.ca/review/abc-123"
     );
   });
 
   it("funciona sin slash final en baseUrl", () => {
     assert.equal(
       buildReviewLink("abc-123", "https://app.luluisland.ca"),
-      "https://app.luluisland.ca/evaluar/abc-123"
+      "https://app.luluisland.ca/review/abc-123"
     );
   });
 });
