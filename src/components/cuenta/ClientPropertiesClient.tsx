@@ -236,7 +236,7 @@ export default function ClientPropertiesClient() {
             estado de React, vuelve a descargar todo el JS) -- se usa
             next/link con la misma ruta absoluta con locale que el resto de
             "Mi Cuenta" (ver MisServiciosClient.tsx). */}
-        <Link href={`/${locale}/cuenta/servicios`} className="inline-block mt-2 text-xs text-brand-wave-blue hover:text-brand-navy underline">
+        <Link href={`/${locale}/account/services`} className="inline-block mt-2 text-xs text-brand-wave-blue hover:text-brand-navy underline">
           {t("viewServiceHistory")}
         </Link>
       </div>

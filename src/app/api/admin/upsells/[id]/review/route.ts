@@ -9,7 +9,7 @@ import { safeErrorResponse } from "@/lib/api-errors";
  * reviewed_by_admin (migración 007) es un check-off genérico de "un admin lo
  * vio", pero no era una compuerta real -- un upsell por encima del tope se
  * podía comisionar igual sin que nadie lo aprobara explícitamente. Ahora
- * POST /api/empleado/upsells marca approval_status='pending_admin_approval'
+ * POST /api/employee/upsells marca approval_status='pending_admin_approval'
  * cuando el acumulado de la orden supera el 50% de quotes.total (migración
  * 175); este endpoint es la compuerta real: approve/reject. Se mantiene
  * reviewed_by_admin=true en ambos casos por compatibilidad con paneles que

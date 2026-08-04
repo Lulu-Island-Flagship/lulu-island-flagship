@@ -5,6 +5,7 @@ import { getVancouverTodayString } from "@/lib/date-utils";
 import { computeWalletCreditExpiryDate } from "@/lib/wallet";
 import { REFERRAL_CREDIT_CENTS, LEADER_MENTION_BONUS_CENTS } from "@/lib/referrals";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { requireCronAuth } from "@/lib/cron-auth"; // Fix R5: constant-time cron auth
 
 /**
  * POST /api/cron/referral-credit-grant — v8.3 E5.13 "Lulu Ambassador"
@@ -23,15 +24,9 @@ import { safeErrorResponse } from "@/lib/api-errors";
  * Seguridad: requiere header Authorization: Bearer ${CRON_SECRET}
  */
 export async function GET(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = request.headers.get("authorization");
-  if (!cronSecret) {
-    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
-  }
-  const bearer = authHeader?.replace("Bearer ", "");
-  if (bearer !== cronSecret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  // Fix R5: Use constant-time requireCronAuth instead of inline comparison
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

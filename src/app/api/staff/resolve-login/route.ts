@@ -20,7 +20,7 @@ import { getClientIp } from "@/lib/request-ip";
  * cierra la sesión (auth.signOut()) para no dejar una sesión "a medias".
  */
 const AREA_TO_PATH: Record<StaffArea, string> = {
-  empleado: "/empleado",
+  employee: "/employee",
   admin: "/admin",
   qc: "/admin/qc",
 };

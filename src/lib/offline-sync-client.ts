@@ -50,7 +50,7 @@ async function sendServiceEvent(
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     // Fix (auditoría 2026-07-31, #6): "generic_report" no pasa por
-    // /api/empleado/servicio -- son formularios standalone (near-miss,
+    // /api/employee/service -- son formularios standalone (near-miss,
     // incidente laboral, enfermedad) que apuntan a su propio endpoint,
     // guardado en payload.endpoint al encolar (ver submitGenericReportOrQueue).
     if (event.eventType === "generic_report") {
@@ -79,7 +79,7 @@ async function sendServiceEvent(
       payload = { ...rest, photoUrl };
     }
 
-    const res = await fetch("/api/empleado/servicio", {
+    const res = await fetch("/api/employee/service", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -145,7 +145,7 @@ export async function submitServiceEventOrQueue(
   payload: Record<string, unknown>
 ): Promise<{ queued: boolean; ok: boolean; data?: unknown; error?: string }> {
   try {
-    const res = await fetch("/api/empleado/servicio", {
+    const res = await fetch("/api/employee/service", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",

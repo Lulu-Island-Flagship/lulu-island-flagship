@@ -15,7 +15,7 @@ import { safeErrorResponse } from "@/lib/api-errors";
 // service role en la API" que nunca se implementó. requireAdminRole()
 // sigue autorizando (rol + audit log), pero las operaciones de datos del
 // lado admin usan el cliente service role. (El endpoint del empleado,
-// src/app/api/empleado/marketing-consent/route.ts, sigue con el cliente
+// src/app/api/employee/marketing-consent/route.ts, sigue con el cliente
 // de sesión normal -- ese sí lo cubre RLS.)
 
 export async function GET(request: NextRequest) {

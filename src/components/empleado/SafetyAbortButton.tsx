@@ -29,12 +29,12 @@ type Stage = "idle" | "first" | "second" | "sending" | "sent" | "error" | "netwo
 
 // v8.3 E7 (D.10 #7) — "SOS con GPS vivo": mientras el aborto siga activo
 // (stage === "sent"), el GPS se reenvía periódicamente vía PATCH
-// /api/empleado/safety-abort/[id] (existía la ruta, testeada, pero ningún
+// /api/employee/safety-abort/[id] (existía la ruta, testeada, pero ningún
 // componente la llamaba -- el POST inicial solo mandaba una foto fija del
 // GPS al momento de activar el SOS).
 const GPS_UPDATE_INTERVAL_MS = 20000;
 
-// Fix (auditoría 2026-07-30, bug #1): si el POST a /api/empleado/safety-abort
+// Fix (auditoría 2026-07-30, bug #1): si el POST a /api/employee/safety-abort
 // no responde en este plazo (dispositivo sin señal/datos en el momento de la
 // emergencia), se ofrece un fallback nativo tel:/sms: en vez de dejar al
 // empleado con un simple mensaje de error. Se investigó el repo buscando un
@@ -129,7 +129,7 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
       try {
         const loc = await getLocation();
         if (!loc) return;
-        await fetch(`/api/empleado/safety-abort/${id}`, {
+        await fetch(`/api/employee/safety-abort/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -172,7 +172,7 @@ export function SafetyAbortButton({ orderId }: { orderId?: string }) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), SOS_FETCH_TIMEOUT_MS);
     try {
-      const res = await fetch("/api/empleado/safety-abort", {
+      const res = await fetch("/api/employee/safety-abort", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

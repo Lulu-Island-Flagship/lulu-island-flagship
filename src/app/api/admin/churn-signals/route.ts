@@ -147,8 +147,8 @@ export async function POST(request: NextRequest) {
           language,
           vars: {
             client_name: profile?.full_name || "cliente",
-            survey_link: `${process.env.NEXT_PUBLIC_APP_URL || ""}/cuenta`,
-            reactivation_link: `${process.env.NEXT_PUBLIC_APP_URL || ""}/cotizador`,
+            survey_link: `${process.env.NEXT_PUBLIC_APP_URL || ""}/account`,
+            reactivation_link: `${process.env.NEXT_PUBLIC_APP_URL || ""}/quote`,
           },
         });
       }

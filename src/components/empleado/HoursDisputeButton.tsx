@@ -6,7 +6,7 @@ import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { parseVancouverDateTime } from "@/lib/date-utils";
 
 /**
- * v8.3 ROUND 3 — hallazgo: POST /api/empleado/hours-dispute (FIX-9, RLS
+ * v8.3 ROUND 3 — hallazgo: POST /api/employee/hours-dispute (FIX-9, RLS
  * arreglado en round 2) nunca tenía ningún botón real en la PWA que lo
  * llamara -- la misma clase de bug que FIX-3 en la ronda 1 (páginas/rutas
  * construidas pero inalcanzables desde el flujo real). Sin este botón, un
@@ -46,7 +46,7 @@ export function HoursDisputeButton({
       const claimedTimestamp = claimedTime
         ? parseVancouverDateTime(recordedTimestamp.slice(0, 10), claimedTime).toISOString()
         : recordedTimestamp;
-      const res = await fetch("/api/empleado/hours-dispute", {
+      const res = await fetch("/api/employee/hours-dispute", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

@@ -13,6 +13,7 @@ import { getZoneDemand } from "@/lib/zone-demand";
 import { getVancouverTodayString, getDayOfWeekFromDateString } from "@/lib/date-utils";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { QUOTE_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
 
 function deriveClientType(servicesCount: number, clientScore: number): "new" | "returning" | "elite" {
   if (servicesCount === 0) return "new";
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     const { data: quote, error: quoteError } = await supabase
       .from("quotes")
-      .select("*")
+      .select(QUOTE_CLIENT_COLUMNS)
       .eq("id", quoteId)
       .eq("user_id", user.id)
       .single();
@@ -252,7 +253,7 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", quoteId)
       .eq("user_id", user.id)
-      .select()
+      .select(QUOTE_CLIENT_COLUMNS)
       .single();
 
     if (updateError) {

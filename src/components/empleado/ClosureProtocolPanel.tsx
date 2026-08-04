@@ -57,7 +57,7 @@ export function ClosureProtocolPanel({ orderId, noSmartphoneFlow }: ClosureProto
     if (!orderId) return;
     (async () => {
       try {
-        const res = await fetch(`/api/empleado/cierre?orderId=${orderId}`, { credentials: "include" });
+        const res = await fetch(`/api/employee/close?orderId=${orderId}`, { credentials: "include" });
         if (res.ok) {
           const data = await res.json();
           setImplementsConfirmed(!!data.implementsConfirmed);
@@ -78,7 +78,7 @@ export function ClosureProtocolPanel({ orderId, noSmartphoneFlow }: ClosureProto
     setSaving(JSON.stringify(patch));
     setSaveError("");
     try {
-      const res = await fetch("/api/empleado/cierre", {
+      const res = await fetch("/api/employee/close", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

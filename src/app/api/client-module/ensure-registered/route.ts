@@ -77,7 +77,7 @@ export async function POST() {
   // en /portal -- que también establece una sesión de Supabase Auth normal.
   // Sin este chequeo, cada login de staff creaba/vinculaba una fila en
   // `clients`, contaminando el CRM con cuentas de equipo. Se reutiliza
-  // resolveStaffLogin() -- misma fuente de verdad que /api/cuenta/access-check
+  // resolveStaffLogin() -- misma fuente de verdad que /api/account/access-check
   // -- en modo readOnly (nunca debe mutar employees.user_id desde aquí, ese
   // efecto secundario le pertenece únicamente a /api/staff/resolve-login).
   const serviceClient = getServiceRoleClient();

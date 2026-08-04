@@ -60,7 +60,7 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
             {t.rich("tcDesc", {
               link: (chunks) => (
                 <a
-                  href={`/${locale}/terminos`}
+                  href={`/${locale}/terms`}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={stopLabelToggle}
@@ -94,7 +94,7 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
             {t.rich("pipaDesc", {
               link: (chunks) => (
                 <a
-                  href={`/${locale}/privacidad`}
+                  href={`/${locale}/privacy`}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={stopLabelToggle}
@@ -134,7 +134,7 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
             {t.rich("marketingDesc", {
               link: (chunks) => (
                 <a
-                  href={`/${locale}/privacidad`}
+                  href={`/${locale}/privacy`}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={stopLabelToggle}
@@ -169,7 +169,7 @@ export function ConsentCheck({ consents, onChange }: ConsentCheckProps) {
             {t.rich("photoMarketingDesc", {
               link: (chunks) => (
                 <a
-                  href={`/${locale}/privacidad`}
+                  href={`/${locale}/privacy`}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={stopLabelToggle}

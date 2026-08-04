@@ -4,6 +4,7 @@ import type { User } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
 import { locales, defaultLocale } from './i18n/config';
 import { isAllowedInternalPath } from './lib/safe-redirect';
+import { captureError } from './lib/observability';
 
 // v8.3 E0 (2026-07-11): antes este archivo SOLO hacía ruteo de idioma.
 // Auditoría (interna y externa) encontró que no había refresh de sesión de
@@ -62,7 +63,7 @@ export default async function middleware(request: NextRequest) {
   // `config.matcher` de este archivo excluía TODO /api/** del pipeline de
   // middleware (por diseño -- /api/quote, /api/auth, el webhook de Stripe,
   // los crons, etc. deben quedar fuera). El problema es que eso significa
-  // que si algún endpoint bajo /api/admin, /api/empleado o /api/client
+  // que si algún endpoint bajo /api/admin, /api/employee o /api/client
   // llegara a olvidar su propio chequeo de sesión (requireAdminRole /
   // requireActiveEmployee / getUser()+401 manual, que HOY sí tiene cada uno
   // -- se verificó leyendo una muestra representativa), quedaría
@@ -76,7 +77,7 @@ export default async function middleware(request: NextRequest) {
   // /api sigue completamente fuera de este archivo. Se responde ANTES de
   // invocar intlMiddleware porque next-intl no sabe rutear /api/** (no
   // tiene locale prefix) y podría intentar redirigir estas requests.
-  const apiStaffProtectedPrefixes = ["/api/admin", "/api/empleado", "/api/client"];
+  const apiStaffProtectedPrefixes = ["/api/admin", "/api/employee", "/api/client"];
   const isApiStaffProtected = apiStaffProtectedPrefixes.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
@@ -109,7 +110,7 @@ export default async function middleware(request: NextRequest) {
     // supabase.auth.getUser()` no tenía try/catch -- si Supabase Auth está
     // caído, con timeout, o (tras el fix de arriba) las env vars faltan, la
     // excepción quedaba sin manejar y Next.js respondía con un 500 genérico
-    // para TODO /api/admin, /api/empleado y /api/client. Se falla cerrado
+    // para TODO /api/admin, /api/employee y /api/client. Se falla cerrado
     // (401) en vez de crashear: sigue siendo la postura de seguridad
         // correcta (sin poder verificar sesión, no se deja pasar la request) y
     // el caller ya maneja 401 normalmente, a diferencia de un 500 sin
@@ -135,7 +136,7 @@ export default async function middleware(request: NextRequest) {
       } = await supabaseApi.auth.getUser();
       apiUser = user;
     } catch (err) {
-      console.error("middleware: auth.getUser() failed for API staff-protected route", err);
+      captureError(err, { middleware: "isApiStaffProtected" });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -184,7 +185,7 @@ export default async function middleware(request: NextRequest) {
     } = await supabase.auth.getUser();
     user = resolvedUser;
   } catch (err) {
-    console.error("middleware: auth.getUser() failed, degrading to unauthenticated", err);
+    captureError(err, { middleware: "getUser" });
   }
 
   // Fix 2026-07-23 (auditoría de autenticación en middleware): confirmado
@@ -226,7 +227,7 @@ export default async function middleware(request: NextRequest) {
     : defaultLocale;
   const pathWithoutLocale = "/" + pathnameParts.slice(localeInPath === pathnameParts[0] ? 1 : 0).join("/");
 
-  const staffProtectedPrefixes = ["/admin", "/empleado"];
+  const staffProtectedPrefixes = ["/admin", "/employee"];
   const isStaffProtected = staffProtectedPrefixes.some(
     (prefix) => pathWithoutLocale === prefix || pathWithoutLocale.startsWith(`${prefix}/`)
   );
@@ -247,7 +248,7 @@ export default async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const clientProtectedPrefixes = ["/cuenta"];
+  const clientProtectedPrefixes = ["/account"];
   const isClientProtected = clientProtectedPrefixes.some(
     (prefix) => pathWithoutLocale === prefix || pathWithoutLocale.startsWith(`${prefix}/`)
   );
@@ -290,7 +291,7 @@ export const config = {
     // staff/resolve-login) queda deliberadamente excluido -- son rutas
     // públicas, webhooks firmados, o jobs de cron con su propio secreto.
     '/api/admin/:path*',
-    '/api/empleado/:path*',
+    '/api/employee/:path*',
     '/api/client/:path*',
   ]
 };

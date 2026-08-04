@@ -42,7 +42,7 @@ export function QuoteButton({ variant = "primary", children }: QuoteButtonProps)
     // Preserve current locale when navigating to cotizador
     const pathLocale = window.location.pathname.match(/^\/(en|zh|fr)(\/|$)/);
     const locale = pathLocale ? pathLocale[1] : "en";
-    router.push(`/${locale}/cotizador`);
+    router.push(`/${locale}/quote`);
   };
 
   const baseClasses =

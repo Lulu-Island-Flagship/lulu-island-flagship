@@ -1,3 +1,5 @@
+import { captureError } from "@/lib/observability";
+
 /**
  * Geocodificación ligera para direcciones de servicio.
  *
@@ -90,7 +92,7 @@ export async function geocodeAddress(address: string): Promise<LatLng | null> {
         return { lat, lng };
       }
     } catch (err) {
-      console.error("Configured geocoder error:", err);
+      captureError(err, { geocoder: "configured" });
     }
     return null;
   }
@@ -118,7 +120,7 @@ export async function geocodeAddress(address: string): Promise<LatLng | null> {
     if (Number.isNaN(lat) || Number.isNaN(lon)) return null;
     return { lat, lng: lon };
   } catch (err) {
-    console.error("Nominatim geocode error:", err);
+    captureError(err, { geocoder: "nominatim" });
     return null;
   }
 }

@@ -242,14 +242,14 @@ export default function DashboardClient() {
 
           <div className="flex gap-2 mt-4">
             <Link
-              href={`/${locale}/cuenta/servicios/${nextService.id}/tracking`}
+              href={`/${locale}/account/services/${nextService.id}/tracking`}
               className="flex items-center gap-1.5 px-3 py-2 bg-white/15 hover:bg-white/25 rounded-lg text-sm font-medium transition-colors"
             >
               <Truck className="w-3.5 h-3.5" />
               {t("trackTeam")}
             </Link>
             <Link
-              href={`/${locale}/cuenta/servicios`}
+              href={`/${locale}/account/services`}
               className="flex items-center gap-1.5 px-3 py-2 bg-white/15 hover:bg-white/25 rounded-lg text-sm font-medium transition-colors"
             >
               {t("viewAllServices")}
@@ -268,7 +268,7 @@ export default function DashboardClient() {
             {servicesCount === 0 ? t("noServicesYetDesc") : t("noUpcomingDesc")}
           </p>
           <button
-            onClick={() => router.push(`/${locale}/cotizador`)}
+            onClick={() => router.push(`/${locale}/quote`)}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-navy text-white rounded-xl font-medium hover:bg-brand-navy/90 transition-colors shadow-md"
           >
             <Sparkles className="w-4 h-4" />
@@ -295,7 +295,7 @@ export default function DashboardClient() {
             </p>
           )}
           <Link
-            href={`/${locale}/cuenta/billetera`}
+            href={`/${locale}/account/wallet`}
             className="inline-flex items-center gap-1 mt-2 text-sm text-brand-navy/70 hover:text-brand-navy transition-colors"
           >
             {hasWalletBalance ? t("viewWallet") : t("addPaymentMethod")}
@@ -319,7 +319,7 @@ export default function DashboardClient() {
             </p>
             <div className="flex gap-3 mt-2">
               <Link
-                href={`/${locale}/cuenta/servicios/${lastService.id}/galeria`}
+                href={`/${locale}/account/services/${lastService.id}/gallery`}
                 className="inline-flex items-center gap-1 text-sm text-brand-navy/70 hover:text-brand-navy transition-colors"
               >
                 <Camera className="w-3.5 h-3.5" />
@@ -327,7 +327,7 @@ export default function DashboardClient() {
               </Link>
             </div>
             <Link
-              href={`/${locale}/cuenta/servicios/${lastService.id}/galeria`}
+              href={`/${locale}/account/services/${lastService.id}/gallery`}
               className="flex items-center justify-center gap-2 mt-3 px-4 py-2.5 bg-brand-navy text-white rounded-xl text-sm font-medium hover:bg-brand-navy/90 transition-colors shadow-sm"
             >
               <Repeat className="w-4 h-4" />
@@ -341,7 +341,7 @@ export default function DashboardClient() {
               {t("quickActions")}
             </div>
             <Link
-              href={`/${locale}/cuenta/propiedades`}
+              href={`/${locale}/account/properties`}
               className="inline-flex items-center gap-1 text-sm text-brand-navy/70 hover:text-brand-navy transition-colors"
             >
               {t("manageProperties")}
@@ -355,7 +355,7 @@ export default function DashboardClient() {
       {servicesCount > 0 && (
         <div className="bg-white rounded-2xl border border-brand-ice shadow-sm divide-y divide-brand-ice/50">
           <Link
-            href={`/${locale}/cuenta/servicios`}
+            href={`/${locale}/account/services`}
             className="flex items-center justify-between px-4 py-3 hover:bg-brand-ice/30 transition-colors"
           >
             <div className="flex items-center gap-3">
@@ -365,7 +365,7 @@ export default function DashboardClient() {
             <ChevronRight className="w-4 h-4 text-brand-ink/30" />
           </Link>
           <Link
-            href={`/${locale}/cuenta/propiedades`}
+            href={`/${locale}/account/properties`}
             className="flex items-center justify-between px-4 py-3 hover:bg-brand-ice/30 transition-colors"
           >
             <div className="flex items-center gap-3">
@@ -375,7 +375,7 @@ export default function DashboardClient() {
             <ChevronRight className="w-4 h-4 text-brand-ink/30" />
           </Link>
           <Link
-            href={`/${locale}/cuenta/billetera`}
+            href={`/${locale}/account/wallet`}
             className="flex items-center justify-between px-4 py-3 hover:bg-brand-ice/30 transition-colors"
           >
             <div className="flex items-center gap-3">

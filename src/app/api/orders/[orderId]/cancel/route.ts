@@ -68,7 +68,12 @@ export async function POST(
     }
 
     const token = authHeader.replace("Bearer ", "");
-    if (process.env.CRON_SECRET && token === process.env.CRON_SECRET) {
+    // Fix R4: Separate SERVICE_SECRET from CRON_SECRET to limit blast radius
+    const serviceSecret = process.env.SERVICE_SECRET || process.env.CRON_SECRET;
+    if (process.env.CRON_SECRET && !process.env.SERVICE_SECRET) {
+      console.warn("DEPRECATED: Using CRON_SECRET for service-to-service auth. Set SERVICE_SECRET instead.");
+    }
+    if (serviceSecret && token === serviceSecret) {
       // Llamada service-to-service; no requiere user autenticado
       userId = null;
     } else {

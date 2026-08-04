@@ -4228,6 +4228,20 @@
       }
     }
   },
+  "chemicalMatch": {
+    "title": "Quel produit utilisez-vous ici?",
+    "body": "Zone: {zone}. Choisissez le contenant qui correspond au produit que vous allez utiliser.",
+    "warning": "En cas de doute, demandez à votre chef d'équipe avant d'utiliser un produit.",
+    "searchPlaceholder": "Rechercher des produits..."
+  },
+  "upsells": {
+    "description": "Sélectionnez des services supplémentaires. Ceux-ci sont enregistrés pour examen par l'administrateur \u2014 ils ne modifient pas le prix actuel automatiquement.",
+    "adminReviewNote": "Pour examen par l'administrateur uniquement. Ne modifie pas le montant actuel.",
+    "notesOptional": "Notes (facultatif)",
+    "notesAriaLabel": "Notes sur le service supplémentaire",
+    "clientAgreedPlaceholder": "Le client a accepté verbalement / confirmera plus tard...",
+    "confirmAriaLabel": "Confirmer le service supplémentaire sélectionné"
+  },
   "errorPages": {
     "notFound": {
       "title": "Page introuvable",

@@ -39,13 +39,13 @@ export function LegalPageLayout({ namespace }: LegalPageLayoutProps) {
             <span className="font-semibold">Lulu Island Flagship</span>
           </Link>
           <nav className="hidden sm:flex items-center gap-4 text-sm text-gray-300">
-            <Link href={`/${safeLocale}/terminos`} className="hover:text-white transition-colors">
+            <Link href={`/${safeLocale}/terms`} className="hover:text-white transition-colors">
               {t("nav.terms")}
             </Link>
-            <Link href={`/${safeLocale}/privacidad`} className="hover:text-white transition-colors">
+            <Link href={`/${safeLocale}/privacy`} className="hover:text-white transition-colors">
               {t("nav.privacy")}
             </Link>
-            <Link href={`/${safeLocale}/cancelacion`} className="hover:text-white transition-colors">
+            <Link href={`/${safeLocale}/cancellation`} className="hover:text-white transition-colors">
               {t("nav.cancellation")}
             </Link>
           </nav>
@@ -72,7 +72,7 @@ export function LegalPageLayout({ namespace }: LegalPageLayoutProps) {
               <div>
                 <p className="text-sm text-brand-ink mb-2">{tPage("howToCancel")}</p>
                 <Link
-                  href={`/${safeLocale}/cuenta/servicios`}
+                  href={`/${safeLocale}/account/services`}
                   className="text-sm font-medium text-brand-navy hover:text-brand-wave-blue transition-colors underline"
                 >
                   {tPage("howToCancelCta")}

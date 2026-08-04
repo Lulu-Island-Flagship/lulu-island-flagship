@@ -19,7 +19,7 @@
 // (varias rutas de cliente no la necesitan, ej. las que filtran
 // directamente por `orders.user_id`), se exige que NO exista una fila
 // activa en `employees` ni en `admin_roles` para ese `user_id`. Un
-// empleado/admin legítimo debe usar las rutas de /api/empleado/** o
+// empleado/admin legítimo debe usar las rutas de /api/employee/** o
 // /api/admin/** -- nunca las de /api/client/**, sin importar si además
 // tiene o no una fila en `clients`.
 //
@@ -30,6 +30,7 @@
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { captureError } from "@/lib/observability";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseLike = SupabaseClient<any, "public", any>;
 
@@ -75,11 +76,11 @@ export async function requireClientCaller(
   ]);
 
   if (employeeResult.error) {
-    console.error("requireClientCaller employees query error:", employeeResult.error);
+    captureError(employeeResult.error, { fn: "requireClientCaller.employees" });
     return { ok: false, error: INFRA_ERROR, status: 500 };
   }
   if (adminRoleResult.error) {
-    console.error("requireClientCaller admin_roles query error:", adminRoleResult.error);
+    captureError(adminRoleResult.error, { fn: "requireClientCaller.admin_roles" });
     return { ok: false, error: INFRA_ERROR, status: 500 };
   }
 

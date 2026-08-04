@@ -4228,6 +4228,20 @@
       }
     }
   },
+  "chemicalMatch": {
+    "title": "您在这里使用什么产品？",
+    "body": "区域: {zone}。请选择与您即将使用的产品匹配的容器。",
+    "warning": "如果不确定，请在使用任何产品前咨询您的团队负责人。",
+    "searchPlaceholder": "搜索产品..."
+  },
+  "upsells": {
+    "description": "选择附加服务。这些将记录供管理员审核 \u2014 它们不会自动更改当前价格。",
+    "adminReviewNote": "仅供管理员审核。不会更改当前费用。",
+    "notesOptional": "备注（可选）",
+    "notesAriaLabel": "关于附加服务的备注",
+    "clientAgreedPlaceholder": "客户已口头同意 / 稍后将确认...",
+    "confirmAriaLabel": "确认所选附加服务"
+  },
   "errorPages": {
     "notFound": {
       "title": "页面未找到",

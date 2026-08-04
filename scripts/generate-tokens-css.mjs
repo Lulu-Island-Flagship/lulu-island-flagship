@@ -37,3 +37,25 @@ ${lines}
 
 writeFileSync(join(root, "src/app/tokens.css"), css);
 console.log("OK: src/app/tokens.css generado desde src/design/tokens.ts");
+
+// ── v8.3 fix (auditoría 2026-08-03, A3): manifests PWA con hex hardcodeados ──
+// Los manifests (public/manifest.json y public/manifest-empleado.json) tenían
+// "#2E5C8A" hardcodeado como background_color/theme_color, violando la fuente
+// única de tokens (E0-C5). Este bloque los regenera desde tokens.ts.
+import { readFileSync } from "node:fs";
+import { BRAND } from "../src/design/tokens.ts";
+
+const MANIFEST_FILES = [
+  { path: "public/manifest.json", bgColorKey: "navy", hint: "cliente" },
+  { path: "public/manifest-empleado.json", bgColorKey: "navy", hint: "empleado" },
+];
+
+for (const mf of MANIFEST_FILES) {
+  const manifestPath = join(root, mf.path);
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+  manifest.background_color = BRAND[mf.bgColorKey];
+  manifest.theme_color = BRAND[mf.bgColorKey];
+  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+}
+
+console.log("OK: public/manifest.json y manifest-empleado.json sincronizados con tokens.ts");

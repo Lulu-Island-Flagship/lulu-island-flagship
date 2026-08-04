@@ -54,10 +54,12 @@ export async function POST(request: NextRequest) {
       }
     );
 
+    // Fix M1: Fail closed on rate limit RPC errors
     if (rateError) {
       console.error("Rate limit error:", rateError);
-      // Don't block on rate limit check failure, just log
-    } else if (rateData && !rateData.allowed) {
+      return NextResponse.json({ error: "Service temporarily unavailable" }, { status: 503 });
+    }
+    if (rateData && !rateData.allowed) {
       return NextResponse.json(
         { error: "Rate limit exceeded. Try again later." },
         { status: 429 }

@@ -62,7 +62,7 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
     setIsSubmitting(true);
     setSubmitError("");
     try {
-      const res = await fetch("/api/empleado/servicio", {
+      const res = await fetch("/api/employee/service", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
+import { captureError } from "@/lib/observability";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseAdmin = SupabaseClient<any, "public", any>;
@@ -179,7 +180,7 @@ export async function reconcileCapturedPaymentIntent(
         })
       );
       if (ledgerError && ledgerError.code !== "23505") {
-        console.error(`Failed to write shadow ledger hold_captured entry for order ${order.id}:`, ledgerError);
+        captureError(ledgerError, { fn: "writeHoldCapturedLedger", orderId: order.id });
       }
     }
 
@@ -254,7 +255,7 @@ export async function reconcileCapturedPaymentIntent(
       })
     );
     if (ledgerError && ledgerError.code !== "23505") {
-      console.error(`Failed to write shadow ledger balance_captured entry for order ${order.id}:`, ledgerError);
+      captureError(ledgerError, { fn: "writeBalanceCapturedLedger", orderId: order.id });
     }
   }
 

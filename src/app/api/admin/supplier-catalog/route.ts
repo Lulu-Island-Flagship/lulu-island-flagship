@@ -83,6 +83,8 @@ export async function POST(request: NextRequest) {
 
     // Retira el "vigente" anterior para esta combinación proveedor+producto
     // antes de insertar el nuevo (si no, choca con el índice único parcial).
+    // Fix M9: Rollback retire on insert failure to prevent orphaned state
+    // TODO: Replace with atomic DB function to eliminate race window
     const { error: retireError } = await supabase
       .from("supplier_catalog")
       .update({ is_current: false })
@@ -90,30 +92,49 @@ export async function POST(request: NextRequest) {
       .eq("inventory_item_id", inventoryItemId)
       .eq("is_current", true);
 
-    if (retireError) {
-      console.error("admin/supplier-catalog error:", retireError);
-      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    try {
+      if (retireError) {
+        console.error("admin/supplier-catalog error:", retireError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
+
+      const { data, error } = await supabase
+        .from("supplier_catalog")
+        .insert({
+          supplier_id: supplierId,
+          inventory_item_id: inventoryItemId,
+          unit_price_cents: priceCents,
+          currency: currency || "CAD",
+          effective_from: effectiveFrom || getVancouverTodayString(),
+          is_current: true,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("admin/supplier-catalog error:", error);
+        // Fix M9: Rollback the retire if insert fails
+        await supabase
+          .from("supplier_catalog")
+          .update({ is_current: true })
+          .eq("supplier_id", supplierId)
+          .eq("inventory_item_id", inventoryItemId)
+          .eq("is_current", false);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
+
+      return NextResponse.json({ catalogEntry: data }, { status: 201 });
+    } catch (insertErr) {
+      console.error("admin/supplier-catalog insert error:", insertErr);
+      // Fix M9: Rollback the retire on exception too
+      await supabase
+        .from("supplier_catalog")
+        .update({ is_current: true })
+        .eq("supplier_id", supplierId)
+        .eq("inventory_item_id", inventoryItemId)
+        .eq("is_current", false);
+      throw insertErr;
     }
-
-    const { data, error } = await supabase
-      .from("supplier_catalog")
-      .insert({
-        supplier_id: supplierId,
-        inventory_item_id: inventoryItemId,
-        unit_price_cents: priceCents,
-        currency: currency || "CAD",
-        effective_from: effectiveFrom || getVancouverTodayString(),
-        is_current: true,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("admin/supplier-catalog error:", error);
-      return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
-    }
-
-    return NextResponse.json({ catalogEntry: data }, { status: 201 });
   } catch (err: Error | unknown) {
         return safeErrorResponse(err);
   }

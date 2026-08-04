@@ -6,7 +6,7 @@ import { ChevronLeft } from "lucide-react";
 
 interface EmpleadoBackHeaderProps {
   title: string;
-  /** Dónde vuelve el botón "Atrás" -- normalmente `/${locale}/empleado` (dashboard). */
+  /** Dónde vuelve el botón "Atrás" -- normalmente `/${locale}/employee` (dashboard). */
   backHref: string;
   icon?: React.ElementType;
 }

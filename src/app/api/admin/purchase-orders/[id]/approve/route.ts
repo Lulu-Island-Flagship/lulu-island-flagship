@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+// Fix M13: Use centralized isValidUuid from @/lib/validation
+import { isValidUuid } from "@/lib/validation";
 import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
@@ -51,13 +53,6 @@ const TRANSITIONS: Record<Action, { from: string; to: string }> = {
   receive: { from: "ordered", to: "received" },
 };
 
-// Fix (revisión 2026-07-30, punto 12): [id] llegaba directo a `.eq("id", id)`
-// sin validar formato -- un id no-UUID no compromete datos (Postgres rechaza
-// el tipo con un error), pero ese error de Postgrest se propagaba tal cual en
-// vez de un 400 controlado. Mismo regex ya usado en
-// src/app/api/client/wallet/apply/route.ts y src/app/api/admin/wallet/route.ts.
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -73,7 +68,7 @@ export async function POST(
 
   try {
     const { id } = await params;
-    if (!UUID_REGEX.test(id)) {
+    if (!isValidUuid(id)) {
       return NextResponse.json({ error: "id inválido" }, { status: 400 });
     }
 

@@ -413,7 +413,7 @@ export function JobApplicationForm() {
           {t.rich("fields.consentLabel", {
             link: (chunks) => (
               <a
-                href={`/${locale}/privacidad`}
+                href={`/${locale}/privacy`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={stopLabelToggle}

@@ -4228,6 +4228,20 @@
       }
     }
   },
+  "chemicalMatch": {
+    "title": "What product are you using here?",
+    "body": "Zone: {zone}. Pick the container that matches the product you're about to use.",
+    "warning": "If you're not sure, ask your team lead before using any product.",
+    "searchPlaceholder": "Search products..."
+  },
+  "upsells": {
+    "description": "Select additional services. These are recorded for the admin to review \u2014 they do not change the current price automatically.",
+    "adminReviewNote": "For admin review only. Does not change the current charge.",
+    "notesOptional": "Notes (optional)",
+    "notesAriaLabel": "Notes about the upsell",
+    "clientAgreedPlaceholder": "Client agreed verbally / will confirm later...",
+    "confirmAriaLabel": "Confirm selected upsell"
+  },
   "errorPages": {
     "notFound": {
       "title": "Page not found",

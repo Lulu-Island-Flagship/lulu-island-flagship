@@ -160,7 +160,7 @@ export default function HomePage() {
                 antes solo se podía entrar a la cuenta empezando una
                 cotización nueva y topando con el AuthModal por accidente. */}
             <a
-              href={`/${locale}/cuenta/servicios`}
+              href={`/${locale}/account/services`}
               className="flex items-center gap-1 text-brand-navy hover:text-brand-wave-blue transition-colors"
             >
               <LogIn className="w-4 h-4" />
@@ -185,7 +185,7 @@ export default function HomePage() {
           <div className="md:hidden flex items-center gap-3">
             <LanguageSelector />
             <a
-              href={`/${locale}/cuenta/servicios`}
+              href={`/${locale}/account/services`}
               aria-label={t('nav.login')}
               className="flex items-center gap-1 text-brand-navy hover:text-brand-wave-blue transition-colors text-sm"
             >
@@ -290,13 +290,13 @@ export default function HomePage() {
               públicas nuevas, contenido fiel a las reglas reales de
               src/lib/order-cancellation.ts y src/lib/pipeda.ts. */}
           <nav className="flex items-center gap-4 text-xs text-gray-400">
-            <a href={`/${locale}/terminos`} className="hover:text-gray-600 transition-colors">
+            <a href={`/${locale}/terms`} className="hover:text-gray-600 transition-colors">
               {t('legal.nav.terms')}
             </a>
-            <a href={`/${locale}/privacidad`} className="hover:text-gray-600 transition-colors">
+            <a href={`/${locale}/privacy`} className="hover:text-gray-600 transition-colors">
               {t('legal.nav.privacy')}
             </a>
-            <a href={`/${locale}/cancelacion`} className="hover:text-gray-600 transition-colors">
+            <a href={`/${locale}/cancellation`} className="hover:text-gray-600 transition-colors">
               {t('legal.nav.cancellation')}
             </a>
           </nav>
@@ -316,7 +316,7 @@ export default function HomePage() {
               va dirigido a candidatos externos, no a staff ya contratado, por
               lo que es un link separado con su propio texto. */}
           <a
-            href={`/${locale}/empleo`}
+            href={`/${locale}/jobs`}
             className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
           >
             {t('footer.workWithUs')}

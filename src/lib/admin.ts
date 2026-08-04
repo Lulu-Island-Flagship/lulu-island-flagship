@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient, type User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { captureError } from "@/lib/observability";
 
 // Fix (auditoría 2026-07-31, hallazgo confirmado): antes, si faltaban las
 // env vars de Supabase en producción (misconfiguración real), se usaban
@@ -100,7 +101,7 @@ export async function requireSupervisor() {
 
   const { data: isSupervisor, error } = await supabase.rpc("is_supervisor", { user_uuid: user.id });
   if (error) {
-    console.error("is_supervisor RPC error:", error);
+    captureError(error, { rpc: "is_supervisor" });
     return { error: `Auth check failed: ${error.message}`, status: 500, supabase: null, user: null };
   }
   if (!isSupervisor) {
@@ -134,7 +135,7 @@ export async function requireAdminRole(
     .is("deleted_at", null);
 
   if (error) {
-    console.error("admin_roles query error:", error);
+    captureError(error, { query: "admin_roles" });
     return { error: `Auth check failed: ${error.message}`, status: 500 as const, supabase: null, user: null, roles: [] as AdminRole[] };
   }
 
@@ -180,7 +181,7 @@ export async function requireAdminRole(
       resource,
     });
     if (logError) {
-      console.error("admin_action_logs insert failed:", logError);
+      captureError(logError, { table: "admin_action_logs" });
       // Fix (auditoría externa 2026-07-31, item 18): investigado el flujo
       // completo -- este insert de auditoría ocurre ANTES de cualquier
       // mutación real, y cuando falla se devuelve supabase: null. Todos los

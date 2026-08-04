@@ -19,7 +19,7 @@ import { locales, defaultLocale } from "@/i18n/config";
 // que poner aquí). También se excluyen /reserva/[quoteId] y /confirmacion
 // por la misma razón (contenido específico de una cotización/orden, no una
 // página de marketing genérica).
-const PUBLIC_ROUTES = ["", "/cotizador", "/terminos", "/privacidad", "/cancelacion"] as const;
+const PUBLIC_ROUTES = ["", "/quote", "/terms", "/privacy", "/cancellation"] as const;
 
 const SITE_URL = "https://luluislandflagship.ca";
 
@@ -40,7 +40,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
         url: `${SITE_URL}/${locale}${route}`,
         lastModified: new Date(),
         changeFrequency: route === "" ? "weekly" : "monthly",
-        priority: route === "" ? 1.0 : route === "/cotizador" ? 0.9 : 0.5,
+        priority: route === "" ? 1.0 : route === "/quote" ? 0.9 : 0.5,
         alternates: { languages },
       });
     }

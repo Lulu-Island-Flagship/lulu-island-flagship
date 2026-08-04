@@ -20,19 +20,15 @@ jobs:
         run: npx tsc --noEmit
       - name: Lint
         timeout-minutes: 10
-        # --max-warnings=60: techo temporal, ya CONFIRMADO empíricamente
-        # (2026-08-02) como holgado -- el usuario corrió `npm run build &&
-        # npm run lint && npm test` de punta a punta en su máquina tras la
-        # ronda de auditoría que arregló 30 de los ~53 warnings de
-        # react-hooks/exhaustive-deps, y la cadena completó sin que lint
-        # fallara (si hubiera excedido 60, `&&` habría cortado antes de
-        # llegar a `npm test`, que sí corrió). El conteo real de hoy es, por
-        # lo tanto, <= 60, pero sigue sin medirse exacto (el sandbox de CI/
-        # auditoría no pudo correr `eslint` completo por límite de tiempo).
-        # Sigue siendo deuda: DEBE bajarse a un número exacto medido (o a 0)
-        # la próxima vez que alguien corra lint localmente y anote el
-        # conteo real. No subir este número; solo bajarlo.
-        run: npm run lint -- --max-warnings=60
+        # Fix (auditoría 2026-08-03, C3): bajado de 60 a 30. La ronda de
+        # auditoría del 2026-08-02 arregló ~30 de los ~53 warnings de
+        # react-hooks/exhaustive-deps, dejando ~23. Con 30 hay margen de ~7
+        # para no romper el build por un warning nuevo incidental, pero
+        # cualquier regresión seria (>7 warnings nuevos) SÍ rompe CI.
+        # Meta: bajar a 0. Para lograrlo, correr `npm run lint` localmente,
+        # anotar el conteo EXACTO, y bajar este número a ese valor. Repetir
+        # hasta llegar a 0. NUNCA subir este número.
+        run: npm run lint -- --max-warnings=30
       - name: Build
         timeout-minutes: 10
         run: npm run build

@@ -50,6 +50,7 @@ import {
 } from "lucide-react";
 import DashboardMetricsPanel from "./DashboardMetricsPanel";
 import AutopilotModeBanner from "./AutopilotModeBanner";
+import ErrorBoundary from "@/components/ui/ErrorBoundary"; // Fix M7: error boundary
 import { roleAllows, type AdminRole, type AdminResource } from "@/lib/admin-rbac";
 
 // Fix (2026-08-02, reporte del usuario): la agrupación anterior reusaba las
@@ -606,6 +607,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
   ];
 
   return (
+    <ErrorBoundary>
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
 
@@ -665,5 +667,6 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
         </div>
       )}
     </div>
+    </ErrorBoundary>
   );
 }

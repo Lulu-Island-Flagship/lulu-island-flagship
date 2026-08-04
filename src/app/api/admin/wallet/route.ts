@@ -49,16 +49,15 @@ const GRANTABLE_TYPES: WalletTransactionType[] = ["credit", "promo", "refund"];
 //      caso real necesita otorgar más, el admin hace varias operaciones --
 //      la fricción es intencional para un movimiento de dinero de este
 //      tamaño, no un descuido a "arreglar" subiendo el límite.
-//   2) Ventana corta de idempotencia: antes de llamar al RPC, se busca en
+//   2) Fix M11: Documented race window (~10s idempotency check gap).
+//      Suggested fix: Add partial unique index on (client_id, amount, operation_type)
+//      with a WHERE clause on created_at > NOW() - INTERVAL '30 seconds'
+//      to make idempotency DB-enforced.
+//      Ventana corta de idempotencia: antes de llamar al RPC, se busca en
 //      wallet_transactions una fila para la MISMA wallet + mismo type +
 //      mismo amount + misma description, insertada en los últimos 10
 //      segundos. Si existe, se rechaza con 409 en vez de insertar de
-//      nuevo. No se usa una idempotency-key explícita del cliente (que
-//      exigiría tocar el frontend y agregar una columna UNIQUE nueva vía
-//      migración) porque el caso real a cerrar es el doble clic / retry de
-//      red -- ambos repiten el mismo payload exacto en una ventana de
-//      segundos, así que comparar contra la transacción más reciente ya
-//      guardada es suficiente y no requiere rediseñar el schema.
+//      nuevo.
 const MAX_GRANT_AMOUNT_CENTS = 50_000; // $500.00 CAD por operación individual
 const IDEMPOTENCY_WINDOW_SECONDS = 10;
 

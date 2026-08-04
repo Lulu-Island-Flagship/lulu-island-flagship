@@ -10,22 +10,33 @@ SET search_path TO public, extensions;
 -- ============================================================
 -- SALVAGUARDA TÉCNICA REAL: aborta si no corre contra el stack local
 -- ============================================================
--- Señal confiable local-vs-remoto: `supabase start`/`supabase db reset`
--- levantan Postgres en Docker escuchando en 127.0.0.1:54322 (puerto fijado
--- en supabase/config.toml, sección [db], `port = 54322`). ese puerto NO es
--- el que usa ningún proyecto remoto de Supabase (que se conecta por 5432
--- directo o 6543 via pooler). Si este script se pega/ejecuta a mano en un
--- `psql` conectado a producción, `inet_server_port()` no será 54322 y el
--- bloque aborta antes de tocar ninguna fila.
+-- Fix (auditoría 2026-08-03, C1): el guard anterior usaba inet_server_port()
+-- para distinguir local (5432) de producción, pero 5432 es exactamente el
+-- mismo puerto que usa Postgres en producción en Supabase. El guard NUNCA
+-- abortaba — si alguien ejecutaba este script contra producción, corría
+-- completo. El nuevo guard usa pg_read_file('/.dockerenv') — el archivo
+-- marcador estándar que Docker coloca en TODO contenedor. Este archivo solo
+-- existe (y es legible por el usuario postgres) en el stack local de
+-- Supabase; en producción, o no existe el archivo o postgres no tiene
+-- acceso al filesystem del host. Si la lectura falla por CUALQUIER razón
+-- (archivo no encontrado, permiso denegado, etc.), el script aborta.
 DO $$
+DECLARE
+  _is_docker boolean := false;
 BEGIN
-  -- inet_server_port() devuelve el puerto INTERNO del contenedor Docker (5432),
-  -- no el mapeo del host (54322 en config.toml). El guard original chequeaba
-  -- 54322 pero eso nunca se cumple dentro del contenedor.
-  -- La proteccion real contra correr en produccion es el README y el hecho
-  -- de que `supabase db reset` solo se usa explicitamente en desarrollo.
-  IF inet_server_port() <> 5432 THEN
-    RAISE EXCEPTION 'seed.sql: rechazado -- este script solo debe correr contra el stack LOCAL de Supabase (puerto Postgres esperado: 5432, detectado: %). Si estas en produccion, DETENTE: este seed borra/reescribe usuarios de prueba.', inet_server_port();
+  BEGIN
+    -- /.dockerenv es el marcador estándar que Docker crea en todo contenedor.
+    -- Leer 0 bytes (solo verificar existencia) es suficiente.
+    PERFORM pg_read_file('/.dockerenv', 0, 0);
+    _is_docker := true;
+  EXCEPTION WHEN OTHERS THEN
+    _is_docker := false;
+  END;
+
+  IF NOT _is_docker THEN
+    RAISE EXCEPTION 'seed.sql: ABORTADO — no se detectó el entorno Docker local de Supabase. '
+      'Este script solo debe correr contra el stack local (supabase db reset). '
+      'Si estás conectado a producción, DETENTE: este seed borra/reescribe usuarios de prueba.';
   END IF;
 END $$;
 

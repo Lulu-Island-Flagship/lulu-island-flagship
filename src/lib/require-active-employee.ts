@@ -1,5 +1,5 @@
 // v8.3 fix CRÍTICO (auditoría implacable "Autenticación de entrada",
-// 2026-07-26): ninguna API bajo /api/empleado/** verificaba que el empleado
+// 2026-07-26): ninguna API bajo /api/employee/** verificaba que el empleado
 // autenticado siguiera activo (employees.is_active = true) ni que no
 // estuviera dado de baja (employees.deleted_at IS NULL) al resolver
 // user_id -> employee. El patrón repetido en ~30 endpoints era:
@@ -23,6 +23,7 @@
 // clientes sin tipos de schema generados (ver src/lib/client-module/*.ts,
 // src/lib/staff-login.ts).
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { captureError } from "@/lib/observability";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseLike = SupabaseClient<any, "public", any>;
 
@@ -38,7 +39,7 @@ const INFRA_ERROR = "Could not verify employee status";
 /**
  * Resuelve un `user_id` autenticado a su fila de `employees`, exigiendo
  * `is_active = true` y `deleted_at IS NULL`. Usar en TODAS las rutas bajo
- * src/app/api/empleado/** en vez de consultar `employees` directamente.
+ * src/app/api/employee/** en vez de consultar `employees` directamente.
  *
  * @param supabase Cliente Supabase ya autenticado (cookies del request).
  * @param userId `user.id` obtenido de `supabase.auth.getUser()`.
@@ -75,7 +76,7 @@ export async function requireActiveEmployee<T = { id: string }>(
     // Cualquier otro código es un fallo real de infraestructura: se distingue
     // con 500 y un mensaje propio (tampoco revela nada sobre el user_id).
     if (error.code !== "PGRST116") {
-      console.error("requireActiveEmployee query error:", error);
+      captureError(error, { fn: "requireActiveEmployee" });
       return { employee: null, error: INFRA_ERROR, status: 500 };
     }
     return { employee: null, error: GENERIC_ERROR, status: 403 };

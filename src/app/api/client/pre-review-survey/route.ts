@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
           vars: {
             client_name: "there",
             leader_name: employee?.name || "your cleaning team",
-            referral_link: `${appUrl}/cuenta/referidos`,
+            referral_link: `${appUrl}/account/referrals`,
           },
         });
       }

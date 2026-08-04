@@ -1,4 +1,5 @@
 import type { User } from "@supabase/supabase-js";
+import { captureError } from "@/lib/observability";
 
 /**
  * Fix (build error 2026-08-01): `findAuthUserByEmail` se llama con clientes
@@ -60,7 +61,7 @@ export async function findAuthUserByEmail(
       perPage: LIST_USERS_PAGE_SIZE,
     });
     if (error) {
-      console.error("findAuthUserByEmail listUsers error:", error);
+      captureError(error, { fn: "findAuthUserByEmail.listUsers" });
       return null;
     }
     const match = data.users.find((u) => u.email?.toLowerCase() === normalizedEmail);
@@ -68,6 +69,6 @@ export async function findAuthUserByEmail(
     if (data.users.length < LIST_USERS_PAGE_SIZE) return null; // última página, no había más
     page++;
   }
-  console.error("findAuthUserByEmail: se alcanzó MAX_PAGES sin encontrar el email ni agotar la lista");
+  captureError(new Error("findAuthUserByEmail exhausted MAX_PAGES without match"), { fn: "findAuthUserByEmail" });
   return null;
 }

@@ -11,7 +11,7 @@ import QRCode from "qrcode";
 
 /** Construye el link firmado de evaluación post-servicio para un token dado. */
 export function buildReviewLink(reviewToken: string, baseUrl: string): string {
-  return `${baseUrl.replace(/\/$/, "")}/evaluar/${reviewToken}`;
+  return `${baseUrl.replace(/\/$/, "")}/review/${reviewToken}`;
 }
 
 /**

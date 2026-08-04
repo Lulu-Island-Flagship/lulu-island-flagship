@@ -106,11 +106,11 @@ export function CuentaNav() {
         </Link>
         <div className="flex items-stretch overflow-x-auto min-w-0 flex-1">
           {SECTIONS.map(({ key, href, icon: Icon }) => {
-            const isActive = pathname?.includes(`/cuenta/${href}`);
+            const isActive = pathname?.includes(`/account/${href}`);
             return (
               <Link
                 key={key}
-                href={`/${locale}/cuenta/${href}`}
+                href={`/${locale}/account/${href}`}
                 aria-current={isActive ? "page" : undefined}
                 className={`flex flex-col items-center justify-center gap-1 px-4 py-2.5 min-w-[76px] shrink-0 text-xs font-medium border-b-2 transition-colors ${
                   isActive

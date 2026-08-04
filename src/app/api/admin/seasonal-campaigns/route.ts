@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
           vars: {
             client_name: profile?.full_name || "cliente",
             campaign_name: campaignName,
-            booking_link: `${process.env.NEXT_PUBLIC_APP_URL || ""}/cotizador`,
+            booking_link: `${process.env.NEXT_PUBLIC_APP_URL || ""}/quote`,
           },
           marketingWeight: 1,
         });

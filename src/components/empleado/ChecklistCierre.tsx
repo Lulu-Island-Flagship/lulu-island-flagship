@@ -191,7 +191,7 @@ export function ChecklistCierre({
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/empleado/checklist?orderId=${orderId}&serviceSubtype=${serviceSubtype}`,
+        `/api/employee/checklist?orderId=${orderId}&serviceSubtype=${serviceSubtype}`,
         { credentials: "include" }
       );
       if (!res.ok) {
@@ -322,7 +322,7 @@ export function ChecklistCierre({
     // servidor revierte la UI.
     let res: Response;
     try {
-      res = await fetch("/api/empleado/checklist", {
+      res = await fetch("/api/employee/checklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -405,7 +405,7 @@ export function ChecklistCierre({
     const startedAt = new Date().toISOString();
     setSaveError("");
     try {
-      const res = await fetch("/api/empleado/checklist", {
+      const res = await fetch("/api/employee/checklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -480,7 +480,7 @@ export function ChecklistCierre({
       // Save to server
       const item = zone.items.find((i) => i.itemId === itemId);
       if (item) {
-        const res = await fetch("/api/empleado/checklist", {
+        const res = await fetch("/api/employee/checklist", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",

@@ -14,6 +14,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import ErrorBoundary from "@/components/ui/ErrorBoundary"; // Fix M7: error boundary
 
 interface AdminService {
   orderId: string;
@@ -210,6 +211,7 @@ export default function AdminServiciosClient() {
   const visibleServices = filteredServices.slice(0, visibleCount);
 
   return (
+    <ErrorBoundary>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
@@ -423,5 +425,6 @@ export default function AdminServiciosClient() {
         </div>
       )}
     </div>
+    </ErrorBoundary>
   );
 }

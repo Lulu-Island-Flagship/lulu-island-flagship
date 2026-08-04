@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
   const providerError = requestUrl.searchParams.get("error");
-  const rawNext = requestUrl.searchParams.get("next") || "/cotizador";
+  const rawNext = requestUrl.searchParams.get("next") || "/quote";
   // Auditoría v8.3 E0 (2026-07-11): `next` venía de un query param y se usaba
   // sin validar en new URL(next, request.url). Si `next` es una URL absoluta
   // (https://evil.com) o protocol-relative (//evil.com), new URL() la toma
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
   // pasaba). isAllowedInternalPath (src/lib/safe-redirect.ts) restringe a
   // /{locale}/{sección conocida} usando la lista real de locales
   // (src/i18n/config.ts) y de secciones bajo src/app/[locale]/.
-  const next = isAllowedInternalPath(rawNext) ? rawNext : "/cotizador";
+  const next = isAllowedInternalPath(rawNext) ? rawNext : "/quote";
 
   // v8.3 fix (auditoría 2026-07-15): si el proveedor OAuth (Google/Apple)
   // devuelve un error -- usuario cancela el consentimiento, cuenta

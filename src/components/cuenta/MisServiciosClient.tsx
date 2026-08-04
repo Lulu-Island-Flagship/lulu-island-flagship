@@ -25,6 +25,7 @@ import { AuthModal } from "@/components/cotizador/AuthModal";
 import { ClientProfileCard } from "./ClientProfileCard";
 import { formatServiceDateDisplay, formatServiceTimeDisplay } from "@/lib/date-utils";
 import { formatCurrency } from "@/lib/format";
+import ErrorBoundary from "@/components/ui/ErrorBoundary"; // Fix M7: error boundary
 
 // Fix (2026-07-25, auditoría UX, item 11): antes se mostraba
 // `order.service_date` crudo ("2026-08-03") concatenado con
@@ -191,7 +192,8 @@ export default function MisServiciosClient() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
+    <ErrorBoundary>
+      <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
       <ClientProfileCard />
       <div className="text-center">
         <h1 className="text-3xl font-bold text-brand-ink mb-2">{t("title")}</h1>
@@ -383,6 +385,7 @@ export default function MisServiciosClient() {
         </div>
       )}
     </div>
+    </ErrorBoundary>
   );
 }
 

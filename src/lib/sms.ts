@@ -1,3 +1,5 @@
+import { captureError } from "@/lib/observability";
+
 /**
  * v8.3 E2 — Interfaz de envío de SMS.
  *
@@ -145,14 +147,14 @@ export async function sendSms(input: SendSmsInput): Promise<SendSmsResult> {
 
     if (!res.ok) {
       const errBody = await res.text().catch(() => "");
-      console.error("Twilio send error:", res.status, errBody);
+      captureError(new Error(`Twilio send error: ${res.status}`), { twilioStatus: res.status, twilioBody: errBody });
       return { status: "failed", maskedPhone, providerResponse: null };
     }
 
     const data = (await res.json()) as { sid?: string };
     return { status: "sent", maskedPhone, providerResponse: data.sid ?? null };
   } catch (err) {
-    console.error("Twilio send exception:", err instanceof Error ? err.message : err);
+    captureError(err, { provider: "twilio", maskedPhone });
     return { status: "failed", maskedPhone, providerResponse: null };
   }
 }

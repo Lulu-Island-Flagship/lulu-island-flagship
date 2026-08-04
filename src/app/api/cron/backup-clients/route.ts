@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireCronAuth } from "@/lib/cron-auth"; // Fix R5: Use constant-time requireCronAuth instead of inline comparison
 import { computeBackupDueStatus } from "@/lib/backup-jobs";
 import { storeBackupCsv } from "@/lib/backup-storage";
 import { safeErrorResponse } from "@/lib/api-errors";
@@ -11,12 +12,9 @@ import { safeErrorResponse } from "@/lib/api-errors";
  * sea posible sin depender de la copia completa de Postgres.
  */
 export async function GET(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = request.headers.get("authorization");
-  if (!cronSecret) return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
-  if (authHeader?.replace("Bearer ", "") !== cronSecret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  // Fix R5: Use constant-time requireCronAuth instead of inline comparison
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

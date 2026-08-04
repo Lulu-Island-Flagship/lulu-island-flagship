@@ -32,7 +32,7 @@ const TRACKING_VISIBLE_MINUTES_BEFORE = 30;
  *
  * v8.3 E3 fix — Tracking de vehículo cliente-facing. Antes `vehicle_tracking`
  * y `vehicles.current_lat/current_lng` solo se escribían desde
- * /api/empleado/vehicle-tracking y solo se leían por supervisores (RLS de
+ * /api/employee/vehicle-tracking y solo se leían por supervisores (RLS de
  * 026_modulo3_capacity_dispatch.sql) -- el cliente nunca podía ver dónde
  * estaba el equipo yendo a su casa.
  *

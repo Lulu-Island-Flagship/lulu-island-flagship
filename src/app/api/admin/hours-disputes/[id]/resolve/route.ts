@@ -27,7 +27,7 @@ function isValidCorrectedTimestamp(value: unknown): value is string {
 /**
  * POST /api/admin/hours-disputes/[id]/resolve
  *
- * v8.3 FIX-9 — contraparte admin de POST /api/empleado/hours-dispute.
+ * v8.3 FIX-9 — contraparte admin de POST /api/employee/hours-dispute.
  * "Falla técnica nunca penaliza" (D.3 #7): la acción "approve_correction"
  * existe específicamente para el caso donde el T registrado está mal por un
  * problema técnico (GPS, offline queue, crash) y no por culpa del empleado

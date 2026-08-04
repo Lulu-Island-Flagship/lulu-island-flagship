@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+// Fix M13: Use centralized isValidUuid from @/lib/validation
+import { isValidUuid } from "@/lib/validation";
 import { safeErrorResponse } from "@/lib/api-errors";
-
-// Fix (revisión 2026-07-30, punto 12): id sin validar formato antes de
-// pasarlo a `.eq("id", id)`. Mismo regex ya usado en
-// src/app/api/client/wallet/apply/route.ts y src/app/api/admin/wallet/route.ts.
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** PATCH /api/admin/cra-remittances/[id] — marcar un período como presentado (filed), con referencia de confirmación y monto real remitido. */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -14,7 +11,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
   const { id } = await params;
-  if (!UUID_REGEX.test(id)) {
+  if (!isValidUuid(id)) {
     return NextResponse.json({ error: "id inválido" }, { status: 400 });
   }
 

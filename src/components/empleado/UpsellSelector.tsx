@@ -1,9 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
+import { useTranslations } from "next-intl"; // Fix M6: i18n for upsell selector
 import { Plus, Check, DollarSign, Loader2 } from "lucide-react";
 import { ErrorBanner } from "@/components/empleado/ErrorBanner";
 
+// Fix M6 TODO: Fetch upsell amounts from admin pricing API instead of hardcoding
+// See AdminPricingRulesClient.tsx for the pattern
 interface UpsellOption {
   type: string;
   label: string;
@@ -23,6 +26,8 @@ interface UpsellSelectorProps {
 }
 
 export function UpsellSelector({ orderId, onUpsellAdded }: UpsellSelectorProps) {
+  // Fix M6: i18n for upsell selector
+  const t = useTranslations("upsells");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notes, setNotes] = useState("");
@@ -118,8 +123,7 @@ export function UpsellSelector({ orderId, onUpsellAdded }: UpsellSelectorProps) 
   return (
     <div className="space-y-4">
       <div className="text-sm text-gray-500">
-        Select additional services. These are recorded for the admin to review —
-        they do not change the current price automatically.
+        {t("description")}
       </div>
 
       <div className="space-y-2">
@@ -164,20 +168,20 @@ export function UpsellSelector({ orderId, onUpsellAdded }: UpsellSelectorProps) 
             </span>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            For admin review only. Does not change the current charge.
+            {t("adminReviewNote")}
           </p>
         </div>
       )}
 
       <div>
-        <label htmlFor="upsell-notes" className="block text-xs font-medium text-gray-600 mb-1">Notes (optional)</label>
+        <label htmlFor="upsell-notes" className="block text-xs font-medium text-gray-600 mb-1">{t("notesOptional")}</label>
         <input
           id="upsell-notes"
           type="text"
-          aria-label="Notas sobre el upsell"
+          aria-label={t("notesAriaLabel")}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Client agreed verbally / will confirm later..."
+          placeholder={t("clientAgreedPlaceholder")}
           className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none"
         />
       </div>
@@ -194,7 +198,7 @@ export function UpsellSelector({ orderId, onUpsellAdded }: UpsellSelectorProps) 
       <ErrorBanner message={error} onRetry={handleSubmit} retrying={isSubmitting} />
 
       <button
-        aria-label="Confirmar upsell seleccionado"
+        aria-label={t("confirmAriaLabel")}
         onClick={handleSubmit}
         disabled={selected.size === 0 || isSubmitting}
         className="w-full bg-brand-navy text-white py-2.5 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors disabled:opacity-50 flex items-center justify-center gap-2"

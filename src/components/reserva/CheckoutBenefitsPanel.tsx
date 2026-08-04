@@ -95,7 +95,7 @@ export function CheckoutBenefitsPanel() {
         <p className="text-xs text-gray-400">
           {t.rich("walletNotApplied", {
             link: (chunks) => (
-              <Link href={`/${safeLocale}/cuenta/billetera`} className="underline">
+              <Link href={`/${safeLocale}/account/wallet`} className="underline">
                 {chunks}
               </Link>
             ),

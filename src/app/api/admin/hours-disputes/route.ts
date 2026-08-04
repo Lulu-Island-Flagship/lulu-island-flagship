@@ -9,7 +9,7 @@ import { safeErrorResponse } from "@/lib/api-errors";
  * para las disputas de horas -- el admin solo podía resolver una disputa
  * (POST [id]/resolve) si el empleado le pasaba el UUID del ticket por otro
  * canal. Y `sla_due_at` (escrito en
- * src/app/api/empleado/hours-dispute/route.ts:151, ventana de 24h) no tenía
+ * src/app/api/employee/hours-dispute/route.ts:151, ventana de 24h) no tenía
  * ningún consumidor en todo `src/` -- se guardaba y nadie lo leía.
  *
  * `sla_due_at` vive dentro de `tickets_disputas.context` (JSONB), no como

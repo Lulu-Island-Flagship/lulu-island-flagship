@@ -37,7 +37,7 @@ interface Upsell {
 
 export default function AdminUpsellsClient() {
   const t = useTranslations("admin.upsells");
-  const _locale = useLocale();
+  const locale = useLocale();
   const [upsells, setUpsells] = useState<Upsell[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -102,7 +102,7 @@ export default function AdminUpsellsClient() {
   }
 
   const formatDate = (date: string) => {
-    const vancouverDate = new Date(date).toLocaleString("en-CA", {
+    const vancouverDate = new Date(date).toLocaleString(locale, {
       timeZone: "America/Vancouver",
       year: "numeric",
       month: "2-digit",

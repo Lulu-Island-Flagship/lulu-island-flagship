@@ -18,19 +18,19 @@ import { locales } from "@/i18n/config";
  * requiera tocar cada validación por separado.
  */
 const KNOWN_SECTIONS = [
-  "empleado",
+  "employee",
   "admin",
-  "cuenta",
-  "cotizador",
-  "reserva",
-  "confirmacion",
+  "account",
+  "quote",
+  "booking",
+  "confirmation",
   "portal",
-  "evaluar",
-  "encuesta",
+  "review",
+  "survey",
   "nps",
-  "terminos",
-  "privacidad",
-  "cancelacion",
+  "terms",
+  "privacy",
+  "cancellation",
 ] as const;
 
 const ALLOWED_INTERNAL_PATH_RE = new RegExp(

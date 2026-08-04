@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+// Fix M13: Use centralized isValidUuid from @/lib/validation
+import { isValidUuid } from "@/lib/validation";
 import { dispatchCommunication } from "@/lib/send-communication";
 import { loadDisputeResolutionContext } from "../../_shared";
 import { safeErrorResponse } from "@/lib/api-errors";
 
 type FinalAction = "free_recleaning" | "explain_no_action" | "dismiss";
 const VALID_FINAL_ACTIONS: FinalAction[] = ["free_recleaning", "explain_no_action", "dismiss"];
-
-// Fix (revisión 2026-07-30, punto 12): id sin validar formato antes de
-// pasarlo a loadDisputeResolutionContext()/`.eq("id", id)`. Mismo regex ya
-// usado en src/app/api/client/wallet/apply/route.ts y
-// src/app/api/admin/wallet/route.ts.
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // POST /api/admin/warranty-claims/[id]/resolve — v8.3 E5 (Sesión Q).
 //
@@ -40,7 +36,7 @@ export async function POST(
 
   try {
     const { id } = await params;
-    if (!UUID_REGEX.test(id)) {
+    if (!isValidUuid(id)) {
       return NextResponse.json({ error: "id inválido" }, { status: 400 });
     }
     const body = await request.json().catch(() => ({}));

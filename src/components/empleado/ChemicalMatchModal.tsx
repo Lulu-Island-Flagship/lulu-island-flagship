@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import { useTranslations } from "next-intl"; // Fix M5: i18n for safety-critical chemical matching modal
 import { Lock, AlertTriangle, X, Loader2 } from "lucide-react";
 import {
   CHEMICAL_CODES,
@@ -67,6 +68,8 @@ export function ChemicalMatchModal({
   onConfirmed,
   onClose,
 }: ChemicalMatchModalProps) {
+  // Fix M5: i18n for safety-critical chemical matching modal
+  const t = useTranslations("chemicalMatch");
   const shuffledCodes = useMemo(() => shuffle(CHEMICAL_CODES), []);
   const [error, setError] = useState<string | null>(null);
   const [hazard, setHazard] = useState(false);
@@ -144,13 +147,13 @@ export function ChemicalMatchModal({
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label="What product are you using here?"
+        aria-label={t("title")}
         className="bg-white rounded-xl max-w-md w-full p-5 max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2 text-amber-800">
             <Lock className="w-5 h-5" />
-            <h2 className="text-base font-bold">What product are you using here?</h2>
+            <h2 className="text-base font-bold">{t("title")}</h2>
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600">
             <X className="w-5 h-5" />
@@ -158,8 +161,7 @@ export function ChemicalMatchModal({
         </div>
 
         <p className="text-sm text-gray-600 mb-4">
-          Zone: <span className="font-semibold text-brand-ink">{zoneLabel}</span>. Pick the container
-          that matches by checking its color, icon, AND text — don&apos;t guess by color alone.
+          {t("body", { zone: zoneLabel })}
         </p>
 
         {error && (
@@ -175,7 +177,7 @@ export function ChemicalMatchModal({
 
         {wrongAttempts >= 3 && !hazard && (
           <div className="mb-3 p-3 rounded-lg text-xs bg-blue-50 border border-blue-200 text-blue-800">
-            If you&apos;re not sure, ask your team lead for help before trying again.
+            {t("warning")}
           </div>
         )}
 

@@ -364,15 +364,15 @@ export default function InventarioPage() {
           <>
 
             <form onSubmit={addItem} className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3 mb-4">
-              <h2 className="text-sm font-semibold text-brand-ink">Add product</h2>
+              <h2 className="text-sm font-semibold text-brand-ink">{t("addProduct")}</h2>
               <input
-                type="text" aria-label="Nombre del producto" placeholder="Name (e.g. Degreaser)" value={itemForm.name}
+                type="text" aria-label={t("productName")} placeholder={t("productNamePlaceholder")} value={itemForm.name}
                 onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
                 className="w-full text-sm border rounded-lg px-3 py-2"
               />
               <div className="grid grid-cols-2 gap-2">
                 <select
-                  aria-label="Product category"
+                  aria-label={t("productCategory")}
                   value={itemForm.category}
                   onChange={(e) => setItemForm({ ...itemForm, category: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
@@ -380,28 +380,28 @@ export default function InventarioPage() {
                   {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
                 <input
-                  type="text" aria-label="Unidad de medida" placeholder="Unit (L, unit, box)" value={itemForm.unit}
+                  type="text" aria-label={t("productUnit")} placeholder={t("unitPlaceholder")} value={itemForm.unit}
                   onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />
                 <input
-                  type="number" min="0" aria-label="Stock actual" placeholder="Current stock" value={itemForm.currentStock}
+                  type="number" min="0" aria-label={t("currentStock")} placeholder={t("currentStockPlaceholder")} value={itemForm.currentStock}
                   onChange={(e) => setItemForm({ ...itemForm, currentStock: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />
                 <input
-                  type="number" min="0" aria-label="Umbral de reorden" placeholder="Reorder threshold" value={itemForm.reorderThreshold}
+                  type="number" min="0" aria-label={t("reorderThreshold")} placeholder={t("reorderThresholdPlaceholder")} value={itemForm.reorderThreshold}
                   onChange={(e) => setItemForm({ ...itemForm, reorderThreshold: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />
               </div>
               <button type="submit" disabled={saving} className="flex items-center gap-1 bg-brand-navy text-white px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
-                <Plus className="w-4 h-4" /> Add
+                <Plus className="w-4 h-4" /> {t("add")}
               </button>
             </form>
 
             <div className="bg-white rounded-xl shadow-elevation-1 divide-y">
-              {items.length === 0 && <p className="p-4 text-sm text-gray-500">No products yet.</p>}
+              {items.length === 0 && <p className="p-4 text-sm text-gray-500">{t("noProducts")}</p>}
               {items.map((i) => (
                 <div key={i.id} className="p-3 flex justify-between text-sm">
                   <span className="font-medium">{i.name}</span>
@@ -413,41 +413,41 @@ export default function InventarioPage() {
         ) : tab === "suppliers" ? (
           <>
             <form onSubmit={addSupplier} className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3 mb-4">
-              <h2 className="text-sm font-semibold text-brand-ink">Add supplier</h2>
+              <h2 className="text-sm font-semibold text-brand-ink">{t("addSupplier")}</h2>
               <input
-                type="text" aria-label="Nombre del proveedor" placeholder="Supplier name" value={supplierForm.name}
+                type="text" aria-label={t("supplierName")} placeholder={t("supplierNamePlaceholder")} value={supplierForm.name}
                 onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })}
                 className="w-full text-sm border rounded-lg px-3 py-2"
               />
               <div className="grid grid-cols-2 gap-2">
                 <input
-                  type="text" aria-label="Nombre del contacto" placeholder="Contact" value={supplierForm.contactName}
+                  type="text" aria-label={t("contactName")} placeholder={t("contactNamePlaceholder")} value={supplierForm.contactName}
                   onChange={(e) => setSupplierForm({ ...supplierForm, contactName: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />
                 <input
-                  type="text" aria-label="Contact phone" placeholder="Phone" value={supplierForm.contactPhone}
+                  type="text" aria-label={t("contactPhone")} placeholder={t("contactPhonePlaceholder")} value={supplierForm.contactPhone}
                   onChange={(e) => setSupplierForm({ ...supplierForm, contactPhone: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />
                 <input
-                  type="email" aria-label="Correo del contacto" placeholder="Email" value={supplierForm.contactEmail}
+                  type="email" aria-label={t("contactEmail")} placeholder={t("contactEmailPlaceholder")} value={supplierForm.contactEmail}
                   onChange={(e) => setSupplierForm({ ...supplierForm, contactEmail: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />
                 <input
-                  type="number" aria-label="Lead time in days" placeholder="Lead time (days)" value={supplierForm.leadTimeDays}
+                  type="number" aria-label={t("leadTime")} placeholder={t("leadTimePlaceholder")} value={supplierForm.leadTimeDays}
                   onChange={(e) => setSupplierForm({ ...supplierForm, leadTimeDays: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />
               </div>
               <button type="submit" disabled={saving} className="flex items-center gap-1 bg-brand-navy text-white px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
-                <Plus className="w-4 h-4" /> Add
+                <Plus className="w-4 h-4" /> {t("add")}
               </button>
             </form>
 
             <div className="bg-white rounded-xl shadow-elevation-1 divide-y mb-4">
-              {suppliers.length === 0 && <p className="p-4 text-sm text-gray-500">No suppliers yet.</p>}
+              {suppliers.length === 0 && <p className="p-4 text-sm text-gray-500">{t("noSuppliers")}</p>}
               {suppliers.map((s) => (
                 <div key={s.id} className="p-3 text-sm">
                   <span className="font-medium">{s.name}</span>
@@ -459,41 +459,41 @@ export default function InventarioPage() {
 
             <form onSubmit={addCatalogEntry} className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3 mb-4">
               <h2 className="text-sm font-semibold text-brand-ink flex items-center gap-1">
-                <Tag className="w-4 h-4" /> Register current price (supplier × product)
+                <Tag className="w-4 h-4" /> {t("registerPrice")}
               </h2>
               <div className="grid grid-cols-2 gap-2">
                 <select
-                  aria-label="Proveedor"
+                  aria-label={t("supplier")}
                   value={catalogForm.supplierId}
                   onChange={(e) => setCatalogForm({ ...catalogForm, supplierId: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 >
-                  <option value="">Supplier…</option>
+                  <option value="">{t("supplierPlaceholder")}</option>
                   {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
                 <select
-                  aria-label="Producto"
+                  aria-label={t("product")}
                   value={catalogForm.inventoryItemId}
                   onChange={(e) => setCatalogForm({ ...catalogForm, inventoryItemId: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 >
-                  <option value="">Product…</option>
+                  <option value="">{t("productPlaceholder")}</option>
                   {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
                 </select>
                 <input
-                  type="number" step="0.01" aria-label="Precio unitario" placeholder="Unit price (CAD)" value={catalogForm.unitPrice}
+                  type="number" step="0.01" aria-label={t("unitPrice")} placeholder={t("unitPricePlaceholder")} value={catalogForm.unitPrice}
                   onChange={(e) => setCatalogForm({ ...catalogForm, unitPrice: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2 col-span-2"
                 />
               </div>
               <button type="submit" disabled={saving} className="flex items-center gap-1 bg-brand-navy text-white px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
-                <Plus className="w-4 h-4" /> Set current price
+                <Plus className="w-4 h-4" /> {t("setCurrentPrice")}
               </button>
             </form>
 
             <div className="bg-white rounded-xl shadow-elevation-1 divide-y">
-              <div className="p-3 text-sm font-semibold text-brand-ink">Current prices</div>
-              {catalog.length === 0 && <p className="p-4 text-sm text-gray-500">No prices registered yet.</p>}
+              <div className="p-3 text-sm font-semibold text-brand-ink">{t("currentPrices")}</div>
+              {catalog.length === 0 && <p className="p-4 text-sm text-gray-500">{t("noPrices")}</p>}
               {catalog.map((c) => (
                 <div key={c.id} className="p-3 flex justify-between text-sm">
                   <span className="font-medium">{c.inventory_items?.name} — {c.suppliers?.name}</span>
@@ -507,42 +507,40 @@ export default function InventarioPage() {
         ) : (
           <>
             <form onSubmit={addReservation} className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3 mb-4">
-              <h2 className="text-sm font-semibold text-brand-ink">Reserve expensive equipment (per team/day)</h2>
-              <p className="text-xs text-gray-500">
-                Vaporizer, HEPA, etc. — one reservation per implement per day; the system blocks double-booking.
-              </p>
+              <h2 className="text-sm font-semibold text-brand-ink">{t("reserveEquipment")}</h2>
+              <p className="text-xs text-gray-500">{t("reserveDescription")}</p>
               {reservationError && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs text-red-700">{reservationError}</div>
               )}
               <div className="grid grid-cols-2 gap-2">
                 <select
-                  aria-label="Implemento"
+                  aria-label={t("implement")}
                   value={reservationForm.inventoryItemId}
                   onChange={(e) => setReservationForm({ ...reservationForm, inventoryItemId: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 >
-                  <option value="">Equipment…</option>
+                  <option value="">{t("implementPlaceholder")}</option>
                   {equipmentItems.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
                 </select>
                 <input
-                  type="date" aria-label="Fecha de reserva" value={reservationForm.reservedDate}
+                  type="date" aria-label={t("reservationDate")} value={reservationForm.reservedDate}
                   onChange={(e) => setReservationForm({ ...reservationForm, reservedDate: e.target.value })}
                   className="text-sm border rounded-lg px-3 py-2"
                 />
               </div>
               <button type="submit" disabled={saving} className="flex items-center gap-1 bg-brand-navy text-white px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
-                <Plus className="w-4 h-4" /> Reserve
+                <Plus className="w-4 h-4" /> {t("reserve")}
               </button>
               {equipmentItems.length === 0 && (
                 <p className="text-xs text-gray-500">
-                  No products with category &quot;Equipment&quot; yet — add one in the Products tab first.
+                  {t("noEquipmentHint")}
                 </p>
               )}
             </form>
 
             <div className="bg-white rounded-xl shadow-elevation-1 divide-y">
-              <div className="p-3 text-sm font-semibold text-brand-ink">Upcoming reservations</div>
-              {reservations.length === 0 && <p className="p-4 text-sm text-gray-500">No reservations yet.</p>}
+              <div className="p-3 text-sm font-semibold text-brand-ink">{t("upcomingReservations")}</div>
+              {reservations.length === 0 && <p className="p-4 text-sm text-gray-500">{t("noReservations")}</p>}
               {reservations.map((r) => (
                 <div key={r.id} className="p-3 flex justify-between text-sm">
                   <span className="font-medium">{r.inventory_items?.name || r.inventory_item_id}</span>

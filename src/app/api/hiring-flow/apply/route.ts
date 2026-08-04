@@ -9,6 +9,7 @@ import {
 import { PositionNotFoundError } from "@/lib/hiring-flow/positions-service";
 import type { Step1Input } from "@/lib/hiring-flow/step1-validator";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { checkRateLimit } from "@/lib/hiring-flow/rate-limiter";
 import { sendSms, isSmsProviderConfigured } from "@/lib/sms";
 import { sendEmail } from "@/lib/email";
 import { locales, defaultLocale, type Locale } from "@/i18n/config";
@@ -126,6 +127,18 @@ export async function POST(request: NextRequest) {
 
   const ipAddress = extractIpAddress(request);
   const userAgent = request.headers.get("user-agent");
+
+  // Rate limit por IP (auditoría 2026-08-01 §5 diferido 4).
+  const { allowed: ipAllowed } = await checkRateLimit(
+    `apply:ip:${ipAddress}`,
+    "hiring_flow_apply_ip_max_requests"
+  );
+  if (!ipAllowed) {
+    return NextResponse.json(
+      { error: "Demasiadas solicitudes. Intenta de nuevo más tarde." },
+      { status: 429 }
+    );
+  }
 
   try {
     const result = await submitStep1Application({

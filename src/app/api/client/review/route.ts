@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getSupabaseServiceKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { getSupabaseAnonKey, getSupabaseServiceKey, getSupabaseUrl } from "@/lib/supabase-server";
+// Fix M2: Use authenticated client instead of service-role in public endpoint
 import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
@@ -18,7 +19,12 @@ import { safeErrorResponse } from "@/lib/api-errors";
  * confianza que ya usa buildPaymentUpdateLink/el link de actualización de
  * pago. Se usa service role, con el token como única puerta de entrada.
  */
+// Fix M2: Standard anon client for all validation; service-role only for writes
 function getSupabaseClient() {
+  return createClient(getSupabaseUrl(), getSupabaseAnonKey());
+}
+
+function getSupabaseServiceClient() {
   return createClient(getSupabaseUrl(), getSupabaseServiceKey());
 }
 
@@ -85,9 +91,12 @@ export async function POST(request: NextRequest) {
       }
     );
 
+    // Fix M1: Fail closed on rate limit RPC errors
     if (rateError) {
       console.error("Rate limit error:", rateError);
-    } else if (rateData && !rateData.allowed) {
+      return NextResponse.json({ error: "Service temporarily unavailable" }, { status: 503 });
+    }
+    if (rateData && !rateData.allowed) {
       return NextResponse.json(
         { error: "Rate limit exceeded. Try again later." },
         { status: 429 }
@@ -166,6 +175,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Review already submitted" }, { status: 409 });
     }
 
+    // Fix M2: Service-role client scoped only to write operations after token validation
+    const serviceSupabase = getSupabaseServiceClient();
+
     // Calcular sentimiento
     const { data: sentimentData, error: sentimentError } = await supabase
       .rpc("calculate_sentiment", { p_comment: comment || "" });
@@ -173,7 +185,7 @@ export async function POST(request: NextRequest) {
     const sentimentScore = sentimentError ? 0 : (sentimentData || 0);
 
     // Insertar review con review_window_expires_at (antes: expired_at)
-    const { data: review, error: reviewError } = await supabase
+    const { data: review, error: reviewError } = await serviceSupabase
       .from("client_reviews")
       .insert({
         order_id: order.id,
@@ -193,7 +205,7 @@ export async function POST(request: NextRequest) {
 
     // Si sentimiento < -0.5, crear alerta
     if (sentimentScore < -0.5) {
-      await supabase
+      await serviceSupabase
         .from("sentiment_alerts")
         .insert({
           client_review_id: review.id,
@@ -203,7 +215,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Marcar token como usado (pero mantenerlo para referencia)
-    await supabase
+    await serviceSupabase
       .from("orders")
       .update({ review_token_used_at: new Date().toISOString() })
       .eq("id", order.id);

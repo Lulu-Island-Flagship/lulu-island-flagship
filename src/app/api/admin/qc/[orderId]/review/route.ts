@@ -85,7 +85,7 @@ export async function POST(
     // Una review ya 'approved' de una orden ya COBRADA (capture_captured_at
     // no nulo) podía volverse 'rejected'/'rework' días después sin ningún
     // aviso ni confirmación explícita -- a diferencia de
-    // /api/empleado/qc-resubmit, que sí valida estado previo. Se bloquea
+    // /api/employee/qc-resubmit, que sí valida estado previo. Se bloquea
     // con 409 salvo que el body incluya confirmReopenPaidOrder:true.
     //
     // Fix Kimi-A8 (auditoría externa Kimi Code, 2026-07-21, verificado y

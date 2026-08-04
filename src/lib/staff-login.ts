@@ -32,7 +32,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ServiceClient = SupabaseClient<any, "public", any>;
 
-export type StaffArea = "empleado" | "admin" | "qc";
+export type StaffArea = "employee" | "admin" | "qc";
 
 export type StaffLoginResult =
   | { authorized: true; area: StaffArea; employeeLinkedNow: boolean }
@@ -56,7 +56,7 @@ export async function resolveStaffLogin(
   // hacía el UPDATE de vinculación del paso 3 (employees.user_id) cuando
   // corría la rama de "primer login por email". Eso era correcto para su
   // caller original (/api/staff/resolve-login, un POST cuyo propósito
-  // explícito es ese), pero src/app/api/cuenta/access-check/route.ts -- un
+  // explícito es ese), pero src/app/api/account/access-check/route.ts -- un
   // GET que solo quiere saber "¿es este usuario staff?" para decidir si
   // mostrarle el layout de cliente -- reutilizaba esta misma función y de
   // paso mutaba employees.user_id como efecto secundario de una simple
@@ -110,7 +110,7 @@ export async function resolveStaffLogin(
 
   if (byUserId) {
     return byUserId.is_active
-      ? { authorized: true, area: "empleado", employeeLinkedNow: false }
+      ? { authorized: true, area: "employee", employeeLinkedNow: false }
       : { authorized: false, reason: "pending_activation" };
   }
 
@@ -143,7 +143,7 @@ export async function resolveStaffLogin(
         // función se llama desde /api/staff/resolve-login (readOnly
         // ausente/false).
         return byEmail.is_active
-          ? { authorized: true, area: "empleado", employeeLinkedNow: false }
+          ? { authorized: true, area: "employee", employeeLinkedNow: false }
           : { authorized: false, reason: "pending_activation" };
       }
 
@@ -162,7 +162,7 @@ export async function resolveStaffLogin(
 
       if (linked) {
         return linked.is_active
-          ? { authorized: true, area: "empleado", employeeLinkedNow: true }
+          ? { authorized: true, area: "employee", employeeLinkedNow: true }
           : { authorized: false, reason: "pending_activation" };
       }
       // Perdió la carrera de vinculación -- termina en not_registered abajo

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { requireCronAuth } from "@/lib/cron-auth"; // Fix R5: Use constant-time requireCronAuth instead of inline comparison
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { calculateMinimumWageImpact } from "@/lib/economic-params";
 import { dispatchCommunication } from "@/lib/send-communication";
@@ -87,17 +88,9 @@ async function notifyClient(
 }
 
 export async function GET(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = request.headers.get("authorization");
-
-  if (!cronSecret) {
-    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
-  }
-
-  const bearer = authHeader?.replace("Bearer ", "");
-  if (bearer !== cronSecret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  // Fix R5: Use constant-time requireCronAuth instead of inline comparison
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   if (vancouverHour() !== 8) {
     return NextResponse.json({ skipped: true, reason: "Not 8 AM Vancouver" }, { status: 200 });

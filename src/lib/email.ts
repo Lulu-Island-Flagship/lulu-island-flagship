@@ -1,3 +1,5 @@
+import { captureError } from "@/lib/observability";
+
 /**
  * v8.3 E6 — Interfaz de envío de Email.
  *
@@ -84,14 +86,14 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
 
     if (!res.ok) {
       const errBody = await res.text().catch(() => "");
-      console.error("Resend send error:", res.status, errBody);
+      captureError(new Error(`Resend send error: ${res.status}`), { resendStatus: res.status, resendBody: errBody });
       return { status: "failed", maskedEmail, providerResponse: null };
     }
 
     const data = (await res.json()) as { id?: string };
     return { status: "sent", maskedEmail, providerResponse: data.id ?? null };
   } catch (err) {
-    console.error("Resend send exception:", err instanceof Error ? err.message : err);
+    captureError(err, { provider: "resend", maskedEmail });
     return { status: "failed", maskedEmail, providerResponse: null };
   }
 }

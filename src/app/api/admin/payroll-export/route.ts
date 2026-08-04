@@ -181,7 +181,7 @@ async function handlePayrollExport(request: NextRequest, mutate: boolean) {
 
   // v8.3 BC ESA Parte 5.1: días de enfermedad PAGADOS (sick_leave_requests,
   // pay_type='paid') -- antes se calculaba el monto correcto en
-  // src/app/api/empleado/sick-leave/route.ts pero NUNCA llegaba a la nómina
+  // src/app/api/employee/sick-leave/route.ts pero NUNCA llegaba a la nómina
   // real (bug real, hallazgo de auditoría de flujo del empleado). Mismo
   // patrón que readiness/badges/referidos: baseAmountCents=el día pagado,
   // se SUMA al ciclo, nunca reemplaza un servicio trabajado.

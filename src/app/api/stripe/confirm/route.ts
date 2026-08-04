@@ -290,7 +290,7 @@ export async function POST(request: NextRequest) {
     // se incrementa cuando una orden anterior de ese cliente se completó
     // (ver increment_client_services_count en
     // supabase/migrations/027_modulo2_payment_flow_fixes.sql, invocada desde
-    // src/app/api/empleado/servicio/route.ts al cerrar la orden).
+    // src/app/api/employee/service/route.ts al cerrar la orden).
     const isFirstTimeService = clientProfile?.services_count === 0;
 
     if (requestedOption === "paypal_first_time" && !isFirstTimeService) {
