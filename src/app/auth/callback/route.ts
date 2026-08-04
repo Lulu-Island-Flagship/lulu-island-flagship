@@ -82,10 +82,10 @@ export async function GET(request: NextRequest) {
               return cookieStore.get(name)?.value;
             },
             set(name: string, value: string, options: CookieOptions) {
-              cookieStore.set({ name, value, ...options, httpOnly: true, secure: process.env.NODE_ENV === "production" ? true : false, sameSite: "lax" });
+              cookieStore.set({ name, value, ...options, path: "/", httpOnly: true, secure: process.env.NODE_ENV === "production" ? true : false, sameSite: "lax" });
             },
             remove(name: string, options: CookieOptions) {
-              cookieStore.set({ name, value: "", ...options, httpOnly: true, secure: process.env.NODE_ENV === "production" ? true : false, sameSite: "lax" });
+              cookieStore.set({ name, value: "", ...options, path: "/", httpOnly: true, secure: process.env.NODE_ENV === "production" ? true : false, sameSite: "lax" });
             },
           },
         }
