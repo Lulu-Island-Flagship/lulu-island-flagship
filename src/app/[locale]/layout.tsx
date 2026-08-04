@@ -92,7 +92,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
       // partir del mismo ícono "Ship" (lucide-react) que se usa como logo
       // del barquito en el header/homepage (ver <Ship /> en
       // src/app/[locale]/page.tsx), sobre el mismo fondo navy de marca
-      // (#2E5C8A, tokens.ts / manifest.json background_color) para
+      // (--color-navy, tokens.ts / manifest.json background_color) para
       // consistencia visual en toda la app.
       icon: "/favicon.ico",
       apple: "/apple-touch-icon.png",
