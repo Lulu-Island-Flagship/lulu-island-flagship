@@ -332,6 +332,7 @@ export default function ComplianceDashboard() {
           value={filterTipo}
           onChange={(e) => setFilterTipo(e.target.value as TipoRegla | "ALL")}
           className="border rounded px-2.5 py-1.5 text-sm bg-white"
+          aria-label={t("filterByType")}
         >
           <option value="ALL">{t("filterAll")}</option>
           {ALL_TIPOS.map((tipo) => (
