@@ -647,7 +647,6 @@ export default function PayrollRemittancePanel() {
         <ConfirmActionModal
           title={t("markPaidModal.title")}
           confirmLabel={markingPaid ? t("markPaidModal.processing") : t("markPaidModal.confirm")}
-          isConfirming={markingPaid}
           fields={[
             {
               key: "fecha_pago",

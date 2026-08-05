@@ -529,7 +529,6 @@ export default function ComplianceDashboard() {
             version: selectedRuleForNewVersion.version,
           })}
           confirmLabel={versioning ? t("newVersionModal.creating") : t("newVersionModal.create")}
-          isConfirming={versioning}
           fields={[
             {
               key: "version",
