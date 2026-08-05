@@ -16,7 +16,6 @@ const nextConfig = {
   // pre-existentes de react-hooks/exhaustive-deps, <img> vs <Image>, etc.
   // El lint se corre en CI (npm run lint) y no necesita repetirse en el build.
   eslint: { ignoreDuringBuilds: true },
-  typescript: { ignoreBuildErrors: true },
   // Fix (2026-07-25, auditoría UX cliente, item 16 -- galería de servicio):
   // /cuenta/servicios/[orderId]/galeria pasa de <img> plano a next/image
   // (optimización automática de tamaño/formato). Las fotos vienen de
