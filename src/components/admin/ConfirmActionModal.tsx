@@ -38,6 +38,7 @@ export interface ConfirmActionField {
 export interface ConfirmActionModalProps {
   title: string;
   /** Mensaje / descripción de la acción a confirmar. */
+  children?: React.ReactNode;
   message?: React.ReactNode;
   /**
    * Aviso legal opcional destacado (p.ej. "Escribir el nombre completo
