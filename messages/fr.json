@@ -13,6 +13,8 @@
   },
   "nav": {
     "location": "Richmond, C.-B.",
+    "signIn": "Se connecter",
+    "signUp": "S'inscrire",
     "login": "Se connecter / S'inscrire",
     "teamPortal": "Portail de l'équipe"
   },
@@ -265,6 +267,12 @@
       "closeAriaLabel": "Fermer la fenêtre de connexion",
       "verifyPhoneTitle": "Vérifiez votre numéro de téléphone",
       "signInTitle": "Connectez-vous ou inscrivez-vous pour réserver",
+      "signUpTitle": "Créer votre compte",
+      "signUpSubtitle": "Remplissez vos informations ci-dessous. Vous avez déjà un compte ? Utilisez le bouton Se connecter.",
+      "firstNameLabel": "Prénom",
+      "lastNameLabel": "Nom",
+      "continueButton": "Continuer",
+      "nameRequired": "Veuillez entrer votre prénom et votre nom.",
       "verifyPhoneDesc": "Pour votre sécurité, un numéro de téléphone vérifié est requis avant de pouvoir compléter une réservation. Cela ne prend qu'une minute.",
       "sameMethodWarning": "Veuillez toujours utiliser la même méthode de connexion — changer de méthode (p. ex. Google, puis courriel) crée un compte distinct et vous perdrez l'accès à votre historique et à votre portefeuille.",
       "phoneNumberLabel": "Numéro de téléphone",
@@ -681,6 +689,9 @@
       "noUpcomingTitle": "Aucun nettoyage à venir",
       "noUpcomingDesc": "Prêt à réserver le prochain ? Même adresse, même qualité.",
       "bookFirstCleaning": "Réserver un nettoyage",
+      "referAFriend": "Référez un ami",
+      "referAFriendDesc": "Vous connaissez quelqu'un qui a besoin d'une maison plus propre ? Obtenez-lui un devis — la même équipe de confiance, à chaque fois.",
+      "getQuoteForFriend": "Obtenir un devis pour un ami",
       "luluCredit": "Crédit Lulu",
       "viewWallet": "Voir le portefeuille",
       "addPaymentMethod": "Ajouter un moyen de paiement",
@@ -1021,6 +1032,10 @@
       "emailLabel": "Adresse courriel",
       "phoneLabel": "Numéro de téléphone",
       "dateOfBirthLabel": "Date de naissance",
+      "resumeLabel": "CV (optionnel)",
+      "resumeHint": "Formats acceptés : PDF, JPG, PNG, WebP. Max 10 Mo.",
+      "resumeUploading": "Téléchargement du CV...",
+      "resumeUploaded": "CV téléchargé : {fileName}",
       "consentLabel": "J'accepte que Lulu Island Flagship recueille mes renseignements personnels afin d'évaluer ma candidature, tel que décrit dans notre <link>Politique de confidentialité</link>."
     },
     "submit": "Soumettre la candidature",
@@ -1036,7 +1051,8 @@
       "temporarilyUnavailable": "Les candidatures sont temporairement indisponibles. Veuillez réessayer plus tard.",
       "genericFailed": "Une erreur s'est produite lors de l'envoi de votre candidature. Veuillez réessayer.",
       "duplicateApplication": "Une candidature avec cette adresse courriel ou ce numéro de téléphone existe déjà. Notre équipe vous contactera bientôt.",
-      "legalTextOutdated": "Les conditions de consentement ont été mises à jour pendant que vous remplissiez ce formulaire. Veuillez les relire et soumettre à nouveau."
+      "legalTextOutdated": "Les conditions de consentement ont été mises à jour pendant que vous remplissiez ce formulaire. Veuillez les relire et soumettre à nouveau.",
+      "resumeUploadFailed": "Impossible de télécharger votre CV. Vérifiez le fichier et réessayez."
     },
     "legalText": {
       "loading": "Chargement des conditions de consentement...",
@@ -1062,6 +1078,12 @@
     "readyToWork": "Prêt à travailler",
     "todaysServices": "Services d'aujourd'hui",
     "noServices": "Aucun service assigné pour aujourd'hui.",
+    "basicTasksTitle": "En attendant — tâches de base",
+    "basicTask1": "Vérifiez et réapprovisionnez votre kit de fournitures",
+    "basicTask2": "Révisez la checklist et les procédures du jour",
+    "basicTask3": "Inspectez et nettoyez votre équipement",
+    "basicTask4": "Confirmez votre disponibilité pour le reste de la semaine",
+    "basicTasksNote": "Aucun service assigné pour le moment — vous serez assigné bientôt. Votre quart est toujours actif.",
     "openService": "Ouvrir le service",
     "clientBrief": "Fiche client",
     "serviceTimeline": "Chronologie du service",
@@ -1696,6 +1718,14 @@
         "laborCompliance": {
           "title": "Conformité au travail (C.-B.)",
           "description": "Pauses documentées, congés de maladie, repos hebdomadaire de 32 h, paie des jours fériés"
+        },
+        "applicants": {
+          "title": "Candidats",
+          "description": "Examiner et approuver les candidatures"
+        },
+        "newClients": {
+          "title": "Nouveaux clients",
+          "description": "Comptes clients récemment enregistrés"
         }
       }
     },
@@ -1809,6 +1839,7 @@
       "confirmCareerLevelChange": "Changer le niveau de carrière de {name} de {from} à {to}? Ceci s'applique immédiatement et peut affecter le taux de rémunération.",
       "confirmCareerLevelChangeConfirm": "Changer le niveau",
       "careerLevelSelectAria": "Niveau de carrière de l'employé",
+      "careerLevelTrainee": "Membre d'équipe en formation",
       "careerLevelTeamMember": "Membre de l'équipe",
       "careerLevelSenior": "Senior",
       "careerLevelTeamLead": "Chef d'équipe",
@@ -1870,6 +1901,55 @@
       "errorActivateFailed": "Échec de l'activation de l'employé",
       "errorOffboardFailed": "Échec du départ de l'employé",
       "errorCreateFailed": "Échec de la création de l'employé"
+    },
+    "applicants": {
+      "title": "Candidats",
+      "subtitle": "Examiner et gérer les candidatures",
+      "statusFilter": {
+        "all": "Tous",
+        "step1_completed": "Nouveaux",
+        "approved": "Approuvés",
+        "rejected": "Refusés"
+      },
+      "table": {
+        "name": "Nom",
+        "email": "Email",
+        "phone": "Téléphone",
+        "position": "Poste",
+        "status": "Statut",
+        "appliedDate": "Candidature",
+        "resume": "Voir le CV",
+        "noResume": "Pas de CV",
+        "actions": "Actions",
+        "noApplications": "Aucune candidature trouvée"
+      },
+      "actions": {
+        "approve": "Approuver",
+        "reject": "Refuser",
+        "approveConfirm": "Approuver cette candidature ?",
+        "rejectConfirm": "Refuser cette candidature ?"
+      },
+      "status": {
+        "step1_completed": "Nouveau",
+        "step2_completed": "Étape 2",
+        "step3_completed": "Étape 3",
+        "approved": "Approuvé",
+        "rejected": "Refusé"
+      },
+      "errorLoadFailed": "Échec du chargement des candidats",
+      "errorActionFailed": "Échec de la mise à jour de la candidature"
+    },
+    "clients": {
+      "title": "Nouveaux clients",
+      "subtitle": "Comptes clients récemment enregistrés",
+      "table": {
+        "name": "Nom",
+        "email": "Email",
+        "phone": "Téléphone",
+        "registered": "Inscrit",
+        "noClients": "Aucun client récemment enregistré"
+      },
+      "errorLoadFailed": "Échec du chargement des clients"
     },
     "inventario": {
       "purchaseOrderFailed": "Impossible de générer le bon de commande.",

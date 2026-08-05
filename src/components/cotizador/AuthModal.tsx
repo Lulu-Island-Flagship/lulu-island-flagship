@@ -371,7 +371,12 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
     setLoading(true);
     setError("");
     try {
-      const normalizedPhone = phone.startsWith("+") ? phone : `+1${phone}`;
+      const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
+      setError(t("errors.invalidPhone"));
+      setLoading(false);
+      return;
+    }
       const { error: verifyError } = await supabase.auth.verifyOtp({
         phone: normalizedPhone,
         token: otpCode,
@@ -445,7 +450,12 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
           type: "email",
         });
       } else {
-        const normalizedPhone = phone.startsWith("+") ? phone : `+1${phone}`;
+        const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
+      setError(t("errors.invalidPhone"));
+      setLoading(false);
+      return;
+    }
         result = await supabase.auth.verifyOtp({
           phone: normalizedPhone,
           token: otpCode,
@@ -464,7 +474,12 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       if (mode === "phone") {
         const { data: userData } = await supabase.auth.getUser();
         if (userData.user) {
-          const normalizedPhone = phone.startsWith("+") ? phone : `+1${phone}`;
+          const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
+      setError(t("errors.invalidPhone"));
+      setLoading(false);
+      return;
+    }
           // Fix (auditoría seguridad 2026-07-26): mismo problema que
           // handleVerifyLinkedPhone -- .update() no hace nada si la fila de
           // client_profiles todavía no existe. upsert garantiza que se cree.

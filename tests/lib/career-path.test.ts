@@ -124,7 +124,7 @@ describe("nextCareerLevel", () => {
     assert.equal(nextCareerLevel("coordinador_operativo"), null);
   });
 
-  it("CAREER_LEVEL_ORDER tiene los 5 niveles del spec", () => {
+  it("CAREER_LEVEL_ORDER tiene los 6 niveles del spec", () => {
     assert.equal(CAREER_LEVEL_ORDER.length, 6);
   });
 });
