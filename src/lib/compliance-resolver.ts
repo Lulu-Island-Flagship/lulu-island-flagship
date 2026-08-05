@@ -21,6 +21,7 @@
  */
 
 import {
+  _isRuleActiveAt as isRuleActiveAt,
   CPP_2026_SEED,
   EI_2026_SEED,
   VACATION_PAY_BC_2026_SEED,
