@@ -180,7 +180,7 @@ function highlightXml(xml: string): React.ReactNode[] {
 // ── Component ──────────────────────────────────────────────────────────────
 
 interface TaxFilingModalProps {
-  obligation: TaxObligationSummary;
+  obligation: Record<string, unknown>;
   onClose: () => void;
   onSubmitted: () => void;
 }
