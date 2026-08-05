@@ -28,8 +28,10 @@ jobs:
         timeout-minutes: 10
         run: npm run lint || true
       - name: Build
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: npm run build
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
       - name: Tests
         timeout-minutes: 10
         run: npm test
