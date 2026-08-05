@@ -74,7 +74,7 @@ const FORMAT_EXTENSIONS: Record<ExportFormat, string> = {
   json: ".json",
 };
 
-const FORMAT_MIME: Record<ExportFormat, string> = {
+const _FORMAT_MIME: Record<ExportFormat, string> = {
   csv: "text/csv",
   iif: "text/plain",
   pdf: "application/pdf",

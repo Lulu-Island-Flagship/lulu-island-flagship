@@ -19,18 +19,6 @@ import {
   Landmark,
   DatabaseBackup,
   ChevronRight,
-  Video,
-  Repeat,
-  BadgeCheck,
-  LifeBuoy,
-  CloudRain,
-  FlaskConical,
-  Target,
-  TrendingDown,
-  Sparkles,
-  Handshake,
-  Wallet,
-  Scale,
 } from "lucide-react";
 import DashboardMetricsPanel from "./DashboardMetricsPanel";
 import AutopilotModeBanner from "./AutopilotModeBanner";
