@@ -62,7 +62,7 @@ describe("CSV Adapter", () => {
     const csv = createCsvAdapter(entries).exportJournalEntries("2026-08");
 
     // Verificar encabezados
-    const lines = csvas string).trim().split("\n");
+    const lines = (csv as string).trim().split("\n");
     const header = lines[0];
     assert.match(header, /Fecha/);
     assert.match(header, /Cuenta Debito/);
@@ -90,7 +90,7 @@ describe("CSV Adapter", () => {
     ];
     const csv = createCsvAdapter(entries).exportJournalEntries("2026-08");
 
-    const lines = csvas string).trim().split("\n");
+    const lines = (csv as string).trim().split("\n");
     assert.strictEqual(lines.length, 2); // header + 1 data row
     assert.match(csv, /August entry/);
     // La entrada de septiembre NO debe aparecer
@@ -101,7 +101,7 @@ describe("CSV Adapter", () => {
     const entries = sampleEntries();
     const csv = createCsvAdapter(entries).exportJournalEntries("2026-01");
 
-    const lines = csvas string).trim().split("\n");
+    const lines = (csv as string).trim().split("\n");
     assert.strictEqual(lines.length, 1); // Solo header
     assert.match(lines[0], /Fecha/);
   });
@@ -298,7 +298,7 @@ describe("Adapter edge cases", () => {
 
     // CSV: debe exportar ambas líneas
     const csv = createCsvAdapter(adjustmentEntries).exportJournalEntries("2026-08");
-    const csvLines = csvas string).trim().split("\n");
+    const csvLines = (csv as string).trim().split("\n");
     assert.strictEqual(csvLines.length, 3); // header + 2 rows
 
     // IIF: debe tener SPL con débito positivo y crédito negativo
