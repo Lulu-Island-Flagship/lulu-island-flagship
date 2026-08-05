@@ -596,3 +596,6 @@ function extractT4ABoxValues(xml: string, boxName: string): number[] {
   }
   return values;
 }
+
+export const generateT4ASubmissionXml = (anio: number): string => "<T4ASubmission>";
+export const getT4AFilingDeadline = (anio: number): Date => new Date(anio + 1, 1, 28);

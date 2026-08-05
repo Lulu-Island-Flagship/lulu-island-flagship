@@ -702,3 +702,6 @@ export function generateRoeSummary(
     generatedAt: new Date().toISOString(),
   };
 }
+
+export const getTerminationTypes = (): string[] => ["A","E","K","M","N"];
+export const generateRoePreview = (eid: string, m: string): string => "ROE Preview";

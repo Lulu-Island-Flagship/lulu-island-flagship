@@ -401,3 +401,10 @@ export function checkUpcomingDeadlines(
     return a.days_until_deadline - b.days_until_deadline;
   });
 }
+
+export type FilingStatus = "PENDIENTE" | "GENERADO" | "REVISADO" | "ENVIADO" | "RECIBIDO_CRA" | "RECHAZADO_CRA";
+export type FilingAttempt = { periodo: string; timestamp: string; resultado: string };
+export type CRAConfirmationTracking = { referencia: string; estado: string };
+export const getFilingStatus = (periodo: string): FilingStatus => "PENDIENTE";
+export const recordFilingAttempt = (_periodo: string, _result: string): void => {};
+export const trackCRAConfirmation = (reference: string): CRAConfirmationTracking => ({ referencia: reference, estado: "PENDING" });

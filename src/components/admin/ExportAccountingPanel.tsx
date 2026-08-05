@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import {
   Download,
@@ -88,8 +88,6 @@ const _FORMAT_MIME: Record<ExportFormat, string> = {
 export default function ExportAccountingPanel() {
   const t = useTranslations("admin.exportAccounting");
   const locale = useLocale();
-  const downloadRef = useRef<HTMLAnchorElement>(null);
-
   // ── State ─────────────────────────────────────────────────────────────────
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -207,12 +205,12 @@ export default function ExportAccountingPanel() {
         `accounting-${periodLabel(period.year, period.month)}${FORMAT_EXTENSIONS[format]}`;
 
       const url = URL.createObjectURL(blob);
-      const a = downloadRef.current;
-      if (a) {
-        a.href = url;
-        a.download = filename;
-        a.click();
-      }
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
       setSuccessMsg(t("exportSuccess", { filename }));
@@ -223,7 +221,7 @@ export default function ExportAccountingPanel() {
     } finally {
       setExporting(false);
     }
-  }, [period, format, t]);
+  }, [period, format, t, loadHistory]);
 
   // ── Period navigation ─────────────────────────────────────────────────────
 
@@ -253,8 +251,6 @@ export default function ExportAccountingPanel() {
 
   return (
     <div className="space-y-6">
-      {/* Hidden download anchor */}
-      <a ref={downloadRef} className="hidden" aria-hidden="true" />
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-4">
