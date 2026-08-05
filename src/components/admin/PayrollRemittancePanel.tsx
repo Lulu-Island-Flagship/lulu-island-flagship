@@ -118,7 +118,7 @@ function daysUntilDue(fechaVencimiento: string): number {
 export default function PayrollRemittancePanel() {
   const t = useTranslations("admin.payrollRemittances");
   const locale = useLocale();
-  const downloadRef = useRef<HTMLAnchorElement>(null);
+  const downloadRef = useRef<HTMLSpanElement>(null);
 
   // ── Remittances ───────────────────────────────────────────────────────────
   const [remesas, setRemesas] = useState<RemesaFiscal[]>([]);
@@ -217,12 +217,10 @@ export default function PayrollRemittancePanel() {
         const filename = filenameMatch?.[1] ?? `remesa-${remesaId}.pdf`;
 
         const url = URL.createObjectURL(blob);
-        const a = downloadRef.current;
-        if (a) {
-          a.href = url;
-          a.download = filename;
-          a.click();
-        }
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
         URL.revokeObjectURL(url);
       } catch {
         // silently fail
@@ -272,14 +270,14 @@ export default function PayrollRemittancePanel() {
     return a.fecha_vencimiento.localeCompare(b.fecha_vencimiento);
   });
 
-  const pendingCount = remesas.filter((r) => r.estado !== "pagado").length;
+  const _pendingCount = remesas.filter((r) => r.estado !== "pagado").length;
   const overdueCount = sorted.filter((r) => r.estado !== "pagado" && isOverdue(r.fecha_vencimiento)).length;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       {/* Hidden download anchor */}
-      <a ref={downloadRef} className="hidden" aria-hidden="true" />
+      <span ref={downloadRef} className="hidden" aria-hidden="true" />
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-4">
