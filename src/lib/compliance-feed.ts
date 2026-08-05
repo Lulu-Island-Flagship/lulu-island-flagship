@@ -26,12 +26,9 @@
 
 import { isFeedOverdueForFrequency, type LegalFeedFrequency } from "./legal-monitoring";
 import {
-  _isRuleActiveAt as isRuleActiveAt,
-  _versionsOverlap as versionsOverlap,
   type ReglaLegalRow,
   type TipoRegla,
   type Jurisdiccion,
-  type _VersionStatus as VersionStatus,
 } from "./compliance-engine";
 import { getCurrentRate } from "./compliance-resolver";
 

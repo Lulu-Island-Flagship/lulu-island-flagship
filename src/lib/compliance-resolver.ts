@@ -30,7 +30,6 @@ import {
   GST_2026_SEED,
   PST_BC_2026_SEED,
   BC_TAX_2026_SEED,
-  _isRuleActiveAt as isRuleActiveAt,
   type CppParams,
   type EiParams,
   type VacationPayParams,

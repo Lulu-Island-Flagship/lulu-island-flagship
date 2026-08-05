@@ -33,13 +33,12 @@
 import { z } from "zod";
 import { createHash } from "node:crypto";
 
-import type { PayrollLineaRow } from "./payroll-line";
+// import type { PayrollLineaRow } from "./payroll-line";
 import type { PayrollCalculationResult } from "./payroll-calculator";
 
 import {
   CHART_OF_ACCOUNTS,
   type CuentaContable,
-  type JournalEntryRow,
   type LedgerEntryStatus,
 } from "./financial-ledger";
 

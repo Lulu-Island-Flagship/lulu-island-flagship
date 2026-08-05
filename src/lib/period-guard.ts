@@ -28,7 +28,6 @@ import {
   type PeriodoContableEstado,
   PERIODO_ESTADOS,
   periodoSchema,
-  getCurrentPeriodo,
 } from "@/lib/accounting-period";
 
 // ---------------------------------------------------------------------------

@@ -15,7 +15,6 @@ import { nextBusinessDay } from "@/lib/cra-remittances";
 import { type TaxObligation, type TaxType } from "@/lib/tax-engine";
 import {
   getFilingFrequency as determineFilingFrequency,
-  MONTHLY_FILING_THRESHOLD_CAD,
 } from "@/lib/tax-engine";
 
 // =========================================================================
