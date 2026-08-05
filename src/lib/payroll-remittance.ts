@@ -35,7 +35,7 @@
  */
 
 import { z } from "zod";
-import { createHash } from "node:crypto";
+import { createHash } from "@/lib/crypto";
 
 import type { PayrollCiclo } from "./payroll-engine";
 import {

@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash } from "@/lib/crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { isValidUuid } from "@/lib/validation";

@@ -20,7 +20,7 @@
  *   roe-submission.ts ──(usado por)──→ src/app/api/admin/payroll/roe/route.ts
  */
 
-import { createHash } from "node:crypto";
+import { createHash } from "@/lib/crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
