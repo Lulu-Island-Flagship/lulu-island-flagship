@@ -54,7 +54,7 @@ function cleanPhoneDigits(phone: string): string {
 // en la función) para que sea fácil de corregir/parametrizar más adelante.
 // TODO: mover MIN_AGE_YEARS a settings-service (system_settings) cuando
 // exista una key dedicada, en vez de una constante hardcodeada aquí.
-export const MIN_AGE_YEARS = 16;
+export const MIN_AGE_YEARS = 18;
 
 function isValidIsoDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;

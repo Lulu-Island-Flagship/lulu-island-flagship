@@ -46,7 +46,9 @@ export async function GET() {
       id: string;
       name: string | null;
       role: string | null;
-    }>(supabase, user.id, "id, name, role");
+      career_level: string | null;
+      created_at: string | null;
+    }>(supabase, user.id, "id, name, role, career_level, created_at");
 
     if (!employee) {
       return NextResponse.json({ error: empError }, { status: empStatus });
@@ -232,7 +234,7 @@ export async function GET() {
     }
 
     return NextResponse.json(
-      { services: enriched, employee: { id: employee.id, name: employee.name, role: employee.role } },
+      { services: enriched, employee: { id: employee.id, name: employee.name, role: employee.role, careerLevel: employee.career_level, createdAt: employee.created_at } },
       { status: 200 }
     );
   } catch (err: Error | unknown) {

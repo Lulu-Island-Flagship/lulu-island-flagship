@@ -79,6 +79,7 @@ interface EmployeeScoreData {
 }
 
 const CAREER_LEVEL_LABEL: Record<CareerLevel, string> = {
+  trainee: "Team Member in Training",
   trabajador: "Team Member",
   senior: "Senior",
   lider: "Team Lead",

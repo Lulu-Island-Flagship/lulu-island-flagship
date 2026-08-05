@@ -10,6 +10,7 @@ import { PositionNotFoundError } from "@/lib/hiring-flow/positions-service";
 import type { Step1Input } from "@/lib/hiring-flow/step1-validator";
 import { safeErrorResponse } from "@/lib/api-errors";
 import { checkRateLimit } from "@/lib/hiring-flow/rate-limiter";
+import { createClient } from "@supabase/supabase-js";
 import { sendSms, isSmsProviderConfigured } from "@/lib/sms";
 import { sendEmail } from "@/lib/email";
 import { locales, defaultLocale, type Locale } from "@/i18n/config";
@@ -90,6 +91,10 @@ interface ApplyRequestBody {
   // candidato (next-intl useLocale() en el frontend), para localizar el
   // SMS/email de confirmación.
   locale?: unknown;
+  // CV / resume upload: storage path returned by POST /api/hiring-flow/upload-resume
+  resumeStoragePath?: unknown;
+  resumeMimeType?: unknown;
+  resumeSizeBytes?: unknown;
 }
 
 const GENERAL_POSITION_SLUG = "general";
@@ -131,6 +136,18 @@ export async function POST(request: NextRequest) {
       ? body.legalTextVersion
       : undefined;
   const locale = resolveLocale(body.locale);
+  const resumeStoragePath =
+    typeof body.resumeStoragePath === "string" && body.resumeStoragePath.length > 0
+      ? body.resumeStoragePath
+      : null;
+  const resumeMimeType =
+    typeof body.resumeMimeType === "string" && body.resumeMimeType.length > 0
+      ? body.resumeMimeType
+      : null;
+  const resumeSizeBytes =
+    typeof body.resumeSizeBytes === "number" && body.resumeSizeBytes > 0
+      ? body.resumeSizeBytes
+      : null;
 
   const ipAddress = extractIpAddress(request);
   const userAgent = request.headers.get("user-agent");
@@ -157,6 +174,32 @@ export async function POST(request: NextRequest) {
       expectedLegalTextVersion,
       client: undefined,
     });
+
+    // Si el candidato subió un CV/resume, crear el registro en la tabla
+    // `documents` vinculado al candidate_id recién creado. El archivo ya
+    // fue validado y guardado en Storage por POST /api/hiring-flow/upload-resume.
+    if (resumeStoragePath && resumeMimeType && resumeSizeBytes) {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+        process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+      );
+      const { error: docError } = await supabase.from("documents").insert({
+        candidate_id: result.candidateId,
+        document_type: "resume",
+        storage_path: resumeStoragePath,
+        mime_type: resumeMimeType,
+        size_bytes: resumeSizeBytes,
+      });
+      if (docError) {
+        console.error(
+          `[hiring-flow/apply] Failed to link resume document for candidate ${result.candidateId}:`,
+          docError.message
+        );
+        // No revertimos la aplicación -- el candidato ya fue creado con
+        // consentimiento atómico (RPC submit_step1_candidate). El archivo
+        // sigue en Storage y se puede vincular manualmente.
+      }
+    }
 
     // Envío del código de acceso, generado y persistido por
     // candidate-step1-service.ts (para cuando exista una pantalla web de

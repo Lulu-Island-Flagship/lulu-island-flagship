@@ -50,6 +50,15 @@ interface FormState {
   consentAccepted: boolean;
 }
 
+interface ResumeState {
+  file: File | null;
+  uploading: boolean;
+  storagePath: string | null;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  uploadError: string | null;
+}
+
 const INITIAL_STATE: FormState = {
   firstName: "",
   lastName: "",
@@ -74,6 +83,14 @@ export function JobApplicationForm() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [legalText, setLegalText] = useState<LegalTextState | null>(null);
   const [legalTextLoadFailed, setLegalTextLoadFailed] = useState(false);
+  const [resume, setResume] = useState<ResumeState>({
+    file: null,
+    uploading: false,
+    storagePath: null,
+    mimeType: null,
+    sizeBytes: null,
+    uploadError: null,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -122,6 +139,59 @@ export function JobApplicationForm() {
 
   function updateField<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function handleResumeChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setResume({
+      file,
+      uploading: true,
+      storagePath: null,
+      mimeType: null,
+      sizeBytes: null,
+      uploadError: null,
+    });
+
+    try {
+      const formData = new FormData();
+      formData.append("resume", file);
+
+      const response = await fetch("/api/hiring-flow/upload-resume", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(
+          data?.error || t("errors.resumeUploadFailed")
+        );
+      }
+
+      const data = await response.json();
+      setResume({
+        file,
+        uploading: false,
+        storagePath: data.storagePath,
+        mimeType: data.fileType,
+        sizeBytes: data.fileSize,
+        uploadError: null,
+      });
+    } catch (err) {
+      setResume({
+        file: null,
+        uploading: false,
+        storagePath: null,
+        mimeType: null,
+        sizeBytes: null,
+        uploadError:
+          err instanceof Error ? err.message : t("errors.resumeUploadFailed"),
+      });
+      // Limpiar el input de archivo para que el usuario pueda reintentar
+      e.target.value = "";
+    }
   }
 
   function validateClientSide(): Record<string, string> {
@@ -174,6 +244,11 @@ export function JobApplicationForm() {
           consentAccepted: form.consentAccepted,
           legalTextVersion: legalText?.version,
           locale,
+          ...(resume.storagePath && {
+            resumeStoragePath: resume.storagePath,
+            resumeMimeType: resume.mimeType,
+            resumeSizeBytes: resume.sizeBytes,
+          }),
         }),
       });
 

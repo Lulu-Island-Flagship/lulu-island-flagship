@@ -83,13 +83,19 @@ interface AuthModalProps {
   // cuenta YA autenticada (updateUser + verifyOtp type "phone_change"), no
   // un signInWithOtp nuevo (eso crearía una identidad separada).
   forcePhoneVerification?: boolean;
+  // Sign Up mode: when true, shows a registration form with name fields
+  // alongside social login and email/phone OTP options.
+  signupMode?: boolean;
 }
 
-export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerification }: AuthModalProps) {
+export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerification, signupMode }: AuthModalProps) {
   const t = useTranslations("cotizador.authModal");
-  const [mode, setMode] = useState<"options" | "email" | "phone" | "verify_phone">(
-    forcePhoneVerification ? "verify_phone" : "options"
+  const isSignup = Boolean(signupMode);
+  const [mode, setMode] = useState<"options" | "email" | "phone" | "verify_phone" | "signup_form">(
+    forcePhoneVerification ? "verify_phone" : isSignup ? "signup_form" : "options"
   );
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
@@ -400,6 +406,21 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
   };
 
   const handleVerifyOtp = async () => {
+    // Guardar nombre en client_profiles si estamos en modo signup
+    async function saveSignupName() {
+      if (!isSignup || !firstName.trim() || !lastName.trim()) return;
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData.user) return;
+        await supabase.from("client_profiles").upsert(
+          { user_id: userData.user.id, first_name: firstName.trim(), last_name: lastName.trim() },
+          { onConflict: "user_id" }
+        );
+      } catch {
+        // Best-effort: no bloqueamos el flujo si falla
+      }
+    }
+
     if (!otpCode || otpCode.length < 6) {
       setError(t("errors.invalidCode"));
       return;
@@ -432,6 +453,10 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
         });
       }
       if (result.error) throw result.error;
+
+      // Si estamos en modo signup con nombres ingresados, guardarlos en
+      // client_profiles (best-effort, no bloquea el flujo si falla).
+      await saveSignupName();
 
       // v8.3 fix (auditoría E1): el login por teléfono+OTP YA prueba
       // posesión del número -- marcar phone_verified aquí evita pedirle

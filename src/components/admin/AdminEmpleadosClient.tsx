@@ -40,6 +40,7 @@ export default function AdminEmpleadosClient() {
   const t = useTranslations("admin.empleados");
 
   const CAREER_LEVEL_LABEL: Record<CareerLevel, string> = {
+    trainee: t("careerLevelTrainee"),
     trabajador: t("careerLevelTeamMember"),
     senior: t("careerLevelSenior"),
     lider: t("careerLevelTeamLead"),

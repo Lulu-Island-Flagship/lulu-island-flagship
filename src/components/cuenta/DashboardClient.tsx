@@ -17,6 +17,7 @@ import {
   ArrowRight,
   Sparkles,
   ChevronRight,
+  Gift,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { formatServiceDateDisplay, formatServiceTimeDisplay } from "@/lib/date-utils";
@@ -276,6 +277,22 @@ export default function DashboardClient() {
           </button>
         </div>
       )}
+
+      {/* ── Refer a friend ──────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl p-4 border border-brand-ice shadow-sm">
+        <div className="flex items-center gap-2 text-brand-ink/60 text-xs font-medium uppercase tracking-wider mb-2">
+          <Gift className="w-3.5 h-3.5" />
+          {t("referAFriend")}
+        </div>
+        <p className="text-sm text-brand-ink/70 mb-3">{t("referAFriendDesc")}</p>
+        <Link
+          href={`/${locale}/quote?ref=friend`}
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-navy text-white rounded-lg text-sm font-medium hover:bg-brand-navy/90 transition-colors"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          {t("getQuoteForFriend")}
+        </Link>
+      </div>
 
       {/* ── Grid: Wallet + Último servicio ──────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

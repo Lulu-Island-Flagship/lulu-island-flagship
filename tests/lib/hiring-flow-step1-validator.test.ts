@@ -20,8 +20,8 @@ function validInput(overrides: Partial<Step1Input> = {}): Step1Input {
   };
 }
 
-test("MIN_AGE_YEARS is 16 per BC general minimum working age assumption", () => {
-  assert.equal(MIN_AGE_YEARS, 16);
+test("MIN_AGE_YEARS is 18 per company policy (no one under 18)", () => {
+  assert.equal(MIN_AGE_YEARS, 18);
 });
 
 test("validateStep1: happy path returns no errors", () => {
@@ -102,23 +102,23 @@ test("validateStep1: invalid calendar date (Feb 30) produces a dateOfBirth error
 
 test("validateStep1: candidate younger than MIN_AGE_YEARS produces a dateOfBirth error", () => {
   // Reference date 2026-07-30; born 2011-08-01 -> turns 15 on 2026-08-01,
-  // so on the reference date they are still 14 (under MIN_AGE_YEARS=16).
+  // so on the reference date they are still 14 (under MIN_AGE_YEARS=18).
   const errors = validateStep1(
     validInput({ dateOfBirth: "2011-08-01" }),
     REFERENCE_DATE
   );
   assert.equal(errors.length, 1);
   assert.equal(errors[0].field, "dateOfBirth");
-  assert.match(errors[0].message, /at least 16 years old/);
+  assert.match(errors[0].message, /at least 18 years old/);
 });
 
 test("boundary: candidate turning exactly MIN_AGE_YEARS on referenceDate is VALID", () => {
   // Decision: turning MIN_AGE_YEARS old ON referenceDate counts as meeting
   // the minimum age (age is calculated by full elapsed birthdays; someone
-  // born 2010-07-30 has, as of 2026-07-30, already had their 16th
-  // birthday "today" and is treated as 16, not 15).
+  // born 2008-07-30 has, as of 2026-07-30, already had their 18th
+  // birthday "today" and is treated as 18, not 17).
   const errors = validateStep1(
-    validInput({ dateOfBirth: "2010-07-30" }),
+    validInput({ dateOfBirth: "2008-07-30" }),
     REFERENCE_DATE
   );
   assert.deepEqual(errors, []);
@@ -126,7 +126,7 @@ test("boundary: candidate turning exactly MIN_AGE_YEARS on referenceDate is VALI
 
 test("boundary: candidate turning MIN_AGE_YEARS one day AFTER referenceDate is INVALID", () => {
   const errors = validateStep1(
-    validInput({ dateOfBirth: "2010-07-31" }),
+    validInput({ dateOfBirth: "2008-07-31" }),
     REFERENCE_DATE
   );
   assert.equal(errors.length, 1);
@@ -135,7 +135,7 @@ test("boundary: candidate turning MIN_AGE_YEARS one day AFTER referenceDate is I
 
 test("boundary: candidate who turned MIN_AGE_YEARS one day BEFORE referenceDate is VALID", () => {
   const errors = validateStep1(
-    validInput({ dateOfBirth: "2010-07-29" }),
+    validInput({ dateOfBirth: "2008-07-29" }),
     REFERENCE_DATE
   );
   assert.deepEqual(errors, []);

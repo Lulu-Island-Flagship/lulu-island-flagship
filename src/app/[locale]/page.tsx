@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useTranslations } from 'next-intl';
 import Script from "next/script";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Ship, Shield, Users, Clock, Star, MapPin, LogIn } from "lucide-react";
+import { Ship, Shield, Users, Clock, Star, MapPin, LogIn, UserPlus } from "lucide-react";
 import { QuoteButton } from "@/components/landing/QuoteButton";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { AuthModal } from "@/components/cotizador/AuthModal";
@@ -118,6 +118,7 @@ export default function HomePage() {
   // activas y registradas. Ese endpoint nunca expone datos de las pólizas,
   // solo el booleano derivado (ver src/lib/business-insurance.ts).
   const [insuredClaimReady, setInsuredClaimReady] = useState(false);
+  const [authModal, setAuthModal] = useState<"signin" | "signup" | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -156,16 +157,20 @@ export default function HomePage() {
               <MapPin className="w-4 h-4" />
               {t('nav.location')}
             </span>
-            {/* v8.3: enlace visible para clientes que ya tienen cuenta --
-                antes solo se podía entrar a la cuenta empezando una
-                cotización nueva y topando con el AuthModal por accidente. */}
-            <a
-              href={`/${locale}/account/services`}
+            <button
+              onClick={() => setAuthModal("signin")}
               className="flex items-center gap-1 text-brand-navy hover:text-brand-wave-blue transition-colors"
             >
               <LogIn className="w-4 h-4" />
-              {t('nav.login')}
-            </a>
+              {t('nav.signIn')}
+            </button>
+            <button
+              onClick={() => setAuthModal("signup")}
+              className="flex items-center gap-1 bg-brand-navy text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors"
+            >
+              <UserPlus className="w-4 h-4" />
+              {t('nav.signUp')}
+            </button>
             <LanguageSelector />
           </nav>
           {/* v8.3 fix (auditoría M-1): el link de "Iniciar sesión" vivía SOLO
@@ -182,16 +187,23 @@ export default function HomePage() {
               "Sign In" visible aparecían en mobile. Se agrega el
               LanguageSelector junto al link, y el texto ya no es sr-only:
               queda visible junto al ícono, igual que en desktop. */}
-          <div className="md:hidden flex items-center gap-3">
+          <div className="md:hidden flex items-center gap-2">
             <LanguageSelector />
-            <a
-              href={`/${locale}/account/services`}
-              aria-label={t('nav.login')}
+            <button
+              onClick={() => setAuthModal("signin")}
+              aria-label={t('nav.signIn')}
               className="flex items-center gap-1 text-brand-navy hover:text-brand-wave-blue transition-colors text-sm"
             >
-              <LogIn className="w-5 h-5" />
-              <span>{t('nav.login')}</span>
-            </a>
+              <LogIn className="w-4 h-4" />
+              <span>{t('nav.signIn')}</span>
+            </button>
+            <button
+              onClick={() => setAuthModal("signup")}
+              className="flex items-center gap-1 bg-brand-navy text-white px-2 py-1 rounded-lg text-xs font-medium hover:bg-brand-navy-light transition-colors"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>{t('nav.signUp')}</span>
+            </button>
           </div>
         </div>
       </header>

@@ -28,15 +28,19 @@ import {
   type EmployeeCertificationRecord,
 } from "@/lib/certifications";
 
-export type CareerLevel = "trabajador" | "senior" | "lider" | "lider_mentor" | "coordinador_operativo";
+export type CareerLevel = "trainee" | "trabajador" | "senior" | "lider" | "lider_mentor" | "coordinador_operativo";
 
 export const CAREER_LEVEL_ORDER: CareerLevel[] = [
+  "trainee",
   "trabajador",
   "senior",
   "lider",
   "lider_mentor",
   "coordinador_operativo",
 ];
+
+/** Duración del periodo de prueba en días. */
+export const PROBATION_DAYS = 90;
 
 export interface SeniorEligibilityInput {
   tenureMonths: number;

@@ -45,8 +45,15 @@ export type AdminResource =
   // qc_wall es revisión de calidad interna y este es publicar contenido de
   // la casa de un cliente en el sitio público. qc_only NO debe tener esto.
   | "live_portfolio_publish"
+  // Hiring / recruitment — owner_admin + ops_coordinator
+  | "applicants"
+
   // QC — owner_admin + ops_coordinator + qc_only
-  | "qc_wall";
+  | "qc_wall"
+  // Client management — owner_admin + ops_coordinator
+  | "clients"
+  // Dashboard counts — all admin roles
+  | "dashboard";
 
 const MATRIX: Record<AdminResource, AdminRole[]> = {
   pricing_settings: ["owner_admin"],
@@ -78,6 +85,9 @@ const MATRIX: Record<AdminResource, AdminRole[]> = {
   // (el rol de menor privilegio) NO debe poder publicar fotos de la casa de
   // un cliente en el sitio público.
   live_portfolio_publish: ["owner_admin", "ops_coordinator"],
+  applicants: ["owner_admin", "ops_coordinator"],
+  clients: ["owner_admin", "ops_coordinator"],
+  dashboard: ["owner_admin", "ops_coordinator", "qc_only"],
   qc_wall: ["owner_admin", "ops_coordinator", "qc_only"],
 };
 

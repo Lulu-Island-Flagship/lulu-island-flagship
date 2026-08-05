@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -47,6 +47,8 @@ import {
   DatabaseBackup,
   FileSignature,
   CalendarDays,
+  UserPlus,
+  FileText,
 } from "lucide-react";
 import DashboardMetricsPanel from "./DashboardMetricsPanel";
 import AutopilotModeBanner from "./AutopilotModeBanner";
@@ -124,6 +126,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
     color: string;
     resource: AdminResource;
     group: DashboardGroupId;
+    badgeKey?: string;
   }> = [
     {
       title: t("cards.alertInbox.title"),
@@ -164,6 +167,7 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       color: "bg-purple-50 text-purple-600",
       resource: "employees_admin",
       group: "operations",
+      badgeKey: "pendingDispatch",
     },
     {
       title: t("cards.upsellsReview.title"),
@@ -246,6 +250,26 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/business-insurance/route.ts).
       resource: "finance",
       group: "pricingFinance",
+    },
+    {
+      title: t("cards.applicants.title"),
+      description: t("cards.applicants.description"),
+      icon: FileText,
+      href: `/${safeLocale}/admin/applicants`,
+      color: "bg-blue-50 text-blue-600",
+      resource: "applicants",
+      group: "operations",
+      badgeKey: "newApplicants",
+    },
+    {
+      title: t("cards.newClients.title"),
+      description: t("cards.newClients.description"),
+      icon: UserPlus,
+      href: `/${safeLocale}/admin/clients`,
+      color: "bg-emerald-50 text-emerald-600",
+      resource: "clients",
+      group: "salesCustomer",
+      badgeKey: "newClients",
     },
     {
       title: t("cards.seasonalCampaigns.title"),
@@ -579,6 +603,16 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
   const visibleCards = cards.filter((card) => roleAllows(roles, card.resource));
 
   const [search, setSearch] = useState("");
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    fetch("/api/admin/dashboard-counts", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.counts) setCounts(data.counts);
+      })
+      .catch(() => {});
+  }, []);
 
   const query = search.trim().toLowerCase();
   const filteredCards = query
@@ -653,7 +687,14 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
                           <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${card.color}`}>
                             <Icon className="w-5 h-5" />
                           </div>
-                          <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-brand-navy transition-colors" />
+                          <div className="flex items-center gap-2">
+                            {card.badgeKey && counts[card.badgeKey] > 0 && (
+                              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold bg-red-500 text-white">
+                                {counts[card.badgeKey]}
+                              </span>
+                            )}
+                            <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-brand-navy transition-colors" />
+                          </div>
                         </div>
                         <h2 className="mt-3 font-semibold text-brand-ink">{card.title}</h2>
                         <p className="mt-1 text-sm text-gray-500">{card.description}</p>

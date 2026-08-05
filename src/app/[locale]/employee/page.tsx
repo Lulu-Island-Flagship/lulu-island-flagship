@@ -651,9 +651,37 @@ export default function EmpleadoPage() {
             // -- con botón de reintentar en vez de una lista vacía silenciosa.
             <ErrorBanner message={servicesError} onRetry={loadEmployeeData} retrying={loadingServices} />
           ) : services.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-elevation-1 p-8 text-center">
+            <div className="bg-white rounded-xl shadow-elevation-1 p-6 text-center">
               <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 text-sm">{t("noServices")}</p>
+              <p className="text-gray-500 text-sm mb-4">{t("noServices")}</p>
+              {jornadaStatus === "started" && (
+                <div className="border-t pt-4 mt-2 text-left">
+                  <p className="text-xs font-semibold text-brand-ink/60 uppercase tracking-wider mb-3">
+                    {t("basicTasksTitle")}
+                  </p>
+                  <ul className="space-y-2 text-sm text-gray-600">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-brand-wave-blue mt-0.5 shrink-0" />
+                      {t("basicTask1")}
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-brand-wave-blue mt-0.5 shrink-0" />
+                      {t("basicTask2")}
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-brand-wave-blue mt-0.5 shrink-0" />
+                      {t("basicTask3")}
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-brand-wave-blue mt-0.5 shrink-0" />
+                      {t("basicTask4")}
+                    </li>
+                  </ul>
+                  <p className="text-xs text-gray-400 mt-3 italic">
+                    {t("basicTasksNote")}
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
