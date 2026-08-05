@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole } from "@/lib/admin";
+import { requireAdminRole, getServiceRoleClient } from "@/lib/admin";
 
 export async function GET(
   _request: NextRequest,
@@ -31,7 +31,14 @@ export async function GET(
     return NextResponse.json({ error: "No resume found" }, { status: 404 });
   }
 
-  const { data: signedData, error: signedError } = await auth.supabase.storage
+  // Usar service role client para storage (bypassea RLS). El admin ya fue
+  // validado por requireAdminRole arriba — no hay escalada de privilegios.
+  const serviceClient = getServiceRoleClient();
+  if (!serviceClient) {
+    return NextResponse.json({ error: "Storage service unavailable" }, { status: 500 });
+  }
+
+  const { data: signedData, error: signedError } = await serviceClient.storage
     .from("candidate-documents")
     .createSignedUrl(docs[0].storage_path, 3600);
 
