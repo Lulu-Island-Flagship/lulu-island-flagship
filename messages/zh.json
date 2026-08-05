@@ -1503,7 +1503,9 @@
         "wallet": "钱包",
         "comunicaciones": "沟通模板",
         "configHistory": "配置变更记录",
-        "roles": "角色管理"
+        "roles": "角色管理",
+        "compliance": "合规管理",
+        "payrollRemittances": "税务汇款"
       }
     },
     "layout": {
@@ -1539,193 +1541,113 @@
         "growthMarketing": "增长与营销"
       },
       "cards": {
-        "alertInbox": {
-          "title": "警报收件箱",
-          "description": "统一队列——10分钟内响应 vs 可以等待 (E0.6)"
+        "businessHealth": {
+          "title": "业务健康",
+          "description": "收入、利润率、活跃客户 — 近30天"
         },
-        "todaysServices": {
-          "title": "今日服务",
-          "description": "查看今天所有已排期的服务及检查清单进度"
+        "reviewServices": {
+          "title": "审核服务",
+          "description": "查看今日所有已排程服务及清单进度"
         },
-        "dispatchReview": {
-          "title": "调度审核",
-          "description": "每日派工矩阵——覆盖调整、语言匹配、工时警报 (D.4)"
+        "reviewQuotes": {
+          "title": "审核报价",
+          "description": "低于15%利润率门槛的报价"
         },
-        "employees": {
-          "title": "员工",
-          "description": "查看所有在职和离职员工"
+        "reviewUpsells": {
+          "title": "审核追加销售",
+          "description": "员工提出的追加销售审核"
         },
-        "upsellsReview": {
-          "title": "加售审核",
-          "description": "审核员工提出的加售项目"
+        "approveServices": {
+          "title": "批准服务",
+          "description": "附有照片证据的已完成服务"
         },
-        "checklists": {
-          "title": "检查清单",
-          "description": "按区域和服务类型管理 SOP 检查清单模板"
+        "reviewAlerts": {
+          "title": "审核警报",
+          "description": "统一队列 — 10分钟内回应或可等待"
         },
-        "qcWall": {
-          "title": "质检墙",
-          "description": "根据证据批准或驳回已完成的服务"
+        "todaysDispatch": {
+          "title": "今日调度",
+          "description": "每日分配矩阵"
         },
-        "fieldAudits": {
-          "title": "现场审计",
-          "description": "登记现场评估并查看同行投票汇总"
+        "atRiskClients": {
+          "title": "风险客户",
+          "description": "流失信号、低NPS、逾期付款"
         },
-        "tickets": {
-          "title": "工单",
-          "description": "争议、差异及咨询请求队列"
+        "netMargin": {
+          "title": "净利润率",
+          "description": "收入 − 可变成本 − 固定成本 — 本月"
         },
-        "quoteReviews": {
-          "title": "报价审核",
-          "description": "批准或驳回低于15%利润率下限的报价"
+        "teamScore": {
+          "title": "团队评分",
+          "description": "每周前三名和个人平均分"
         },
-        "pricingRules": {
-          "title": "定价规则",
-          "description": "无头规则引擎——当前生效规则与审计日志"
-        },
-        "pricingSettings": {
-          "title": "定价设置",
-          "description": "目标时薪与 HHE 表预览"
-        },
-        "businessInsurance": {
-          "title": "企业保险",
-          "description": "车辆险、一般责任险及 E&O 保单登记"
-        },
-        "seasonalCampaigns": {
-          "title": "季节性营销活动",
-          "description": "5个预设活动，根据真实需求信号动态调整"
-        },
-        "succession": {
-          "title": "继任模式",
-          "description": "可信继任人及职业倦怠/继任状态"
-        },
-        "drDrills": {
-          "title": "灾难恢复演练",
-          "description": "灾难恢复演练日志——恢复、继任、应急包、备用方案 (E11.4)"
-        },
-        "weatherExceptions": {
-          "title": "恶劣天气例外",
-          "description": "恶劣天气日志——改期 vs 安全终止 + 日费率 (D.10#10)"
-        },
-        "workplaceIncidents": {
-          "title": "工伤事件",
-          "description": "伤害事件——WorkSafeBC 72小时预填报告倒计时 (D.10#6)"
-        },
-        "churnSignals": {
-          "title": "流失信号",
-          "description": "高风险客户——调查、召回折扣、专人跟进 (D.10.9)"
-        },
-        "attribution": {
-          "title": "归因分析",
-          "description": "各渠道 CAC/LTV + 建议预算分配 (D.10.2)"
-        },
-        "partners": {
-          "title": "合作伙伴与佣金",
-          "description": "房地产、物业管理、兽医、建筑商推荐——全部 T4A (D.10.6)"
-        },
-        "neighborhood": {
-          "title": "社区关系",
-          "description": "礼宾通知、噪音规定、投诉及邻里线索 (E11.5)"
-        },
-        "experiments": {
-          "title": "A/B 测试",
-          "description": "价格/文案/界面测试——始终保护复购客户 (D.10.11)"
-        },
-        "clientSegments": {
-          "title": "客户分层",
-          "description": "VIP / 常规 / 偶尔 / 高风险 / 新客户 (E5.14)"
-        },
-        "wellbeing": {
-          "title": "团队健康状况",
-          "description": "睡眠/情绪汇总数据——绝不显示个人数据 (E8.1/E8.3)"
-        },
-        "teams": {
-          "title": "团队",
-          "description": "基础团队信息（名称+头像），用于每周 Top 3 排名 (E8.9/E8.10)"
-        },
-        "routeShortcuts": {
-          "title": "路线捷径",
-          "description": "员工上报的待验证捷径——验证可获10美元奖励（E8学习路径）"
-        },
-        "coworkerRotation": {
-          "title": "同事轮换",
-          "description": "每月至少3位不同同事 + “从不同组”例外情况 (E8.14)"
-        },
-        "livePortfolio": {
-          "title": "实时作品集",
-          "description": "自动推荐候选照片——一键批准，客户保留24小时撤回权 (E5.15)"
-        },
-        "seoLocal": {
-          "title": "本地 SEO 与 GBP",
-          "description": "Google 商家资料检查清单 + 季度 NAP 信息核实 (E10.3)"
-        },
-        "employeeMarketing": {
-          "title": "员工营销",
-          "description": "日常工作短视频与徽章展示——需员工同意 + 一键批准 (E10.8)"
-        },
-        "payrollExport": {
-          "title": "薪资导出",
-          "description": "按员工导出 CPP/EI/WorkSafeBC/假期工资，支持 CSV/JSON (E9.3)"
-        },
-        "economicParameters": {
-          "title": "经济参数",
-          "description": "最低工资 / 日费率——模拟影响，一键应用 (E9.6)"
-        },
-        "legalMonitoring": {
-          "title": "法规监测",
-          "description": "7个监管信息源、静默源警报、未处理变更提醒 (E9.7)"
-        },
-        "pipeda": {
-          "title": "PIPEDA 合规",
-          "description": "数据主体请求（48小时）+ 数据泄露应对流程（72小时）(E9.9)"
-        },
-        "giftProgram": {
-          "title": "礼品计划",
-          "description": "住宅客户留存礼品 + 物业管理楼宇专属福利 (E9.11)"
-        },
-        "growthMetrics": {
-          "title": "增长指标",
-          "description": "转化漏斗、推荐、流失率、NPS 得分与目标对比 (E10.13)"
-        },
-        "entityNotes": {
-          "title": "运营备注",
-          "description": "关联员工/房产的备注，按情境展示 (E11.2)"
-        },
-        "stressScenario": {
-          "title": "财务压力测试",
-          "description": "收入下降30% x 3个月的模拟，按顺序的应对措施，复核阈值 (E11.7)"
-        },
-        "legacyMigration": {
-          "title": "旧系统迁移收尾",
-          "description": "www 重定向 + Godaddy 归档/取消检查清单 (E11.8)"
-        },
-        "certifications": {
-          "title": "认证管理",
-          "description": "化学品操作等级及真实到期日——过期后阻止派工 (E9.4)"
-        },
-        "craRemittances": {
-          "title": "CRA 税款申报",
-          "description": "CPP/EI 按月、GST/PST 按季、T4 按年——提醒日历 (E9.4)"
+        "craDeadlines": {
+          "title": "CRA截止日期",
+          "description": "即将到来的CPP/EI、GST/PST、T4付款"
         },
         "backupStatus": {
           "title": "备份状态",
-          "description": "交易/薪资/客户/照片 CSV+哈希 + pg_dump 提醒 (E9.10)"
-        },
-        "contractReviews": {
-          "title": "合同续签审核",
-          "description": "周年日前60天——法律条款对比、审批、电子签名 (E9.8)"
-        },
-        "laborCompliance": {
-          "title": "BC省劳动合规",
-          "description": "休息记录、病假、每周32小时休息、法定假日工资"
-        },
-        "applicants": {
-          "title": "求职者",
-          "description": "审核和批准求职申请"
-        },
-        "newClients": {
-          "title": "新客户",
-          "description": "最近注册的客户账户"
+          "description": "最近的事务/薪资/客户/照片备份"
+        }
+      }
+    },
+    "modules": {
+      "people": {
+        "title": "人员",
+        "items": {
+          "employees": "员工",
+          "applicants": "求职者",
+          "teams": "团队",
+          "teamRotation": "团队轮换",
+          "certifications": "认证",
+          "wellbeing": "健康",
+          "marketing": "员工营销"
+        }
+      },
+      "clients": {
+        "title": "客户",
+        "items": {
+          "newClients": "新客户",
+          "segments": "客户细分",
+          "candidatePool": "候选池",
+          "campaigns": "活动",
+          "gifts": "礼品",
+          "neighborhood": "邻里"
+        }
+      },
+      "finance": {
+        "title": "财务",
+        "items": {
+          "contributionMargin": "贡献利润率",
+          "pricingRules": "定价规则",
+          "pricingSettings": "定价设置",
+          "payrollExport": "工资导出",
+          "insurance": "保险",
+          "economicSettings": "经济参数",
+          "partners": "合作伙伴",
+          "paymentSuccess": "付款成功率"
+        }
+      },
+      "compliance": {
+        "title": "合规",
+        "items": {
+          "laborCompliance": "劳动合规",
+          "privacy": "隐私",
+          "contractRenewals": "合同续签",
+          "legalUpdates": "法律更新",
+          "incidents": "事件"
+        }
+      },
+      "system": {
+        "title": "系统",
+        "items": {
+          "recoveryDrills": "恢复演练",
+          "stressTest": "压力测试",
+          "migrationClosure": "迁移收尾",
+          "experiments": "实验",
+          "localSeo": "本地SEO",
+          "growthMetrics": "增长指标",
+          "attribution": "归因"
         }
       }
     },
@@ -3197,6 +3119,170 @@
         "workSafeBc": "WorkSafeBC",
         "vacationPay": "假期工资",
         "estNet": "预计净额（未扣税）"
+      }
+    },
+    "exportAccounting": {
+      "title": "会计导出",
+      "subtitle": "将日记账分录导出至外部会计系统。格式：CSV、QuickBooks IIF、PDF、JSON。",
+      "periodLabel": "期间",
+      "monthAriaLabel": "月份",
+      "formatLabel": "格式",
+      "previousMonth": "上个月",
+      "nextMonth": "下个月",
+      "exportButton": "导出",
+      "exporting": "导出中...",
+      "exportSuccess": "{filename} 下载成功。",
+      "preview": "预览",
+      "showingFirstN": "显示 {count} / {total} 行",
+      "refreshPreview": "刷新预览",
+      "loadingPreview": "加载预览...",
+      "noPreview": "选择期间以查看预览。",
+      "emptyPeriod": "此期间无会计分录。",
+      "loading": "加载中...",
+      "retry": "重试",
+      "dismiss": "关闭",
+      "historyToggle": "导出历史",
+      "historyTitle": "最近导出",
+      "noHistory": "无最近导出记录。",
+      "refreshHistory": "刷新历史",
+      "table": {
+        "date": "日期",
+        "description": "描述",
+        "account": "科目",
+        "debit": "借方",
+        "credit": "贷方"
+      },
+      "historyTable": {
+        "period": "期间",
+        "format": "格式",
+        "filename": "文件名",
+        "rows": "行数",
+        "downloadedAt": "下载时间"
+      },
+      "errors": {
+        "previewFailed": "加载预览数据失败。",
+        "exportFailed": "导出失败，请重试。",
+        "historyFailed": "加载导出历史失败。",
+        "network": "网络错误，请检查连接。"
+      }
+    },
+    "compliance": {
+      "title": "合规管理",
+      "lastSync": "上次更新",
+      "versionHistory": "版本历史",
+      "filterByType": "按类型筛选",
+      "filterAll": "全部",
+      "retry": "重试",
+      "loading": "加载规则中...",
+      "empty": "尚未配置任何法律规则。",
+      "emptyForType": "无 {tipo} 类型的规则。",
+      "countSummary": "{active} 条生效 · {pending} 条待审 · {historic} 条历史",
+      "newVersionButton": "新版本",
+      "historyTitle": "版本变更历史",
+      "noHistory": "无版本变更记录。",
+      "statusActive": "生效中",
+      "statusPendingReview": "待审核",
+      "statusExpired": "已过期",
+      "alerts": {
+        "workSafeBcRateChanged": "{tipo} 费率已变更。请审核待处理的新版本。",
+        "newVersionAvailable": "新的 {tipo} 版本可供审核。"
+      },
+      "table": {
+        "tipo": "类型",
+        "jurisdiccion": "辖区",
+        "version": "版本",
+        "parametros": "参数",
+        "estado": "状态",
+        "vigencia": "生效期",
+        "acciones": "操作"
+      },
+      "newVersionModal": {
+        "title": "{tipo} v{version} 的新版本",
+        "versionLabel": "版本号 (YYYY-MM)",
+        "versionHint": "格式：YYYY-MM，例如 2026-08",
+        "effectiveDateLabel": "生效日期",
+        "notesLabel": "备注",
+        "notesHint": "此新版本的原因（可选）",
+        "create": "创建新版本",
+        "creating": "创建中..."
+      },
+      "errors": {
+        "loadFailed": "加载合规规则失败。",
+        "network": "网络错误，请检查连接。",
+        "historyFailed": "加载版本历史失败。",
+        "versionFailed": "创建新版本失败。"
+      }
+    },
+    "payrollRemittances": {
+      "title": "税务汇款",
+      "paymentLog": "付款记录",
+      "overdueBanner": "{count} 笔汇款逾期未付。",
+      "retry": "重试",
+      "loading": "加载汇款中...",
+      "empty": "未找到汇款记录。",
+      "daysRemaining": "剩余 {count} 天",
+      "daysOverdue": "逾期 {count} 天",
+      "refresh": "刷新",
+      "close": "关闭",
+      "pd7aSection": "生成 PD7A",
+      "pd7aDescription": "当前来源扣除账户对账单（CPP、EI、所得税）",
+      "generatePd7aButton": "生成 PD7A",
+      "generatingPd7a": "生成中...",
+      "pd7aGenerated": "PD7A 生成成功",
+      "downloadRemittance": "下载汇款文件",
+      "markPaid": "标记已付",
+      "pd7aTable": {
+        "period": "期间",
+        "quincena": "工资周期",
+        "businessNumber": "企业编号",
+        "dueDate": "到期日",
+        "employees": "员工数",
+        "grossPayroll": "工资总额",
+        "breakdown": "扣除明细",
+        "cppEmployee": "CPP（员工）",
+        "cppEmployer": "CPP（雇主）",
+        "eiEmployee": "EI（员工）",
+        "eiEmployer": "EI（雇主）",
+        "incomeTax": "所得税",
+        "totalRemittance": "汇款总额"
+      },
+      "table": {
+        "tipo": "类型",
+        "periodo": "期间",
+        "monto": "金额",
+        "vencimiento": "到期日",
+        "estado": "状态",
+        "comprobante": "凭证",
+        "acciones": "操作"
+      },
+      "statusPaid": "已付",
+      "statusDue": "待付",
+      "statusOverdue": "逾期",
+      "paymentLogTitle": "付款记录",
+      "noPayments": "尚无付款记录。",
+      "paymentTable": {
+        "date": "日期",
+        "tipo": "类型",
+        "periodo": "期间",
+        "monto": "金额",
+        "comprobante": "凭证"
+      },
+      "markPaidModal": {
+        "title": "标记汇款已付",
+        "confirm": "确认付款",
+        "processing": "处理中...",
+        "dateLabel": "付款日期",
+        "referenceLabel": "CRA 确认编号",
+        "referenceHint": "CRA 确认编号（可选）",
+        "amountLabel": "汇款金额 (CAD)",
+        "amountHint": "可选，以美元计"
+      },
+      "errors": {
+        "loadFailed": "加载汇款失败。",
+        "network": "网络错误，请检查连接。",
+        "generatePd7aFailed": "生成 PD7A 失败。",
+        "downloadFailed": "下载汇款文件失败。",
+        "payFailed": "标记汇款已付失败。"
       }
     },
     "dashboardMetrics": {

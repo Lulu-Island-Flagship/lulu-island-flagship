@@ -1503,7 +1503,9 @@
         "wallet": "Wallet",
         "comunicaciones": "Communications",
         "configHistory": "Config History",
-        "roles": "Roles"
+        "roles": "Roles",
+        "compliance": "Compliance",
+        "payrollRemittances": "Payroll Remittances"
       }
     },
     "layout": {
@@ -1526,199 +1528,61 @@
       "searchPlaceholder": "Search dashboard cards...",
       "searchAriaLabel": "Search dashboard cards",
       "searchNoResults": "No cards match your search.",
-      "otherGroup": "Other",
-      "groups": {
-        "operations": "Operations",
-        "qualitySafety": "Quality & Safety",
-        "continuity": "Business Continuity & Risk",
-        "salesCustomer": "Sales & Customer",
-        "pricingFinance": "Pricing & Finance",
-        "payrollHr": "Payroll & HR",
-        "wellbeing": "Employee Wellbeing",
-        "complianceLegal": "Compliance & Legal",
-        "growthMarketing": "Growth & Marketing"
-      },
       "cards": {
-        "alertInbox": {
-          "title": "Alert Inbox",
-          "description": "Unified queue — respond in 10 min vs. can wait (E0.6)"
+        "businessHealth": {
+          "title": "Business Health",
+          "description": "Revenue, margin, active clients — last 30 days"
         },
-        "todaysServices": {
-          "title": "Today's Services",
-          "description": "View all scheduled services for today with checklist progress"
+        "reviewServices": {
+          "title": "Review Services",
+          "description": "Today's services with checklist progress"
         },
-        "dispatchReview": {
-          "title": "Dispatch review",
-          "description": "Daily assignment matrix — override, language match, workday alerts (D.4)"
+        "reviewQuotes": {
+          "title": "Review Quotes",
+          "description": "Quotes below the 15% margin floor"
         },
-        "employees": {
-          "title": "Employees",
-          "description": "View all active and inactive employees"
+        "reviewUpsells": {
+          "title": "Review Upsells",
+          "description": "Upsells proposed by the team"
         },
-        "upsellsReview": {
-          "title": "Upsells Review",
-          "description": "Review upsells proposed by employees"
+        "approveServices": {
+          "title": "Approve Services",
+          "description": "Completed services with photo evidence"
         },
-        "checklists": {
-          "title": "Checklists",
-          "description": "Manage SOP checklist templates by zone and service type"
+        "reviewAlerts": {
+          "title": "Review Alerts",
+          "description": "Unified queue — respond in 10 min vs. can wait"
         },
-        "qcWall": {
-          "title": "QC Wall",
-          "description": "Approve or reject completed services with evidence"
+        "todaysDispatch": {
+          "title": "Today's Dispatch",
+          "description": "Daily assignment matrix"
         },
-        "fieldAudits": {
-          "title": "Field Audits",
-          "description": "Register field evaluations and view peer vote aggregates"
+        "atRiskClients": {
+          "title": "At-Risk Clients",
+          "description": "Churn signals, low NPS, late payments"
         },
-        "tickets": {
-          "title": "Tickets",
-          "description": "Disputes, discrepancies, and consultation queue"
+        "netMargin": {
+          "title": "Net Margin",
+          "description": "Revenue − variable costs − fixed costs — this month"
         },
-        "quoteReviews": {
-          "title": "Quote Reviews",
-          "description": "Approve or reject quotes below the 15% margin floor"
+        "teamScore": {
+          "title": "Team Score",
+          "description": "Weekly top 3 and individual averages"
         },
-        "pricingRules": {
-          "title": "Pricing Rules",
-          "description": "Headless rule engine — active rules and audit log"
-        },
-        "pricingSettings": {
-          "title": "Pricing Settings",
-          "description": "Target hourly rate and HHE table preview"
-        },
-        "businessInsurance": {
-          "title": "Business Insurance",
-          "description": "Vehicular, general liability, and E&O policy registry"
-        },
-        "seasonalCampaigns": {
-          "title": "Seasonal Campaigns",
-          "description": "The 5 pre-loaded campaigns, modulated by real demand signals"
-        },
-        "succession": {
-          "title": "Succession Mode",
-          "description": "Trusted successors and burnout/succession status"
-        },
-        "drDrills": {
-          "title": "DR Drills",
-          "description": "Disaster recovery drill log — restore, succession, kit, fallback (E11.4)"
-        },
-        "weatherExceptions": {
-          "title": "Weather Exceptions",
-          "description": "Adverse weather log — reschedule vs. safe abort + Day Rate (D.10#10)"
-        },
-        "workplaceIncidents": {
-          "title": "Workplace Incidents",
-          "description": "Injuries — WorkSafeBC 72h pre-filled report countdown (D.10#6)"
-        },
-        "churnSignals": {
-          "title": "Churn Signals",
-          "description": "At-risk clients — survey, reactivation discount, personal follow-up (D.10.9)"
-        },
-        "attribution": {
-          "title": "Attribution",
-          "description": "CAC/LTV by channel + suggested budget allocation (D.10.2)"
-        },
-        "partners": {
-          "title": "Partners & Commissions",
-          "description": "Real estate, property manager, vet, builder referrals — all T4A (D.10.6)"
-        },
-        "neighborhood": {
-          "title": "Neighborhood",
-          "description": "Concierge notices, noise rules, complaints, and neighbor leads (E11.5)"
-        },
-        "experiments": {
-          "title": "A/B Experiments",
-          "description": "Price/copy/UI experiments — recurring clients always protected (D.10.11)"
-        },
-        "clientSegments": {
-          "title": "Client Segments",
-          "description": "VIP / Regular / Sporadic / At Risk / New (E5.14)"
-        },
-        "wellbeing": {
-          "title": "Team Wellbeing",
-          "description": "Aggregated sleep/mood check-ins — never individual (E8.1/E8.3)"
-        },
-        "teams": {
-          "title": "Teams",
-          "description": "Minimal team identity (name + avatar) feeding the weekly Top-3 ranking (E8.9/E8.10)"
-        },
-        "routeShortcuts": {
-          "title": "Route Shortcuts",
-          "description": "Employee-reported shortcuts pending validation — validating pays $10 (E8 learning route)"
-        },
-        "coworkerRotation": {
-          "title": "Coworker Rotation",
-          "description": "Minimum 3 distinct coworkers/month + \"never together\" exceptions (E8.14)"
-        },
-        "livePortfolio": {
-          "title": "Live Portfolio",
-          "description": "Auto-surfaced candidates — one-tap approve, client keeps a 24h withdrawal right (E5.15)"
-        },
-        "seoLocal": {
-          "title": "SEO Local & GBP",
-          "description": "Google Business Profile checklist + quarterly NAP verification (E10.3)"
-        },
-        "employeeMarketing": {
-          "title": "Employee Marketing",
-          "description": "Day-in-the-life reels & badge showcase — employee consent + one-touch approval (E10.8)"
-        },
-        "payrollExport": {
-          "title": "Payroll Export",
-          "description": "CPP/EI/WorkSafeBC/Vacation Pay per employee, CSV/JSON export (E9.3)"
-        },
-        "economicParameters": {
-          "title": "Economic Parameters",
-          "description": "Minimum wage / Day Rate — simulate impact, one click to apply (E9.6)"
-        },
-        "legalMonitoring": {
-          "title": "Legal Monitoring",
-          "description": "7 regulatory feeds, blind-feed alert, open change alerts (E9.7)"
-        },
-        "pipeda": {
-          "title": "PIPEDA Compliance",
-          "description": "Data subject requests (48h) + breach protocol (72h) (E9.9)"
-        },
-        "giftProgram": {
-          "title": "Gift Program",
-          "description": "Residential retention gifts + property-manager building benefits (E9.11)"
-        },
-        "growthMetrics": {
-          "title": "Growth Metrics",
-          "description": "Funnel, referrals, churn, NPS scorecard vs. targets (E10.13)"
-        },
-        "entityNotes": {
-          "title": "Operational Notes",
-          "description": "Notes tied to employees/properties, surfaced by context (E11.2)"
-        },
-        "stressScenario": {
-          "title": "Financial Stress Scenario",
-          "description": "-30% revenue x 3 months simulation, levers in order, review threshold (E11.7)"
-        },
-        "legacyMigration": {
-          "title": "Legacy Migration Closure",
-          "description": "www redirect + Godaddy archive/cancellation checklist (E11.8)"
-        },
-        "certifications": {
-          "title": "Certifications",
-          "description": "Chemical handling levels with real expiry — blocks dispatch when lapsed (E9.4)"
-        },
-        "craRemittances": {
-          "title": "CRA Remittances",
-          "description": "CPP/EI monthly, GST/PST quarterly, T4 annual — reminder calendar (E9.4)"
+        "craDeadlines": {
+          "title": "CRA Deadlines",
+          "description": "Upcoming CPP/EI, GST/PST, T4 payments"
         },
         "backupStatus": {
           "title": "Backup Status",
-          "description": "Transactions/payroll/clients/photos CSV+hash + pg_dump reminder (E9.10)"
-        },
-        "contractReviews": {
-          "title": "Contract Renewal Reviews",
-          "description": "60 days before anniversary — legal diff, approval, digital signature (E9.8)"
-        },
-        "laborCompliance": {
-          "title": "BC Labor Compliance",
-          "description": "Documented breaks, sick leave, weekly 32h rest, statutory holiday pay"
+          "description": "Latest transactions/payroll/clients/photos backup"
         }
+      },
+      "sections": {
+        "kpi": "Business Health",
+        "actions": "Requires Attention",
+        "monitoring": "Monitoring",
+        "modules": "Modules"
       }
     },
     "checklists": {
@@ -3191,6 +3055,170 @@
         "estNet": "Est. Net (pre-tax)"
       }
     },
+    "exportAccounting": {
+      "title": "Accounting Export",
+      "subtitle": "Export journal entries for external accounting systems. Formats: CSV, QuickBooks IIF, PDF, JSON.",
+      "periodLabel": "Period",
+      "monthAriaLabel": "Month",
+      "formatLabel": "Format",
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "exportButton": "Export",
+      "exporting": "Exporting...",
+      "exportSuccess": "{filename} downloaded successfully.",
+      "preview": "Preview",
+      "showingFirstN": "Showing {count} of {total} rows",
+      "refreshPreview": "Refresh preview",
+      "loadingPreview": "Loading preview...",
+      "noPreview": "Select a period to see a preview.",
+      "emptyPeriod": "No accounting entries for this period.",
+      "loading": "Loading...",
+      "retry": "Retry",
+      "dismiss": "Dismiss",
+      "historyToggle": "Export history",
+      "historyTitle": "Recent exports",
+      "noHistory": "No recent exports.",
+      "refreshHistory": "Refresh history",
+      "table": {
+        "date": "Date",
+        "description": "Description",
+        "account": "Account",
+        "debit": "Debit",
+        "credit": "Credit"
+      },
+      "historyTable": {
+        "period": "Period",
+        "format": "Format",
+        "filename": "Filename",
+        "rows": "Rows",
+        "downloadedAt": "Downloaded"
+      },
+      "errors": {
+        "previewFailed": "Failed to load preview data.",
+        "exportFailed": "Export failed. Please try again.",
+        "historyFailed": "Failed to load export history.",
+        "network": "Network error. Please check your connection."
+      }
+    },
+    "compliance": {
+      "title": "Legal Compliance",
+      "lastSync": "Last updated",
+      "versionHistory": "Version history",
+      "filterByType": "Filter by type",
+      "filterAll": "All",
+      "retry": "Retry",
+      "loading": "Loading rules...",
+      "empty": "No legal rules configured.",
+      "emptyForType": "No rules for {tipo}.",
+      "countSummary": "{active} active · {pending} pending · {historic} historic",
+      "newVersionButton": "New version",
+      "historyTitle": "Version change history",
+      "noHistory": "No version changes recorded.",
+      "statusActive": "Active",
+      "statusPendingReview": "Pending review",
+      "statusExpired": "Expired",
+      "alerts": {
+        "workSafeBcRateChanged": "{tipo} rate has changed. Review pending new version.",
+        "newVersionAvailable": "A new {tipo} version is available for review."
+      },
+      "table": {
+        "tipo": "Type",
+        "jurisdiccion": "Jurisdiction",
+        "version": "Version",
+        "parametros": "Parameters",
+        "estado": "Status",
+        "vigencia": "Effective",
+        "acciones": "Actions"
+      },
+      "newVersionModal": {
+        "title": "New version for {tipo} v{version}",
+        "versionLabel": "Version (YYYY-MM)",
+        "versionHint": "Format: YYYY-MM, e.g. 2026-08",
+        "effectiveDateLabel": "Effective date",
+        "notesLabel": "Notes",
+        "notesHint": "Reason for this new version (optional)",
+        "create": "Create new version",
+        "creating": "Creating..."
+      },
+      "errors": {
+        "loadFailed": "Failed to load compliance rules.",
+        "network": "Network error. Please check your connection.",
+        "historyFailed": "Failed to load version history.",
+        "versionFailed": "Failed to create new version."
+      }
+    },
+    "payrollRemittances": {
+      "title": "Tax Remittances",
+      "paymentLog": "Payment log",
+      "overdueBanner": "{count} remittance(s) overdue and still pending.",
+      "retry": "Retry",
+      "loading": "Loading remittances...",
+      "empty": "No remittances found.",
+      "daysRemaining": "{count} days left",
+      "daysOverdue": "{count} days overdue",
+      "refresh": "Refresh",
+      "close": "Close",
+      "pd7aSection": "Generate PD7A",
+      "pd7aDescription": "Statement of Account for Current Source Deductions (CPP, EI, Income Tax)",
+      "generatePd7aButton": "Generate PD7A",
+      "generatingPd7a": "Generating...",
+      "pd7aGenerated": "PD7A generated successfully",
+      "downloadRemittance": "Download remittance file",
+      "markPaid": "Mark paid",
+      "pd7aTable": {
+        "period": "Period",
+        "quincena": "Pay period",
+        "businessNumber": "Business Number",
+        "dueDate": "Due date",
+        "employees": "Employees",
+        "grossPayroll": "Gross payroll",
+        "breakdown": "Source deductions breakdown",
+        "cppEmployee": "CPP (employee)",
+        "cppEmployer": "CPP (employer)",
+        "eiEmployee": "EI (employee)",
+        "eiEmployer": "EI (employer)",
+        "incomeTax": "Income Tax",
+        "totalRemittance": "Total to remit"
+      },
+      "table": {
+        "tipo": "Type",
+        "periodo": "Period",
+        "monto": "Amount",
+        "vencimiento": "Due date",
+        "estado": "Status",
+        "comprobante": "Receipt",
+        "acciones": "Actions"
+      },
+      "statusPaid": "Paid",
+      "statusDue": "Due",
+      "statusOverdue": "Overdue",
+      "paymentLogTitle": "Payment log",
+      "noPayments": "No payments recorded yet.",
+      "paymentTable": {
+        "date": "Date",
+        "tipo": "Type",
+        "periodo": "Period",
+        "monto": "Amount",
+        "comprobante": "Receipt"
+      },
+      "markPaidModal": {
+        "title": "Mark remittance as paid",
+        "confirm": "Confirm payment",
+        "processing": "Processing...",
+        "dateLabel": "Payment date",
+        "referenceLabel": "CRA confirmation reference",
+        "referenceHint": "Optional confirmation number from CRA",
+        "amountLabel": "Amount remitted (CAD)",
+        "amountHint": "Optional, in dollars"
+      },
+      "errors": {
+        "loadFailed": "Failed to load remittances.",
+        "network": "Network error. Please check your connection.",
+        "generatePd7aFailed": "Failed to generate PD7A.",
+        "downloadFailed": "Failed to download remittance file.",
+        "payFailed": "Failed to mark remittance as paid."
+      }
+    },
     "dashboardMetrics": {
       "title": "Business Health — last 30 days",
       "loadError": "Failed to load metrics",
@@ -4250,6 +4278,66 @@
         "runFailed": "Failed to run",
         "saveFailed": "Failed to save",
         "network": "Network error"
+      }
+    },
+    "modules": {
+      "people": {
+        "title": "People",
+        "items": {
+          "employees": "Employees",
+          "applicants": "Applicants",
+          "teams": "Teams",
+          "teamRotation": "Team Rotation",
+          "certifications": "Certifications",
+          "wellbeing": "Wellbeing",
+          "marketing": "Team Marketing"
+        }
+      },
+      "clients": {
+        "title": "Clients",
+        "items": {
+          "newClients": "New Clients",
+          "segments": "Segments",
+          "candidatePool": "Candidate Pool",
+          "campaigns": "Campaigns",
+          "gifts": "Gifts",
+          "neighborhood": "Neighborhood"
+        }
+      },
+      "finance": {
+        "title": "Finance",
+        "items": {
+          "contributionMargin": "Contribution Margin",
+          "pricingRules": "Pricing Rules",
+          "pricingSettings": "Pricing Settings",
+          "payrollExport": "Payroll Export",
+          "insurance": "Insurance",
+          "economicSettings": "Economic Settings",
+          "partners": "Partners",
+          "paymentSuccess": "Payment Success"
+        }
+      },
+      "compliance": {
+        "title": "Compliance",
+        "items": {
+          "laborCompliance": "Labor Compliance",
+          "privacy": "Privacy",
+          "contractRenewals": "Contract Renewals",
+          "legalUpdates": "Legal Updates",
+          "incidents": "Incidents"
+        }
+      },
+      "system": {
+        "title": "System",
+        "items": {
+          "recoveryDrills": "Recovery Drills",
+          "stressTest": "Stress Test",
+          "migrationClosure": "Migration Closure",
+          "experiments": "Experiments",
+          "localSeo": "Local SEO",
+          "growthMetrics": "Growth Metrics",
+          "attribution": "Attribution"
+        }
       }
     }
   },

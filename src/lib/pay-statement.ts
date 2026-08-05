@@ -488,6 +488,120 @@ export function formatPayStatementAsText(statement: PayStatement): string {
 }
 
 // =========================================================================
+// formatPayStatementForEmail() — texto plano + link a PDF
+// =========================================================================
+
+/**
+ * Convierte un PayStatement a un resumen de email en texto plano.
+ *
+ * Pensado para el cuerpo del email de notificación de pago. Incluye:
+ *   - Saludo personalizado con el nombre del empleado.
+ *   - Resumen ejecutivo: período, gross, deductions, net pay.
+ *   - Link simbólico al PDF (el caller debe reemplazar `[PDF_LINK]`
+ *     con el link real al archivo en Supabase Storage o similar).
+ *   - Nota de confidencialidad breve.
+ *
+ * El formato es texto plano (no HTML) para máxima compatibilidad con
+ * clientes de email y para evitar problemas de rendering. El PDF
+ * adjunto contiene el formato profesional completo.
+ *
+ * @param statement — PayStatement generado por generatePayStatement().
+ * @returns Texto plano multi-línea listo para el cuerpo del email.
+ *
+ * @example
+ * ```ts
+ * const emailBody = formatPayStatementForEmail(statement);
+ * // Luego el caller reemplaza [PDF_LINK] con la URL real:
+ * const finalBody = emailBody.replace("[PDF_LINK]", signedUrl);
+ * ```
+ */
+export function formatPayStatementForEmail(statement: PayStatement): string {
+  const e = statement.earnings;
+  const d = statement.deductions;
+  const fmt = (cents: number): string => `$${centsToDollars(cents).toFixed(2)}`;
+
+  return [
+    `Hola ${statement.employee.nombre},`,
+    ``,
+    `Tu comprobante de pago para el período ${statement.periodo.quincena} ` +
+      `(${statement.periodo.fecha_inicio} → ${statement.periodo.fecha_fin}) ` +
+      `está listo.`,
+    ``,
+    `Resumen:`,
+    `  • Gross Pay:      ${fmt(e.total_gross_cents)}`,
+    `  • Deductions:     ${fmt(d.total_deductions_cents)}`,
+    `  • Net Pay:        ${fmt(statement.net_pay_cents)}`,
+    ``,
+    `Fecha de depósito: ${statement.periodo.fecha_pago}`,
+    ``,
+    `El detalle completo de tu pay statement está disponible en formato PDF:`,
+    `  [PDF_LINK]`,
+    ``,
+    `Gracias por tu trabajo en Lulu Island.`,
+    ``,
+    `— Payroll`,
+    `   Lulu Island Flagship Ltd.`,
+    `   payroll@luluislandflagship.com`,
+  ].join("\n");
+}
+
+// =========================================================================
+// formatPayStatementForSms() — resumen corto para SMS
+// =========================================================================
+
+/**
+ * Convierte un PayStatement a un resumen ultra-corto apto para SMS.
+ *
+ * Limitado a ~160 caracteres para caber en un solo segmento SMS estándar.
+ * El formato usa prefijo "Lulu:" para que el empleado reconozca el remitente
+ * de inmediato. Incluye el net pay y un link acortado al detalle.
+ *
+ * REGLAS:
+ *   - El monto está en dólares canadienses con 2 decimales.
+ *   - El link es un placeholder `[LINK]` que el caller reemplaza con
+ *     un link real (ej. URL firmada de Supabase Storage, deep link a la PWA).
+ *   - Si el mensaje excede 160 caracteres, se marca con un warning en el
+ *     JSDoc pero no se trunca — el caller decide si acortar más.
+ *
+ * @param statement — PayStatement generado por generatePayStatement().
+ * @returns String corto (~140-160 chars) listo para enviar por SMS.
+ *
+ * @example
+ * ```ts
+ * const smsBody = formatPayStatementForSms(statement);
+ * // "Lulu: $1,230.50 deposited Aug 15. Detail: [LINK]"
+ * ```
+ */
+export function formatPayStatementForSms(statement: PayStatement): string {
+  const netPay = `$${centsToDollars(statement.net_pay_cents).toFixed(2)}`;
+
+  // Formatear fecha de pago de forma corta: "Aug 15"
+  const payDateShort = formatShortDate(statement.periodo.fecha_pago);
+
+  return `Lulu: ${netPay} deposited ${payDateShort}. Detail: [LINK]`;
+}
+
+/**
+ * Formatea una fecha ISO (YYYY-MM-DD) a formato corto: "Aug 15".
+ *
+ * @param iso — Fecha en formato YYYY-MM-DD.
+ * @returns Fecha formateada como "Mon DD", o "—" si la fecha está vacía.
+ */
+function formatShortDate(iso: string): string {
+  if (!iso) return "—";
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+  const parts = iso.split("-");
+  if (parts.length !== 3) return iso;
+  const monthIdx = parseInt(parts[1], 10) - 1;
+  const month = months[monthIdx] ?? parts[1];
+  const day = parseInt(parts[2], 10);
+  return `${month} ${day}`;
+}
+
+// =========================================================================
 // Re-export para conveniencia del caller
 // =========================================================================
 

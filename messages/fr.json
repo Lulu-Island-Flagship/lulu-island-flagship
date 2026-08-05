@@ -1503,7 +1503,9 @@
         "wallet": "Portefeuille",
         "comunicaciones": "Communications",
         "configHistory": "Historique de configuration",
-        "roles": "Rôles"
+        "roles": "Rôles",
+        "compliance": "Conformité",
+        "payrollRemittances": "Remises fiscales"
       }
     },
     "layout": {
@@ -1539,193 +1541,113 @@
         "growthMarketing": "Croissance et marketing"
       },
       "cards": {
-        "alertInbox": {
-          "title": "Boîte d'alertes",
-          "description": "File unifiée — répondre en 10 min vs peut attendre (E0.6)"
+        "businessHealth": {
+          "title": "Santé de l'entreprise",
+          "description": "Revenus, marge, clients actifs — derniers 30 jours"
         },
-        "todaysServices": {
-          "title": "Services du jour",
-          "description": "Voir tous les services prévus aujourd'hui avec l'avancement des listes de contrôle"
+        "reviewServices": {
+          "title": "Réviser les services",
+          "description": "Services du jour avec progression des checklists"
         },
-        "dispatchReview": {
-          "title": "Révision des affectations",
-          "description": "Matrice d'affectation quotidienne — remplacement, correspondance linguistique, alertes de journée (D.4)"
+        "reviewQuotes": {
+          "title": "Réviser les devis",
+          "description": "Devis sous le seuil de marge de 15 %"
         },
-        "employees": {
-          "title": "Employés",
-          "description": "Voir tous les employés actifs et inactifs"
+        "reviewUpsells": {
+          "title": "Réviser les ventes additionnelles",
+          "description": "Ventes additionnelles proposées par l'équipe"
         },
-        "upsellsReview": {
-          "title": "Révision des ventes additionnelles",
-          "description": "Réviser les ventes additionnelles proposées par les employés"
+        "approveServices": {
+          "title": "Approuver les services",
+          "description": "Services terminés avec preuves photographiques"
         },
-        "checklists": {
-          "title": "Listes de contrôle",
-          "description": "Gérer les modèles de listes de contrôle SOP par zone et type de service"
+        "reviewAlerts": {
+          "title": "Réviser les alertes",
+          "description": "File unifiée — répondre en 10 min ou peut attendre"
         },
-        "qcWall": {
-          "title": "Mur de contrôle qualité",
-          "description": "Approuver ou refuser les services complétés avec preuves à l'appui"
+        "todaysDispatch": {
+          "title": "Départs du jour",
+          "description": "Matrice d'assignation quotidienne"
         },
-        "fieldAudits": {
-          "title": "Audits terrain",
-          "description": "Enregistrer les évaluations terrain et voir les votes des pairs agrégés"
+        "atRiskClients": {
+          "title": "Clients à risque",
+          "description": "Signaux de départ, NPS bas, paiements en retard"
         },
-        "tickets": {
-          "title": "Tickets",
-          "description": "File des litiges, écarts et demandes de consultation"
+        "netMargin": {
+          "title": "Marge nette",
+          "description": "Revenus − coûts variables − fixes — ce mois"
         },
-        "quoteReviews": {
-          "title": "Révision des devis",
-          "description": "Approuver ou refuser les devis sous le seuil de marge de 15 %"
+        "teamScore": {
+          "title": "Score d'équipe",
+          "description": "Top 3 hebdomadaire et moyennes individuelles"
         },
-        "pricingRules": {
-          "title": "Règles de tarification",
-          "description": "Moteur de règles headless — règles actives et journal d'audit"
-        },
-        "pricingSettings": {
-          "title": "Paramètres de tarification",
-          "description": "Taux horaire cible et aperçu du tableau HHE"
-        },
-        "businessInsurance": {
-          "title": "Assurance d'entreprise",
-          "description": "Registre des polices véhiculaires, responsabilité civile générale et E&O"
-        },
-        "seasonalCampaigns": {
-          "title": "Campagnes saisonnières",
-          "description": "Les 5 campagnes préchargées, modulées selon la demande réelle"
-        },
-        "succession": {
-          "title": "Mode succession",
-          "description": "Successeurs de confiance et statut d'épuisement/succession"
-        },
-        "drDrills": {
-          "title": "Exercices de reprise",
-          "description": "Journal des exercices de reprise après sinistre — restauration, succession, trousse, repli (E11.4)"
-        },
-        "weatherExceptions": {
-          "title": "Exceptions météo",
-          "description": "Journal des intempéries — report vs abandon sécuritaire + tarif journalier (D.10#10)"
-        },
-        "workplaceIncidents": {
-          "title": "Incidents de travail",
-          "description": "Blessures — compte à rebours de 72 h WorkSafeBC pré-rempli (D.10#6)"
-        },
-        "churnSignals": {
-          "title": "Signaux d'attrition",
-          "description": "Clients à risque — sondage, rabais de réactivation, suivi personnalisé (D.10.9)"
-        },
-        "attribution": {
-          "title": "Attribution",
-          "description": "CAC/LTV par canal + répartition budgétaire suggérée (D.10.2)"
-        },
-        "partners": {
-          "title": "Partenaires et commissions",
-          "description": "Références immobilier, gestion de propriétés, vétérinaires, constructeurs — tous T4A (D.10.6)"
-        },
-        "neighborhood": {
-          "title": "Voisinage",
-          "description": "Avis de conciergerie, règles de bruit, plaintes et pistes de voisins (E11.5)"
-        },
-        "experiments": {
-          "title": "Tests A/B",
-          "description": "Tests de prix/texte/interface — clients récurrents toujours protégés (D.10.11)"
-        },
-        "clientSegments": {
-          "title": "Segments de clients",
-          "description": "VIP / Régulier / Sporadique / À risque / Nouveau (E5.14)"
-        },
-        "wellbeing": {
-          "title": "Bien-être de l'équipe",
-          "description": "Suivis sommeil/humeur agrégés — jamais individuels (E8.1/E8.3)"
-        },
-        "teams": {
-          "title": "Équipes",
-          "description": "Identité minimale d'équipe (nom + avatar) alimentant le classement hebdomadaire Top 3 (E8.9/E8.10)"
-        },
-        "routeShortcuts": {
-          "title": "Raccourcis de trajet",
-          "description": "Raccourcis signalés par les employés en attente de validation — valider rapporte 10 $ (parcours d'apprentissage E8)"
-        },
-        "coworkerRotation": {
-          "title": "Rotation des collègues",
-          "description": "Minimum 3 collègues distincts/mois + exceptions « jamais ensemble » (E8.14)"
-        },
-        "livePortfolio": {
-          "title": "Portfolio en direct",
-          "description": "Candidats affichés automatiquement — approbation en un clic, droit de retrait de 24 h pour le client (E5.15)"
-        },
-        "seoLocal": {
-          "title": "SEO local et GBP",
-          "description": "Liste de contrôle Google Business Profile + vérification NAP trimestrielle (E10.3)"
-        },
-        "employeeMarketing": {
-          "title": "Marketing employé",
-          "description": "Vidéos du quotidien et mise en valeur des badges — consentement de l'employé + approbation en un clic (E10.8)"
-        },
-        "payrollExport": {
-          "title": "Export de la paie",
-          "description": "RPC/AE/WorkSafeBC/indemnité de vacances par employé, export CSV/JSON (E9.3)"
-        },
-        "economicParameters": {
-          "title": "Paramètres économiques",
-          "description": "Salaire minimum / tarif journalier — simuler l'impact, appliquer en un clic (E9.6)"
-        },
-        "legalMonitoring": {
-          "title": "Veille juridique",
-          "description": "7 flux réglementaires, alerte de flux muet, alertes de changement ouvertes (E9.7)"
-        },
-        "pipeda": {
-          "title": "Conformité LPRPDE",
-          "description": "Demandes d'accès aux données (48 h) + protocole d'atteinte (72 h) (E9.9)"
-        },
-        "giftProgram": {
-          "title": "Programme de cadeaux",
-          "description": "Cadeaux de fidélisation résidentiels + avantages pour immeubles gérés (E9.11)"
-        },
-        "growthMetrics": {
-          "title": "Indicateurs de croissance",
-          "description": "Entonnoir, références, attrition, pointage NPS vs cibles (E10.13)"
-        },
-        "entityNotes": {
-          "title": "Notes opérationnelles",
-          "description": "Notes liées aux employés/propriétés, affichées selon le contexte (E11.2)"
-        },
-        "stressScenario": {
-          "title": "Scénario de stress financier",
-          "description": "Simulation de -30 % de revenus sur 3 mois, leviers en ordre, seuil de révision (E11.7)"
-        },
-        "legacyMigration": {
-          "title": "Clôture de migration héritée",
-          "description": "Redirection www + liste de contrôle d'archivage/annulation Godaddy (E11.8)"
-        },
-        "certifications": {
-          "title": "Certifications",
-          "description": "Niveaux de manipulation de produits chimiques avec expiration réelle — bloque l'affectation si expiré (E9.4)"
-        },
-        "craRemittances": {
-          "title": "Versements ARC",
-          "description": "RPC/AE mensuels, TPS/TVP trimestriels, T4 annuel — calendrier de rappels (E9.4)"
+        "craDeadlines": {
+          "title": "Échéances ARC",
+          "description": "Prochains versements CPP/EI, GST/PST, T4"
         },
         "backupStatus": {
           "title": "État des sauvegardes",
-          "description": "Transactions/paie/clients/photos CSV+hash + rappel pg_dump (E9.10)"
-        },
-        "contractReviews": {
-          "title": "Révisions de renouvellement de contrat",
-          "description": "60 jours avant l'anniversaire — comparatif légal, approbation, signature numérique (E9.8)"
-        },
-        "laborCompliance": {
-          "title": "Conformité au travail (C.-B.)",
-          "description": "Pauses documentées, congés de maladie, repos hebdomadaire de 32 h, paie des jours fériés"
-        },
-        "applicants": {
-          "title": "Candidats",
-          "description": "Examiner et approuver les candidatures"
-        },
-        "newClients": {
-          "title": "Nouveaux clients",
-          "description": "Comptes clients récemment enregistrés"
+          "description": "Dernier backup transactions/paie/clients/photos"
+        }
+      }
+    },
+    "modules": {
+      "people": {
+        "title": "Personnel",
+        "items": {
+          "employees": "Employés",
+          "applicants": "Candidats",
+          "teams": "Équipes",
+          "teamRotation": "Rotation d'équipe",
+          "certifications": "Certifications",
+          "wellbeing": "Bien-être",
+          "marketing": "Marketing d'équipe"
+        }
+      },
+      "clients": {
+        "title": "Clients",
+        "items": {
+          "newClients": "Nouveaux clients",
+          "segments": "Segments",
+          "candidatePool": "Candidats portfolio",
+          "campaigns": "Campagnes",
+          "gifts": "Cadeaux",
+          "neighborhood": "Quartier"
+        }
+      },
+      "finance": {
+        "title": "Finances",
+        "items": {
+          "contributionMargin": "Marge de contribution",
+          "pricingRules": "Règles de prix",
+          "pricingSettings": "Paramètres de prix",
+          "payrollExport": "Export paie",
+          "insurance": "Assurances",
+          "economicSettings": "Paramètres économiques",
+          "partners": "Partenaires",
+          "paymentSuccess": "Succès des paiements"
+        }
+      },
+      "compliance": {
+        "title": "Conformité",
+        "items": {
+          "laborCompliance": "Conformité du travail",
+          "privacy": "Confidentialité",
+          "contractRenewals": "Renouvellements",
+          "legalUpdates": "Mises à jour légales",
+          "incidents": "Incidents"
+        }
+      },
+      "system": {
+        "title": "Système",
+        "items": {
+          "recoveryDrills": "Exercices de récupération",
+          "stressTest": "Test de résistance",
+          "migrationClosure": "Clôture migration",
+          "experiments": "Expériences",
+          "localSeo": "SEO local",
+          "growthMetrics": "Métriques de croissance",
+          "attribution": "Attribution"
         }
       }
     },
@@ -3246,6 +3168,170 @@
         "workSafeBc": "WorkSafeBC",
         "vacationPay": "Indemnité de vacances",
         "estNet": "Net estimé (avant impôt)"
+      }
+    },
+    "exportAccounting": {
+      "title": "Exportation comptable",
+      "subtitle": "Exporter les écritures comptables pour les systèmes externes. Formats: CSV, QuickBooks IIF, PDF, JSON.",
+      "periodLabel": "Période",
+      "monthAriaLabel": "Mois",
+      "formatLabel": "Format",
+      "previousMonth": "Mois précédent",
+      "nextMonth": "Mois suivant",
+      "exportButton": "Exporter",
+      "exporting": "Exportation...",
+      "exportSuccess": "{filename} téléchargé avec succès.",
+      "preview": "Aperçu",
+      "showingFirstN": "{count} de {total} lignes affichées",
+      "refreshPreview": "Actualiser l'aperçu",
+      "loadingPreview": "Chargement de l'aperçu...",
+      "noPreview": "Sélectionnez une période pour voir un aperçu.",
+      "emptyPeriod": "Aucune écriture comptable pour cette période.",
+      "loading": "Chargement...",
+      "retry": "Réessayer",
+      "dismiss": "Fermer",
+      "historyToggle": "Historique des exports",
+      "historyTitle": "Exports récents",
+      "noHistory": "Aucun export récent.",
+      "refreshHistory": "Actualiser l'historique",
+      "table": {
+        "date": "Date",
+        "description": "Description",
+        "account": "Compte",
+        "debit": "Débit",
+        "credit": "Crédit"
+      },
+      "historyTable": {
+        "period": "Période",
+        "format": "Format",
+        "filename": "Fichier",
+        "rows": "Lignes",
+        "downloadedAt": "Téléchargé le"
+      },
+      "errors": {
+        "previewFailed": "Impossible de charger l'aperçu.",
+        "exportFailed": "L'exportation a échoué. Veuillez réessayer.",
+        "historyFailed": "Impossible de charger l'historique.",
+        "network": "Erreur réseau. Vérifiez votre connexion."
+      }
+    },
+    "compliance": {
+      "title": "Conformité légale",
+      "lastSync": "Dernière mise à jour",
+      "versionHistory": "Historique des versions",
+      "filterByType": "Filtrer par type",
+      "filterAll": "Tous",
+      "retry": "Réessayer",
+      "loading": "Chargement des règles...",
+      "empty": "Aucune règle légale configurée.",
+      "emptyForType": "Aucune règle pour {tipo}.",
+      "countSummary": "{active} actives · {pending} en attente · {historic} historiques",
+      "newVersionButton": "Nouvelle version",
+      "historyTitle": "Historique des changements de version",
+      "noHistory": "Aucun changement de version enregistré.",
+      "statusActive": "En vigueur",
+      "statusPendingReview": "En attente de révision",
+      "statusExpired": "Expirée",
+      "alerts": {
+        "workSafeBcRateChanged": "Le taux {tipo} a changé. Nouvelle version en attente de révision.",
+        "newVersionAvailable": "Une nouvelle version de {tipo} est disponible pour révision."
+      },
+      "table": {
+        "tipo": "Type",
+        "jurisdiccion": "Juridiction",
+        "version": "Version",
+        "parametros": "Paramètres",
+        "estado": "État",
+        "vigencia": "En vigueur",
+        "acciones": "Actions"
+      },
+      "newVersionModal": {
+        "title": "Nouvelle version pour {tipo} v{version}",
+        "versionLabel": "Version (AAAA-MM)",
+        "versionHint": "Format: AAAA-MM, ex. 2026-08",
+        "effectiveDateLabel": "Date d'entrée en vigueur",
+        "notesLabel": "Notes",
+        "notesHint": "Motif de cette nouvelle version (optionnel)",
+        "create": "Créer la nouvelle version",
+        "creating": "Création..."
+      },
+      "errors": {
+        "loadFailed": "Impossible de charger les règles de conformité.",
+        "network": "Erreur réseau. Vérifiez votre connexion.",
+        "historyFailed": "Impossible de charger l'historique.",
+        "versionFailed": "Impossible de créer la nouvelle version."
+      }
+    },
+    "payrollRemittances": {
+      "title": "Remises fiscales",
+      "paymentLog": "Registre des paiements",
+      "overdueBanner": "{count} remise(s) en retard et toujours impayée(s).",
+      "retry": "Réessayer",
+      "loading": "Chargement des remises...",
+      "empty": "Aucune remise trouvée.",
+      "daysRemaining": "{count} jours restants",
+      "daysOverdue": "{count} jours de retard",
+      "refresh": "Actualiser",
+      "close": "Fermer",
+      "pd7aSection": "Générer PD7A",
+      "pd7aDescription": "État de compte pour les retenues à la source (RPC, AE, impôt sur le revenu)",
+      "generatePd7aButton": "Générer PD7A",
+      "generatingPd7a": "Génération...",
+      "pd7aGenerated": "PD7A généré avec succès",
+      "downloadRemittance": "Télécharger le fichier de remise",
+      "markPaid": "Marquer payé",
+      "pd7aTable": {
+        "period": "Période",
+        "quincena": "Quinzaine",
+        "businessNumber": "Numéro d'entreprise",
+        "dueDate": "Date d'échéance",
+        "employees": "Employés",
+        "grossPayroll": "Masse salariale brute",
+        "breakdown": "Détail des retenues à la source",
+        "cppEmployee": "RPC (employé)",
+        "cppEmployer": "RPC (employeur)",
+        "eiEmployee": "AE (employé)",
+        "eiEmployer": "AE (employeur)",
+        "incomeTax": "Impôt sur le revenu",
+        "totalRemittance": "Total à remettre"
+      },
+      "table": {
+        "tipo": "Type",
+        "periodo": "Période",
+        "monto": "Montant",
+        "vencimiento": "Échéance",
+        "estado": "État",
+        "comprobante": "Reçu",
+        "acciones": "Actions"
+      },
+      "statusPaid": "Payée",
+      "statusDue": "À payer",
+      "statusOverdue": "En retard",
+      "paymentLogTitle": "Registre des paiements",
+      "noPayments": "Aucun paiement enregistré.",
+      "paymentTable": {
+        "date": "Date",
+        "tipo": "Type",
+        "periodo": "Période",
+        "monto": "Montant",
+        "comprobante": "Reçu"
+      },
+      "markPaidModal": {
+        "title": "Marquer la remise comme payée",
+        "confirm": "Confirmer le paiement",
+        "processing": "Traitement...",
+        "dateLabel": "Date de paiement",
+        "referenceLabel": "Référence de confirmation ARC",
+        "referenceHint": "Numéro de confirmation ARC (optionnel)",
+        "amountLabel": "Montant remis (CAD)",
+        "amountHint": "Optionnel, en dollars"
+      },
+      "errors": {
+        "loadFailed": "Impossible de charger les remises.",
+        "network": "Erreur réseau. Vérifiez votre connexion.",
+        "generatePd7aFailed": "Impossible de générer le PD7A.",
+        "downloadFailed": "Impossible de télécharger le fichier de remise.",
+        "payFailed": "Impossible de marquer la remise comme payée."
       }
     },
     "dashboardMetrics": {

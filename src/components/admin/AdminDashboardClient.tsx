@@ -4,603 +4,74 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Search } from "lucide-react";
 import {
-  ClipboardList,
-  Users,
-  Tag,
-  ListChecks,
-  ChevronRight,
-  AlertTriangle,
-  ShieldCheck,
-  ClipboardCheck,
-  Settings2,
-  DollarSign,
-  FileSearch,
-  CalendarClock,
-  Sparkles,
-  LifeBuoy,
-  CloudRain,
-  HeartPulse,
-  UserMinus,
-  Siren,
+  Search,
   TrendingUp,
-  Handshake,
-  Home,
-  FlaskConical,
-  Crown,
-  Moon,
-  Repeat,
-  Images,
-  MapPin,
-  Video,
-  Wallet,
-  Scale,
-  ShieldAlert,
-  Gift,
-  Target,
-  StickyNote,
-  TrendingDown,
-  Archive,
-  BadgeCheck,
+  ClipboardList,
+  FileSearch,
+  Tag,
+  ShieldCheck,
+  Siren,
+  CalendarClock,
+  UserMinus,
+  DollarSign,
+  Star,
   Landmark,
   DatabaseBackup,
-  FileSignature,
-  CalendarDays,
-  UserPlus,
-  FileText,
+  ChevronRight,
+  Users,
+  Gift,
+  Settings2,
+  AlertTriangle,
+  HeartPulse,
+  Video,
+  Repeat,
+  BadgeCheck,
+  LifeBuoy,
+  CloudRain,
+  FlaskConical,
+  Target,
+  TrendingDown,
+  Sparkles,
+  Handshake,
+  Wallet,
+  Scale,
 } from "lucide-react";
 import DashboardMetricsPanel from "./DashboardMetricsPanel";
 import AutopilotModeBanner from "./AutopilotModeBanner";
-import ErrorBoundary from "@/components/ui/ErrorBoundary"; // Fix M7: error boundary
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import { roleAllows, type AdminRole, type AdminResource } from "@/lib/admin-rbac";
 
-// Fix (2026-08-02, reporte del usuario): la agrupación anterior reusaba las
-// 4 categorías del menú de navegación (AdminNav.tsx -- Operations, Quality &
-// Risk, Sales & Customer, Finance & Settings), pensadas para ~24 links del
-// nav, no para las 45 tarjetas del dashboard. Resultado medido: 30 de las 45
-// tarjetas (dos tercios) no tenían ningún href equivalente en el nav y caían
-// todas juntas en un grupo genérico "Otros" -- cosas tan distintas como
-// Disaster Recovery, PIPEDA, Growth Metrics, Nómina y Legacy Migration
-// mezcladas sin ningún criterio visible. Agrupar "de nombre" para dos
-// tercios del dashboard es funcionalmente lo mismo que no agrupar.
-//
-// Se reemplaza por una taxonomía propia de 9 grupos, con cada tarjeta
-// declarando su grupo explícitamente (campo `group` de abajo) en vez de
-// inferirlo por un lookup de href contra el nav -- así ninguna tarjeta puede
-// caer en "Otros" por accidente (el fallback sigue existiendo como red de
-// seguridad para una tarjeta futura que alguien olvide clasificar, pero no
-// debería usarse). No se toca AdminNav.tsx / el menú superior -- ese menú
-// sigue funcionando igual que antes; este es un cambio acotado a la página
-// del dashboard, que es lo que se reportó como confuso.
-type DashboardGroupId =
-  | "operations"
-  | "qualitySafety"
-  | "continuity"
-  | "salesCustomer"
-  | "pricingFinance"
-  | "payrollHr"
-  | "wellbeing"
-  | "complianceLegal"
-  | "growthMarketing";
+type CardType = "kpi" | "action" | "monitoring";
 
-// Orden fijo en el que se muestran los grupos (los de trabajo diario/
-// operación primero, los de crecimiento/analítica al final -- mismo criterio
-// que ya usaba AdminNav.tsx de "lo urgente arriba").
-const GROUP_ORDER: DashboardGroupId[] = [
-  "operations",
-  "qualitySafety",
-  "continuity",
-  "salesCustomer",
-  "pricingFinance",
-  "payrollHr",
-  "wellbeing",
-  "complianceLegal",
-  "growthMarketing",
-];
+interface DashboardCard {
+  title: string;
+  description: string;
+  icon: typeof TrendingUp;
+  href: string;
+  color: string;
+  resource: AdminResource;
+  type: CardType;
+  badgeKey?: string;
+}
 
-// v8.3 fix G-3 (auditoría implacable 2026-07-20b): antes este componente no
-// recibía roles ni resource alguno -- las 45 tarjetas se mostraban a
-// cualquier cuenta admin, sin importar su rol (un qc_only veía y podía
-// navegar a Pricing Rules, Nómina, etc. con solo conocer la URL). Cada
-// tarjeta ahora declara su AdminResource real, tomado 1:1 de AdminNav.tsx
-// donde el mismo destino ya existía ahí, o del requireAdminRole(...) de su
-// propia API cuando no existía un link equivalente en el nav (ver comentario
-// por tarjeta más abajo para las que no están en AdminNav.tsx).
+interface ModuleItem {
+  label: string;
+  href: string;
+  resource: AdminResource;
+}
+
+interface ModuleGroup {
+  title: string;
+  items: ModuleItem[];
+}
+
 export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) {
   const t = useTranslations("admin.dashboard");
-  // Item 8 (auditoría 2026-07-25): antes se leía el locale con
-  // window.location.pathname.split("/")[1], lo que rendería distinto en
-  // servidor (SSR, "en" fijo) vs cliente (locale real) -- riesgo de
-  // hydration mismatch. useParams() lee el segmento [locale] de la ruta
-  // directo del router, sin depender de `window`.
+  const tModules = useTranslations("admin.modules");
   const params = useParams();
   const locale = (params?.locale as string) || "en";
   const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
-
-  const cards: Array<{
-    title: string;
-    description: string;
-    icon: typeof Siren;
-    href: string;
-    color: string;
-    resource: AdminResource;
-    group: DashboardGroupId;
-    badgeKey?: string;
-  }> = [
-    {
-      title: t("cards.alertInbox.title"),
-      description: t("cards.alertInbox.description"),
-      icon: Siren,
-      href: `/${safeLocale}/admin/alerts`,
-      color: "bg-red-50 text-red-600",
-      // No está en AdminNav.tsx -- API usa "risk_assessments" (src/app/api/admin/alerts/route.ts).
-      resource: "risk_assessments",
-      // Consolida alertas de safety_abort, wellbeing_chemical y
-      // dispatch_discrepancy (migración 147) -- vive con Calidad y Seguridad.
-      group: "qualitySafety",
-    },
-    {
-      title: t("cards.todaysServices.title"),
-      description: t("cards.todaysServices.description"),
-      icon: ClipboardList,
-      href: `/${safeLocale}/admin/servicios`,
-      color: "bg-blue-50 text-blue-600",
-      resource: "services",
-      group: "operations",
-    },
-    {
-      title: t("cards.dispatchReview.title"),
-      description: t("cards.dispatchReview.description"),
-      icon: CalendarClock,
-      href: `/${safeLocale}/admin/dispatch`,
-      color: "bg-teal-50 text-teal-600",
-      // No está en AdminNav.tsx -- API usa "dispatch" (src/app/api/admin/dispatch/route.ts).
-      resource: "dispatch",
-      group: "operations",
-    },
-    {
-      title: t("cards.employees.title"),
-      description: t("cards.employees.description"),
-      icon: Users,
-      href: `/${safeLocale}/admin/empleados`,
-      color: "bg-purple-50 text-purple-600",
-      resource: "employees_admin",
-      group: "operations",
-      badgeKey: "pendingDispatch",
-    },
-    {
-      title: t("cards.upsellsReview.title"),
-      description: t("cards.upsellsReview.description"),
-      icon: Tag,
-      href: `/${safeLocale}/admin/upsells`,
-      color: "bg-amber-50 text-amber-600",
-      resource: "upsells_review",
-      group: "salesCustomer",
-    },
-    {
-      title: t("cards.checklists.title"),
-      description: t("cards.checklists.description"),
-      icon: ListChecks,
-      href: `/${safeLocale}/admin/checklists`,
-      color: "bg-green-50 text-green-600",
-      resource: "checklists_sop",
-      group: "operations",
-    },
-    {
-      title: t("cards.qcWall.title"),
-      description: t("cards.qcWall.description"),
-      icon: ShieldCheck,
-      href: `/${safeLocale}/admin/qc`,
-      color: "bg-indigo-50 text-indigo-600",
-      resource: "qc_wall",
-      group: "qualitySafety",
-    },
-    {
-      title: t("cards.fieldAudits.title"),
-      description: t("cards.fieldAudits.description"),
-      icon: ClipboardCheck,
-      href: `/${safeLocale}/admin/audits`,
-      color: "bg-cyan-50 text-cyan-600",
-      resource: "field_audits",
-      group: "qualitySafety",
-    },
-    {
-      title: t("cards.tickets.title"),
-      description: t("cards.tickets.description"),
-      icon: AlertTriangle,
-      href: `/${safeLocale}/admin/tickets`,
-      color: "bg-red-50 text-red-600",
-      resource: "tickets",
-      group: "salesCustomer",
-    },
-    {
-      title: t("cards.quoteReviews.title"),
-      description: t("cards.quoteReviews.description"),
-      icon: FileSearch,
-      href: `/${safeLocale}/admin/quotes-review`,
-      color: "bg-rose-50 text-rose-600",
-      resource: "quotes_review",
-      group: "salesCustomer",
-    },
-    {
-      title: t("cards.pricingRules.title"),
-      description: t("cards.pricingRules.description"),
-      icon: Settings2,
-      href: `/${safeLocale}/admin/pricing-rules`,
-      color: "bg-slate-50 text-slate-600",
-      resource: "pricing_rules",
-      group: "pricingFinance",
-    },
-    {
-      title: t("cards.pricingSettings.title"),
-      description: t("cards.pricingSettings.description"),
-      icon: DollarSign,
-      href: `/${safeLocale}/admin/pricing-settings`,
-      color: "bg-emerald-50 text-emerald-600",
-      resource: "pricing_settings",
-      group: "pricingFinance",
-    },
-    {
-      title: t("cards.businessInsurance.title"),
-      description: t("cards.businessInsurance.description"),
-      icon: ShieldCheck,
-      href: `/${safeLocale}/admin/business-insurance`,
-      color: "bg-teal-50 text-teal-600",
-      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/business-insurance/route.ts).
-      resource: "finance",
-      group: "pricingFinance",
-    },
-    {
-      title: t("cards.applicants.title"),
-      description: t("cards.applicants.description"),
-      icon: FileText,
-      href: `/${safeLocale}/admin/applicants`,
-      color: "bg-blue-50 text-blue-600",
-      resource: "applicants",
-      group: "operations",
-      badgeKey: "newApplicants",
-    },
-    {
-      title: t("cards.newClients.title"),
-      description: t("cards.newClients.description"),
-      icon: UserPlus,
-      href: `/${safeLocale}/admin/clients`,
-      color: "bg-emerald-50 text-emerald-600",
-      resource: "clients",
-      group: "salesCustomer",
-      badgeKey: "newClients",
-    },
-    {
-      title: t("cards.seasonalCampaigns.title"),
-      description: t("cards.seasonalCampaigns.description"),
-      icon: Sparkles,
-      href: `/${safeLocale}/admin/seasonal-campaigns`,
-      color: "bg-fuchsia-50 text-fuchsia-600",
-      // No está en AdminNav.tsx -- API usa "upsells_review" (src/app/api/admin/seasonal-campaigns/route.ts).
-      resource: "upsells_review",
-      group: "growthMarketing",
-    },
-    {
-      title: t("cards.succession.title"),
-      description: t("cards.succession.description"),
-      icon: Users,
-      href: `/${safeLocale}/admin/succession`,
-      color: "bg-indigo-50 text-indigo-600",
-      // No está en AdminNav.tsx -- API usa "employees_admin" (src/app/api/admin/succession/route.ts).
-      resource: "employees_admin",
-      group: "payrollHr",
-    },
-    {
-      title: t("cards.drDrills.title"),
-      description: t("cards.drDrills.description"),
-      icon: LifeBuoy,
-      href: `/${safeLocale}/admin/dr-drill`,
-      color: "bg-orange-50 text-orange-600",
-      // 2026-07-23: también enlazada ahora desde AdminNav.tsx como "Disaster
-      // Recovery" (antes apuntaba a /admin/recuperacion-desastres, una página
-      // duplicada con menos funcionalidad; se consolidó en esta -- ver
-      // comentario en dr-drill/page.tsx). API usa "feature_flags"
-      // (src/app/api/admin/dr-drill/route.ts).
-      resource: "feature_flags",
-      group: "continuity",
-    },
-    {
-      title: t("cards.weatherExceptions.title"),
-      description: t("cards.weatherExceptions.description"),
-      icon: CloudRain,
-      href: `/${safeLocale}/admin/weather-exceptions`,
-      color: "bg-sky-50 text-sky-600",
-      // No está en AdminNav.tsx -- API usa "risk_assessments" (src/app/api/admin/weather-exceptions/route.ts).
-      resource: "risk_assessments",
-      group: "qualitySafety",
-    },
-    {
-      title: t("cards.workplaceIncidents.title"),
-      description: t("cards.workplaceIncidents.description"),
-      icon: HeartPulse,
-      href: `/${safeLocale}/admin/workplace-incidents`,
-      color: "bg-rose-50 text-rose-600",
-      // No está en AdminNav.tsx -- API usa "risk_assessments" (src/app/api/admin/workplace-incidents/route.ts).
-      resource: "risk_assessments",
-      group: "qualitySafety",
-    },
-    {
-      title: t("cards.churnSignals.title"),
-      description: t("cards.churnSignals.description"),
-      icon: UserMinus,
-      href: `/${safeLocale}/admin/churn-signals`,
-      color: "bg-amber-50 text-amber-600",
-      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/churn-signals/route.ts).
-      resource: "finance",
-      group: "growthMarketing",
-    },
-    {
-      title: t("cards.attribution.title"),
-      description: t("cards.attribution.description"),
-      icon: TrendingUp,
-      href: `/${safeLocale}/admin/attribution`,
-      color: "bg-lime-50 text-lime-600",
-      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/attribution/route.ts).
-      resource: "finance",
-      group: "growthMarketing",
-    },
-    {
-      title: t("cards.partners.title"),
-      description: t("cards.partners.description"),
-      icon: Handshake,
-      href: `/${safeLocale}/admin/partners`,
-      color: "bg-cyan-50 text-cyan-700",
-      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/partners/route.ts).
-      resource: "finance",
-      group: "growthMarketing",
-    },
-    {
-      title: t("cards.neighborhood.title"),
-      description: t("cards.neighborhood.description"),
-      icon: Home,
-      href: `/${safeLocale}/admin/neighborhood`,
-      color: "bg-violet-50 text-violet-600",
-      // No está en AdminNav.tsx -- API usa "risk_assessments" (src/app/api/admin/neighborhood/route.ts).
-      resource: "risk_assessments",
-      group: "growthMarketing",
-    },
-    {
-      title: t("cards.experiments.title"),
-      description: t("cards.experiments.description"),
-      icon: FlaskConical,
-      href: `/${safeLocale}/admin/experiments`,
-      color: "bg-fuchsia-50 text-fuchsia-700",
-      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/experiments/route.ts).
-      resource: "finance",
-      group: "growthMarketing",
-    },
-    {
-      title: t("cards.clientSegments.title"),
-      description: t("cards.clientSegments.description"),
-      icon: Crown,
-      href: `/${safeLocale}/admin/client-segments`,
-      color: "bg-amber-50 text-amber-700",
-      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/client-segments/route.ts).
-      resource: "finance",
-      group: "growthMarketing",
-    },
-    {
-      title: t("cards.wellbeing.title"),
-      description: t("cards.wellbeing.description"),
-      icon: Moon,
-      href: `/${safeLocale}/admin/wellbeing`,
-      color: "bg-blue-50 text-blue-700",
-      resource: "wellbeing",
-      group: "wellbeing",
-    },
-    {
-      title: t("cards.teams.title"),
-      description: t("cards.teams.description"),
-      icon: Users,
-      href: `/${safeLocale}/admin/teams`,
-      color: "bg-indigo-50 text-indigo-700",
-      resource: "teams",
-      group: "operations",
-    },
-    {
-      title: t("cards.routeShortcuts.title"),
-      description: t("cards.routeShortcuts.description"),
-      icon: MapPin,
-      href: `/${safeLocale}/admin/route-shortcuts`,
-      color: "bg-cyan-50 text-cyan-700",
-      // No está en AdminNav.tsx -- API usa "wellbeing" (src/app/api/admin/route-shortcuts/route.ts).
-      resource: "wellbeing",
-      group: "wellbeing",
-    },
-    {
-      title: t("cards.coworkerRotation.title"),
-      description: t("cards.coworkerRotation.description"),
-      icon: Repeat,
-      href: `/${safeLocale}/admin/coworker-rotation`,
-      color: "bg-teal-50 text-teal-700",
-      // No está en AdminNav.tsx -- API usa "dispatch" (src/app/api/admin/coworker-rotation/route.ts).
-      resource: "dispatch",
-      group: "operations",
-    },
-    {
-      title: t("cards.livePortfolio.title"),
-      description: t("cards.livePortfolio.description"),
-      icon: Images,
-      href: `/${safeLocale}/admin/live-portfolio`,
-      color: "bg-rose-50 text-rose-700",
-      // Fix (auditoría externa, hallazgo confirmado): esta card usaba
-      // "qc_wall" pero la API real (src/app/api/admin/live-portfolio/route.ts
-      // y .../[id]/route.ts) exige "live_portfolio_publish" -- un usuario con
-      // rol qc_only veía la card (por tener acceso a qc_wall) pero recibía
-      // 403 al hacer clic. No está en AdminNav.tsx.
-      resource: "live_portfolio_publish",
-      group: "growthMarketing",
-    },
-    {
-      title: t("cards.seoLocal.title"),
-      description: t("cards.seoLocal.description"),
-      icon: MapPin,
-      href: `/${safeLocale}/admin/seo-local`,
-      color: "bg-lime-50 text-lime-700",
-      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/seo-local/route.ts).
-      resource: "finance",
-      group: "growthMarketing",
-    },
-    {
-      title: t("cards.employeeMarketing.title"),
-      description: t("cards.employeeMarketing.description"),
-      icon: Video,
-      href: `/${safeLocale}/admin/employee-marketing`,
-      color: "bg-violet-50 text-violet-700",
-      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/employee-marketing/route.ts).
-      resource: "finance",
-      // Consentimiento del EMPLEADO para reels/insignias -- vive con
-      // Nómina y Personal (es un tema de RR.HH., no de campaña de marketing).
-      group: "payrollHr",
-    },
-    {
-      title: t("cards.payrollExport.title"),
-      description: t("cards.payrollExport.description"),
-      icon: Wallet,
-      href: `/${safeLocale}/admin/nomina`,
-      color: "bg-emerald-50 text-emerald-700",
-      // No está en AdminNav.tsx -- API usa "payroll" (src/app/api/admin/payroll-export/route.ts).
-      resource: "payroll",
-      group: "payrollHr",
-    },
-    {
-      title: t("cards.economicParameters.title"),
-      description: t("cards.economicParameters.description"),
-      icon: DollarSign,
-      href: `/${safeLocale}/admin/parametros-economicos`,
-      color: "bg-amber-50 text-amber-700",
-      // No está en AdminNav.tsx -- API usa "payroll" (src/app/api/admin/economic-params/route.ts).
-      resource: "payroll",
-      group: "payrollHr",
-    },
-    {
-      title: t("cards.legalMonitoring.title"),
-      description: t("cards.legalMonitoring.description"),
-      icon: Scale,
-      href: `/${safeLocale}/admin/monitoreo-legal`,
-      color: "bg-slate-50 text-slate-700",
-      // No está en AdminNav.tsx -- API usa "compliance" (src/app/api/admin/legal-monitoring/route.ts).
-      resource: "compliance",
-      group: "complianceLegal",
-    },
-    {
-      title: t("cards.pipeda.title"),
-      description: t("cards.pipeda.description"),
-      icon: ShieldAlert,
-      href: `/${safeLocale}/admin/pipeda`,
-      color: "bg-red-50 text-red-700",
-      // No está en AdminNav.tsx -- API usa "compliance" (src/app/api/admin/pipeda/requests/route.ts).
-      resource: "compliance",
-      group: "complianceLegal",
-    },
-    {
-      title: t("cards.giftProgram.title"),
-      description: t("cards.giftProgram.description"),
-      icon: Gift,
-      href: `/${safeLocale}/admin/regalos`,
-      color: "bg-pink-50 text-pink-700",
-      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/retention-gifts/route.ts).
-      resource: "finance",
-      group: "growthMarketing",
-    },
-    {
-      title: t("cards.growthMetrics.title"),
-      description: t("cards.growthMetrics.description"),
-      icon: Target,
-      href: `/${safeLocale}/admin/growth-metrics`,
-      color: "bg-teal-50 text-teal-800",
-      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/growth-metrics/route.ts).
-      resource: "finance",
-      group: "growthMarketing",
-    },
-    {
-      title: t("cards.entityNotes.title"),
-      description: t("cards.entityNotes.description"),
-      icon: StickyNote,
-      href: `/${safeLocale}/admin/entity-notes`,
-      color: "bg-yellow-50 text-yellow-700",
-      // No está en AdminNav.tsx -- API usa "dispatch" (src/app/api/admin/entity-notes/route.ts).
-      resource: "dispatch",
-      group: "operations",
-    },
-    {
-      title: t("cards.stressScenario.title"),
-      description: t("cards.stressScenario.description"),
-      icon: TrendingDown,
-      href: `/${safeLocale}/admin/stress-scenario`,
-      color: "bg-red-50 text-red-800",
-      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/stress-scenario/route.ts).
-      resource: "finance",
-      group: "continuity",
-    },
-    {
-      title: t("cards.legacyMigration.title"),
-      description: t("cards.legacyMigration.description"),
-      icon: Archive,
-      href: `/${safeLocale}/admin/legacy-migration`,
-      color: "bg-gray-100 text-gray-700",
-      // No está en AdminNav.tsx -- API usa "finance" (src/app/api/admin/legacy-migration/route.ts).
-      resource: "finance",
-      group: "continuity",
-    },
-    {
-      title: t("cards.certifications.title"),
-      description: t("cards.certifications.description"),
-      icon: BadgeCheck,
-      href: `/${safeLocale}/admin/certificaciones`,
-      color: "bg-indigo-50 text-indigo-800",
-      // No está en AdminNav.tsx -- API usa "compliance" (src/app/api/admin/certifications/route.ts).
-      resource: "compliance",
-      group: "payrollHr",
-    },
-    {
-      title: t("cards.craRemittances.title"),
-      description: t("cards.craRemittances.description"),
-      icon: Landmark,
-      href: `/${safeLocale}/admin/cra-remittances`,
-      color: "bg-emerald-50 text-emerald-800",
-      resource: "compliance",
-      group: "pricingFinance",
-    },
-    {
-      title: t("cards.backupStatus.title"),
-      description: t("cards.backupStatus.description"),
-      icon: DatabaseBackup,
-      href: `/${safeLocale}/admin/backups`,
-      color: "bg-slate-50 text-slate-800",
-      // No está en AdminNav.tsx -- API usa "compliance" (src/app/api/admin/backup-status/route.ts).
-      resource: "compliance",
-      group: "continuity",
-    },
-    {
-      title: t("cards.contractReviews.title"),
-      description: t("cards.contractReviews.description"),
-      icon: FileSignature,
-      href: `/${safeLocale}/admin/contract-reviews`,
-      color: "bg-cyan-50 text-cyan-800",
-      resource: "compliance",
-      group: "complianceLegal",
-    },
-    {
-      title: t("cards.laborCompliance.title"),
-      description: t("cards.laborCompliance.description"),
-      icon: CalendarDays,
-      href: `/${safeLocale}/admin/cumplimiento-laboral`,
-      color: "bg-orange-50 text-orange-800",
-      // No está en AdminNav.tsx -- agrega rest-periods/sick-leave/statutory-holiday-pay/
-      // weekly-rest-violations, todas con "compliance" en sus APIs.
-      resource: "compliance",
-      group: "complianceLegal",
-    },
-  ];
-
-  const visibleCards = cards.filter((card) => roleAllows(roles, card.resource));
 
   const [search, setSearch] = useState("");
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -614,99 +85,209 @@ export default function AdminDashboardClient({ roles }: { roles: AdminRole[] }) 
       .catch(() => {});
   }, []);
 
+  // ── 12 Dashboard Cards ──────────────────────────────────────────────
+  const cards: DashboardCard[] = [
+    // KPI
+    { title: t("cards.businessHealth.title"), description: t("cards.businessHealth.description"), icon: TrendingUp, href: `/${safeLocale}/admin`, color: "bg-emerald-50 text-emerald-600", resource: "services", type: "kpi" },
+    // Action
+    { title: t("cards.reviewServices.title"), description: t("cards.reviewServices.description"), icon: ClipboardList, href: `/${safeLocale}/admin/servicios`, color: "bg-blue-50 text-blue-600", resource: "services", type: "action", badgeKey: "pendingDispatch" },
+    { title: t("cards.reviewQuotes.title"), description: t("cards.reviewQuotes.description"), icon: FileSearch, href: `/${safeLocale}/admin/quotes-review`, color: "bg-rose-50 text-rose-600", resource: "quotes_review", type: "action" },
+    { title: t("cards.reviewUpsells.title"), description: t("cards.reviewUpsells.description"), icon: Tag, href: `/${safeLocale}/admin/upsells`, color: "bg-amber-50 text-amber-600", resource: "upsells_review", type: "action" },
+    { title: t("cards.approveServices.title"), description: t("cards.approveServices.description"), icon: ShieldCheck, href: `/${safeLocale}/admin/qc`, color: "bg-indigo-50 text-indigo-600", resource: "qc_wall", type: "action" },
+    { title: t("cards.reviewAlerts.title"), description: t("cards.reviewAlerts.description"), icon: Siren, href: `/${safeLocale}/admin/alerts`, color: "bg-red-50 text-red-600", resource: "risk_assessments", type: "action", badgeKey: "activeAlerts" },
+    { title: t("cards.todaysDispatch.title"), description: t("cards.todaysDispatch.description"), icon: CalendarClock, href: `/${safeLocale}/admin/dispatch`, color: "bg-teal-50 text-teal-600", resource: "dispatch", type: "action" },
+    // KPI
+    { title: t("cards.atRiskClients.title"), description: t("cards.atRiskClients.description"), icon: UserMinus, href: `/${safeLocale}/admin/churn-signals`, color: "bg-orange-50 text-orange-600", resource: "services", type: "kpi" },
+    { title: t("cards.netMargin.title"), description: t("cards.netMargin.description"), icon: DollarSign, href: `/${safeLocale}/admin/contabilidad`, color: "bg-green-50 text-green-600", resource: "finance", type: "kpi" },
+    { title: t("cards.teamScore.title"), description: t("cards.teamScore.description"), icon: Star, href: `/${safeLocale}/admin/team-ranking`, color: "bg-yellow-50 text-yellow-600", resource: "teams", type: "kpi" },
+    // Monitoring
+    { title: t("cards.craDeadlines.title"), description: t("cards.craDeadlines.description"), icon: Landmark, href: `/${safeLocale}/admin/cra-remittances`, color: "bg-slate-50 text-slate-600", resource: "finance", type: "monitoring" },
+    { title: t("cards.backupStatus.title"), description: t("cards.backupStatus.description"), icon: DatabaseBackup, href: `/${safeLocale}/admin/backups`, color: "bg-gray-50 text-gray-600", resource: "finance", type: "monitoring" },
+  ];
+
+  // ── Module Sidebar ──────────────────────────────────────────────────
+  const modules: ModuleGroup[] = [
+    { title: tModules("people.title"), items: [
+      { label: tModules("people.items.employees"), href: `/${safeLocale}/admin/empleados`, resource: "employees_admin" as AdminResource },
+      { label: tModules("people.items.applicants"), href: `/${safeLocale}/admin/applicants`, resource: "applicants" as AdminResource },
+      { label: tModules("people.items.teams"), href: `/${safeLocale}/admin/teams`, resource: "teams" as AdminResource },
+      { label: tModules("people.items.teamRotation"), href: `/${safeLocale}/admin/coworker-rotation`, resource: "teams" as AdminResource },
+      { label: tModules("people.items.certifications"), href: `/${safeLocale}/admin/certificaciones`, resource: "services" as AdminResource },
+      { label: tModules("people.items.wellbeing"), href: `/${safeLocale}/admin/wellbeing`, resource: "wellbeing" as AdminResource },
+      { label: tModules("people.items.marketing"), href: `/${safeLocale}/admin/employee-marketing`, resource: "upsells_review" as AdminResource },
+    ]},
+    { title: tModules("clients.title"), items: [
+      { label: tModules("clients.items.newClients"), href: `/${safeLocale}/admin/clients`, resource: "clients" as AdminResource },
+      { label: tModules("clients.items.segments"), href: `/${safeLocale}/admin/client-segments`, resource: "services" as AdminResource },
+      { label: tModules("clients.items.candidatePool"), href: `/${safeLocale}/admin/live-portfolio`, resource: "live_portfolio_publish" as AdminResource },
+      { label: tModules("clients.items.campaigns"), href: `/${safeLocale}/admin/seasonal-campaigns`, resource: "upsells_review" as AdminResource },
+      { label: tModules("clients.items.gifts"), href: `/${safeLocale}/admin/regalos`, resource: "upsells_review" as AdminResource },
+      { label: tModules("clients.items.neighborhood"), href: `/${safeLocale}/admin/neighborhood`, resource: "services" as AdminResource },
+    ]},
+    { title: tModules("finance.title"), items: [
+      { label: tModules("finance.items.contributionMargin"), href: `/${safeLocale}/admin/contabilidad`, resource: "finance" as AdminResource },
+      { label: tModules("finance.items.pricingRules"), href: `/${safeLocale}/admin/pricing-rules`, resource: "pricing_rules" as AdminResource },
+      { label: tModules("finance.items.pricingSettings"), href: `/${safeLocale}/admin/pricing-settings`, resource: "pricing_settings" as AdminResource },
+      { label: tModules("finance.items.payrollExport"), href: `/${safeLocale}/admin/nomina`, resource: "payroll" as AdminResource },
+      { label: tModules("finance.items.insurance"), href: `/${safeLocale}/admin/business-insurance`, resource: "finance" as AdminResource },
+      { label: tModules("finance.items.economicSettings"), href: `/${safeLocale}/admin/parametros-economicos`, resource: "finance" as AdminResource },
+      { label: tModules("finance.items.partners"), href: `/${safeLocale}/admin/partners`, resource: "services" as AdminResource },
+      { label: tModules("finance.items.paymentSuccess"), href: `/${safeLocale}/admin/contabilidad`, resource: "finance" as AdminResource },
+    ]},
+    { title: tModules("compliance.title"), items: [
+      { label: tModules("compliance.items.laborCompliance"), href: `/${safeLocale}/admin/cumplimiento-laboral`, resource: "compliance" as AdminResource },
+      { label: tModules("compliance.items.privacy"), href: `/${safeLocale}/admin/pipeda`, resource: "compliance" as AdminResource },
+      { label: tModules("compliance.items.contractRenewals"), href: `/${safeLocale}/admin/contract-reviews`, resource: "compliance" as AdminResource },
+      { label: tModules("compliance.items.legalUpdates"), href: `/${safeLocale}/admin/monitoreo-legal`, resource: "compliance" as AdminResource },
+      { label: tModules("compliance.items.incidents"), href: `/${safeLocale}/admin/workplace-incidents`, resource: "near_misses" as AdminResource },
+    ]},
+    { title: tModules("system.title"), items: [
+      { label: tModules("system.items.recoveryDrills"), href: `/${safeLocale}/admin/dr-drill`, resource: "services" as AdminResource },
+      { label: tModules("system.items.stressTest"), href: `/${safeLocale}/admin/stress-scenario`, resource: "services" as AdminResource },
+      { label: tModules("system.items.migrationClosure"), href: `/${safeLocale}/admin/legacy-migration`, resource: "services" as AdminResource },
+      { label: tModules("system.items.experiments"), href: `/${safeLocale}/admin/experiments`, resource: "services" as AdminResource },
+      { label: tModules("system.items.localSeo"), href: `/${safeLocale}/admin/seo-local`, resource: "services" as AdminResource },
+      { label: tModules("system.items.growthMetrics"), href: `/${safeLocale}/admin/growth-metrics`, resource: "services" as AdminResource },
+      { label: tModules("system.items.attribution"), href: `/${safeLocale}/admin/attribution`, resource: "services" as AdminResource },
+    ]},
+  ];
+
+  const visibleCards = cards.filter((card) => roleAllows(roles, card.resource));
+
+  // ── Search filter ───────────────────────────────────────────────────
   const query = search.trim().toLowerCase();
   const filteredCards = query
     ? visibleCards.filter(
-        (card) =>
-          card.title.toLowerCase().includes(query) || card.description.toLowerCase().includes(query)
+        (c) =>
+          c.title.toLowerCase().includes(query) ||
+          c.description.toLowerCase().includes(query)
       )
     : visibleCards;
 
-  // Agrupación directa por el campo `group` de cada tarjeta (ver taxonomía
-  // arriba) -- ya no depende de un lookup de href contra AdminNav.tsx, así
-  // que ninguna tarjeta puede caer accidentalmente en un cajón genérico.
-  // `otherGroup` se conserva solo como red de seguridad para una tarjeta
-  // futura sin `group` asignado (no debería alcanzarse nunca en la práctica).
-  const otherGroupLabel = t("otherGroup");
-  const groupedCards = new Map<string, typeof filteredCards>();
-  for (const card of filteredCards) {
-    const groupLabel = t(`groups.${card.group}`);
-    const existing = groupedCards.get(groupLabel) || [];
-    existing.push(card);
-    groupedCards.set(groupLabel, existing);
+  const kpiCards = filteredCards.filter((c) => c.type === "kpi");
+  const actionCards = filteredCards.filter((c) => c.type === "action");
+  const monitoringCards = filteredCards.filter((c) => c.type === "monitoring");
+
+  function renderCard(card: DashboardCard) {
+    const Icon = card.icon;
+    return (
+      <Link
+        key={card.title}
+        href={card.href}
+        className="bg-white rounded-xl border p-5 text-left hover:shadow-md transition-shadow group block"
+      >
+        <div className="flex items-start justify-between">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${card.color}`}>
+            <Icon className="w-5 h-5" />
+          </div>
+          <div className="flex items-center gap-2">
+            {card.badgeKey && counts[card.badgeKey] > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold bg-red-500 text-white">
+                {counts[card.badgeKey]}
+              </span>
+            )}
+            <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-brand-navy transition-colors" />
+          </div>
+        </div>
+        <h2 className="mt-3 font-semibold text-brand-ink">{card.title}</h2>
+        <p className="mt-1 text-sm text-gray-500">{card.description}</p>
+      </Link>
+    );
   }
-  const orderedGroupLabels = [
-    ...GROUP_ORDER.map((id) => t(`groups.${id}`)).filter((label) => groupedCards.has(label)),
-    ...(groupedCards.has(otherGroupLabel) ? [otherGroupLabel] : []),
-  ];
 
   return (
     <ErrorBoundary>
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-brand-ink">{t("title")}</h1>
-
+    <div className="max-w-6xl mx-auto px-4 py-8">
       <AutopilotModeBanner locale={safeLocale} />
-
       {roleAllows(roles, "finance") && <DashboardMetricsPanel />}
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t("searchPlaceholder")}
-          aria-label={t("searchAriaLabel")}
-          className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none text-sm"
-        />
-      </div>
+      <div className="flex gap-8">
+        {/* ── Main Content ─────────────────────────────────────────── */}
+        <div className="flex-1 space-y-6">
+          {/* Search */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t("searchPlaceholder")}
+              aria-label={t("searchAriaLabel")}
+              className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none text-sm"
+            />
+          </div>
 
-      {filteredCards.length === 0 ? (
-        <p className="text-sm text-gray-500">{t("searchNoResults")}</p>
-      ) : (
-        <div className="space-y-6">
-          {orderedGroupLabels.map((groupLabel) => {
-            const groupCards = groupedCards.get(groupLabel) || [];
-            return (
-              <details key={groupLabel} open className="group/section">
-                <summary className="cursor-pointer select-none text-sm font-semibold text-brand-ink mb-3 flex items-center gap-2">
-                  <ChevronRight className="w-4 h-4 text-gray-400 transition-transform group-open/section:rotate-90" aria-hidden="true" />
-                  {groupLabel}
-                  <span className="text-xs font-normal text-gray-400">({groupCards.length})</span>
-                </summary>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {groupCards.map((card) => {
-                    const Icon = card.icon;
-                    return (
-                      <Link
-                        key={card.title}
-                        href={card.href}
-                        className="bg-white rounded-xl border p-5 text-left hover:shadow-md transition-shadow group block"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${card.color}`}>
-                            <Icon className="w-5 h-5" />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {card.badgeKey && counts[card.badgeKey] > 0 && (
-                              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold bg-red-500 text-white">
-                                {counts[card.badgeKey]}
-                              </span>
-                            )}
-                            <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-brand-navy transition-colors" />
-                          </div>
-                        </div>
-                        <h2 className="mt-3 font-semibold text-brand-ink">{card.title}</h2>
-                        <p className="mt-1 text-sm text-gray-500">{card.description}</p>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </details>
-            );
-          })}
+          {filteredCards.length === 0 ? (
+            <p className="text-sm text-gray-500">{t("searchNoResults")}</p>
+          ) : (
+            <>
+              {/* KPI Row */}
+              {kpiCards.length > 0 && (
+                <section>
+                  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                    {t("sections.kpi")}
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {kpiCards.map(renderCard)}
+                  </div>
+                </section>
+              )}
+
+              {/* Action Row */}
+              {actionCards.length > 0 && (
+                <section>
+                  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                    {t("sections.actions")}
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {actionCards.map(renderCard)}
+                  </div>
+                </section>
+              )}
+
+              {/* Monitoring Row */}
+              {monitoringCards.length > 0 && (
+                <section>
+                  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                    {t("sections.monitoring")}
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {monitoringCards.map(renderCard)}
+                  </div>
+                </section>
+              )}
+            </>
+          )}
         </div>
-      )}
+
+        {/* ── Sidebar ────────────────────────────────────────────────── */}
+        <aside className="hidden lg:block w-60 space-y-1 shrink-0">
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2">
+            {t("sections.modules")}
+          </h2>
+          {modules.map((mod) => (
+            <details key={mod.title} className="group/module">
+              <summary className="cursor-pointer select-none text-sm font-medium text-brand-ink hover:text-brand-navy px-2 py-1.5 rounded-lg hover:bg-gray-50 flex items-center gap-1.5">
+                <ChevronRight className="w-3.5 h-3.5 text-gray-400 transition-transform group-open/module:rotate-90 shrink-0" />
+                {mod.title}
+              </summary>
+              <div className="ml-5 mt-1 space-y-0.5">
+                {mod.items
+                  .filter((item) => roleAllows(roles, item.resource))
+                  .map((item) => (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      className="block text-sm text-gray-500 hover:text-brand-navy hover:bg-gray-50 px-2 py-1 rounded-lg transition-colors"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+              </div>
+            </details>
+          ))}
+        </aside>
+      </div>
     </div>
     </ErrorBoundary>
   );
