@@ -94,8 +94,8 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
   const [mode, setMode] = useState<"options" | "email" | "phone" | "verify_phone" | "signup_form">(
     forcePhoneVerification ? "verify_phone" : isSignup ? "signup_form" : "options"
   );
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [firstName, _setFirstName] = useState("");
+  const [lastName, _setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);

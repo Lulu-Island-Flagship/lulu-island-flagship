@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
   const randomPart = Math.random().toString(36).slice(2, 8);
   const storagePath = `resumes/${timestamp}-${randomPart}.${ext}`;
 
-  const { data: uploadData, error: uploadError } = await supabase.storage
+  const { data: _uploadData, error: uploadError } = await supabase.storage
     .from(BUCKET_NAME)
     .upload(storagePath, file, {
       contentType: detectedMimeType,

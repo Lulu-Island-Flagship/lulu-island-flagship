@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
   }
 
   const candidateIds = (data || []).map((c) => c.id);
-  let docCounts: Record<string, number> = {};
+  const docCounts: Record<string, number> = {};
 
   if (candidateIds.length > 0) {
     const { data: docs } = await auth.supabase

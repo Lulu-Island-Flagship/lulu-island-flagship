@@ -168,7 +168,7 @@ export async function PATCH(
     // ────────────────────────────────────────────────────────────────────
     let capturedNowCents = 0;
     let paymentIntentId: string | null = null;
-    let stripeSucceeded = false;
+    // let stripeSucceeded = false; — assigned but never read
 
     try {
       if (neverCapturedAnything) {
@@ -266,7 +266,7 @@ export async function PATCH(
         paymentIntentId = pi.id;
       }
 
-      stripeSucceeded = true;
+      // stripeSucceeded = true;
     } catch (stripeErr) {
       // Stripe failed after ledger was already written — mark the ledger
       // entry as failed so we don't have an orphaned pending record.

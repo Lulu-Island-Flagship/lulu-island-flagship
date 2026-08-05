@@ -118,7 +118,7 @@ export default function HomePage() {
   // activas y registradas. Ese endpoint nunca expone datos de las pólizas,
   // solo el booleano derivado (ver src/lib/business-insurance.ts).
   const [insuredClaimReady, setInsuredClaimReady] = useState(false);
-  const [authModal, setAuthModal] = useState<"signin" | "signup" | null>(null);
+  const [_authModal, setAuthModal] = useState<"signin" | "signup" | null>(null);
 
   useEffect(() => {
     let cancelled = false;

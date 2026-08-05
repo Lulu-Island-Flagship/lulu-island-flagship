@@ -31,7 +31,8 @@
     "react": "^18",
     "react-dom": "^18",
     "sharp": "^0.35.3",
-    "stripe": "^22.3.0"
+    "stripe": "^22.3.0",
+    "zod": "^4.4.3"
   },
   "overrides": {
     "@next/eslint-plugin-next": {

@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   }
 
   const userIds = (profiles || []).map((p) => p.user_id).filter(Boolean);
-  let emailMap: Record<string, string> = {};
+  const emailMap: Record<string, string> = {};
 
   if (userIds.length > 0) {
     try {

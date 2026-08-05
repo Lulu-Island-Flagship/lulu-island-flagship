@@ -87,7 +87,7 @@ const MATRIX: Record<AdminResource, AdminRole[]> = {
   live_portfolio_publish: ["owner_admin", "ops_coordinator"],
   applicants: ["owner_admin", "ops_coordinator"],
   clients: ["owner_admin", "ops_coordinator"],
-  dashboard: ["owner_admin", "ops_coordinator", "qc_only"],
+  dashboard: ["owner_admin", "ops_coordinator"],
   qc_wall: ["owner_admin", "ops_coordinator", "qc_only"],
 };
 
