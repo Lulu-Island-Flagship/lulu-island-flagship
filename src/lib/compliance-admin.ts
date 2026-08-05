@@ -21,7 +21,7 @@ import { getServiceRoleClient } from "./admin";
 import {
   type ReglaLegalRow,
   type TipoRegla,
-  type _Jurisdiccion,
+  // type Jurisdiccion,
   cppParamsSchema,
   eiParamsSchema,
   bcTaxParamsSchema,

@@ -24,7 +24,7 @@
 
 import { assertSingleEmployee, formatCents } from "./employee-financial-dashboard";
 import type { BadgeProgress } from "./employee-financial-dashboard";
-import { _centsToDollars } from "./payroll-line";
+// import { centsToDollars } from "./payroll-line";
 
 // =========================================================================
 // Tipos de entrada — datos que el caller obtiene de la DB (pre-filtrados)

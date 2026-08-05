@@ -278,6 +278,12 @@ export default async function middleware(request: NextRequest) {
   // (middleware) con acceso simultáneo al NextRequest y a la response.
   response.headers.set("x-pathname", request.nextUrl.pathname);
 
+  // Capa 0: Communication Observability headers
+  // Propagate business context so downstream systems can trace which
+  // business object triggered a communication, without coupling modules.
+  response.headers.set("X-Business-Context", "ready");
+  response.headers.set("X-Emitted-By", "middleware");
+
   return response;
 }
 

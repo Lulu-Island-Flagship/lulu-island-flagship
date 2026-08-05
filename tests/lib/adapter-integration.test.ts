@@ -62,7 +62,7 @@ describe("CSV Adapter", () => {
     const csv = createCsvAdapter(entries).exportJournalEntries("2026-08");
 
     // Verificar encabezados
-    const lines = (csv as string).trim().split("\n");
+    const lines = ((csv as unknown) as string).trim().split("\n");
     const header = lines[0];
     assert.match(header, /Fecha/);
     assert.match(header, /Cuenta Debito/);
@@ -90,7 +90,7 @@ describe("CSV Adapter", () => {
     ];
     const csv = createCsvAdapter(entries).exportJournalEntries("2026-08");
 
-    const lines = (csv as string).trim().split("\n");
+    const lines = ((csv as unknown) as string).trim().split("\n");
     assert.strictEqual(lines.length, 2); // header + 1 data row
     assert.match(csv, /August entry/);
     // La entrada de septiembre NO debe aparecer
@@ -101,7 +101,7 @@ describe("CSV Adapter", () => {
     const entries = sampleEntries();
     const csv = createCsvAdapter(entries).exportJournalEntries("2026-01");
 
-    const lines = (csv as string).trim().split("\n");
+    const lines = ((csv as unknown) as string).trim().split("\n");
     assert.strictEqual(lines.length, 1); // Solo header
     assert.match(lines[0], /Fecha/);
   });
@@ -197,7 +197,7 @@ describe("IIF Adapter (QuickBooks)", () => {
   it("convenience function exportJournalEntriesAsIIF funciona", () => {
     const entries = [makeEntry({ period: "2026-08" })];
     const iif = exportJournalEntriesAsIIF(entries, "2026-08");
-    assert.ok((iif as string).length > 0);
+    assert.ok(((iif as unknown) as string).length > 0);
     assert.match(iif as string, /!TRNS/);
   });
 });
@@ -237,7 +237,7 @@ describe("PDF Adapter (HTML)", () => {
     const entries: FinancialLedgerEntry[] = [];
     const html = createPdfAdapter(entries).exportJournalEntries("2026-08");
 
-    assert.ok((html as string).length > 0);
+    assert.ok(((html as unknown) as string).length > 0);
     assert.match(html as string, /<html/i);
     // Debe tener estructura HTML aunque sin datos
   });
@@ -252,7 +252,7 @@ describe("PDF Adapter (HTML)", () => {
   it("convenience function exportFinancialStatementsAsPdf funciona", () => {
     const entries = [makeEntry({ period: "2026-08" })];
     const pdf = exportFinancialStatementsAsPdf(entries, "2026-08");
-    assert.ok((pdf as string).length > 0);
+    assert.ok(((pdf as unknown) as string).length > 0);
     assert.match(pdf as string, /<html/i);
   });
 
@@ -298,7 +298,7 @@ describe("Adapter edge cases", () => {
 
     // CSV: debe exportar ambas líneas
     const csv = createCsvAdapter(adjustmentEntries).exportJournalEntries("2026-08");
-    const csvLines = (csv as string).trim().split("\n");
+    const csvLines = ((csv as unknown) as string).trim().split("\n");
     assert.strictEqual(csvLines.length, 3); // header + 2 rows
 
     // IIF: debe tener SPL con débito positivo y crédito negativo
@@ -308,7 +308,7 @@ describe("Adapter edge cases", () => {
 
     // PDF: debe generar HTML sin errores
     const html = createPdfAdapter(adjustmentEntries).exportJournalEntries("2026-08");
-    assert.ok((html as string).length > 0);
+    assert.ok(((html as unknown) as string).length > 0);
   });
 });
 
