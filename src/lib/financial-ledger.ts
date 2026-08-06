@@ -196,6 +196,8 @@ const BusinessEventTypeSchema = z.enum([
   "ar_invoice_generated",
   "ar_payment_received",
   "bank_reconciled",
+  // Capa 4: Payroll Engine
+  "payroll_disbursement",
 ]);
 
 const PaymentProcessorSchema = z.enum(["stripe", "paypal", "internal"]);
@@ -232,6 +234,7 @@ const CuentaContableSchema = z.enum([
   "2-2020",
   "2-2030",
   "4-4010",
+  "5-2000",
 ]);
 
 export const JournalEntryRowSchema = z.object({

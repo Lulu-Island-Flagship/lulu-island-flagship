@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
+import { generateJournalEntry, type BusinessEvent } from "@/lib/financial-ledger";
 import { captureError } from "@/lib/observability";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -182,6 +183,24 @@ export async function reconcileCapturedPaymentIntent(
       if (ledgerError && ledgerError.code !== "23505") {
         captureError(ledgerError, { fn: "writeHoldCapturedLedger", orderId: order.id });
       }
+
+      // v8.6: Escribir también en financial_ledger (partida doble)
+      const jeEvent: BusinessEvent = {
+        event_id: crypto.randomUUID(),
+        event_type: "hold_captured",
+        order_id: order.id,
+        user_id: order.user_id ?? null,
+        amount_cents: amountReceivedCents,
+        currency: "CAD",
+        processor: "stripe",
+        external_reference: paymentIntent.id,
+        occurred_at: new Date().toISOString(),
+      };
+      const jeRows = generateJournalEntry(jeEvent);
+      const { error: finError } = await supabase.from("financial_ledger").insert(jeRows);
+      if (finError && finError.code !== "23505") {
+        captureError(finError, { fn: "writeHoldCapturedFinancialLedger", orderId: order.id });
+      }
     }
 
     return { updated: true, orderId: order.id, reason: "hold_captured_at reconciliado" };
@@ -256,6 +275,24 @@ export async function reconcileCapturedPaymentIntent(
     );
     if (ledgerError && ledgerError.code !== "23505") {
       captureError(ledgerError, { fn: "writeBalanceCapturedLedger", orderId: order.id });
+    }
+
+    // v8.6: Escribir también en financial_ledger (partida doble)
+    const jeEvent: BusinessEvent = {
+      event_id: crypto.randomUUID(),
+      event_type: "balance_captured",
+      order_id: order.id,
+      user_id: order.user_id ?? null,
+      amount_cents: amountReceivedCents,
+      currency: "CAD",
+      processor: "stripe",
+      external_reference: paymentIntent.id,
+      occurred_at: new Date().toISOString(),
+    };
+    const jeRows = generateJournalEntry(jeEvent);
+    const { error: finError } = await supabase.from("financial_ledger").insert(jeRows);
+    if (finError && finError.code !== "23505") {
+      captureError(finError, { fn: "writeBalanceCapturedFinancialLedger", orderId: order.id });
     }
   }
 
