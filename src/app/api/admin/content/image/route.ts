@@ -13,7 +13,7 @@ import { requireAdminRole } from "@/lib/admin";
 const ALLOWED_SLOTS = ["image.hero", "image.divider1", "image.divider2"];
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAdminRole("site_content_images", {
+  const auth = await requireAdminRole("site_content", {
     method: request.method,
     url: request.url,
   });
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const auth = await requireAdminRole("site_content_images", {
+  const auth = await requireAdminRole("site_content", {
     method: request.method,
     url: request.url,
   });
