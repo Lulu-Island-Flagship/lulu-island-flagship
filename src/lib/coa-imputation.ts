@@ -426,6 +426,22 @@ const IMPUTATION_RULES: ReadonlyMap<string, readonly ImputationLine[]> = new Map
   ],
 
   [
+    "nomina.desembolso",
+    [
+      {
+        accountCode: "5200",
+        side: "debit",
+        description: "Gasto por nómina neta — desembolso al empleado (payroll_disbursement).",
+      },
+      {
+        accountCode: "1010",
+        side: "credit",
+        description: "Efectivo transferido al empleado (net pay vía financial-ledger).",
+      },
+    ],
+  ],
+
+  [
     "vacaciones.devengadas",
     [
       {

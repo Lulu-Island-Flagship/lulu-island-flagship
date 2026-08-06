@@ -140,7 +140,6 @@ export const HHE_TABLE: Record<ServiceType, number[]> = {
  * Lee la tabla HHE vigente desde Supabase.
  * Fallback: HHE_TABLE hardcodeada si no hay conexión o no hay filas.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getCurrentHHETable(supabase: any): Promise<Record<ServiceType, number[]>> {
   try {
     const { data, error } = await supabase.rpc("get_current_hhe_table");
@@ -184,7 +183,6 @@ export function getHHEForRange(
  * Lee la tarifa objetivo vigente desde Supabase.
  * Fallback: TARIFA_OBJETIVO_HORA (70) si no hay conexión o no hay fila.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getTargetHourlyRate(supabase: any): Promise<number> {
   try {
     const { data, error } = await supabase.rpc("get_current_target_hourly_rate").single();

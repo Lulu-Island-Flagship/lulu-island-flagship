@@ -141,6 +141,90 @@ export interface MaxTeamSizeEvaluation {
  *   contrato del cliente) y `proposedSize` lo excede, se rechaza y corrige a
  *   ese tope contractual. Sin contrato provisto, cualquier tamaño es válido.
  */
+/**
+ * v8.3 E3 (invariante D.1) — Regla dura de zona: nunca Cocina + Baño a la
+ * misma persona si N≥2. El reparto se balancea por pesos de zona.
+ *
+ * Pesos por zona (del plan v8.3, D.1):
+ *   Cocina 3.0, Baño 3.0, Sala 2.0, Habitación 1.5, Lavandería 1.5,
+ *   Pasillo/Escaleras 1.0, Balcón 1.0
+ *
+ * @param zones - Lista de zonas a asignar con sus pesos
+ * @param teamSize - Número de miembros del equipo
+ * @returns Array de arrays: cada miembro recibe su lista de zonas asignadas.
+ *          Retorna vacío si teamSize < 1. Con teamSize=1, todas las zonas van a
+ *          la misma persona (no aplica la regla Cocina≠Baño).
+ */
+export function assignZones(
+  zones: { name: string; weight: number }[],
+  teamSize: number
+): string[][] {
+  if (teamSize < 1 || zones.length === 0) return [];
+
+  // Caso N=1: todas las zonas a la única persona (no hay conflicto posible)
+  if (teamSize === 1) return [zones.map((z) => z.name)];
+
+  const ZONE_WEIGHTS: Record<string, number> = {
+    cocina: 3.0,
+    bano: 3.0,
+    sala: 2.0,
+    habitacion: 1.5,
+    lavanderia: 1.5,
+    pasillo: 1.0,
+    escaleras: 1.0,
+    balcon: 1.0,
+  };
+
+  // Normalizar nombres a minúsculas para matching
+  const normalized = zones.map((z) => ({
+    ...z,
+    key: z.name.toLowerCase(),
+    weight: z.weight || ZONE_WEIGHTS[z.name.toLowerCase()] || 1.0,
+  }));
+
+  // Separar Cocina y Baño — son las zonas de mayor peso y NO pueden ir juntas
+  const cocina = normalized.filter((z) => z.key === "cocina");
+  const bano = normalized.filter((z) => z.key === "bano");
+  const otras = normalized.filter((z) => z.key !== "cocina" && z.key !== "bano");
+
+  // Inicializar buckets (uno por miembro del equipo)
+  const buckets: { member: number; zones: string[]; totalWeight: number }[] =
+    Array.from({ length: teamSize }, (_, i) => ({ member: i, zones: [], totalWeight: 0 }));
+
+  // Sort buckets by current totalWeight ascending (siempre asignar al más liviano)
+  const pickLightest = () => {
+    buckets.sort((a, b) => a.totalWeight - b.totalWeight);
+    return buckets[0];
+  };
+
+  // Regla dura: Cocina y Baño NUNCA a la misma persona si N≥2
+  if (cocina.length > 0 && bano.length > 0) {
+    const b1 = pickLightest();
+    b1.zones.push(...cocina.map((z) => z.name));
+    b1.totalWeight += cocina.reduce((s, z) => s + z.weight, 0);
+
+    const b2 = pickLightest();
+    b2.zones.push(...bano.map((z) => z.name));
+    b2.totalWeight += bano.reduce((s, z) => s + z.weight, 0);
+  } else {
+    // Si solo hay una de las dos (o ninguna), repartir normalmente
+    for (const z of [...cocina, ...bano]) {
+      const b = pickLightest();
+      b.zones.push(z.name);
+      b.totalWeight += z.weight;
+    }
+  }
+
+  // Repartir el resto por peso balanceado
+  for (const z of otras.sort((a, b) => b.weight - a.weight)) {
+    const b = pickLightest();
+    b.zones.push(z.name);
+    b.totalWeight += z.weight;
+  }
+
+  return buckets.map((b) => b.zones);
+}
+
 export function enforceMaxTeamSize(
   orderType: DispatchOrderType,
   proposedSize: number,
