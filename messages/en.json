@@ -19,14 +19,13 @@
     "teamPortal": "Team Portal"
   },
   "hero": {
-    "badge": "Serving Richmond, Vancouver, North & West Vancouver, UBC",
-    "title": "The same trusted team,",
-    "titleHighlight": "every time.",
-    "description": "Background-checked and trained to care for your home — not just clean it. Full price from quote, no surprises.",
-    "descriptionInsured": "Verified, insured, and trained to care for your home — not just clean it. Full price from quote, no surprises.",
-    "ctaPrimary": "Get Your Quote",
+    "title": "Lulu Island Flagship",
+    "subtitle": "Residential Home Care — Richmond, BC",
+    "proposition": "Fixed-price home care.\nBased on your property. Verified with photos.\nNo hourly billing. No disputes.",
+    "cta": "See your price",
     "ctaSecondary": "Start Your Quote",
-    "timeEstimate": "Takes less than 90 seconds"
+    "placeholder": "Enter your address",
+    "hint": "Takes about 90 seconds"
   },
   "trust": {
     "verifiedTitle": "Verified & Trained",
@@ -4464,5 +4463,56 @@
     "couldNotActivateSos": "Could not activate SOS. Use fallback options below.",
     "reasonAriaLabel": "Reason for safety abort",
     "reasonPlaceholder": "Briefly describe the situation (optional)"
+  },
+  "how": {
+    "title": "HOW IT WORKS",
+    "step1": "Enter your address. We calculate your price using your property's actual data.",
+    "step2": "A team arrives. They follow your home's documented care profile. Every preference recorded. Every surface treated to spec.",
+    "step3": "You receive time-stamped photos of every completed area. Review them. If something doesn't match, we fix it — backed by evidence, not opinions.",
+    "step4": "You pay. Same price. Every time. Reschedule or cancel anytime."
+  },
+  "standards": {
+    "title": "OUR STANDARDS",
+    "1": {
+      "title": "Photo-verified completion.",
+      "body": "Every area photographed before we leave. You see what we did."
+    },
+    "2": {
+      "title": "Wellness-screened teams.",
+      "body": "Every member checked before dispatch. No one arrives exhausted or unwell."
+    },
+    "3": {
+      "title": "Chemical safety protocol.",
+      "body": "Products are matched to surfaces and never cross-contaminated. Your indoor air stays safe."
+    },
+    "4": {
+      "title": "Documented home profile.",
+      "body": "Your preferences, surfaces, and instructions live in your home's care record. No repeating yourself. No surprises."
+    }
+  },
+  "included": {
+    "title": "WHAT'S INCLUDED — EVERY SERVICE",
+    "body": "All rooms, floors, surfaces, fixtures, appliances.\nKitchen, bathrooms, living areas, bedrooms.\nEco-certified products. HEPA-filtered equipment."
+  },
+  "not_included": {
+    "title": "WHAT'S NOT",
+    "body": "Biohazard, mold remediation, pest infestation,\nconstruction debris, hoarding conditions.\nThese require licensed specialists. We'll refer you."
+  },
+  "breaks": {
+    "title": "IF SOMETHING BREAKS",
+    "body": "We're insured. We document pre-existing conditions\nduring your first service. If we cause damage,\nwe cover it — no questions."
+  },
+  "faq": {
+    "title": "FAQ",
+    "q1": "WHAT IF I'M NOT SATISFIED?",
+    "a1": "If the time-stamped completion photos don't match what you see, we return within 24 hours and correct the specific areas — at no charge. If they match, the service is considered complete. Either way, the evidence decides.",
+    "q2": "WHAT IF THE TEAM CHANGES?",
+    "a2": "Your home has a documented care profile. Any trained team member can deliver the same result. You may not always see the same faces. You will always see the same outcome.",
+    "q3": "WHAT IF I NEED TO CANCEL?",
+    "a3": "Cancel or reschedule anytime up to 48 hours before your service at no charge. Within 48 hours, a $50 rescheduling fee applies. Same-day cancellations are billed at 50%.",
+    "q4": "WHO HAS ACCESS TO MY KEYS OR ALARM CODE?",
+    "a4": "Stored encrypted. Accessed only by the dispatched team lead on service day. Logged. Never shared. All staff sign confidentiality agreements.",
+    "q5": "ARE YOU INSURED?",
+    "a5": "Yes. Liability coverage. WorkSafeBC registered. Bonded. Documentation available upon request."
   }
 }

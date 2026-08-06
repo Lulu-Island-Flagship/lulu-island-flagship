@@ -585,6 +585,8 @@ export interface PriceBreakdown {
   organicAdjustment: number;
   recencyMultiplier: number;
   recencyAdjustment: number;
+  densityMultiplier: number;
+  densityAdjustment: number;
   zoneSurcharge: number;
   logisticsSurcharge: number;
   addonZonesCharge: number;
@@ -694,8 +696,10 @@ export function calculatePrice(
     logisticsSurcharge = 25;
   }
 
+  const densityMultiplier = getDensityMultiplier(validatedSquareFeet, organicMultiplier, recencyMultiplier);
   const organicAdjustment = Math.round(basePrice * (organicMultiplier - 1));
   const recencyAdjustment = Math.round(basePrice * (recencyMultiplier - 1));
+  const densityAdjustment = Math.round(basePrice * (densityMultiplier - 1));
 
   // v8.3 E4 (D.7): recargo de zonas add-on (ej. Garaje) editables por el
   // admin. El monto SIEMPRE llega ya recalculado por el servidor contra la
@@ -704,7 +708,7 @@ export function calculatePrice(
   const safeAddonZonesCharge = Math.max(0, Math.round(addonZonesCharge));
 
   const subtotalBeforeRules =
-    basePrice + organicAdjustment + recencyAdjustment + zoneSurcharge + logisticsSurcharge + safeAddonZonesCharge;
+    basePrice + organicAdjustment + recencyAdjustment + densityAdjustment + zoneSurcharge + logisticsSurcharge + safeAddonZonesCharge;
 
   const estimatedLaborCost = estimateLaborCost(serviceType, validatedSquareFeet, hheTable);
   const estimatedMarginContribution = calculateMarginContribution(subtotalBeforeRules, estimatedLaborCost);
@@ -763,6 +767,8 @@ export function calculatePrice(
     organicAdjustment,
     recencyMultiplier,
     recencyAdjustment,
+    densityMultiplier,
+    densityAdjustment,
     zoneSurcharge,
     logisticsSurcharge,
     addonZonesCharge: safeAddonZonesCharge,
