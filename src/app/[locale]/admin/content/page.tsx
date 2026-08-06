@@ -184,11 +184,12 @@ export default function ContentAdminPage() {
 
               return (
                 <div key={key} className="border border-brand-ice rounded-md p-4">
-                  <label className="block text-xs font-medium text-brand-navy uppercase tracking-wide mb-2">
+                  <label htmlFor={key} className="block text-xs font-medium text-brand-navy uppercase tracking-wide mb-2">
                     {label}
                   </label>
                   {multiline ? (
                     <textarea
+                      id={key}
                       value={value}
                       onChange={(e) => setDirty((d) => ({ ...d, [key]: e.target.value }))}
                       rows={3}
@@ -197,6 +198,7 @@ export default function ContentAdminPage() {
                     />
                   ) : (
                     <input
+                      id={key}
                       type="text"
                       value={value}
                       onChange={(e) => setDirty((d) => ({ ...d, [key]: e.target.value }))}
@@ -267,7 +269,7 @@ export default function ContentAdminPage() {
                       <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp,image/avif"
-                        className="hidden"
+                        className="hidden" aria-label="Upload image"
                         disabled={isUploading}
                         onChange={(e) => {
                           const file = e.target.files?.[0];
