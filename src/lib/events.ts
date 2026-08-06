@@ -268,3 +268,40 @@ export function buildSystemEvent<K extends SystemEventType>(
 export function validateSystemEvent(candidate: unknown): SystemEvent {
   return systemEventSchema.parse(candidate);
 }
+
+// =========================================================================
+// v8.6 — Eventos financieros (unificados desde financial-ledger.ts)
+// =========================================================================
+
+/** Payment processor. */
+export const paymentProcessorSchema = z.enum(["stripe", "paypal", "internal"]);
+export type PaymentProcessor = z.infer<typeof paymentProcessorSchema>;
+
+export const businessEventBaseSchema = z.object({
+  event_id: z.string().min(1),
+  order_id: z.string().nullable(),
+  user_id: z.string().nullable(),
+  amount_cents: z.number().int().nonnegative(),
+  currency: z.string().default("CAD"),
+  processor: paymentProcessorSchema,
+  external_reference: z.string().nullable(),
+  occurred_at: z.date().or(z.string()),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const financialEventSchema = z.discriminatedUnion("event_type", [
+  z.object({ event_type: z.literal("hold_captured"), event_id: z.string(), order_id: z.string().nullable(), user_id: z.string().nullable(), amount_cents: z.number().int(), currency: z.string(), processor: paymentProcessorSchema, external_reference: z.string().nullable(), occurred_at: z.date().or(z.string()), metadata: z.record(z.string(), z.unknown()).optional() }),
+  z.object({ event_type: z.literal("hold_authorized"), event_id: z.string(), order_id: z.string().nullable(), user_id: z.string().nullable(), amount_cents: z.number().int(), currency: z.string(), processor: paymentProcessorSchema, external_reference: z.string().nullable(), occurred_at: z.date().or(z.string()), metadata: z.record(z.string(), z.unknown()).optional() }),
+  z.object({ event_type: z.literal("hold_released"), event_id: z.string(), order_id: z.string().nullable(), user_id: z.string().nullable(), amount_cents: z.number().int(), currency: z.string(), processor: paymentProcessorSchema, external_reference: z.string().nullable(), occurred_at: z.date().or(z.string()), metadata: z.record(z.string(), z.unknown()).optional() }),
+  z.object({ event_type: z.literal("balance_captured"), event_id: z.string(), order_id: z.string().nullable(), user_id: z.string().nullable(), amount_cents: z.number().int(), currency: z.string(), processor: paymentProcessorSchema, external_reference: z.string().nullable(), occurred_at: z.date().or(z.string()), metadata: z.record(z.string(), z.unknown()).optional() }),
+  z.object({ event_type: z.literal("cancellation_penalty"), event_id: z.string(), order_id: z.string().nullable(), user_id: z.string().nullable(), amount_cents: z.number().int(), currency: z.string(), processor: paymentProcessorSchema, external_reference: z.string().nullable(), occurred_at: z.date().or(z.string()), metadata: z.record(z.string(), z.unknown()).optional() }),
+  z.object({ event_type: z.literal("warranty_refund"), event_id: z.string(), order_id: z.string().nullable(), user_id: z.string().nullable(), amount_cents: z.number().int(), currency: z.string(), processor: paymentProcessorSchema, external_reference: z.string().nullable(), occurred_at: z.date().or(z.string()), metadata: z.record(z.string(), z.unknown()).optional() }),
+  z.object({ event_type: z.literal("payroll_disbursement"), event_id: z.string(), order_id: z.string().nullable(), user_id: z.string().nullable(), amount_cents: z.number().int(), currency: z.string(), processor: paymentProcessorSchema, external_reference: z.string().nullable(), occurred_at: z.date().or(z.string()), metadata: z.record(z.string(), z.unknown()).optional() }),
+  z.object({ event_type: z.literal("tax_gst_accrual"), event_id: z.string(), order_id: z.string().nullable(), user_id: z.string().nullable(), amount_cents: z.number().int(), currency: z.string(), processor: paymentProcessorSchema, external_reference: z.string().nullable(), occurred_at: z.date().or(z.string()), metadata: z.record(z.string(), z.unknown()).optional() }),
+  z.object({ event_type: z.literal("tax_pst_accrual"), event_id: z.string(), order_id: z.string().nullable(), user_id: z.string().nullable(), amount_cents: z.number().int(), currency: z.string(), processor: paymentProcessorSchema, external_reference: z.string().nullable(), occurred_at: z.date().or(z.string()), metadata: z.record(z.string(), z.unknown()).optional() }),
+  z.object({ event_type: z.literal("ar_invoice_generated"), event_id: z.string(), order_id: z.string().nullable(), user_id: z.string().nullable(), amount_cents: z.number().int(), currency: z.string(), processor: paymentProcessorSchema, external_reference: z.string().nullable(), occurred_at: z.date().or(z.string()), metadata: z.record(z.string(), z.unknown()).optional() }),
+  z.object({ event_type: z.literal("ar_payment_received"), event_id: z.string(), order_id: z.string().nullable(), user_id: z.string().nullable(), amount_cents: z.number().int(), currency: z.string(), processor: paymentProcessorSchema, external_reference: z.string().nullable(), occurred_at: z.date().or(z.string()), metadata: z.record(z.string(), z.unknown()).optional() }),
+  z.object({ event_type: z.literal("bank_reconciled"), event_id: z.string(), order_id: z.string().nullable(), user_id: z.string().nullable(), amount_cents: z.number().int(), currency: z.string(), processor: paymentProcessorSchema, external_reference: z.string().nullable(), occurred_at: z.date().or(z.string()), metadata: z.record(z.string(), z.unknown()).optional() }),
+]);
+
+export type FinancialEvent = z.infer<typeof financialEventSchema>;
