@@ -196,6 +196,7 @@ export default function ServicioPage() {
     } catch (e) {
       console.error("Load logs error:", e);
     }
+  }, [orderId]);
   const loadConfirmedColors = useCallback(async () => {
     try {
       const res = await fetch(`/api/employee/chemical-confirm?orderId=${orderId}`, { credentials: "include" });
@@ -244,9 +245,6 @@ export default function ServicioPage() {
     }, 20000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId]);
-
-  }, [orderId]);
 
   const getCurrentLocation = (): Promise<{ lat: number; lng: number } | null> => {
     return new Promise((resolve) => {
