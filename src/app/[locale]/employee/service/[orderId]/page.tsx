@@ -175,6 +175,12 @@ export default function ServicioPage() {
   }, [orderId]);
 
   // Load service details
+  useEffect(() => {
+    if (!orderId) return;
+    loadService();
+    loadConfirmedColors();
+  }, [loadService, loadConfirmedColors, orderId]);
+
   // v8.3 E4 fix (auditoría 2026-07-18): el candado químico ahora persiste
   // server-side (chemical_zone_confirmations, migración 185) — antes vivía
   // solo en este useState y se perdía al refrescar la página, dejando la
@@ -197,6 +203,7 @@ export default function ServicioPage() {
       console.error("Load logs error:", e);
     }
   }, [orderId]);
+
   const loadConfirmedColors = useCallback(async () => {
     try {
       const res = await fetch(`/api/employee/chemical-confirm?orderId=${orderId}`, { credentials: "include" });
@@ -245,6 +252,8 @@ export default function ServicioPage() {
     }, 20000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId]);
+
 
   const getCurrentLocation = (): Promise<{ lat: number; lng: number } | null> => {
     return new Promise((resolve) => {
