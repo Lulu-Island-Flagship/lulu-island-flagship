@@ -110,7 +110,6 @@ export default function WalletPage() {
   // de error genérico en vez de pedir login de nuevo.
   const [needsAuth, setNeedsAuth] = useState(false);
 
-  useEffect(() => { load(); }, [load]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -151,6 +150,8 @@ export default function WalletPage() {
       setLoading(false);
     }
   }, [t]);
+
+  useEffect(() => { load(); }, [load]);
 
   async function applyToOrder(orderId: string) {
     setApplying(orderId);

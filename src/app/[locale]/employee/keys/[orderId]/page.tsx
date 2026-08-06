@@ -74,9 +74,6 @@ export default function LlavesPage() {
   // seguridad/page.tsx vía submitGenericReportOrQueue.
   const [queued, setQueued] = useState(false);
 
-  useEffect(() => {
-    if (orderId) load();
-  }, [load, orderId]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -90,6 +87,10 @@ export default function LlavesPage() {
       setLoading(false);
     }
   }, [orderId]);
+
+  useEffect(() => {
+    if (orderId) load();
+  }, [load, orderId]);
 
   async function handleSignaturePhoto(file: File) {
     setUploadingSignature(true);

@@ -32,10 +32,6 @@ export default function InvoicePageClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!orderId) return;
-    load();
-  }, [load, orderId]);
 
   const load = useCallback(async () => {
     try {
@@ -49,6 +45,11 @@ export default function InvoicePageClient() {
       setLoading(false);
     }
   }, [orderId, t]);
+
+  useEffect(() => {
+    if (!orderId) return;
+    load();
+  }, [load, orderId]);
 
   function handlePrint() {
     window.print();

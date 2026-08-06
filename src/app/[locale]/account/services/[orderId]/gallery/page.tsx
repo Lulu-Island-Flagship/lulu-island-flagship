@@ -48,10 +48,6 @@ export default function ServiceGalleryPage() {
   // sin crear una dependencia nueva de librería de lightbox.
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (!orderId) return;
-    load();
-  }, [load, orderId]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,6 +67,11 @@ export default function ServiceGalleryPage() {
       setLoading(false);
     }
   }, [orderId, t]);
+
+  useEffect(() => {
+    if (!orderId) return;
+    load();
+  }, [load, orderId]);
 
   if (loading) {
     return (

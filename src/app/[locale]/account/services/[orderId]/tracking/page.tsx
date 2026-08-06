@@ -32,16 +32,6 @@ export default function ServiceTrackingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!orderId) return;
-    const controller = new AbortController();
-    load(controller.signal);
-    const interval = setInterval(() => load(controller.signal), 30000);
-    return () => {
-      clearInterval(interval);
-      controller.abort();
-    };
-  }, [load, orderId]);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setError("");
@@ -69,6 +59,17 @@ export default function ServiceTrackingPage() {
       }
     }
   }, [orderId, t]);
+
+  useEffect(() => {
+    if (!orderId) return;
+    const controller = new AbortController();
+    load(controller.signal);
+    const interval = setInterval(() => load(controller.signal), 30000);
+    return () => {
+      clearInterval(interval);
+      controller.abort();
+    };
+  }, [load, orderId]);
 
   if (loading) {
     return (
