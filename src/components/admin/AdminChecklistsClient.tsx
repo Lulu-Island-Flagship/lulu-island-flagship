@@ -104,11 +104,6 @@ export default function AdminChecklistsClient() {
   useFocusTrap(confirmDialogRef, !!confirmDialog?.open);
 
   useEffect(() => {
-    loadChecklists();
-  }, [loadChecklists]);
-
-  // Close zone menu when clicking outside
-  useEffect(() => {
     if (!openZoneMenu) return;
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;

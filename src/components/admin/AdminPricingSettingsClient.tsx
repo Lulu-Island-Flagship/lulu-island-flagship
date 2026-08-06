@@ -67,11 +67,6 @@ export default function AdminPricingSettingsClient() {
   const [hheSuccess, setHheSuccess] = useState("");
   const [hheError, setHheError] = useState("");
 
-  useEffect(() => {
-    loadSettings();
-    loadHHE();
-  }, [loadSettings, loadHHE]);
-
   const loadSettings = useCallback(async () => {
     setLoading(true);
     setError("");

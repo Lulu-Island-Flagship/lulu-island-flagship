@@ -67,11 +67,6 @@ export default function AdminServicioDetailClient() {
   const [error, setError] = useState("");
   const [expandedZones, setExpandedZones] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (!orderId) return;
-    loadChecklist();
-  }, [loadChecklist, orderId]);
-
   const loadChecklist = useCallback(async () => {
     setLoading(true);
     try {

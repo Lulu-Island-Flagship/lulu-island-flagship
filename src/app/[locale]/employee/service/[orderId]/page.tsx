@@ -175,18 +175,27 @@ export default function ServicioPage() {
   }, [orderId]);
 
   // Load service details
-  useEffect(() => {
-    if (!orderId) return;
-    loadService();
-    loadConfirmedColors();
-  }, [loadService, loadConfirmedColors, orderId]);
-
   // v8.3 E4 fix (auditoría 2026-07-18): el candado químico ahora persiste
   // server-side (chemical_zone_confirmations, migración 185) — antes vivía
   // solo en este useState y se perdía al refrescar la página, dejando la
   // UI marcando zonas como bloqueadas otra vez aunque el servidor ya las
   // tenía confirmadas (o viceversa, nunca coincidía con lo que el servidor
   // realmente exige en POST /api/employee/checklist).
+  const loadLogs = useCallback(async () => {
+    if (!orderId) return;
+    try {
+      const { data, error } = await supabase
+        .from("service_logs")
+        .select("id, event_type, timestamp, photo_url, notes, location_lat, location_lng")
+        .eq("order_id", orderId)
+        .order("timestamp", { ascending: true });
+
+      if (!error && data) {
+        setLogs(data);
+      }
+    } catch (e) {
+      console.error("Load logs error:", e);
+    }
   const loadConfirmedColors = useCallback(async () => {
     try {
       const res = await fetch(`/api/employee/chemical-confirm?orderId=${orderId}`, { credentials: "include" });
@@ -237,21 +246,6 @@ export default function ServicioPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
-  const loadLogs = useCallback(async () => {
-    if (!orderId) return;
-    try {
-      const { data, error } = await supabase
-        .from("service_logs")
-        .select("id, event_type, timestamp, photo_url, notes, location_lat, location_lng")
-        .eq("order_id", orderId)
-        .order("timestamp", { ascending: true });
-
-      if (!error && data) {
-        setLogs(data);
-      }
-    } catch (e) {
-      console.error("Load logs error:", e);
-    }
   }, [orderId]);
 
   const getCurrentLocation = (): Promise<{ lat: number; lng: number } | null> => {

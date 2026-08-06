@@ -38,9 +38,9 @@ export default function EmpleadoVotacionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState("");
 
-    loadPeers();
-
   const loadPeers = useCallback(async () => {
+
+  useEffect(() => { loadPeers(); }, [loadPeers]);
     setLoading(true);
     setError("");
     try {

@@ -82,11 +82,6 @@ export default function AdminServiciosClient() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [dispatchOrderId]);
 
-  useEffect(() => {
-    loadServices();
-    loadEmployees();
-  }, [loadServices]);
-
   const loadServices = useCallback(async () => {
     setLoading(true);
     setError("");

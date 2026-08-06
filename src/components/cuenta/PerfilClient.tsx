@@ -29,9 +29,9 @@ export default function PerfilClient() {
   const [nameSaved, setNameSaved] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
 
-  useEffect(() => { load(); }, [load]);
-
   const load = useCallback(async () => {
+
+  useEffect(() => { load(); }, [load]);
     setLoading(true);
     setError("");
     try {
