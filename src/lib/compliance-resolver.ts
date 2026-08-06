@@ -42,13 +42,11 @@ import {
   type TipoRegla,
   type ReglaLegalRow,
 } from "./compliance-engine";
+import { PAY_PERIODS_PER_YEAR } from "./payroll-deductions";
 
 // ---------------------------------------------------------------------------
 // Resolvedores de tasa — usan los seed como fallback; en prod deben leer de DB
 // ---------------------------------------------------------------------------
-
-/** Pay periods por año — semi-mensual (invariante B.1 del sistema). */
-const PAY_PERIODS_PER_YEAR = 24;
 
 /**
  * Resuelve la regla VIGENTE para un tipo dado en una fecha.

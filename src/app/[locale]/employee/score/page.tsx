@@ -19,6 +19,7 @@ import {
 import { BADGE_CATALOG, type BadgeKey } from "@/lib/badges";
 import { CAREER_LEVEL_ORDER, type CareerLevel } from "@/lib/career-path";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { useTranslations } from "next-intl";
 
 // v8.3 E8 FIX-1: la API (/api/employee/score) ya no devuelve
 // total_score/telemetry_score/audit_score/peer_score en crudo -- ver
@@ -78,13 +79,13 @@ interface EmployeeScoreData {
   nextLevel: NextLevelInfo | null;
 }
 
-const CAREER_LEVEL_LABEL: Record<CareerLevel, string> = {
-  trainee: "Team Member in Training",
-  trabajador: "Team Member",
-  senior: "Senior",
-  lider: "Team Lead",
-  lider_mentor: "Lead Mentor",
-  coordinador_operativo: "Operations Coordinator",
+const CAREER_LEVEL_TO_I18N: Record<CareerLevel, string> = {
+  trainee: "careerLevelTrainee",
+  trabajador: "careerLevelTeamMember",
+  senior: "careerLevelSenior",
+  lider: "careerLevelTeamLead",
+  lider_mentor: "careerLevelLeadMentor",
+  coordinador_operativo: "careerLevelOpsCoordinator",
 };
 
 export default function EmpleadoScorePage() {
@@ -93,6 +94,7 @@ export default function EmpleadoScorePage() {
   // inline, lo que causaba un hydration mismatch (SSR asumía "en", cliente
   // calculaba el locale real) -- ver auditoría externa. useParams() da el
   // mismo valor en servidor y cliente porque viene del router de Next.
+  const t = useTranslations("admin.empleados");
   const locale = (params?.locale as string) || "en";
   const [data, setData] = useState<EmployeeScoreData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -287,7 +289,7 @@ export default function EmpleadoScorePage() {
                             : "bg-gray-100 text-gray-400"
                         }`}
                       >
-                        {CAREER_LEVEL_LABEL[level]}
+                        {t(CAREER_LEVEL_TO_I18N[level])}
                       </span>
                     </React.Fragment>
                   );
@@ -300,7 +302,7 @@ export default function EmpleadoScorePage() {
               {data.nextLevel && (
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <p className="text-xs font-semibold text-brand-ink mb-2">
-                    Next: {CAREER_LEVEL_LABEL[data.nextLevel.level]}
+                    Next: {t(CAREER_LEVEL_TO_I18N[data.nextLevel.level])}
                   </p>
                   {data.nextLevel.checks.length > 0 && (
                     <ul className="space-y-1 mb-2">

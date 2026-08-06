@@ -265,7 +265,3 @@ export type {
   PayrollLineaInput,
 } from "./payroll-line";
 
-// Alias para evitar conflicto con el PayrollCalculationResult local
-export type {
-  PayrollCalculationResult as EnginePayrollCalculationResult,
-} from "./payroll-calculator";

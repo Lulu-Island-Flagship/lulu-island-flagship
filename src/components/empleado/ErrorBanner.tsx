@@ -2,6 +2,7 @@
 
 import React from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface ErrorBannerProps {
   /** Mensaje a mostrar. Si está vacío/null, el banner no renderiza nada. */
@@ -20,7 +21,8 @@ interface ErrorBannerProps {
  * Usado consistentemente en: inicio de jornada, eventos de servicio
  * (T_in/T_start/T_out/foto/nota), upsells y checklist/protocolo de cierre.
  */
-export function ErrorBanner({ message, onRetry, retrying, retryLabel = "Retry", className = "" }: ErrorBannerProps) {
+export function ErrorBanner({ message, onRetry, retrying, retryLabel, className = "" }: ErrorBannerProps) {
+  const t = useTranslations("common");
   if (!message) return null;
   return (
     <div
@@ -38,7 +40,7 @@ export function ErrorBanner({ message, onRetry, retrying, retryLabel = "Retry", 
             className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-semibold underline disabled:opacity-50"
           >
             {retrying && <Loader2 className="w-3 h-3 animate-spin" />}
-            {retrying ? "Retrying…" : retryLabel}
+            {retrying ? t("retrying") : (retryLabel ?? t("retry"))}
           </button>
         )}
       </div>

@@ -57,8 +57,8 @@ import {
  *   - 2-6000: Vacation Pay Acumulado (pasivo)
  *
  * Gastos (6xxx):
- *   - 6-1000: Gasto de Nómina (gross pay)
- *   - 6-2000: Gasto de Cargas Patronales (CPP employer + EI employer + WorkSafeBC)
+ *   - 6-6100: Gasto de Nómina (gross pay)
+ *   - 6-6200: Gasto de Cargas Patronales (CPP employer + EI employer + WorkSafeBC)
  */
 export const PAYROLL_CHART_OF_ACCOUNTS = {
   /** Pasivo — CPP por Pagar (employee + employer contributions pendientes de remesar a CRA). */
@@ -408,8 +408,8 @@ function computePayrollRowHash(row: Omit<PayrollJournalRow, "hash_sha256">): str
  * PRODUCE 7 filas (3 débitos, 4 créditos) que garantizan partida doble:
  *
  *   DÉBITOS (a dónde va el valor):
- *     1. GASTO_NOMINA (6-1000)           = total_bruto
- *     2. GASTO_CARGAS_PATRONALES (6-2000) = total_employer_contributions
+ *     1. GASTO_NOMINA (6-6100)           = total_bruto
+ *     2. GASTO_CARGAS_PATRONALES (6-6200) = total_employer_contributions
  *
  *   CRÉDITOS (de dónde sale el valor):
  *     3. EFECTIVO (1-1000)               = total_neto

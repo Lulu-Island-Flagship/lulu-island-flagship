@@ -12,6 +12,7 @@ import {
   XCircle,
   AlertCircle,
   Languages as LanguagesIcon,
+  DollarSign,
   Pencil,
   UserPlus,
   UserMinus,
@@ -62,7 +63,11 @@ export default function AdminEmpleadosClient() {
   const [offboardingEmployee, setOffboardingEmployee] = useState<Employee | null>(null);
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const [activateError, setActivateError] = useState("");
-  const [revealedDayRateIds, setRevealedDayRateIds] = useState<Set<string>>(new Set());
+  // v8.5: Day Rate editable inline.
+  const [editingDayRateId, setEditingDayRateId] = useState<string | null>(null);
+  const [dayRateEditValue, setDayRateEditValue] = useState("");
+  const [dayRateSaving, setDayRateSaving] = useState(false);
+  const [dayRateError, setDayRateError] = useState("");
   // Fix (auditoría externa 2026-07-31, item 11): lista densa sin
   // búsqueda/paginación -- se agrega filtro por nombre/email/rol y
   // paginación simple ("cargar más").
@@ -70,16 +75,51 @@ export default function AdminEmpleadosClient() {
   const PAGE_SIZE = 25;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  function toggleDayRateReveal(employeeId: string) {
-    setRevealedDayRateIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(employeeId)) {
-        next.delete(employeeId);
-      } else {
-        next.add(employeeId);
+  function startEditDayRate(employeeId: string, currentDayRate: number) {
+    setDayRateError("");
+    setEditingDayRateId(employeeId);
+    setDayRateEditValue(String(currentDayRate));
+  }
+
+  function cancelEditDayRate() {
+    setEditingDayRateId(null);
+    setDayRateEditValue("");
+    setDayRateError("");
+  }
+
+  async function saveDayRate(employeeId: string) {
+    const trimmed = dayRateEditValue.trim();
+    if (!trimmed) {
+      cancelEditDayRate();
+      return;
+    }
+    const value = Number(trimmed);
+    if (!Number.isFinite(value) || value <= 0 || !Number.isInteger(value)) {
+      setDayRateError(t("dayRateInvalid"));
+      return;
+    }
+    setDayRateSaving(true);
+    setDayRateError("");
+    try {
+      const res = await fetch(`/api/admin/empleados/${employeeId}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dayRate: value }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDayRateError(data.error || t("dayRateSaveFailed"));
+        return;
       }
-      return next;
-    });
+      setEmployees((prev) =>
+        prev.map((e) => (e.id === employeeId ? { ...e, day_rate: value } : e))
+      );
+      setEditingDayRateId(null);
+      setDayRateEditValue("");
+    } finally {
+      setDayRateSaving(false);
+    }
   }
 
   const loadEmployees = useCallback(async () => {
@@ -326,25 +366,44 @@ export default function AdminEmpleadosClient() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
-                      {/* Item 10 (auditoría 2026-07-25): el Day Rate (dato salarial) ya no
-                          se renderiza siempre visible en el listado general -- solo se
-                          revela por fila bajo demanda, para reducir la exposición
-                          incidental de nómina al escanear la tabla o compartir pantalla. */}
-                      {revealedDayRateIds.has(emp.id) ? (
-                        <button
-                          type="button"
-                          onClick={() => toggleDayRateReveal(emp.id)}
-                          className="hover:underline"
-                        >
-                          ${emp.day_rate}/day
-                        </button>
+                      {/* v8.5: Day Rate editable inline. */}
+                      {editingDayRateId === emp.id ? (
+                        <div className="flex items-center gap-1.5">
+                          <DollarSign className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <input
+                            type="number"
+                            value={dayRateEditValue}
+                            onChange={(e) => { setDayRateEditValue(e.target.value); setDayRateError(""); }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") saveDayRate(emp.id);
+                              if (e.key === "Escape") cancelEditDayRate();
+                            }}
+                            onBlur={() => saveDayRate(emp.id)}
+                            disabled={dayRateSaving}
+                            min={146}
+                            step={1}
+                            aria-label={t("dayRateEditAria", { name: emp.name })}
+                            className="w-20 px-2 py-1 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-wave-blue/30 focus:border-brand-wave-blue"
+                            autoFocus
+                          />
+                          {dayRateSaving && (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-wave-blue" />
+                          )}
+                          {dayRateError && (
+                            <span className="text-xs text-state-danger" role="alert">{dayRateError}</span>
+                          )}
+                        </div>
                       ) : (
                         <button
                           type="button"
-                          onClick={() => toggleDayRateReveal(emp.id)}
-                          className="text-xs text-brand-wave-blue hover:text-brand-navy hover:underline"
+                          onClick={() => startEditDayRate(emp.id, emp.day_rate)}
+                          title={t("dayRateTooltip")}
+                          aria-label={t("dayRateEditAria", { name: emp.name })}
+                          className="flex items-center gap-1 text-sm text-gray-600 hover:text-brand-ink hover:underline"
                         >
-                          {t("showDayRate")}
+                          <DollarSign className="w-3.5 h-3.5 text-gray-400" />
+                          <span>${emp.day_rate}</span>
+                          <Pencil className="w-3 h-3 text-gray-400 ml-0.5" />
                         </button>
                       )}
                     </td>

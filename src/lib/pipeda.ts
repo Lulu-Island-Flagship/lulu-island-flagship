@@ -66,7 +66,7 @@ export function isFeedBlind(
 ): boolean {
   const reference = lastCheckedAt ?? createdAt;
   const daysSince = (now.getTime() - reference.getTime()) / (1000 * 60 * 60 * 24);
-  return daysSince > LEGAL_FEED_BLIND_THRESHOLD_DAYS;
+  return daysSince >= LEGAL_FEED_BLIND_THRESHOLD_DAYS;
 }
 
 /** Próxima fecha de revisión manual trimestral (E9.7 fallback), contando

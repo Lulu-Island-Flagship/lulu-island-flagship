@@ -74,7 +74,6 @@ export function CodigoCromatico({ compact = false, confirmedColors }: CodigoCrom
             <div className="text-2xl" aria-hidden="true">{cc.icon}</div>
             <div className="flex-1 min-w-0">
               <div className="font-bold text-sm">{t(cc.color)}</div>
-              <div className="text-xs opacity-80">{t(cc.color)}</div>
               <div className="text-xs mt-0.5">{t("zone")}: {t(cc.color + "Zone")} — {t(cc.color + "Product")}</div>
               {cc.riskEn && (
                 <div className="text-xs mt-1 font-medium opacity-90">⚠️ {t(cc.color + "Risk")}</div>

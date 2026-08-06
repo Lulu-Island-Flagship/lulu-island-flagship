@@ -618,7 +618,7 @@ export interface ContractInstance {
 export interface QboExport {
   id: string;
   exportDate: string;
-  status: "pending" | "exported" | "reconciled" | "failed";
+  status: "pending" | "exported" | "failed";
   fileUrl?: string;
   totalTransactions: number;
   totalGross: number;

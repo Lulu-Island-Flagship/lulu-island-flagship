@@ -478,7 +478,7 @@ test("cambio año fiscal: sistema maneja transición CPP en enero", () => {
   const cpp2026 = store.getActiveRuleByType("CPP");
   assert.ok(cpp2026);
   assert.equal((cpp2026!.parametros as Record<string, number>).tasa_empleado, 0.0595);
-  assert.equal((cpp2026!.parametros as Record<string, number>).tope, 68500);
+  assert.equal((cpp2026!.parametros as Record<string, number>).tope, 74600);
   assert.ok(
     _isRuleActiveAt(cpp2026!, new Date("2026-12-15T12:00:00Z")),
     "CPP 2026 debe estar VIGENTE en diciembre 2026"
@@ -550,7 +550,7 @@ test("cambio año fiscal: EI rates también transicionan en enero", () => {
   const ei2026 = store.getActiveRuleByType("EI");
   assert.ok(ei2026);
   assert.equal((ei2026!.parametros as Record<string, number>).tasa_empleado, 0.0163);
-  assert.equal((ei2026!.parametros as Record<string, number>).tope, 66000);
+  assert.equal((ei2026!.parametros as Record<string, number>).tope, 68900);
 
   // Proponer EI 2027
   const ei2027Pending = insertPendingRule(store, "EI", {

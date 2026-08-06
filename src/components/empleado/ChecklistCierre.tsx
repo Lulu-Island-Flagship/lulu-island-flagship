@@ -11,6 +11,7 @@ import {
   Lock,
   Timer,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import type { ChecklistZoneProgress } from "@/types";
 import { isZoneUnlocked } from "@/lib/chemical-lockout";
@@ -36,6 +37,7 @@ export function ChecklistCierre({
   confirmedColors,
   onConfirmedColorsChange,
 }: ChecklistCierreProps) {
+  const t = useTranslations("checklist");
   const [zones, setZones] = useState<ChecklistZoneProgress[]>([]);
   const [myZoneCount, setMyZoneCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -454,7 +456,7 @@ export function ChecklistCierre({
 
       if (uploadError) {
         console.error("Upload error:", uploadError);
-        setSaveError("Couldn't upload the photo. Please try again.");
+        setSaveError(t("photoUploadFailed"));
         return;
       }
 
@@ -499,7 +501,7 @@ export function ChecklistCierre({
       }
     } catch (e) {
       console.error("Item photo error:", e);
-      setSaveError("Couldn't save the photo -- reverted. Please try again.");
+      setSaveError(t("photoSaveFailed"));
       // Rollback: remove photo from local state
       setZones((prev) =>
         prev.map((z) => {
@@ -551,7 +553,7 @@ export function ChecklistCierre({
           tiene N>=2 y a este empleado le tocó un subconjunto de zonas. */}
       {myZoneCount !== null && myZoneCount > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
-          You have {myZoneCount} zone{myZoneCount === 1 ? "" : "s"} assigned on this service. Your teammate covers the rest.
+          {t("zoneAssignmentNotice", { count: myZoneCount })}
         </div>
       )}
       {myZoneCount === 0 && (
@@ -574,8 +576,8 @@ export function ChecklistCierre({
           />
         </div>
         <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-          <span>{overallProgress.completedItems} of {overallProgress.totalItems} items</span>
-          <span>{overallProgress.requiredCompleted} of {overallProgress.requiredItems} required</span>
+          <span>{t("itemsProgress", { completed: overallProgress.completedItems, total: overallProgress.totalItems })}</span>
+          <span>{t("requiredProgress", { completed: overallProgress.requiredCompleted, total: overallProgress.requiredItems })}</span>
         </div>
       </div>
 
@@ -624,7 +626,7 @@ export function ChecklistCierre({
                 <div id={`checklist-zone-${zone.zone}`} className="p-3 bg-amber-50 border-t border-amber-200 flex items-center gap-3">
                   <div className="flex-1 min-w-0 text-xs text-amber-800">
                     <p className="font-semibold">Confirm the chemical before starting this zone</p>
-                    <p>Identifica el producto correcto para: {zone.zoneLabel}</p>
+                    <p>Identify the correct product for: {zone.zoneLabel}</p>
                   </div>
                   <button
                     type="button"
@@ -662,7 +664,7 @@ export function ChecklistCierre({
                       <button
                         onClick={() => handleToggleItem(zone, item.itemId, item.label)}
                         disabled={hotSurfaceLocked}
-                        aria-label={item.isCompleted ? `Mark "${item.label}" as incomplete` : `Mark "${item.label}" as complete`}
+                        aria-label={item.isCompleted ? t("markIncomplete", { label: item.label }) : t("markComplete", { label: item.label })}
                         aria-pressed={item.isCompleted}
                         className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
                           item.isCompleted
@@ -712,7 +714,7 @@ export function ChecklistCierre({
                           {item.photoUrl ? (
                             <Image
                               src={item.photoUrl}
-                              alt="Evidence"
+                              alt={t("evidence")}
                               width={64}
                               height={64}
                               className="w-16 h-16 rounded-lg object-cover"
@@ -723,7 +725,7 @@ export function ChecklistCierre({
                               <span>Add photo</span>
                               <input
                                 type="file"
-                                aria-label="Add closure item photo"
+                                aria-label={t("addPhotoAria")}
                                 accept="image/*"
                                 capture="environment"
                                 className="hidden"

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Loader2, Send, MessageCircle, AlertTriangle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { EmpleadoBackHeader } from "@/components/empleado/EmpleadoBackHeader";
 
 interface ChatMessage {
@@ -59,6 +60,7 @@ const MAX_LENGTH = 160;
  * historial 7 días, activo solo en jornada.
  */
 export default function TeamChatPage() {
+  const t = useTranslations("employee.chat");
   const params = useParams();
   const orderId = params?.orderId as string;
   const locale = (params?.locale as string) || "en";
@@ -89,9 +91,6 @@ export default function TeamChatPage() {
           body: JSON.stringify({ orderId: item.orderId, body: item.body }),
         });
         if (!res.ok) {
-          // Rechazo explícito del servidor: no reintentar indefinidamente el
-          // mismo mensaje inválido, se descarta (igual que el patrón de
-          // servicio en submitServiceEventOrQueue).
           continue;
         }
       } catch {
@@ -149,14 +148,12 @@ export default function TeamChatPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "No se pudo enviar");
+        setError(err.error || t("sendFailed"));
         return;
       }
       setDraft("");
       await load();
     } catch {
-      // Fallo de red real (no rechazo del servidor): encolar en vez de
-      // perder el mensaje -- se reintenta solo con 'online'.
       const queue = loadPendingQueue(orderId);
       queue.push({
         localId: `${orderId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -167,7 +164,7 @@ export default function TeamChatPage() {
       savePendingQueue(orderId, queue);
       setPendingCount(queue.length);
       setDraft("");
-      setError("No connection -- your message will send automatically when you're back online.");
+      setError(t("offlineQueued"));
     } finally {
       setSending(false);
     }
@@ -176,7 +173,7 @@ export default function TeamChatPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-brand-ice">
-        <EmpleadoBackHeader title="Chat del equipo" backHref={backHref} icon={MessageCircle} />
+        <EmpleadoBackHeader title={t("title")} backHref={backHref} icon={MessageCircle} />
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
         </div>
@@ -186,16 +183,16 @@ export default function TeamChatPage() {
 
   return (
     <div className="min-h-screen bg-brand-ice">
-      <EmpleadoBackHeader title="Chat del equipo" backHref={backHref} icon={MessageCircle} />
+      <EmpleadoBackHeader title={t("title")} backHref={backHref} icon={MessageCircle} />
       <div className="flex flex-col h-[70vh] max-w-md mx-auto px-4 py-4">
       <div className="mb-3">
-        <p className="text-xs text-gray-500">Text only, 7-day history. Closes when the shift ends.</p>
+        <p className="text-xs text-gray-500">{t("rules")}</p>
       </div>
 
       {pendingCount > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-xs text-amber-800 mb-2 flex items-center gap-1.5">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-          {pendingCount} message{pendingCount === 1 ? "" : "s"} waiting to send -- will retry automatically when you&apos;re online.
+          {t("pendingNotice", { count: pendingCount })}
         </div>
       )}
 
@@ -203,7 +200,7 @@ export default function TeamChatPage() {
 
       <div className="flex-1 overflow-y-auto space-y-2 bg-white rounded-xl border p-3">
         {messages.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-6">No messages yet.</p>
+          <p className="text-sm text-gray-400 text-center py-6">{t("noMessages")}</p>
         ) : (
           messages.map((m) => (
             <div key={m.id} className="text-sm">
@@ -221,16 +218,16 @@ export default function TeamChatPage() {
       <div className="mt-3 flex items-center gap-2">
         <input
           type="text"
-          aria-label="Escribir mensaje de chat"
+          aria-label={t("inputAria")}
           value={draft}
           maxLength={MAX_LENGTH}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder="Escribe un mensaje..."
+          placeholder={t("inputPlaceholder")}
           className="flex-1 border rounded-lg px-3 py-2 text-sm"
         />
         <button
-          aria-label="Send message"
+          aria-label={t("sendAria")}
           onClick={send}
           disabled={sending || !draft.trim()}
           className="bg-brand-navy text-white p-2.5 rounded-lg disabled:opacity-50"

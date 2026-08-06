@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { Camera, AlertTriangle, Send, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import { ErrorBanner } from "@/components/empleado/ErrorBanner";
 
@@ -12,6 +13,7 @@ interface DiscrepanciaReporterProps {
 }
 
 export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReporterProps) {
+  const tDis = useTranslations("employee");
   const [note, setNote] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -39,7 +41,7 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
 
       if (uploadError) {
         console.error("Upload error:", uploadError);
-        setPhotoUploadError("Couldn't upload the photo. Please try again.");
+        setPhotoUploadError(tDis("discrepancyPhotoUploadFailed"));
         return;
       }
 
@@ -50,7 +52,7 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
       setPhotos((prev) => [...prev, publicUrlData.publicUrl]);
     } catch (e) {
       console.error("Photo upload error:", e);
-      setPhotoUploadError("Connection error uploading the photo. Please try again.");
+      setPhotoUploadError(tDis("discrepancyPhotoConnectionError"));
     } finally {
       setUploading(false);
     }
@@ -80,11 +82,11 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
       } else {
         const err = await res.json().catch(() => ({}));
         console.error("Discrepancia submit rejected:", err.error);
-        setSubmitError(err.error || "Couldn't send the report. Please try again.");
+        setSubmitError(err.error || tDis("discrepancySubmitFailed"));
       }
     } catch (e) {
       console.error("Discrepancia submit error:", e);
-      setSubmitError("Connection error sending the report. Please try again.");
+      setSubmitError(tDis("discrepancySubmitConnectionError"));
     } finally {
       setIsSubmitting(false);
     }
@@ -106,10 +108,10 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
         <label htmlFor="discrepancy-description" className="block text-xs font-medium text-gray-600 mb-1">Description</label>
         <textarea
           id="discrepancy-description"
-          aria-label="Condition discrepancy description"
+          aria-label={tDis("discrepancyDescriptionAria")}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Describe what you found differently..."
+          placeholder={tDis("discrepancyDescriptionPlaceholder")}
           rows={3}
           className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold outline-none resize-none"
         />
@@ -137,7 +139,7 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
             )}
             <input
               type="file"
-              aria-label="Add discrepancy photo"
+              aria-label={tDis("discrepancyAddPhotoAria")}
               accept="image/*"
               capture="environment"
               className="hidden"
@@ -152,7 +154,7 @@ export function DiscrepanciaReporter({ orderId, onReported }: DiscrepanciaReport
       <ErrorBanner message={submitError} onRetry={handleSubmit} retrying={isSubmitting} />
 
       <button
-        aria-label="Report discrepancy"
+        aria-label={tDis("discrepancyReportAria")}
         onClick={handleSubmit}
         disabled={(!note.trim() && photos.length === 0) || isSubmitting}
         className="w-full bg-amber-600 text-white py-2.5 rounded-lg font-semibold hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"

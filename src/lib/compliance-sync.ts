@@ -601,7 +601,7 @@ function fetchFeedEntries(
           jurisdiccion: "Federal",
           parametros: {
             tasa_empleado: 0.0595,
-            tope: 68500,
+            tope: 74600,
             exencion_basica: 3500,
           },
           publishedAt: now,
@@ -614,7 +614,7 @@ function fetchFeedEntries(
           jurisdiccion: "Federal",
           parametros: {
             tasa_empleado: 0.0163,
-            tope: 66000,
+            tope: 68900,
             tasa_employer: 1.4,
           },
           publishedAt: now,
@@ -638,12 +638,12 @@ function fetchFeedEntries(
           tipo: "MinWage",
           jurisdiccion: "BC",
           parametros: {
-            hourly_rate: 17.4,
-            effective_date: "2025-06-01",
+            hourly_rate: 18.25,
+            effective_date: "2026-06-01",
           },
           publishedAt: now,
           referenceUrl: "https://www2.gov.bc.ca/gov/content/employment-business/employment-standards-advice/employment-standards/minimum-wage",
-          effectiveDate: "2025-06-01",
+          effectiveDate: "2026-06-01",
         },
         {
           source: "BC_ESA",

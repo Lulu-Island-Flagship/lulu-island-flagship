@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { SUPPORTED_LANGUAGE_CODES } from "@/lib/languages";
+import { BC_MIN_WAGE_HOURLY, DEFAULT_SERVICE_MINUTES } from "@/lib/payroll";
 import { isValidLanguageLevels } from "@/lib/employee-languages";
 import { CAREER_LEVEL_ORDER } from "@/lib/career-path";
 import { renderTemplate, MissingVariableError } from "@/lib/communications";
 import { sendEmail } from "@/lib/email";
 import { isValidUuid } from "@/lib/validation";
 import { safeErrorResponse } from "@/lib/api-errors";
+
+const MIN_DAY_RATE_DOLLARS = BC_MIN_WAGE_HOURLY * (DEFAULT_SERVICE_MINUTES / 60);
 
 // PATCH /api/admin/empleados/[id] — idiomas + nivel de fluidez (C.3),
 // promoción manual de nivel de carrera (D.11), y activación de un empleado
@@ -44,16 +47,19 @@ export async function PATCH(
 
   try {
     const body = await request.json();
-    const { languages, languageLevels, careerLevel, isActive, sin, bankTransitNumber, bankInstitutionNumber, bankAccountNumber } = body as {
+    const { languages, languageLevels, careerLevel, isActive, dayRate, sin, bankTransitNumber, bankInstitutionNumber, bankAccountNumber } = body as {
       languages?: unknown;
       languageLevels?: unknown;
       careerLevel?: unknown;
       isActive?: unknown;
+      dayRate?: unknown;
       sin?: unknown;
       bankTransitNumber?: unknown;
       bankInstitutionNumber?: unknown;
       bankAccountNumber?: unknown;
     };
+
+    const update: Record<string, unknown> = {};
 
     // v8.3 P0-8 (auditoría Fable5, 2026-07-19): SIN/datos bancarios NUNCA se
     // escriben con un UPDATE directo sobre employees -- las 4 columnas
@@ -109,7 +115,6 @@ export async function PATCH(
       }
     }
 
-    const update: Record<string, unknown> = {};
     let activationRequested = false;
 
     if (isActive !== undefined) {
@@ -129,6 +134,21 @@ export async function PATCH(
       }
       update.career_level = careerLevel;
       update.career_level_since = new Date().toISOString();
+    }
+
+    // v8.5: Day Rate editable por empleado. El piso es el mínimo legal
+    // (mismo que el POST en employees/route.ts), pero cada empleado puede
+    // tener un day_rate diferente — no necesariamente el mínimo. El admin
+    // decide el valor según experiencia, rol, y negociación individual.
+    if (dayRate !== undefined) {
+      if (typeof dayRate !== "number" || dayRate < MIN_DAY_RATE_DOLLARS) {
+        return NextResponse.json(
+          { error: `dayRate must be a number >= $${MIN_DAY_RATE_DOLLARS.toFixed(2)} (BC minimum wage × 8h standard day)` },
+          { status: 400 }
+        );
+      }
+      // day_rate en DB es INTEGER (dólares enteros).
+      update.day_rate = Math.round(dayRate);
     }
 
     if (languages !== undefined) {

@@ -70,7 +70,7 @@ export function UpsellSelector({ orderId, onUpsellAdded }: UpsellSelectorProps) 
         if (!option) continue;
 
         try {
-          const res = await fetch("/api/empleado/upsells", {
+          const res = await fetch("/api/employee/upsells", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",

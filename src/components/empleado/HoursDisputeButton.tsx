@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { AlertTriangle, X, CheckCircle2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { parseVancouverDateTime } from "@/lib/date-utils";
 
@@ -24,6 +25,7 @@ export function HoursDisputeButton({
   eventLabel: string;
   recordedTimestamp: string;
 }) {
+  const tDis = useTranslations("employee");
   const [open, setOpen] = useState(false);
   const [claimedTime, setClaimedTime] = useState("");
   const [reason, setReason] = useState("");
@@ -33,7 +35,7 @@ export function HoursDisputeButton({
 
   const submit = async () => {
     if (!reason.trim()) {
-      setError("Please explain what time it should have been.");
+      setError(tDis("disputeExplainRequired"));
       return;
     }
     setSubmitting(true);
@@ -58,10 +60,10 @@ export function HoursDisputeButton({
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to submit dispute");
+      if (!res.ok) throw new Error(data.error || tDis("disputeSubmitFailed"));
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error");
+      setError(err instanceof Error ? err.message : tDis("disputeNetworkError"));
     } finally {
       setSubmitting(false);
     }
@@ -85,7 +87,7 @@ export function HoursDisputeButton({
           <AlertTriangle className="w-4 h-4 text-state-warning" />
           Dispute &quot;{eventLabel}&quot;
         </h3>
-        <button onClick={() => setOpen(false)} aria-label="Close dialog">
+        <button onClick={() => setOpen(false)} aria-label={tDis("disputeCloseAria")}>
           <X className="w-4 h-4 text-gray-400" aria-hidden="true" />
         </button>
       </div>
@@ -106,7 +108,7 @@ export function HoursDisputeButton({
             <input
               id="hours-dispute-claimed-time"
               type="time"
-              aria-label="Time it should have been logged"
+              aria-label={tDis("disputeTimeAria")}
               value={claimedTime}
               onChange={(e) => setClaimedTime(e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm"
@@ -116,7 +118,7 @@ export function HoursDisputeButton({
             <label htmlFor="hours-dispute-reason" className="text-xs text-gray-600 block mb-1">What happened?</label>
             <textarea
               id="hours-dispute-reason"
-              aria-label="What happened"
+              aria-label={tDis("disputeWhatHappenedAria")}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
@@ -130,12 +132,12 @@ export function HoursDisputeButton({
               Cancel
             </button>
             <button
-              aria-label="Submit hours dispute"
+              aria-label={tDis("disputeSubmitAria")}
               onClick={submit}
               disabled={submitting || !reason.trim()}
               className="px-3 py-2 text-sm rounded-lg bg-brand-navy text-white hover:bg-brand-navy-light disabled:opacity-50"
             >
-              {submitting ? "Sending..." : "Submit"}
+              {submitting ? tDis("disputeSending") : tDis("disputeSubmit")}
             </button>
           </div>
         </>
@@ -146,6 +148,7 @@ export function HoursDisputeButton({
 
 /** Contenedor del modal de disputa de horas con role="dialog"/aria-modal y focus trap. */
 function HoursDisputeDialog({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  const tDis = useTranslations("employee");
   const dialogRef = useFocusTrap<HTMLDivElement>(true, onClose);
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
@@ -153,7 +156,7 @@ function HoursDisputeDialog({ onClose, children }: { onClose: () => void; childr
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Dispute recorded time"
+        aria-label={tDis("disputeButtonAria")}
         className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5 space-y-3"
       >
         {children}

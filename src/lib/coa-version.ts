@@ -124,9 +124,9 @@ export const PARAMS_BC_2025: COAVersionParameters = {
  * Parámetros vigentes para BC en 2026 (versión actual).
  *
  * Cambios vs 2025:
- *   - BC min wage: $17.40 → $18.25 (Jun 1, 2025 → vigente todo 2026).
- *   - CPP YMPE: $68,500 → $71,300 (CRA announcement Nov 2025).
- *   - EI MIE: $63,200 → $65,700 (CRA announcement Nov 2025).
+ *   - BC min wage: $17.40 → $18.25 (Jun 1, 2026 increase).
+ *   - CPP YMPE: $68,500 → $74,600 (CRA announcement Nov 2025).
+ *   - EI MIE: $63,200 → $68,900 (CRA announcement Nov 2025).
  *   - EI employee rate: 1.66% → 1.64%.
  *   - WorkSafeBC base rate estimado: 2.15 → 2.10 (varía por classification unit real).
  */
@@ -136,11 +136,11 @@ export const PARAMS_BC_2026: COAVersionParameters = {
   bcMinWageHourly: 18.25,
   cppEmployeeRate: 0.0595,
   cppEmployerRate: 0.0595,
-  cppMaxPensionableEarnings: 71300,
+  cppMaxPensionableEarnings: 74600,
   cppBasicExemption: 3500,
   eiEmployeeRate: 0.0164,
   eiEmployerMultiplier: 1.4,
-  eiMaxInsurableEarnings: 65700,
+  eiMaxInsurableEarnings: 68900,
   worksafeBcRatePer100: 2.1,
   vacationAccrualRateStandard: 0.04,
   vacationAccrualRateLongTerm: 0.06,
@@ -171,7 +171,7 @@ export const CANONICAL_COA_VERSIONS: readonly COAVersionRecord[] = [
     fecha_expiracion: null,
     parametros: PARAMS_BC_2026,
     descripcion:
-      "BC 2026: min wage $18.25. CPP YMPE $71,300. EI rate 1.64%. WorkSafeBC est. 2.10/$100.",
+      "BC 2026: min wage $18.25. CPP YMPE $74,600. EI rate 1.64%. WorkSafeBC est. 2.10/$100.",
   },
 ];
 

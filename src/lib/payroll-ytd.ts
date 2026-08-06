@@ -505,8 +505,8 @@ export function getT4Preview(
   const cppParams = getCurrentRate("CPP", refDate) as CppParams | null;
   const eiParams = getCurrentRate("EI", refDate) as EiParams | null;
 
-  const ympeCents = cppParams ? cppParams.tope * 100 : 68_500_00; // fallback: $68,500
-  const maxInsurableCents = eiParams ? eiParams.tope * 100 : 66_000_00; // fallback: $66,000
+  const ympeCents = cppParams ? cppParams.tope * 100 : 74_600_00; // fallback: $74,600
+  const maxInsurableCents = eiParams ? eiParams.tope * 100 : 68_900_00; // fallback: $68,900
   const cppExemptionCents = cppParams ? cppParams.exencion_basica * 100 : 3_500_00; // fallback: $3,500
   const cppRate = cppParams?.tasa_empleado ?? 0.0595;
   const eiRate = eiParams?.tasa_empleado ?? 0.0163;

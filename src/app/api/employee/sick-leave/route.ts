@@ -2,7 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { calculatePayroll, BC_MIN_WAGE_HOURLY } from "@/lib/payroll";
+import { calculatePayroll, BC_MIN_WAGE_HOURLY, dollarsToCents } from "@/lib/payroll";
 import { decideSickLeaveEligibility } from "@/lib/sick-leave";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
 
     const paidAmountCents =
       eligibility.payType === "paid" && employee.day_rate != null
-        ? calculatePayroll({ dayRate: Math.round(employee.day_rate * 100) }).grossAmount
+        ? calculatePayroll({ dayRate: dollarsToCents(employee.day_rate) }).grossAmount
         : null;
 
     // v8.3 (D-P0-2, migración 213): con la RLS restringida, un INSERT con

@@ -170,13 +170,13 @@ export const CPP_2026_SEED: Omit<ReglaLegalRow, "id" | "creado_en" | "creado_por
   version: SEED_VERSION_2026,
   parametros: {
     tasa_empleado: 0.0595,
-    tope: 68500,
+    tope: 74600,
     exencion_basica: 3500,
     // Nota: la tasa patronal CPP es 1:1 con la del empleado (matching).
   },
   estado: "VIGENTE",
   vigente_desde: "2026-01-01T00:00:00.000Z",
-  notas: "Tasas CPP 2026. YMPE=$68,500. El empleador iguala la contribución 1:1.",
+  notas: "Tasas CPP 2026. YMPE=$74,600. El empleador iguala la contribución 1:1.",
 };
 
 /** EI 2026 — Employment Insurance. */
@@ -186,12 +186,12 @@ export const EI_2026_SEED: Omit<ReglaLegalRow, "id" | "creado_en" | "creado_por"
   version: SEED_VERSION_2026,
   parametros: {
     tasa_empleado: 0.0163,
-    tope: 66000,
+    tope: 68900,
     tasa_employer: 1.4,
   },
   estado: "VIGENTE",
   vigente_desde: "2026-01-01T00:00:00.000Z",
-  notas: "Tasas EI 2026. Máximo asegurable=$66,000. Empleador paga 1.4× la prima del empleado.",
+  notas: "Tasas EI 2026. Máximo asegurable=$68,900. Empleador paga 1.4× la prima del empleado.",
 };
 
 /** BC Tax 2026 — impuesto provincial base. */
@@ -253,12 +253,12 @@ export const MIN_WAGE_BC_2026_SEED: Omit<ReglaLegalRow, "id" | "creado_en" | "cr
   tipo: "MinWage",
   version: "2025-06",
   parametros: {
-    hourly_rate: 17.4,
+    hourly_rate: 18.25,
     effective_date: "2025-06-01",
   },
   estado: "VIGENTE",
-  vigente_desde: "2025-06-01T00:00:00.000Z",
-  notas: "Salario mínimo BC vigente desde junio 2025. $17.40/hora. Revisar cada junio por aumento anual.",
+  vigente_desde: "2026-06-01T00:00:00.000Z",
+  notas: "Salario mínimo BC vigente desde junio 2026. $18.25/hora. Revisar cada junio por aumento anual.",
 };
 
 /** Vacation Pay — BC ESA Parte 7 s.58. */
