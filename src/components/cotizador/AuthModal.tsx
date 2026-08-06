@@ -94,8 +94,8 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
   const [mode, setMode] = useState<"options" | "email" | "phone" | "verify_phone" | "signup_form">(
     forcePhoneVerification ? "verify_phone" : isSignup ? "signup_form" : "options"
   );
-  const [firstName, _setFirstName] = useState("");
-  const [lastName, _setLastName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
@@ -254,6 +254,15 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       setError(t("errors.appleFailed"));
       setLoading(false);
     }
+  };
+
+  const handleSignupContinue = () => {
+    if (!firstName.trim() || !lastName.trim()) {
+      setError(t("nameRequired"));
+      return;
+    }
+    setError("");
+    setMode("options");
   };
 
   const handleEmailOtpRequest = async () => {
@@ -520,28 +529,14 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
         )}
 
         <h2 id="auth-modal-title" className="text-xl font-bold text-brand-ink mb-2">
-          {forcePhoneVerification ? t("verifyPhoneTitle") : t("signInTitle")}
+          {forcePhoneVerification ? t("verifyPhoneTitle") : isSignup ? t("signUpTitle") : t("signInTitle")}
         </h2>
         <p className="text-gray-600 text-sm mb-6">
-          {forcePhoneVerification ? (
-            // v8.3 fix (auditoría E1): paso obligatorio tras login social
-            // (Google/Apple) -- sin esto, la cuenta nunca puede recibir
-            // recordatorios SMS ni confirmar identidad por teléfono, y el
-            // spec exige verificación telefónica para TODA reserva.
-            t("verifyPhoneDesc")
-          ) : (
-            <>
-              {/* v8.3 fix (auditoría 2026-07-15): el texto anterior ("All methods
-                  create the same secure account") era falso -- no existe account
-                  linking en el código; Google, Apple y email/phone OTP crean
-                  cuentas SEPARADAS en Supabase Auth por defecto. Un cliente que
-                  reserva con Google y luego entra con email pierde su historial,
-                  wallet y cotizaciones previas sin ningún aviso. Se corrige el
-                  texto para reflejar la realidad y se pide explícitamente usar
-                  siempre el mismo método. */}
-              {t("sameMethodWarning")}
-            </>
-          )}
+          {forcePhoneVerification
+            ? t("verifyPhoneDesc")
+            : isSignup && mode === "signup_form"
+              ? t("signUpSubtitle")
+              : t("sameMethodWarning")}
         </p>
 
         {error && (
@@ -622,6 +617,43 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
           </div>
         )}
 
+        {mode === "signup_form" && (
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="auth-firstname" className="block text-sm font-medium text-brand-ink mb-1">
+                {t("firstNameLabel")}
+              </label>
+              <input
+                id="auth-firstname"
+                type="text"
+                autoComplete="given-name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none"
+              />
+            </div>
+            <div>
+              <label htmlFor="auth-lastname" className="block text-sm font-medium text-brand-ink mb-1">
+                {t("lastNameLabel")}
+              </label>
+              <input
+                id="auth-lastname"
+                type="text"
+                autoComplete="family-name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none"
+              />
+            </div>
+            <button
+              onClick={handleSignupContinue}
+              className="w-full bg-brand-navy text-white py-3 rounded-lg font-semibold hover:bg-brand-navy-light transition-colors"
+            >
+              {t("continueButton")}
+            </button>
+          </div>
+        )}
+
         {mode === "options" && (
           <div className="space-y-3">
             <button
@@ -643,6 +675,14 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
               <AppleLogo />
               <span className="font-medium">{t("continueWithApple")}</span>
             </button>
+            {/* v8.3 fix (auditoría 2026-07-15): el texto anterior ("All methods
+                create the same secure account") era falso -- no existe account
+                linking en el código; Google, Apple y email/phone OTP crean
+                cuentas SEPARADAS en Supabase Auth por defecto. Un cliente que
+                reserva con Google y luego entra con email pierde su historial,
+                wallet y cotizaciones previas sin ningún aviso. Se corrige el
+                texto para reflejar la realidad y se pide explícitamente usar
+                siempre el mismo método. */}
 
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
