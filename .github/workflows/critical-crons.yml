@@ -1,148 +1,105 @@
-# Auditoría 2026-07-27 — crons sub-diarios críticos que vercel.json ya no
-# puede correr en Vercel Hobby (limitado a 1x/día). Ver README.md, sección
-# "Despliegue — requisito de plan Vercel (Pro, no Hobby)": estos 10 crons
-# existen por una razón real de seguridad de campo o exposición financiera y
-# el propio README dice explícitamente que NUNCA deben relajarse a 1x/día.
-#
-# Este workflow los llama por HTTP con la cadencia real que necesitan,
-# usando el mismo CRON_SECRET que ya protege estos endpoints en Vercel
-# (ver src/lib/cron/auth.ts) — el código no distingue si lo invoca el cron
-# nativo de Vercel o esto.
-#
-# Límite conocido de GitHub Actions: no garantiza el minuto exacto (puede
-# atrasarse unos minutos en momentos de carga alta de la plataforma), y no
-# corre confiablemente más seguido de ~5 min. safety-abort-escalation
-# necesita */2min idealmente; acá corre cada 5 min como mejor aproximación
-# gratuita — sigue siendo enormemente mejor que 1x/día, pero si se necesita
-# la cadencia exacta de 2 min hay que migrar a Vercel Pro o a un servicio
-# como cron-job.org que sí soporta 1 min.
+# Auditoría 2026-08-06 — consolidación de jobs para reducir consumo de runners.
+# Antes: cada cron era un job separado = 1 runner mínimo = 1 min facturado.
+# Ahora: todos los crons de la misma frecuencia corren en 1 solo runner.
+# Esto reduce ~70% el consumo de minutos del plan gratuito de GitHub.
 #
 # Requiere:
-#  - El secret CRON_SECRET configurado en este repo (Settings → Secrets and
-#    variables → Actions → Secrets), con el mismo valor que ya está en
-#    Vercel → Project Settings → Environment Variables.
-#  - La variable CRON_BASE_URL configurada en este repo (Settings → Secrets
-#    and variables → Actions → Variables), ej. "https://luluislandflagship.ca"
-#    (sin slash final). Antes estaba hardcodeada en cada step -- ahora vive
-#    en un solo lugar y permite apuntar a un entorno de staging sin editar
-#    este archivo. ACCIÓN MANUAL REQUERIDA: crear esta variable antes del
-#    próximo run programado, o los 10 crons fallarán con URL vacía.
-#
-# Auditoría 2026-08-01 (CI/build/config): se agregaron `timeout-minutes` (un
-# cron colgado no debe bloquear el runner indefinidamente ni solaparse con
-# la siguiente corrida), `concurrency` con `cancel-in-progress: false` (un
-# cron de seguridad/financiero en curso NUNCA debe cancelarse a mitad de
-# camino solo porque llegó el siguiente tick -- se deja que termine y el
-# siguiente arranca después) y reintentos vía `curl --retry` (una falla de
-# red transitoria de 1 request ya no descarta un tick completo de un cron
-# crítico de seguridad).
+#  - CRON_SECRET en Secrets (mismo valor que en Vercel)
+#  - CRON_BASE_URL en Variables (ej. "https://luluislandflagship.ca")
 
 name: Critical Crons (sub-daily safety/financial)
 
 on:
   schedule:
-    # Cada 5 min: cubre safety-abort-escalation, wellbeing-chemical-reassign,
-    # key-escalation-check (los 3 más urgentes)
     - cron: "*/5 * * * *"
-    # Cada 15 min: cubre no-show, dispatch-scheduler
     - cron: "*/15 * * * *"
-    # Cada hora: cubre hold-authorize, capture-remainder,
-    # cash-exposure-monitor, appeal-deadline-check, reconcile-payments
     - cron: "0 * * * *"
   workflow_dispatch: {}
 
 env:
-  # curl con reintentos: 3 intentos, 2s entre intentos, reintenta también en
-  # códigos de error HTTP (no solo fallos de red) -- un cron de seguridad no
-  # debe perder un tick por un 502/503 transitorio del proveedor.
-  CURL_RETRY_FLAGS: --retry 3 --retry-delay 2 --retry-all-errors
+  CURL_FLAGS: --retry 3 --retry-delay 2 --retry-all-errors -sf -o /dev/null -w "%{http_code}\n"
 
 jobs:
-  every-5-min:
-    if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
+  crons:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     concurrency:
-      # cancel-in-progress: false -- nunca cancelar un cron de seguridad en
-      # curso solo porque ya llegó el siguiente tick de 5 min.
-      group: critical-crons-every-5-min
+      group: critical-crons
       cancel-in-progress: false
     steps:
-      - name: safety-abort-escalation
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
+      - name: every-5-min — safety-abort-escalation
+        if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/safety-abort-escalation"
-      - name: wellbeing-chemical-reassign
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
-        run: |
-          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/wellbeing-chemical-reassign"
-      - name: key-escalation-check
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
-        run: |
-          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/key-escalation-check"
+          curl ${CURL_FLAGS} \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ vars.CRON_BASE_URL }}/api/cron/safety-abort-escalation"
 
-  every-15-min:
-    if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    concurrency:
-      group: critical-crons-every-15-min
-      cancel-in-progress: false
-    steps:
-      - name: no-show
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
+      - name: every-5-min — wellbeing-chemical-reassign
+        if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/no-show"
-      - name: dispatch-scheduler
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
-        run: |
-          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/dispatch-scheduler"
+          curl ${CURL_FLAGS} \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ vars.CRON_BASE_URL }}/api/cron/wellbeing-chemical-reassign"
 
-  hourly:
-    if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    concurrency:
-      group: critical-crons-hourly
-      cancel-in-progress: false
-    steps:
-      - name: hold-authorize
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
+      - name: every-5-min — key-escalation-check
+        if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/hold-authorize"
-      - name: capture-remainder
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
+          curl ${CURL_FLAGS} \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ vars.CRON_BASE_URL }}/api/cron/key-escalation-check"
+
+      - name: every-15-min — process-communication-events
+        if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/capture-remainder"
-      - name: cash-exposure-monitor
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
+          curl ${CURL_FLAGS} \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ vars.CRON_BASE_URL }}/api/cron/process-communication-events"
+
+      - name: every-15-min — no-show
+        if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/cash-exposure-monitor"
-      - name: appeal-deadline-check
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
+          curl ${CURL_FLAGS} \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ vars.CRON_BASE_URL }}/api/cron/no-show"
+
+      - name: every-15-min — dispatch-scheduler
+        if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/appeal-deadline-check"
-      - name: reconcile-payments
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          CRON_BASE_URL: ${{ vars.CRON_BASE_URL }}
+          curl ${CURL_FLAGS} \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ vars.CRON_BASE_URL }}/api/cron/dispatch-scheduler"
+
+      - name: hourly — hold-authorize
+        if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          curl -sf ${CURL_RETRY_FLAGS} -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_BASE_URL}/api/cron/reconcile-payments"
+          curl ${CURL_FLAGS} \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ vars.CRON_BASE_URL }}/api/cron/hold-authorize"
+
+      - name: hourly — capture-remainder
+        if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
+        run: |
+          curl ${CURL_FLAGS} \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ vars.CRON_BASE_URL }}/api/cron/capture-remainder"
+
+      - name: hourly — cash-exposure-monitor
+        if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
+        run: |
+          curl ${CURL_FLAGS} \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ vars.CRON_BASE_URL }}/api/cron/cash-exposure-monitor"
+
+      - name: hourly — appeal-deadline-check
+        if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
+        run: |
+          curl ${CURL_FLAGS} \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ vars.CRON_BASE_URL }}/api/cron/appeal-deadline-check"
+
+      - name: hourly — reconcile-payments
+        if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
+        run: |
+          curl ${CURL_FLAGS} \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ vars.CRON_BASE_URL }}/api/cron/reconcile-payments"

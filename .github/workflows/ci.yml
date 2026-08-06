@@ -1,8 +1,9 @@
 # v8.3 E0 — CI mínimo: nada entra a main sin typecheck y tests verdes.
 name: CI
 on:
-  push:
-    branches: [main]
+  # v8.5: push a main lo build-ea Vercel (typecheck + build + deploy).
+  # GitHub Actions CI solo corre en PRs y bajo demanda (workflow_dispatch)
+  # para no consumir minutos del plan gratuito en cada push.
   pull_request:
   workflow_dispatch:
 
