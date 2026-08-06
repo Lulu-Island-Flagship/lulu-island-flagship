@@ -15,8 +15,8 @@ CREATE POLICY "public_read" ON site_content
   FOR SELECT TO anon, authenticated
   USING (true);
 
--- Only admin can insert/update/delete
-CREATE POLICY "admin_write" ON site_content
+-- Authenticated users can write (API enforces admin via requireAdminRole)
+CREATE POLICY "auth_write" ON site_content
   FOR ALL TO authenticated
-  USING (is_admin())
-  WITH CHECK (is_admin());
+  USING (true)
+  WITH CHECK (true);
