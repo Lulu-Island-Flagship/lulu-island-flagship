@@ -9,7 +9,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Loader2, Check, AlertTriangle, Upload, Trash2 } from "lucide-react";
 import { useAdminRoles } from "@/lib/useAdminRoles";
-import { roleAllows } from "@/lib/admin-rbac";
 
 const CONTENT_KEYS: { key: string; label: string; multiline?: boolean }[] = [
   { key: "hero.title", label: "Hero — Title" },
@@ -59,9 +58,8 @@ const IMAGE_SLOTS = [
 ];
 
 export default function ContentAdminPage() {
-  const t = useTranslations();
   const { roles, loading: rolesLoading } = useAdminRoles();
-  const isAdmin = roleAllows(roles, "owner_admin");
+  const isAdmin = roles.includes("owner_admin");
 
   // Text state
   const [content, setContent] = useState<Record<string, string>>({});

@@ -267,6 +267,23 @@ export function getOrganicMultiplier(
   return 1.0;
 }
 
+// Factor de densidad — cómo interactúan los sq ft con la carga orgánica y recencia.
+// Espacios más grandes con más suciedad orgánica y más tiempo sin limpiar requieren
+// más esfuerzo del que captura cada multiplicador por separado.
+export function getDensityMultiplier(
+  squareFeet: number,
+  organicMultiplier: number,
+  recencyMultiplier: number
+): number {
+  // Sin penalización para espacios pequeños
+  if (squareFeet <= 500) return 1.0;
+
+  // El factor base crece con los sq ft a partir de 500
+  const sqftFactor = Math.min(1.0, (squareFeet - 500) / 4500);
+  const combinedLoad = ((organicMultiplier - 1) + (recencyMultiplier - 1)) / 2;
+  return 1.0 + sqftFactor * Math.max(0, combinedLoad) * 0.5;
+}
+
 // Factor de recencia (interno — NUNCA visible al cliente)
 export function getRecencyMultiplier(daysSinceCleaning: number): number {
   if (daysSinceCleaning < 30) return 0.85;

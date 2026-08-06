@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+import { getSupabaseUrl, getSupabaseAnonKey } from "@/lib/supabase-server";
 
 /**
  * GET /api/content/landing — public, no auth.
@@ -7,7 +8,7 @@ import { createClient } from "@/lib/supabase";
  * Cached for 60s (ISR-compatible).
  */
 export async function GET() {
-  const supabase = createClient();
+  const supabase = createClient(getSupabaseUrl(), getSupabaseAnonKey());
 
   const { data, error } = await supabase
     .from("site_content")

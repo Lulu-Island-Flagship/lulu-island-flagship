@@ -109,6 +109,7 @@ function LocalBusinessSchema() {
 
 export default function HomePage() {
   const t = useTranslations();
+  const router = useRouter();
   const pathname = usePathname();
   const pathLocale = pathname.match(/^\/(en|zh|fr)(\/|$)/);
   const locale = pathLocale ? pathLocale[1] : "en";

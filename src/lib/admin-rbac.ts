@@ -52,6 +52,9 @@ export type AdminResource =
   | "qc_wall"
   // Client management — owner_admin + ops_coordinator
   | "clients"
+  // Site content management (landing page text/images) — owner_admin + ops_coordinator
+  | "site_content"
+  | "site_content_images"
   // Dashboard counts — all admin roles
   | "dashboard";
 
@@ -88,6 +91,8 @@ const MATRIX: Record<AdminResource, AdminRole[]> = {
   applicants: ["owner_admin", "ops_coordinator"],
   clients: ["owner_admin", "ops_coordinator"],
   dashboard: ["owner_admin", "ops_coordinator"],
+  site_content: ["owner_admin", "ops_coordinator"],
+  site_content_images: ["owner_admin", "ops_coordinator"],
   qc_wall: ["owner_admin", "ops_coordinator", "qc_only"],
 };
 
