@@ -12,13 +12,31 @@
 BEGIN;
 
 -- 1. FK en communication_preferences
-ALTER TABLE communication_preferences
-  ADD CONSTRAINT fk_communication_preferences_user_id
-  FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'fk_communication_preferences_user_id'
+    AND table_name = 'communication_preferences'
+  ) THEN
+    ALTER TABLE communication_preferences
+      ADD CONSTRAINT fk_communication_preferences_user_id
+      FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
 
 -- 2. FK en message_context
-ALTER TABLE message_context
-  ADD CONSTRAINT fk_message_context_linked_by_user_id
-  FOREIGN KEY (linked_by_user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'fk_message_context_linked_by_user_id'
+    AND table_name = 'message_context'
+  ) THEN
+    ALTER TABLE message_context
+      ADD CONSTRAINT fk_message_context_linked_by_user_id
+      FOREIGN KEY (linked_by_user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+  END IF;
+END $$;
 
 COMMIT;

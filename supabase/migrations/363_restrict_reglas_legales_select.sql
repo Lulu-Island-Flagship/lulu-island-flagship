@@ -8,12 +8,29 @@ BEGIN;
 
 DROP POLICY IF EXISTS "Authenticated read legal rules" ON reglas_legales;
 
-CREATE POLICY "Authenticated read active legal rules"
-  ON reglas_legales FOR SELECT
-  USING (auth.role() = 'authenticated' AND estado = 'VIGENTE');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'reglas_legales'
+      AND policyname = 'Authenticated read active legal rules'
+  ) THEN
+    CREATE POLICY "Authenticated read active legal rules"
+      ON reglas_legales FOR SELECT
+      USING (auth.role() = 'authenticated' AND estado = 'VIGENTE');
+  END IF;
 
-CREATE POLICY "Supervisors read all legal rules"
-  ON reglas_legales FOR SELECT
-  USING (is_supervisor(auth.uid()));
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'reglas_legales'
+      AND policyname = 'Supervisors read all legal rules'
+  ) THEN
+    CREATE POLICY "Supervisors read all legal rules"
+      ON reglas_legales FOR SELECT
+      USING (is_supervisor(auth.uid()));
+  END IF;
+END $$;
 
 COMMIT;
