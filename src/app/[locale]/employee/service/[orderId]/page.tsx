@@ -174,13 +174,6 @@ export default function ServicioPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
-  // Load service details
-  useEffect(() => {
-    if (!orderId) return;
-    loadService();
-    loadConfirmedColors();
-  }, [loadService, loadConfirmedColors, orderId]);
-
   // v8.3 E4 fix (auditoría 2026-07-18): el candado químico ahora persiste
   // server-side (chemical_zone_confirmations, migración 185) — antes vivía
   // solo en este useState y se perdía al refrescar la página, dejando la
@@ -236,6 +229,15 @@ export default function ServicioPage() {
       if (!opts.background) setLoading(false);
     }
   }, [orderId, empleadoPath, loadLogs, router]);
+
+  // Load service details — movido aquí (2026-08-06) porque TypeScript
+  // reportaba TDZ: loadService / loadConfirmedColors son consts declarados
+  // después de este useEffect en el orden léxico original.
+  useEffect(() => {
+    if (!orderId) return;
+    loadService();
+    loadConfirmedColors();
+  }, [loadService, loadConfirmedColors, orderId]);
 
   // Fix (auditoría 2026-07-31, #15): loadService solo corría al montar --
   // si un compañero de equipo cerraba la orden (T_out, checklist, etc.)

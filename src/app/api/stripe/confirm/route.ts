@@ -804,7 +804,7 @@ export async function POST(request: NextRequest) {
           sourceModule: "stripe_confirm_stranded_capacity",
           sourceTable: "capacity_slots",
           sourceId: slotRow.id,
-          tier: "action_required",
+          tier: "respond_10min",
           severity: "p1_urgent",
           title: "Capacidad varada tras error de creación de orden",
           summary: `Slot ${slotRow.id} no pudo liberarse tras fallo de INSERT de orden para quote ${quoteId}. Requiere reconciliación manual.`,
