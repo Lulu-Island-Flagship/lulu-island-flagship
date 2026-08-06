@@ -107,7 +107,7 @@ export default function FeatureFlagsPage() {
       (groups[key] ??= []).push(f);
     }
     return groups;
-  }, [filtered]);
+  }, [filtered, t]);
 
   const staleCritical = useMemo(
     () =>

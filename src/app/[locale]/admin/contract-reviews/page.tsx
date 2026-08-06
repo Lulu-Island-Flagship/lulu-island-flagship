@@ -54,7 +54,7 @@ export default function ContractReviewsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

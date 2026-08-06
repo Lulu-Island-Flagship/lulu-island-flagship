@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback,  useEffect, useState } from "react";
+import Image from "next/image";
 import { useTranslations, useLocale } from "next-intl";
 import { Loader2, User, Mail, Phone, Globe, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -28,9 +29,9 @@ export default function PerfilClient() {
   const [nameSaved, setNameSaved] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -57,7 +58,7 @@ export default function PerfilClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [tCommon]);
 
   async function saveName() {
     setSavingName(true);
@@ -126,9 +127,11 @@ export default function PerfilClient() {
         <div className="flex items-center gap-4">
           {profile.avatarUrl ? (
             !avatarError ? (
-              <img
+              <Image
                 src={profile.avatarUrl}
                 alt=""
+                width={56}
+                height={56}
                 className="w-14 h-14 rounded-full border-2 border-brand-ice"
                 onError={() => setAvatarError(true)}
               />

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useCallback,  useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import {
@@ -82,11 +82,7 @@ export default function AdminEmpleadosClient() {
     });
   }
 
-  useEffect(() => {
-    loadEmployees();
-  }, []);
-
-  async function loadEmployees() {
+  const loadEmployees = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -104,7 +100,12 @@ export default function AdminEmpleadosClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    loadEmployees();
+  }, [loadEmployees]);
+
 
   async function saveLanguages(employeeId: string, languages: string[], languageLevels: LanguageLevels) {
     const res = await fetch(`/api/admin/empleados/${employeeId}`, {

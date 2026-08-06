@@ -51,7 +51,7 @@ export default function NeighborhoodPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

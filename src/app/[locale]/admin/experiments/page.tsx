@@ -63,7 +63,7 @@ export default function ExperimentsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

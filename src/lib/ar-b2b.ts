@@ -27,7 +27,7 @@
  *   Día 90: escalación a cobranza externa / legal
  */
 
-import { createHash } from "@/lib/crypto";
+import { createHash } from "@/lib/crypto.server";
 import { z } from "zod";
 import {
   generateJournalEntry,

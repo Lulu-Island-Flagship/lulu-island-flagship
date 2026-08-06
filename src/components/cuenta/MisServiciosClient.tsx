@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback,  useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
@@ -120,11 +120,7 @@ export default function MisServiciosClient() {
   // fix ya aplicado esta sesión en encuesta/[token] y nps/[token].
   const [needsAuth, setNeedsAuth] = useState(false);
 
-  useEffect(() => {
-    loadAll();
-  }, []);
-
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -163,7 +159,12 @@ export default function MisServiciosClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+
 
   if (needsAuth) {
     return (

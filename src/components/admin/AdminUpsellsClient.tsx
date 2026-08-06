@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback,  useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import {
   Loader2,
@@ -45,11 +45,7 @@ export default function AdminUpsellsClient() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
-  useEffect(() => {
-    loadUpsells();
-  }, []);
-
-  async function loadUpsells() {
+  const loadUpsells = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -67,7 +63,12 @@ export default function AdminUpsellsClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    loadUpsells();
+  }, [loadUpsells]);
+
 
   // Bug auditoría (AdminUpsellsClient no aprueba realmente el upsell): este
   // botón hacía POST sin body, que el endpoint interpreta como

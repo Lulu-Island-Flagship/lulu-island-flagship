@@ -160,7 +160,7 @@ export default function PaymentMethodsCard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tCommon]);
 
   useEffect(() => { load(); }, [load]);
 

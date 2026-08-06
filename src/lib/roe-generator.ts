@@ -704,4 +704,4 @@ export function generateRoeSummary(
 }
 
 export const getTerminationTypes = (): string[] => ["A","E","K","M","N"];
-export const generateRoePreview = (eid: string, m: string): string => "ROE Preview";
+export const generateRoePreview = (_eid: string, _m: string): string => "ROE Preview";

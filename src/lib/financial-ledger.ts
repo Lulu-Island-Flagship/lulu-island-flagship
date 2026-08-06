@@ -48,7 +48,7 @@
  *   financial-ledger.ts ──(importado por)──→ bank-reconciliation.ts (Capa 7)
  */
 
-import { createHash } from "@/lib/crypto";
+import { createHash } from "@/lib/crypto.server";
 import { z } from "zod";
 
 // =========================================================================

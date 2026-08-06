@@ -163,7 +163,7 @@ export default function CotizadorPage() {
       const newSearch = params.toString();
       window.history.replaceState({}, "", window.location.pathname + (newSearch ? `?${newSearch}` : ""));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const pendingAuth = wasPendingAuth();
@@ -200,7 +200,7 @@ export default function CotizadorPage() {
     }
     // Si no hay pending_auth, empezamos desde cero (stepIndex=0, input={})
     setIsHydrated(true);
-  }, []);
+  }, [t]);
 
   const step = STEPS[stepIndex];
 
@@ -271,7 +271,7 @@ export default function CotizadorPage() {
         setPreviewLoading(false);
       }
     }
-  }, [input]);
+  }, [input, t]);
 
   useEffect(() => {
     if (step === "summary") {

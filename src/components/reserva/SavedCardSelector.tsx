@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, CreditCard, Plus } from "lucide-react";
 
@@ -32,6 +32,7 @@ export function SavedCardSelector({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const hasManuallySelected = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,6 +49,9 @@ export function SavedCardSelector({
             const defaultCard = methods.find((c: SavedCard) => c.is_default);
             if (defaultCard) {
               setSelectedCardId(defaultCard.id);
+              if (!hasManuallySelected.current) {
+                onSelectSavedCard(defaultCard.id);
+              }
             }
           }
         }
@@ -70,6 +74,7 @@ export function SavedCardSelector({
 
   const handleSelectCard = useCallback((cardId: string) => {
     setSelectedCardId(cardId);
+    hasManuallySelected.current = true;
     onSelectSavedCard(cardId);
   }, [onSelectSavedCard]);
 

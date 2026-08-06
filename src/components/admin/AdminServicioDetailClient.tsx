@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback,  useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -70,9 +70,9 @@ export default function AdminServicioDetailClient() {
   useEffect(() => {
     if (!orderId) return;
     loadChecklist();
-  }, [orderId]);
+  }, [loadChecklist, orderId]);
 
-  async function loadChecklist() {
+  const loadChecklist = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/checklist?orderId=${orderId}`, {
@@ -94,7 +94,7 @@ export default function AdminServicioDetailClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [orderId, t]);
 
   const toggleZone = (zone: string) => {
     setExpandedZones((prev) => {

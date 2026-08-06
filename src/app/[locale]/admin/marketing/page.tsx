@@ -41,7 +41,7 @@ export default function MarketingPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

@@ -130,7 +130,7 @@ export default function AdminWalletClient() {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
       controller.abort();
     };
-  }, [query]);
+  }, [query, t]);
 
   function selectClient(c: ClientSearchResult) {
     setSelectedClient(c);

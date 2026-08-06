@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback,  useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Clock, Loader2, CheckCircle2, XCircle } from "lucide-react";
@@ -33,11 +33,7 @@ export default function DescansosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -50,7 +46,12 @@ export default function DescansosPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
 
   const roleLabel = (role: RestPeriod["role_during_rest"]) => {
     switch (role) {

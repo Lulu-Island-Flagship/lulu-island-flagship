@@ -40,7 +40,7 @@ export default function TeamRankingPage() {
     } finally {
       setLoading(false);
     }
-  }, [weekStart]);
+  }, [t, weekStart]);
 
   useEffect(() => {
     load();

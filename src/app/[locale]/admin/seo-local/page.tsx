@@ -49,7 +49,7 @@ export default function SeoLocalPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

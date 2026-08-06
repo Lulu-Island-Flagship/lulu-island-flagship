@@ -74,7 +74,7 @@ export default function ComunicacionesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback,  useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -38,11 +38,9 @@ export default function EmpleadoVotacionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState("");
 
-  useEffect(() => {
     loadPeers();
-  }, []);
 
-  async function loadPeers() {
+  const loadPeers = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -61,7 +59,7 @@ export default function EmpleadoVotacionPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
 
   async function submitVote(targetEmployeeId: string) {
     setSubmitting(true);

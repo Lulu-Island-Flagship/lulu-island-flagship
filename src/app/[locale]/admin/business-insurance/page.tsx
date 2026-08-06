@@ -65,7 +65,7 @@ export default function BusinessInsurancePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

@@ -19,7 +19,6 @@ import {
   generateT4Summary,
   generateT4SubmissionXml,
   generateT4SummaryPdf,
-  validateT4SubmissionXml,
   aggregateYearlyLines,
   getT4FilingDeadline,
   getT4IssuanceDeadline,

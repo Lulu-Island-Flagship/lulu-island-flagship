@@ -683,6 +683,5 @@ export function aggregateYearlyLines(lineas: PayrollLineaRow[]): T4YearlyAggrega
 export type T4TransmitterContact = { contactName: string; contactPhone: string; contactEmail: string; name: string; phone: string; email: string };
 export const getT4FilingDeadline = (anio: number): string => new Date(anio + 1, 1, 28).toISOString();
 export const getT4IssuanceDeadline = (anio: number): string => new Date(anio + 1, 1, 28).toISOString();
-export const generateT4SubmissionXml = (..._args: any[]): string => "<T4Submission>";
-export const generateT4SummaryPdf = (..._args: any[]): string => "PDF";
-export const validateT4SubmissionXml = (xml: string): T4XmlValidationResult => ({ valid: true, errors: [] as string[], warnings: [] as string[] });
+export const generateT4SubmissionXml = (..._args: unknown[]): string => "<T4Submission>";
+export const generateT4SummaryPdf = (..._args: unknown[]): string => "PDF";

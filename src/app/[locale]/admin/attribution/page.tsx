@@ -51,7 +51,7 @@ export default function AttributionPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

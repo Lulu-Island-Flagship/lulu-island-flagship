@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getSupabaseAnonKey, getSupabaseServiceKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
 // Fix M2: Use authenticated client instead of service-role in public endpoint
 import { safeErrorResponse } from "@/lib/api-errors";
 
@@ -19,13 +19,10 @@ import { safeErrorResponse } from "@/lib/api-errors";
  * confianza que ya usa buildPaymentUpdateLink/el link de actualización de
  * pago. Se usa service role, con el token como única puerta de entrada.
  */
-// Fix M2: Standard anon client for all validation; service-role only for writes
+// Fix 2026-08-05 (auditoría, item 2.4): solo cliente anónimo. Los writes
+// se delegaron a la RPC SECURITY DEFINER submit_client_review (migración 357).
 function getSupabaseClient() {
   return createClient(getSupabaseUrl(), getSupabaseAnonKey());
-}
-
-function getSupabaseServiceClient() {
-  return createClient(getSupabaseUrl(), getSupabaseServiceKey());
 }
 
 // v8.3 auditoría 2026-07-21 (E-B7): offset PDT/PST real para una fecha
@@ -54,10 +51,6 @@ function vancouverOffsetForDate(dateStr: string): string {
 // completo de reseñas post-servicio.
 export async function POST(request: NextRequest) {
   try {
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      return NextResponse.json({ error: "Supabase service credentials not configured" }, { status: 500 });
-    }
-
     const body = await request.json();
     const { token, rating, comment, phoneLast4 } = body;
 
@@ -175,8 +168,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Review already submitted" }, { status: 409 });
     }
 
-    // Fix M2: Service-role client scoped only to write operations after token validation
-    const serviceSupabase = getSupabaseServiceClient();
+    // Fix 2026-08-05 (auditoría, item 2.4): en vez de instanciar un cliente
+    // service-role en el endpoint, se llama una RPC SECURITY DEFINER
+    // (submit_client_review, migración 357) que encapsula las 3 escrituras
+    // (client_reviews, sentiment_alerts, orders) con privilegio mínimo.
+    // El cliente anon llama la RPC; la función corre con privilegios
+    // elevados solo para los writes, sin exponer SUPABASE_SERVICE_ROLE_KEY.
 
     // Calcular sentimiento
     const { data: sentimentData, error: sentimentError } = await supabase
@@ -184,41 +181,22 @@ export async function POST(request: NextRequest) {
 
     const sentimentScore = sentimentError ? 0 : (sentimentData || 0);
 
-    // Insertar review con review_window_expires_at (antes: expired_at)
-    const { data: review, error: reviewError } = await serviceSupabase
-      .from("client_reviews")
-      .insert({
-        order_id: order.id,
-        user_id: order.user_id,
-        rating,
-        comment: comment || null,
-        sentiment_score: sentimentScore,
-        review_window_expires_at: deadlineIso,
-      })
-      .select()
-      .single();
+    // RPC SECURITY DEFINER: inserta review, crea alerta si sentimiento < -0.5,
+    // marca token como usado — todo en una sola llamada atómica
+    const { data: review, error: reviewError } = await supabase
+      .rpc("submit_client_review", {
+        p_order_id: order.id,
+        p_user_id: order.user_id,
+        p_rating: rating,
+        p_comment: comment || null,
+        p_sentiment_score: sentimentScore,
+        p_deadline_iso: deadlineIso,
+      });
 
     if (reviewError) {
       console.error("reviewError:", reviewError);
       return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
     }
-
-    // Si sentimiento < -0.5, crear alerta
-    if (sentimentScore < -0.5) {
-      await serviceSupabase
-        .from("sentiment_alerts")
-        .insert({
-          client_review_id: review.id,
-          sentiment_score: sentimentScore,
-          status: "pending",
-        });
-    }
-
-    // Marcar token como usado (pero mantenerlo para referencia)
-    await serviceSupabase
-      .from("orders")
-      .update({ review_token_used_at: new Date().toISOString() })
-      .eq("id", order.id);
 
     return NextResponse.json({ review }, { status: 201 });
   } catch (err: Error | unknown) {

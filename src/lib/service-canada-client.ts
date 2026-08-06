@@ -41,7 +41,7 @@
  */
 
 import { z } from "zod";
-import { createHash } from "@/lib/crypto";
+import { createHash } from "@/lib/crypto.server";
 import { captureError } from "@/lib/observability";
 
 // =========================================================================

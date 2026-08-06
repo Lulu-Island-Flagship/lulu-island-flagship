@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, Wallet, Gift } from "lucide-react";
@@ -110,11 +110,9 @@ export default function WalletPage() {
   // de error genérico en vez de pedir login de nuevo.
   const [needsAuth, setNeedsAuth] = useState(false);
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, [load]);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -152,7 +150,7 @@ export default function WalletPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
 
   async function applyToOrder(orderId: string) {
     setApplying(orderId);

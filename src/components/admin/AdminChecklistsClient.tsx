@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useCallback,  useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import {
   Loader2,
@@ -105,7 +105,7 @@ export default function AdminChecklistsClient() {
 
   useEffect(() => {
     loadChecklists();
-  }, []);
+  }, [loadChecklists]);
 
   // Close zone menu when clicking outside
   useEffect(() => {
@@ -136,7 +136,7 @@ export default function AdminChecklistsClient() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [confirmDialog, showModal]);
 
-  async function loadChecklists() {
+  const loadChecklists = useCallback(async () => {
     setLoading(true);
     setError(""); // Limpiar error previo
     try {
@@ -157,7 +157,7 @@ export default function AdminChecklistsClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
 
   const grouped = React.useMemo(() => {
     const map = new Map<string, ChecklistZone[]>();

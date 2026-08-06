@@ -75,7 +75,7 @@ export default function SeasonalCampaignsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback,  useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, ChevronLeft, Check } from "lucide-react";
@@ -60,11 +60,7 @@ export default function PanosPage() {
   const [loadError, setLoadError] = useState("");
   const [submitError, setSubmitError] = useState("");
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setLoadError("");
     try {
@@ -82,7 +78,12 @@ export default function PanosPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
 
   async function submit(e?: React.FormEvent) {
     e?.preventDefault();

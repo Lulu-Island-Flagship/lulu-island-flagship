@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback,  useState, useEffect } from "react";
 import Image from "next/image";
 import {
   Check,
@@ -95,7 +95,7 @@ export function ChecklistCierre({
     }
   }
 
-  function saveLocalSnapshot(nextZones: ChecklistZoneProgress[]) {
+  const saveLocalSnapshot = useCallback((nextZones: ChecklistZoneProgress[]) => {
     if (typeof window === "undefined") return;
     try {
       window.localStorage.setItem(
@@ -106,7 +106,7 @@ export function ChecklistCierre({
       // localStorage lleno o deshabilitado -- el respaldo es best-effort,
       // nunca debe romper el flujo principal.
     }
-  }
+  }, [localStorageKey]);
 
   function clearLocalSnapshot() {
     if (typeof window === "undefined") return;
@@ -141,7 +141,7 @@ export function ChecklistCierre({
   // lo ya marcado -- se restaura al volver a montar (ver loadChecklist).
   useEffect(() => {
     if (zones.length > 0) saveLocalSnapshot(zones);
-  }, [zones]);
+  }, [zones, saveLocalSnapshot]);
 
   /** Aplica sobre `serverZones` cualquier item que localStorage tenga marcado como completado y el servidor no. */
   function mergeLocalSnapshotOntoServerZones(

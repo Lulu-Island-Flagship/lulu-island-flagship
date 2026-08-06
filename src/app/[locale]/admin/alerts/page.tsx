@@ -49,7 +49,7 @@ export default function UnifiedAlertsInboxPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

@@ -60,7 +60,7 @@ export default function SuccessionPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

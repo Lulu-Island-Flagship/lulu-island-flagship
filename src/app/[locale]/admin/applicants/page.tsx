@@ -52,11 +52,7 @@ export default function AdminApplicantsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const PAGE_SIZE = 25;
 
-  useEffect(() => {
-    loadApplicants();
-  }, [statusFilter, page]);
-
-  async function loadApplicants() {
+  const loadApplicants = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -82,7 +78,12 @@ export default function AdminApplicantsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t, statusFilter, page]);
+
+  useEffect(() => {
+    loadApplicants();
+  }, [loadApplicants]);
+
 
   async function handleAction(applicantId: string, action: "approve" | "reject") {
     if (

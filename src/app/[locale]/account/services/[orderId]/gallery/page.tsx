@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback,  useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, Camera, Clock, MessageSquare, AlertTriangle, CheckCircle2, CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
@@ -51,9 +51,9 @@ export default function ServiceGalleryPage() {
   useEffect(() => {
     if (!orderId) return;
     load();
-  }, [orderId]);
+  }, [load, orderId]);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -70,7 +70,7 @@ export default function ServiceGalleryPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [orderId, t]);
 
   if (loading) {
     return (

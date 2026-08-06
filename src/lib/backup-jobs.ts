@@ -1,4 +1,4 @@
-import { createHash } from "@/lib/crypto";
+import { createHash } from "@/lib/crypto.server";
 
 /**
  * v8.3 E9.10 — "Backups: transacciones diario (CSV+hash a B2/Glacier),

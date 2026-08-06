@@ -576,7 +576,10 @@ export async function POST(request: NextRequest) {
     // Esto evita que los holds expiren para servicios lejanos y cumple el spec.
 
     // Verificar capacidad real: el slot debe existir, estar publicado y tener cupo
-    const capacityClient = getServiceRoleClient() ?? supabase;
+    const capacityClient = getServiceRoleClient();
+    if (!capacityClient) {
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
     let slotRow;
     const { data: slotData, error: slotError } = await capacityClient
       .from("capacity_slots")

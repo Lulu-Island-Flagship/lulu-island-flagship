@@ -52,7 +52,7 @@ export default function EmployeeMarketingPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

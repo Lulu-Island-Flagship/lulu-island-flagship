@@ -66,7 +66,7 @@ export default function PipedaPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

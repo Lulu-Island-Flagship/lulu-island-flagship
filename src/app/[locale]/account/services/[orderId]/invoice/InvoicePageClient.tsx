@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback,  useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, Printer } from "lucide-react";
@@ -35,9 +35,9 @@ export default function InvoicePageClient() {
   useEffect(() => {
     if (!orderId) return;
     load();
-  }, [orderId]);
+  }, [load, orderId]);
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
       const res = await fetch(`/api/client/invoice/${orderId}`, { credentials: "include" });
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
@@ -48,7 +48,7 @@ export default function InvoicePageClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [orderId, t]);
 
   function handlePrint() {
     window.print();

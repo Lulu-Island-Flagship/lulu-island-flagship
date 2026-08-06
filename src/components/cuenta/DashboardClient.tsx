@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import {
@@ -170,9 +171,11 @@ export default function DashboardClient() {
           </p>
         </div>
         {profile.avatarUrl && (
-          <img
+          <Image
             src={profile.avatarUrl}
             alt={profile.fullName ?? ""}
+            width={40}
+            height={40}
             className="w-10 h-10 rounded-full border-2 border-brand-ice"
             onError={() => setAvatarError(true)}
             style={avatarError ? { display: "none" } : undefined}

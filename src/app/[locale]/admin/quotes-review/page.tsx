@@ -57,7 +57,7 @@ export default function QuotesReviewPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadQuotes();

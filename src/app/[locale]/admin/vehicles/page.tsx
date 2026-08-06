@@ -56,7 +56,7 @@ export default function VehiclesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadVehicles();

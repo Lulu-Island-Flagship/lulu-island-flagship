@@ -31,7 +31,7 @@
  */
 
 import { z } from "zod";
-import { createHash } from "@/lib/crypto";
+import { createHash } from "@/lib/crypto.server";
 
 // import type { PayrollLineaRow } from "./payroll-line";
 import type { PayrollCalculationResult } from "./payroll-calculator";

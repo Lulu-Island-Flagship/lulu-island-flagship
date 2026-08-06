@@ -1,4 +1,4 @@
-import { createHash } from "@/lib/crypto";
+import { createHash } from "@/lib/crypto.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getHiringFlowServiceClient } from "./settings-service";
 

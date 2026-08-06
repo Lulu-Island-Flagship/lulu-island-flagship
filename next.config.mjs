@@ -183,7 +183,7 @@ const nextConfig = {
               // bloquea el iframe por completo y el cliente vuelve a ver
               // solo coordenadas crudas -- justo lo que ese fix buscaba
               // evitar.
-              "frame-src https://js.stripe.com https://hooks.stripe.com https://www.google.com",
+              "frame-src https://js.stripe.com https://hooks.stripe.com https://www.google.com/maps/embed",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",

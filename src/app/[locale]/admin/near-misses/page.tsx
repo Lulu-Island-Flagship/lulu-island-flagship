@@ -54,7 +54,7 @@ export default function NearMissesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

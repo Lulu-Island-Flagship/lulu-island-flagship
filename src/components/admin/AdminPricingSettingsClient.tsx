@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback,  useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, DollarSign, History, AlertCircle, CheckCircle2, Table2 } from "lucide-react";
@@ -70,9 +70,9 @@ export default function AdminPricingSettingsClient() {
   useEffect(() => {
     loadSettings();
     loadHHE();
-  }, []);
+  }, [loadSettings, loadHHE]);
 
-  async function loadSettings() {
+  const loadSettings = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -92,9 +92,9 @@ export default function AdminPricingSettingsClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
 
-  async function loadHHE() {
+  const loadHHE = useCallback(async () => {
     setHheError("");
     try {
       const res = await fetch("/api/admin/hhe-settings", { credentials: "include" });
@@ -110,7 +110,7 @@ export default function AdminPricingSettingsClient() {
     } catch {
       setHheError(t("errors.hheNetworkError"));
     }
-  }
+  }, [t]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

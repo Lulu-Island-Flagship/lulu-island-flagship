@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback,  useEffect, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Loader2, Users, Copy, CheckCircle2, Gift } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -40,11 +40,7 @@ export default function ReferralsPage() {
   // genérico en vez de pedir login de nuevo.
   const [needsAuth, setNeedsAuth] = useState(false);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -81,7 +77,12 @@ export default function ReferralsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
 
   async function copyCode() {
     if (!myCode) return;

@@ -159,7 +159,7 @@ export default function ExportAccountingPanel() {
     }
   }
 
-  async function loadHistory() {
+  const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
     setHistoryError("");
     try {
@@ -174,7 +174,7 @@ export default function ExportAccountingPanel() {
     } finally {
       setHistoryLoading(false);
     }
-  }
+  }, [t]);
 
   // ── Export ────────────────────────────────────────────────────────────────
 

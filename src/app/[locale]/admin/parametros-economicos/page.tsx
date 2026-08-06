@@ -58,7 +58,7 @@ export default function EconomicParamsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

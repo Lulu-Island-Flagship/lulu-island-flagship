@@ -47,7 +47,7 @@ export default function GrowthMetricsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

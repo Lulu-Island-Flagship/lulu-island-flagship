@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback,  useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, MapPin, Clock, Truck } from "lucide-react";
@@ -41,9 +41,9 @@ export default function ServiceTrackingPage() {
       clearInterval(interval);
       controller.abort();
     };
-  }, [orderId]);
+  }, [load, orderId]);
 
-  async function load(signal?: AbortSignal) {
+  const load = useCallback(async (signal?: AbortSignal) => {
     setError("");
     try {
       const res = await fetch(`/api/client/orders/${orderId}/vehicle-tracking`, {
@@ -68,7 +68,7 @@ export default function ServiceTrackingPage() {
         setLoading(false);
       }
     }
-  }
+  }, [orderId, t]);
 
   if (loading) {
     return (

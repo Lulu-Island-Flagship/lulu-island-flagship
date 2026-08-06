@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useCallback,  useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -179,7 +179,7 @@ export default function ServicioPage() {
     if (!orderId) return;
     loadService();
     loadConfirmedColors();
-  }, [orderId]);
+  }, [loadService, loadConfirmedColors, orderId]);
 
   // v8.3 E4 fix (auditoría 2026-07-18): el candado químico ahora persiste
   // server-side (chemical_zone_confirmations, migración 185) — antes vivía
@@ -187,7 +187,7 @@ export default function ServicioPage() {
   // UI marcando zonas como bloqueadas otra vez aunque el servidor ya las
   // tenía confirmadas (o viceversa, nunca coincidía con lo que el servidor
   // realmente exige en POST /api/employee/checklist).
-  async function loadConfirmedColors() {
+  const loadConfirmedColors = useCallback(async () => {
     try {
       const res = await fetch(`/api/employee/chemical-confirm?orderId=${orderId}`, { credentials: "include" });
       if (!res.ok) return;
@@ -196,9 +196,9 @@ export default function ServicioPage() {
     } catch (e) {
       console.error("Load confirmed colors error:", e);
     }
-  }
+  }, [orderId]);
 
-  async function loadService(opts: { background?: boolean } = {}) {
+  const loadService = useCallback(async (opts: { background?: boolean } = {}) => {
     if (!opts.background) setLoading(true);
     try {
       // Usar endpoint directo para evitar cargar todos los servicios
@@ -218,7 +218,7 @@ export default function ServicioPage() {
     } finally {
       if (!opts.background) setLoading(false);
     }
-  }
+  }, [orderId, empleadoPath, loadLogs, router]);
 
   // Fix (auditoría 2026-07-31, #15): loadService solo corría al montar --
   // si un compañero de equipo cerraba la orden (T_out, checklist, etc.)
@@ -237,7 +237,7 @@ export default function ServicioPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
-  async function loadLogs() {
+  const loadLogs = useCallback(async () => {
     if (!orderId) return;
     try {
       const { data, error } = await supabase
@@ -252,7 +252,7 @@ export default function ServicioPage() {
     } catch (e) {
       console.error("Load logs error:", e);
     }
-  }
+  }, [orderId]);
 
   const getCurrentLocation = (): Promise<{ lat: number; lng: number } | null> => {
     return new Promise((resolve) => {

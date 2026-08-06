@@ -17,7 +17,7 @@
  */
 
 const CACHE_NAME = "lulu-empleado-shell-v1";
-const APP_SHELL_PREFIX = "/empleado";
+const APP_SHELL_PREFIX = "/employee";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();

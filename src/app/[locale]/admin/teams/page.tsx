@@ -48,7 +48,7 @@ export default function AdminTeamsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

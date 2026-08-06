@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback,  useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Mail, CheckCircle2, XCircle, Gift, MessageCircle } from "lucide-react";
 import { StatusBanner } from "./StatusBanner";
@@ -31,11 +31,7 @@ export default function CommunicationPreferencesClient() {
   // de error genérico en vez de pedir login de nuevo.
   const [needsAuth, setNeedsAuth] = useState(false);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -72,7 +68,12 @@ export default function CommunicationPreferencesClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
 
   async function toggle(next: boolean) {
     setSaving(true);

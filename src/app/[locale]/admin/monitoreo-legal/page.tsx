@@ -69,7 +69,7 @@ export default function LegalMonitoringPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

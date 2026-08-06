@@ -100,7 +100,7 @@ export default function DrDrillPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

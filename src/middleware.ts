@@ -123,10 +123,10 @@ export default async function middleware(request: NextRequest) {
             return request.cookies.get(name)?.value;
           },
           set(name: string, value: string, options) {
-            apiResponse.cookies.set({ name, value, ...options, secure: true, sameSite: "lax" });
+            apiResponse.cookies.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
           },
           remove(name: string, options) {
-            apiResponse.cookies.set({ name, value: '', ...options, secure: true, sameSite: "lax" });
+            apiResponse.cookies.set({ name, value: '', ...options, httpOnly: true, secure: true, sameSite: "lax" });
           },
         },
       });
@@ -165,14 +165,10 @@ export default async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options) {
-          // secure: solo en producción. En desarrollo (HTTP local), las cookies
-          // secure son rechazadas por el navegador y la sesión nunca persiste.
-          const secure = process.env.NODE_ENV === "production";
-          response.cookies.set({ name, value, ...options, secure, sameSite: "lax" });
+          response.cookies.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
         },
         remove(name: string, options) {
-          const secure = process.env.NODE_ENV === "production";
-          response.cookies.set({ name, value: '', ...options, secure, sameSite: "lax" });
+          response.cookies.set({ name, value: '', ...options, httpOnly: true, secure: true, sameSite: "lax" });
         },
       },
     });

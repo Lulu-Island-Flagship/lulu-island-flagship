@@ -143,7 +143,7 @@ export default function ShiftRitualPage() {
       }
     }
     load();
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     async function checkJornadaEnded() {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useCallback,  useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Mail, Shield, AlertCircle, UserPlus, UserMinus } from "lucide-react";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
@@ -50,11 +50,7 @@ export default function AdminRolesClient() {
   // ConfirmActionModal — guarda el id del rol pendiente de confirmar.
   const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadRoles();
-  }, []);
-
-  async function loadRoles() {
+  const loadRoles = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -72,7 +68,12 @@ export default function AdminRolesClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    loadRoles();
+  }, [loadRoles]);
+
 
   async function revokeRole(id: string) {
     setRevokingId(id);

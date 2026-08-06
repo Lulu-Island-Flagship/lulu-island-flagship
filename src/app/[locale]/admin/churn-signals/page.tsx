@@ -56,7 +56,7 @@ export default function ChurnSignalsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

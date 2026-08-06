@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback,  useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Key, Loader2, ChevronLeft, AlertTriangle, Check, Eye, EyeOff, Camera, CloudUpload } from "lucide-react";
@@ -76,9 +76,9 @@ export default function LlavesPage() {
 
   useEffect(() => {
     if (orderId) load();
-  }, [orderId]);
+  }, [load, orderId]);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/employee/keys?orderId=${orderId}`, { credentials: "include" });
@@ -89,7 +89,7 @@ export default function LlavesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [orderId]);
 
   async function handleSignaturePhoto(file: File) {
     setUploadingSignature(true);

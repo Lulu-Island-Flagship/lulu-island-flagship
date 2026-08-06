@@ -32,15 +32,17 @@ import {
   Download,
 } from "lucide-react";
 import { useFocusTrap } from "@/lib/useFocusTrap";
-import {
-  validateGstReturnXml,
-} from "@/lib/tax-netfile";
-import type { TaxObligationSummary } from "@/components/admin/TaxDashboard";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 type Step = "generate" | "review" | "confirm";
+
+interface TaxObligation {
+  period: string;
+  label: string;
+  deadline: string;
+}
 
 interface ChecklistItem {
   key: string;
@@ -167,6 +169,7 @@ function highlightXml(xml: string): React.ReactNode[] {
         return match;
       },
     );
+    {/* SAFETY: HTML generated server-side from tax data, no user input */}
     return (
       <span
         key={i}
@@ -180,7 +183,7 @@ function highlightXml(xml: string): React.ReactNode[] {
 // ── Component ──────────────────────────────────────────────────────────────
 
 interface TaxFilingModalProps {
-  obligation: Record<string,any>;
+  obligation: TaxObligation;
   onClose: () => void;
   onSubmitted: () => void;
 }
@@ -214,6 +217,7 @@ export default function TaxFilingModal({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [generateError, setGenerateError] = useState("");
+  const [submitError, setSubmitError] = useState("");
 
   // Focus trap
   useFocusTrap(modalRef, true);
@@ -265,11 +269,14 @@ export default function TaxFilingModal({
     try {
       // In production: POST to /api/admin/tax/netfile
       // await fetch(...)
+      setSubmitError("");
       await new Promise((resolve) => setTimeout(resolve, 1500));
       setSubmitted(true);
       setTimeout(() => onSubmitted(), 2000);
-    } catch {
-      // error stays in modal
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : t("modal.errors.submitFailed"),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -424,6 +431,14 @@ export default function TaxFilingModal({
                     ))}
                   </div>
                 </div>
+
+                {/* Submit error */}
+                {submitError && (
+                  <div className="flex items-start gap-2 text-red-700 bg-red-50 rounded-lg px-4 py-3">
+                    <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
+                    <p className="font-medium text-sm">{submitError}</p>
+                  </div>
+                )}
 
                 {/* Progress Stepper */}
                 <div className="flex items-center gap-2 text-xs text-gray-400 pt-2">

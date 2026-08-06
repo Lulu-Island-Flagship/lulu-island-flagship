@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback,  useEffect, useState } from "react";
 import _ConfirmActionModal from "@/components/admin/ConfirmActionModal";
 import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
@@ -62,11 +62,7 @@ export default function ClientPropertiesClient() {
   // de error genérico en vez de pedir login de nuevo.
   const [needsAuth, setNeedsAuth] = useState(false);
 
-  useEffect(() => {
-    loadProperties();
-  }, []);
-
-  async function loadProperties() {
+  const loadProperties = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -97,7 +93,12 @@ export default function ClientPropertiesClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    loadProperties();
+  }, [loadProperties]);
+
 
   function resetForm() {
     setForm(emptyForm);

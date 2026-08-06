@@ -53,7 +53,7 @@ export default function LivePortfolioAdminPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

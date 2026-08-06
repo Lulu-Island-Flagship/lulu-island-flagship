@@ -48,7 +48,7 @@ export default function ClientSegmentsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();

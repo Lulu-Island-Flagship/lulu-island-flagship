@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useCallback,  useState, useEffect, useRef } from "react";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { useTranslations } from "next-intl";
 import {
@@ -85,9 +85,9 @@ export default function AdminServiciosClient() {
   useEffect(() => {
     loadServices();
     loadEmployees();
-  }, []);
+  }, [loadServices]);
 
-  async function loadServices() {
+  const loadServices = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -105,7 +105,7 @@ export default function AdminServiciosClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
 
   async function loadEmployees() {
     try {
