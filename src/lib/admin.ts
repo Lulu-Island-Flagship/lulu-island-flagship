@@ -239,11 +239,23 @@ export async function getCurrentAdminRoles(): Promise<{
     return { user: null, roles: [] };
   }
 
-  const { data: roleRows } = await supabase
+  const { data: roleRows, error: roleError } = await supabase
     .from("admin_roles")
     .select("role")
     .eq("user_id", user.id)
     .is("deleted_at", null);
+
+  // Fix (auditoría 2026-08-06): getCurrentAdminRoles nunca chequeaba `error`.
+  // Si la query fallaba (DB caída, timeout de red, RLS), roleRows era
+  // undefined y el fallback ?? [] devolvía roles vacíos en silencio — un
+  // admin legítimo veía el panel vacío sin ninguna indicación de que algo
+  // falló. Se loguea el error con captureError para trazabilidad; en runtime
+  // se sigue devolviendo roles: [] (degradación controlada, igual que antes)
+  // pero al menos queda evidencia forense. Si en el futuro se quiere propagar
+  // el error al caller (en vez de degradar), basta con cambiar esta función.
+  if (roleError) {
+    captureError(roleError, { query: "admin_roles", userId: user.id });
+  }
 
   const roles = (roleRows ?? []).map((r) => r.role as AdminRole);
 

@@ -11,7 +11,7 @@
  *   1. GST/HST NETFILE   — Declaración de impuestos GST/HST en formato XML.
  *   2. T4 XML            — Comprobantes de remuneración (T4 slips) en XML.
  *
- * Estado actual: PLACEHOLDER — documentación completa de schemas y campos,
+ * Estado actual: NOT IMPLEMENTED — throws on all operations — documentación completa de schemas y campos,
  * funciones devuelven templates XML vacíos con valores de ejemplo comentados.
  * Listo para implementar cuando se integre con CRA NETFILE API.
  *
@@ -88,66 +88,9 @@ export interface GstReturnData {
  * @param periodo Período contable en formato YYYY-MM.
  * @returns String XML con estructura NETFILE y valores en cero.
  */
-export function exportGstReturn(periodo: string): string {
-  const [year, month] = periodo.split("-");
-  const monthNum = parseInt(month, 10);
-  const lastDay = new Date(parseInt(year, 10), monthNum, 0).getDate();
-  const periodStart = `${year}-${month}-01`;
-  const periodEnd = `${year}-${month}-${String(lastDay).padStart(2, "0")}`;
-
-  // Placeholder: en Año 2 se calcularán desde financial_ledger + COA
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  GST/HST NETFILE Return — Lulu Island Flagship
-  Generated: ${new Date().toISOString().slice(0, 10)}
-  Status: PLACEHOLDER (Year 2)
-
-  TODO (Year 2):
-  - Calcular totalSalesCents desde cuentas 4010–4060 del ledger.
-  - Calcular gstCollectedCents (5% sobre ventas gravables, cuenta 2040).
-  - Calcular inputTaxCreditsCents desde GST en cuentas de gasto 60xx.
-  - Conectar con CRA NETFILE API para transmisión directa.
-  - Validar contra schema XML oficial de CRA.
-  - Agregar firma digital (CRA requiere PKI certificate).
-
-  CRA NETFILE endpoint (sandbox):
-    https://www.cra-arc.gc.ca/tx/bsnss/tpcs/gst-tps/bspsbch/menu-eng.html
-  CRA Production endpoint requiere credenciales de "My Business Account".
--->
-<GSTHSTReturn
-  xmlns="http://www.cra-arc.gc.ca/GSTHST/2024"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <BusinessNumber>000000000RT0001</BusinessNumber><!-- TODO: BN real -->
-  <ReportingPeriod>${periodStart}/${periodEnd}</ReportingPeriod>
-  <FilingType>ORIGINAL</FilingType><!-- ORIGINAL | AMENDED -->
-  <Currency>CAD</Currency>
-
-  <!-- Section A: GST/HST collected -->
-  <Line101>0</Line101><!-- Total sales (cents) -->
-  <Line103>0</Line103><!-- GST collected (5%) -->
-  <Line105>0</Line105><!-- Total GST/HST collected or collectible -->
-
-  <!-- Section B: Input Tax Credits -->
-  <Line106>0</Line106><!-- ITCs — GST paid on business purchases -->
-  <Line108>0</Line108><!-- Total ITCs and adjustments -->
-
-  <!-- Section C: Net Tax Calculation -->
-  <Line109>0</Line109><!-- Net tax (Line 105 − Line 108) -->
-
-  <!-- Section D: Other Credits -->
-  <Line110>0</Line110><!-- Installment payments -->
-  <Line111>0</Line111><!-- Rebates -->
-  <Line112>0</Line112><!-- Total other credits -->
-
-  <!-- Section E: Balance Due or Refund -->
-  <Line113A>0</Line113A><!-- Balance due (if Line 109 > Line 112) -->
-  <Line115A>0</Line115A><!-- Refund claimed (if Line 112 > Line 109) -->
-
-  <!-- Preparer information -->
-  <PreparerName>Lulu Island Flagship — Financial Core v9</PreparerName>
-  <PreparerPhone></PreparerPhone>
-</GSTHSTReturn>
-`;
+/** @notimplemented */
+export function exportGstReturn(_periodo: string): string {
+  throw new Error("CRA GST/HST NETFILE adapter not implemented. See docs/module-status.md for Year 2 roadmap.");
 }
 
 // ---------------------------------------------------------------------------
@@ -219,67 +162,9 @@ export interface T4SlipData {
  * @param anio Año fiscal (ej. 2026).
  * @returns String XML con estructura T4 y datos placeholder vacíos.
  */
-export function exportT4Xml(anio: number): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  T4 Statement of Remuneration Paid — XML Submission
-  Generated: ${new Date().toISOString().slice(0, 10)}
-  Tax Year: ${anio}
-  Status: PLACEHOLDER (Year 2)
-
-  TODO (Year 2):
-  - Integrar con payroll.ts para leer grossPay, cppDeduction, eiDeduction
-    y taxDeducted de cada empleado activo en el año fiscal.
-  - Validar SIN numbers contra base de empleados.
-  - Generar archivo de transmisión T4 completo (XML envelope + slips).
-  - Conectar con CRA Internet File Transfer (requiere Web Access Code).
-  - Probar en CRA sandbox antes de transmisión real.
-  - Generar T4 Summary (T4SUM) junto con los slips individuales.
-
-  CRA Internet File Transfer:
-    https://apps.cra-arc.gc.ca/ebci/ieb0/upload/pub/disclaimer
-  Requiere: Business Number, Web Access Code (WAC), PKI certificate.
-  Fecha límite: último día de febrero del año siguiente.
-
-  Cuentas COA relevantes:
-    - 2020 Payroll Payable
-    - 2025 Source Deductions Payable (CPP, EI, Income Tax)
-    - 5010 Labour — Day Rate
-    - 5020 Payroll Taxes — Employer portion
--->
-<T4Return
-  xmlns="http://www.cra-arc.gc.ca/T4/2024"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <ReturnHeader>
-    <EmployerBN>000000000RP0001</EmployerBN><!-- TODO: BN real -->
-    <TaxYear>${anio}</TaxYear>
-    <FilingType>ORIGINAL</FilingType>
-    <TotalSlips>0</TotalSlips><!-- TODO: count active employees -->
-  </ReturnHeader>
-
-  <!--
-    En Año 2, cada empleado genera un bloque <T4Slip>:
-
-    <T4Slip>
-      <EmployeeSIN>123456789</EmployeeSIN>
-      <EmployeeName>
-        <LastName>Smith</LastName>
-        <FirstName>John</FirstName>
-      </EmployeeName>
-      <Box14>4500000</Box14>
-      <Box16>225000</Box16>
-      <Box18>72000</Box18>
-      <Box22>675000</Box22>
-      <Box24>4500000</Box24>
-      <Box26>4500000</Box26>
-      <Box28></Box28>
-      <Box29></Box29>
-    </T4Slip>
-  -->
-
-  <!-- PLACEHOLDER: sin slips. -->
-</T4Return>
-`;
+/** @notimplemented */
+export function exportT4Xml(_anio: number): string {
+  throw new Error("CRA T4 XML adapter not implemented. See docs/module-status.md for Year 2 roadmap.");
 }
 
 // ---------------------------------------------------------------------------
@@ -335,9 +220,10 @@ export const createCraAdapter: AccountingAdapterFactory = (
  * @param periodo Período contable en formato YYYY-MM.
  * @returns String XML con estructura GST NETFILE (placeholder Year 2).
  */
+/** @notimplemented */
 export function exportJournalEntriesAsGstNetfile(
-  entries: FinancialLedgerEntry[],
-  periodo: string
+  _entries: FinancialLedgerEntry[],
+  _periodo: string
 ): string | Buffer {
-  return createCraAdapter(entries).exportJournalEntries(periodo);
+  throw new Error("CRA GST/HST NETFILE export not implemented. See docs/module-status.md for Year 2 roadmap.");
 }

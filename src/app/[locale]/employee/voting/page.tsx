@@ -39,8 +39,6 @@ export default function EmpleadoVotacionPage() {
   const [success, setSuccess] = useState("");
 
   const loadPeers = useCallback(async () => {
-
-  useEffect(() => { loadPeers(); }, [loadPeers]);
     setLoading(true);
     setError("");
     try {
@@ -60,6 +58,8 @@ export default function EmpleadoVotacionPage() {
       setLoading(false);
     }
   }, [t]);
+
+  useEffect(() => { loadPeers(); }, [loadPeers]);
 
   async function submitVote(targetEmployeeId: string) {
     setSubmitting(true);

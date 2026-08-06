@@ -240,11 +240,15 @@ export function getOrganicMultiplier(
   residents: number
 ): number {
   const hasPets = petsCount > 0;
+  // Fix (auditoría 2026-08-06): petsType podía ser null/undefined desde
+  // un payload malformado o un formulario incompleto, y .toLowerCase()
+  // tiraba TypeError que tumbaba todo el pipeline de cotización.
+  const safePetsType = (petsType ?? "").toLowerCase();
   const hasLongHairPets =
     hasPets &&
-    (petsType.toLowerCase().includes("largo") ||
-      petsType.toLowerCase().includes("long") ||
-      petsType.toLowerCase().includes("multiple"));
+    (safePetsType.includes("largo") ||
+      safePetsType.includes("long") ||
+      safePetsType.includes("multiple"));
 
   // Caso extremo: 3+ mascotas o 5+ residentes
   if (petsCount >= 3 || residents >= 5) return 1.3;
@@ -367,12 +371,36 @@ export function calculateHold(
 }
 
 export function getNReference(serviceType: ServiceType, squareFeet: number): number {
-  // N de referencia para el Hold según tipo + ft²
-  if (serviceType === "regular" && squareFeet <= 1500) return 2;
-  if (serviceType === "deep" && squareFeet <= 2500) return 3;
-  if (serviceType === "move_in_out" && squareFeet > 2500) return 4;
-  if (serviceType === "post_construction") return 4;
-  return 3; // default
+  // N de referencia para el Hold según tipo + ft².
+  // Usa N_min de la tabla getNRange (líneas 444-468): el número mínimo de
+  // personas requeridas para ese tipo + rango de tamaño.
+  // Fix (auditoría 2026-08-06): antes solo cubría 4 combinaciones;
+  // ahora cubre las 8 explícitamente usando N_min del spec.
+  if (serviceType === "regular") {
+    if (squareFeet <= 700) return 1;
+    if (squareFeet <= 1500) return 2;
+    if (squareFeet <= 2500) return 2;
+    if (squareFeet <= 3500) return 3;
+    return 3;
+  }
+  if (serviceType === "deep") {
+    if (squareFeet <= 700) return 2;
+    if (squareFeet <= 1500) return 2;
+    if (squareFeet <= 2500) return 2;
+    if (squareFeet <= 3500) return 3;
+    return 4;
+  }
+  if (serviceType === "move_in_out") {
+    if (squareFeet <= 1500) return 2;
+    if (squareFeet <= 2500) return 3;
+    if (squareFeet <= 3500) return 3;
+    return 4;
+  }
+  // post_construction
+  if (squareFeet <= 1500) return 3;
+  if (squareFeet <= 2500) return 3;
+  if (squareFeet <= 3500) return 3;
+  return 4;
 }
 
 export function estimateLaborCost(

@@ -115,7 +115,7 @@ export default function HomePage() {
   const locale = pathLocale ? pathLocale[1] : "en";
 
 
-  const [_authModal, setAuthModal] = useState<"signin" | "signup" | null>(null);
+  const [authModal, setAuthModal] = useState<"signin" | "signup" | null>(null);
 
   // v8.5 Day 7: fetch admin-editable content from site_content table
   const [siteContent, setSiteContent] = useState<Record<string, string>>({});
@@ -142,6 +142,20 @@ export default function HomePage() {
       <Suspense fallback={null}>
         <NextParamAuthGate />
       </Suspense>
+
+      {/* Fix (auditoría 2026-08-06): los botones de Sign In/Sign Up del header
+          llamaban setAuthModal() pero _authModal (con underscore) nunca se
+          consumía en el JSX — los botones estaban muertos, cero feedback al
+          usuario. Se quita el underscore y se renderiza el AuthModal cuando
+          authModal tiene valor. onSuccess redirige a /account (portal unificado
+          que ya tiene su propio AuthModal si no hay sesión). */}
+      {authModal && (
+        <AuthModal
+          signupMode={authModal === "signup"}
+          onClose={() => setAuthModal(null)}
+          onSuccess={() => router.push(`/${locale}/account`)}
+        />
+      )}
 
       {/* Header — v8.3 rediseño "Powder Sky": fondo claro, no bloque oscuro */}
       <header className="bg-white border-b border-brand-ice">

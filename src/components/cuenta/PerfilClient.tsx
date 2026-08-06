@@ -30,8 +30,6 @@ export default function PerfilClient() {
   const [avatarError, setAvatarError] = useState(false);
 
   const load = useCallback(async () => {
-
-  useEffect(() => { load(); }, [load]);
     setLoading(true);
     setError("");
     try {
@@ -59,6 +57,8 @@ export default function PerfilClient() {
       setLoading(false);
     }
   }, [tCommon]);
+
+  useEffect(() => { load(); }, [load]);
 
   async function saveName() {
     setSavingName(true);

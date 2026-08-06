@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback,  useState, useEffect } from "react";
+import React, { useCallback,  useState } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, DollarSign, History, AlertCircle, CheckCircle2, Table2 } from "lucide-react";

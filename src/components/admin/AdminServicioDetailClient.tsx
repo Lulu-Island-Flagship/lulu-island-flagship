@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback,  useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -90,6 +90,8 @@ export default function AdminServicioDetailClient() {
       setLoading(false);
     }
   }, [orderId, t]);
+
+  useEffect(() => { loadChecklist(); }, [loadChecklist]);
 
   const toggleZone = (zone: string) => {
     setExpandedZones((prev) => {

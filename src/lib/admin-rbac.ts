@@ -55,7 +55,7 @@ export type AdminResource =
   // Site content management (landing page text/images) — owner_admin + ops_coordinator
   | "site_content"
   | "site_content_images"
-  // Dashboard counts — all admin roles
+  // Dashboard counts — owner_admin + ops_coordinator (qc_only solo tiene qc_wall)
   | "dashboard";
 
 const MATRIX: Record<AdminResource, AdminRole[]> = {

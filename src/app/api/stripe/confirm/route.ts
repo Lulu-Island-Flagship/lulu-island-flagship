@@ -796,6 +796,21 @@ export async function POST(request: NextRequest) {
           `release_capacity_slot RPC failed after order insert error for slot ${slotRow.id} (quote ${quoteId}) -- capacity may be stranded, needs manual reconciliation:`,
           releaseError
         );
+        // Fix (auditoría 2026-08-06): si el release de capacidad falla,
+        // el slot queda permanentemente reservado sin orden real —
+        // requiere intervención manual. Se publica alerta unificada
+        // p1_urgent para que ops lo vea en la bandeja de alertas.
+        publishUnifiedAlert(capacityClient, {
+          sourceModule: "stripe_confirm_stranded_capacity",
+          sourceTable: "capacity_slots",
+          sourceId: slotRow.id,
+          tier: "action_required",
+          severity: "p1_urgent",
+          title: "Capacidad varada tras error de creación de orden",
+          summary: `Slot ${slotRow.id} no pudo liberarse tras fallo de INSERT de orden para quote ${quoteId}. Requiere reconciliación manual.`,
+        }).catch(() => {
+          // Fire-and-forget: no bloquear la respuesta de error al cliente
+        });
       }
       // La quote ya fue bloqueada (CAS -> 'reserved') ANTES de este INSERT,
       // pero ninguna orden real llegó a crearse -- revertir a 'pending' para
@@ -812,10 +827,11 @@ export async function POST(request: NextRequest) {
           revertError
         );
       }
-      return NextResponse.json(
-        { error: orderError.message },
-        { status: 500 }
-      );
+      // Fix (auditoría 2026-08-06): orderError.message exponía detalles
+      // internos de la DB (nombres de tabla, constraints, columnas) al
+      // cliente. Se reemplaza con safeErrorResponse que solo devuelve un
+      // mensaje genérico al cliente y loguea el error real internamente.
+      return safeErrorResponse(orderError, 500, "Ocurrió un error al crear la orden");
     }
 
     // Fix F4 (auditoría operativa/contable 2026-07-21, verificado y
