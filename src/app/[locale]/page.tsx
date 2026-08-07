@@ -10,6 +10,7 @@ import { QuoteButton } from "@/components/landing/QuoteButton";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { AuthModal } from "@/components/cotizador/AuthModal";
 import { isAllowedInternalPath } from "@/lib/safe-redirect";
+import { supabase } from "@/lib/supabase";
 
 // Fix (auditoría en vivo 2026-08-01, prueba E2E como cliente real): middleware.ts
 // (líneas ~243-253) redirige del lado del servidor cualquier visita sin sesión a
@@ -30,8 +31,20 @@ function NextParamAuthGate() {
   const locale = pathLocale ? pathLocale[1] : "en";
   const nextParam = searchParams.get("next");
   const [dismissed, setDismissed] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  // After OAuth (Google/Apple), the user arrives here with a session
+  // and ?next= param. Skip the AuthModal and redirect directly.
+  useEffect(() => {
+    if (!nextParam || !isAllowedInternalPath(nextParam)) { setChecking(false); return; }
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) { router.replace(nextParam); }
+      else { setChecking(false); }
+    });
+  }, [nextParam, router]);
 
   if (!nextParam || dismissed || !isAllowedInternalPath(nextParam)) return null;
+  if (checking) return null;
 
   return (
     <AuthModal
