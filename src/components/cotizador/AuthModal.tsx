@@ -671,6 +671,10 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
               <span className="font-medium text-[#3c4043]">{t("continueWithGoogle")}</span>
             </button>
 
+            {/* Apple OAuth — disabled until provider is enabled in Supabase
+                 (Auth → Providers → Apple). When ready, uncomment the block below
+                 and set NEXT_PUBLIC_APPLE_OAUTH_ENABLED=true in .env. */}
+            {process.env.NEXT_PUBLIC_APPLE_OAUTH_ENABLED === "true" && (
             <button
               aria-label={t("continueWithApple")}
               onClick={handleAppleSignIn}
@@ -680,6 +684,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
               <AppleLogo />
               <span className="font-medium">{t("continueWithApple")}</span>
             </button>
+            )}
             {/* v8.3 fix (auditoría 2026-07-15): el texto anterior ("All methods
                 create the same secure account") era falso -- no existe account
                 linking en el código; Google, Apple y email/phone OTP crean
