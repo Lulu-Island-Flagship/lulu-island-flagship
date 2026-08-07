@@ -203,6 +203,8 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
   // actual; si no hay `next` válido, se cae al comportamiento de siempre
   // (volver a la página donde se abrió el modal).
   const getPostLoginRedirectPath = (): string => {
+    // If the caller provided an explicit post-login path, use it.
+    if (postLoginRedirect && isAllowedInternalPath(postLoginRedirect)) return postLoginRedirect;
     const rawNext = new URLSearchParams(window.location.search).get("next");
     return isAllowedInternalPath(rawNext) ? rawNext : window.location.pathname;
   };

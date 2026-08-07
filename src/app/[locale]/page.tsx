@@ -154,6 +154,7 @@ export default function HomePage() {
           signupMode={authModal === "signup"}
           onClose={() => setAuthModal(null)}
           onSuccess={() => router.push(`/${locale}/account`)}
+          postLoginRedirect={`/${locale}/account`}
         />
       )}
 
