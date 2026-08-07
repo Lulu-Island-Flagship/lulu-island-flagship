@@ -384,7 +384,6 @@ export default function AdminEmpleadosClient() {
                             step={1}
                             aria-label={t("dayRateEditAria", { name: emp.name })}
                             className="w-20 px-2 py-1 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-wave-blue/30 focus:border-brand-wave-blue"
-                            autoFocus
                           />
                           {dayRateSaving && (
                             <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-wave-blue" />
