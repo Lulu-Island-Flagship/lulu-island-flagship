@@ -1,9 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient as _createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateSafetyAbortEscalation, type SafetyAbortStage } from "@/lib/safety-abort";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { requireCronAuth } from "@/lib/cron-auth";
-import { createRouteSupabaseClient, getSupabaseServiceKey } from "@/lib/supabase-server";
+import { createRouteSupabaseClient, getSupabaseServiceKey as _getSupabaseServiceKey } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
 
 /**

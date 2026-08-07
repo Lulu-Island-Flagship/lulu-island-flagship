@@ -56,6 +56,7 @@ import { cookies } from "next/headers";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createRouteSupabaseClient(): SupabaseClient<any, "public", any> {
   const cookieStore = cookies();
   return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {

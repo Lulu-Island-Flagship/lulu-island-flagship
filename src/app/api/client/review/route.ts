@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient as _createClient } from "@supabase/supabase-js";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 // Fix M2: Use authenticated client instead of service-role in public endpoint
 import { safeErrorResponse } from "@/lib/api-errors";

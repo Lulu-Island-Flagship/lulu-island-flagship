@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies as _cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";

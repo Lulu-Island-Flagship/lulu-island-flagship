@@ -8,7 +8,7 @@ import { createRouteSupabaseClient } from "@/lib/supabase-server";
 // Fix (auditoría 2026-07-31, hallazgo confirmado): mismo criterio que
 // src/lib/admin.ts -- throw en tiempo de ejecución (dentro de las funciones
 // de abajo), nunca a nivel de módulo, para no arriesgar el build estático.
-function getSupabaseUrl(): string {
+function _getSupabaseUrl(): string {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!url) {
     throw new Error("NEXT_PUBLIC_SUPABASE_URL no está configurado");
@@ -16,7 +16,7 @@ function getSupabaseUrl(): string {
   return url;
 }
 
-function getSupabaseAnonKey(): string {
+function _getSupabaseAnonKey(): string {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!key) {
     throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY no está configurado");

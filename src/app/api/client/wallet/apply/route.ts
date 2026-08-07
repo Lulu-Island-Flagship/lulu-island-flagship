@@ -13,7 +13,7 @@ import { createRouteSupabaseClient } from "@/lib/supabase-server";
 // Fix (auditoría externa, verificado 2026-07-31): antes, si faltaban las
 // env vars de Supabase, se usaban placeholders en silencio (ver mismo fix
 // en src/app/api/stripe/confirm/route.ts). Ahora se lanza un error claro.
-function getSupabaseUrl(): string {
+function _getSupabaseUrl(): string {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!url) {
     throw new Error("NEXT_PUBLIC_SUPABASE_URL no está configurado");
@@ -21,7 +21,7 @@ function getSupabaseUrl(): string {
   return url;
 }
 
-function getSupabaseAnonKey(): string {
+function _getSupabaseAnonKey(): string {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!key) {
     throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY no está configurado");

@@ -37,7 +37,7 @@ function getSupabaseUrl(): string {
   return url;
 }
 
-function getSupabaseAnonKey(): string {
+function _getSupabaseAnonKey(): string {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!key) {
     throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY no está configurado");
