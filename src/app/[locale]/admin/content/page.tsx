@@ -173,6 +173,53 @@ export default function ContentAdminPage() {
           Edit the text and images that appear on the public landing page. Changes appear within 60 seconds.
         </p>
 
+        {/* FEATURE FLAGS */}
+        <section className="mb-12">
+          <h2 className="text-lg font-semibold text-brand-navy mb-6">Feature Flags</h2>
+          <div className="border border-brand-ice rounded-md p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-brand-ink">Apple OAuth</p>
+                <p className="text-xs text-gray-500 mt-0.5">Show "Continue with Apple" button in login modal</p>
+              </div>
+              <button
+                onClick={async () => {
+                  const current = content["feature.apple_oauth_enabled"] === "true";
+                  const next = String(!current);
+                  setSaving((s) => ({ ...s, "feature.apple_oauth_enabled": true }));
+                  const res = await fetch("/api/admin/content", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ key: "feature.apple_oauth_enabled", value: next }),
+                  });
+                  if (res.ok) {
+                    setContent((c) => ({ ...c, "feature.apple_oauth_enabled": next }));
+                    setSaved((s) => ({ ...s, "feature.apple_oauth_enabled": true }));
+                    setTimeout(() => setSaved((s) => { const n = { ...s }; delete n["feature.apple_oauth_enabled"]; return n; }), 2000);
+                  }
+                  setSaving((s) => { const n = { ...s }; delete n["feature.apple_oauth_enabled"]; return n; });
+                }}
+                disabled={saving["feature.apple_oauth_enabled"]}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                  content["feature.apple_oauth_enabled"] === "true" ? "bg-brand-navy" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    content["feature.apple_oauth_enabled"] === "true" ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+            {saving["feature.apple_oauth_enabled"] && (
+              <p className="text-xs text-brand-wave-blue mt-2">Saving…</p>
+            )}
+            {saved["feature.apple_oauth_enabled"] && (
+              <p className="text-xs text-state-success mt-2 flex items-center gap-1"><Check className="w-3 h-3" /> Saved</p>
+            )}
+          </div>
+        </section>
+
         {/* TEXT SECTION */}
         <section className="mb-12">
           <h2 className="text-lg font-semibold text-brand-navy mb-6">Text</h2>

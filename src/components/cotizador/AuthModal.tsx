@@ -106,6 +106,16 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
 
+  // Feature flag: Apple OAuth controlled from admin panel (site_content table).
+  // Fetched once on mount via the public landing content API (cached 60s).
+  const [appleOAuthEnabled, setAppleOAuthEnabled] = useState(false);
+  useEffect(() => {
+    fetch("/api/content/landing")
+      .then((r) => (r.ok ? r.json() : { content: {} }))
+      .then((d) => setAppleOAuthEnabled(d.content?.["feature.apple_oauth_enabled"] === "true"))
+      .catch(() => {});
+  }, []);
+
   // Fix (auditoría UX/seguridad 2026-07-30, BUG 5): el botón de reenviar
   // código no tenía cooldown ni throttle visual -- un usuario (o un script)
   // podía volver a la pantalla de envío y disparar signInWithOtp sin límite.
@@ -671,10 +681,9 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
               <span className="font-medium text-[#3c4043]">{t("continueWithGoogle")}</span>
             </button>
 
-            {/* Apple OAuth — disabled until provider is enabled in Supabase
-                 (Auth → Providers → Apple). When ready, uncomment the block below
-                 and set NEXT_PUBLIC_APPLE_OAUTH_ENABLED=true in .env. */}
-            {process.env.NEXT_PUBLIC_APPLE_OAUTH_ENABLED === "true" && (
+            {/* Apple OAuth — controlled from admin panel (Content → Feature Flags).
+                 Toggle ON after enabling the provider in Supabase (Auth → Providers → Apple). */}
+            {appleOAuthEnabled && (
             <button
               aria-label={t("continueWithApple")}
               onClick={handleAppleSignIn}
