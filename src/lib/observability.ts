@@ -24,27 +24,8 @@
  * sistema debe seguir llamando — solo cambió la implementación interna.
  */
 
-// v8.3 fix (verificación QA post-instalación 2026-07-21): la entrada de
-// servidor de `@sentry/nextjs` (build/cjs/index.server.js) es una
-// reexportación CURADA -- solo expone init/wrapXWithSentry/withSentryConfig
-// y utilidades de instrumentación de Next (confirmado leyendo el archivo
-// compilado: sus `exports.*` no incluyen captureException ni captureMessage
-// en ninguna parte, aunque el paquete SÍ hace `require('@sentry/node')`
-// internamente). `@sentry/node` -- dependencia de @sentry/nextjs, ya
-// presente en node_modules -- sí reexporta captureException desde
-// @sentry/core (confirmado igual, leyendo el archivo compilado). Por eso
-// `instrumentation.ts` (que solo necesita `init`) importa "@sentry/nextjs",
-// pero esta función (que necesita `captureException`) importa "@sentry/node"
-// -- son dos paquetes del mismo SDK, comparten el mismo cliente/scope
-// global una vez que `Sentry.init()` corrió en instrumentation.ts.
-//
-// Anotado explícitamente como `string` (no literal) para que TypeScript NO
-// intente resolver el módulo en tiempo de compilación en el import
-// dinámico de abajo (mismo motivo que instrumentation.ts, aunque a esta
-// altura el paquete ya está instalado -- se mantiene por consistencia y
-// para no romper el build en un checkout que todavía no corrió `npm
-// install`).
-const SENTRY_PACKAGE_NAME: string = "@sentry/node";
+// @sentry/node provides captureException; imported dynamically
+// so Sentry is only loaded when SENTRY_DSN is configured.
 
 export type ObservabilityForwardStatus = "logged_locally" | "forwarded_to_sentry" | "not_configured";
 
@@ -122,7 +103,7 @@ export function captureError(error: unknown, context?: Record<string, unknown>):
   // queda declarado en ObservabilityForwardStatus como reservado para una
   // eventual versión async de esta función que sí pueda esperar el
   // resultado real antes de responder.
-  import(SENTRY_PACKAGE_NAME)
+  import("@sentry/node")
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .then((Sentry: any) => {
       Sentry.captureException(error, { extra: context });
