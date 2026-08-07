@@ -103,7 +103,7 @@ export function captureError(error: unknown, context?: Record<string, unknown>):
   // queda declarado en ObservabilityForwardStatus como reservado para una
   // eventual versión async de esta función que sí pueda esperar el
   // resultado real antes de responder.
-  import("@sentry/node")
+  import(/* webpackIgnore: true */ "@sentry/node")
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .then((Sentry: any) => {
       Sentry.captureException(error, { extra: context });

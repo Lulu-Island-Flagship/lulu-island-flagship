@@ -1,7 +1,6 @@
 // ─── Tipos: Orden y Cliente (Módulo 0) ────────────────────────
 // Extraídos de src/types/index.ts — auditoría H1 (2026-08-06).
 
-import type { AppliedRule } from "@/lib/rules";
 import type { WarrantyStatus } from "./billing";
 
 export type OrderStatus =
