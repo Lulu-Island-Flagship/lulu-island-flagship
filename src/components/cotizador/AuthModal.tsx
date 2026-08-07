@@ -86,9 +86,12 @@ interface AuthModalProps {
   // Sign Up mode: when true, shows a registration form with name fields
   // alongside social login and email/phone OTP options.
   signupMode?: boolean;
+  // Redirect path after OAuth (Google/Apple). When set, the callback
+  // sends the user here instead of back to the current page.
+  postLoginRedirect?: string;
 }
 
-export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerification, signupMode }: AuthModalProps) {
+export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerification, signupMode, postLoginRedirect }: AuthModalProps) {
   const t = useTranslations("cotizador.authModal");
   const isSignup = Boolean(signupMode);
   const [mode, setMode] = useState<"options" | "email" | "phone" | "verify_phone" | "signup_form">(
