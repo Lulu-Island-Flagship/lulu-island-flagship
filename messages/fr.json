@@ -26,7 +26,12 @@
     "descriptionInsured": "Vérifiée, assurée et formée pour prendre soin de votre maison — pas seulement la nettoyer. Prix complet dès la soumission, sans surprise.",
     "ctaPrimary": "Obtenir votre soumission",
     "ctaSecondary": "Commencer votre soumission",
-    "timeEstimate": "Moins de 90 secondes"
+    "timeEstimate": "Moins de 90 secondes",
+    "subtitle": "Soins résidentiels à domicile — Richmond, C.-B.",
+    "proposition": "Soins à domicile à prix fixe.\nBasé sur votre propriété. Vérifié avec photos.\nPas de facturation horaire. Pas de litiges.",
+    "cta": "Voir votre prix",
+    "placeholder": "Entrez votre adresse",
+    "hint": "Environ 90 secondes"
   },
   "trust": {
     "verifiedTitle": "Vérifiée et formée",
@@ -1407,7 +1412,30 @@
     "disputeSubmitAria": "Soumettre la contestation d'heures",
     "disputeSubmit": "Soumettre",
     "disputeSending": "Envoi...",
-    "disputeButtonAria": "Contester l'heure enregistrée"
+    "disputeButtonAria": "Contester l'heure enregistrée",
+    "marketing": {
+      "title": "Consentement marketing",
+      "optionalNotice": "Tout est 100% optionnel. Vous pouvez retirer votre consentement à tout moment — cela supprime immédiatement tout ce qui a été publié, même si c'était déjà approuvé.",
+      "dayInLifeReel": "Vidéo d'une journée type",
+      "dayInLifeReelDesc": "Une courte vidéo montrant à quoi ressemble une journée normale de travail, utilisée pour les réseaux sociaux / le recrutement.",
+      "publicBadgeShowcase": "Affichage public des badges",
+      "publicBadgeShowcaseDesc": "Vos badges gagnés affichés sur le site public.",
+      "currentlyLive": "Actuellement visible sur le site",
+      "consent": "Je consens",
+      "withdraw": "Retirer",
+      "updateFailed": "Échec de la mise à jour"
+    },
+    "chat": {
+      "title": "Discussion d'équipe",
+      "rules": "Texte uniquement, historique de 7 jours. Se ferme à la fin du quart.",
+      "pendingNotice": "{count, plural, one {# message en attente d'envoi — sera renvoyé automatiquement dès que vous serez en ligne.} other {# messages en attente d'envoi — seront renvoyés automatiquement dès que vous serez en ligne.}}",
+      "sendFailed": "Échec de l'envoi",
+      "offlineQueued": "Pas de connexion — votre message sera envoyé automatiquement dès que vous serez en ligne.",
+      "noMessages": "Aucun message pour le moment.",
+      "inputAria": "Saisir un message",
+      "inputPlaceholder": "Écrivez un message...",
+      "sendAria": "Envoyer le message"
+    }
   },
   "survey": {
     "unavailableTitle": "Enquête indisponible",
@@ -4544,29 +4572,6 @@
     "reasonAriaLabel": "Raison de l'alerte de sécurité",
     "reasonPlaceholder": "Décrivez brièvement la situation (facultatif)"
   },
-  "employee.marketing": {
-    "title": "Consentement marketing",
-    "optionalNotice": "Tout est 100% optionnel. Vous pouvez retirer votre consentement à tout moment — cela supprime immédiatement tout ce qui a été publié, même si c'était déjà approuvé.",
-    "dayInLifeReel": "Vidéo d'une journée type",
-    "dayInLifeReelDesc": "Une courte vidéo montrant à quoi ressemble une journée normale de travail, utilisée pour les réseaux sociaux / le recrutement.",
-    "publicBadgeShowcase": "Affichage public des badges",
-    "publicBadgeShowcaseDesc": "Vos badges gagnés affichés sur le site public.",
-    "currentlyLive": "Actuellement visible sur le site",
-    "consent": "Je consens",
-    "withdraw": "Retirer",
-    "updateFailed": "Échec de la mise à jour"
-  },
-  "employee.chat": {
-    "title": "Discussion d'équipe",
-    "rules": "Texte uniquement, historique de 7 jours. Se ferme à la fin du quart.",
-    "pendingNotice": "{count, plural, one {# message en attente d'envoi — sera renvoyé automatiquement dès que vous serez en ligne.} other {# messages en attente d'envoi — seront renvoyés automatiquement dès que vous serez en ligne.}}",
-    "sendFailed": "Échec de l'envoi",
-    "offlineQueued": "Pas de connexion — votre message sera envoyé automatiquement dès que vous serez en ligne.",
-    "noMessages": "Aucun message pour le moment.",
-    "inputAria": "Saisir un message",
-    "inputPlaceholder": "Écrivez un message...",
-    "sendAria": "Envoyer le message"
-  },
   "checklist": {
     "photoUploadFailed": "Impossible de télécharger la photo. Veuillez réessayer.",
     "photoSaveFailed": "Impossible d'enregistrer la photo — annulé. Veuillez réessayer.",
@@ -4586,5 +4591,56 @@
     "hotSurfaceStartTimer": "Surface chaude : démarrez le minuteur de 10 min.",
     "markComplete": "Marquer « {label} » comme terminé",
     "markIncomplete": "Marquer « {label} » comme non terminé"
+  },
+  "faq": {
+    "title": "FAQ",
+    "q1": "ET SI JE NE SUIS PAS SATISFAIT ?",
+    "a1": "Si les photos de fin de service horodatées ne correspondent pas à ce que vous voyez, nous revenons dans les 24 heures et corrigeons les zones concernées — sans frais. Si elles correspondent, le service est considéré comme terminé. Dans tous les cas, les preuves décident.",
+    "q2": "ET SI L'ÉQUIPE CHANGE ?",
+    "a2": "Votre maison dispose d'un profil de soins documenté. Tout membre d'équipe formé peut fournir le même résultat. Vous ne verrez peut-être pas toujours les mêmes visages. Vous verrez toujours le même résultat.",
+    "q3": "ET SI JE DOIS ANNULER ?",
+    "a3": "Annulez ou reportez à tout moment jusqu'à 48 heures avant votre service sans frais. Dans les 48 heures, des frais de report de 50 $ s'appliquent. Les annulations le jour même sont facturées à 50 %.",
+    "q4": "QUI A ACCÈS À MES CLÉS OU À MON CODE D'ALARME ?",
+    "a4": "Stocké de manière chiffrée. Accessible uniquement par le chef d'équipe assigné le jour du service. Journalisé. Jamais partagé. Tout le personnel signe des accords de confidentialité.",
+    "q5": "ÊTES-VOUS ASSURÉS ?",
+    "a5": "Oui. Couverture responsabilité civile. Inscrit à WorkSafeBC. Documentation disponible sur demande."
+  },
+  "how": {
+    "title": "COMMENT ÇA MARCHE",
+    "step1": "Entrez votre adresse. Nous calculons votre prix en utilisant les données réelles de votre propriété.",
+    "step2": "Une équipe arrive. Elle suit le profil de soins documenté de votre maison. Chaque préférence enregistrée. Chaque surface traitée selon les spécifications.",
+    "step3": "Vous recevez des photos horodatées de chaque zone terminée. Examinez-les. Si quelque chose ne correspond pas, nous le corrigeons — sur la base de preuves, pas d'opinions.",
+    "step4": "Vous payez. Même prix. À chaque fois. Reportez ou annulez à tout moment."
+  },
+  "standards": {
+    "1": {
+      "title": "Achèvement vérifié par photo.",
+      "body": "Chaque zone photographiée avant notre départ. Vous voyez ce que nous avons fait."
+    },
+    "2": {
+      "title": "Équipes contrôlées (bien-être).",
+      "body": "Chaque membre vérifié avant l'envoi. Personne n'arrive épuisé ou malade."
+    },
+    "3": {
+      "title": "Protocole de sécurité chimique.",
+      "body": "Les produits sont adaptés aux surfaces et jamais contaminés d'une surface à l'autre. Votre air intérieur reste sain."
+    },
+    "4": {
+      "title": "Profil de maison documenté.",
+      "body": "Vos préférences, surfaces et instructions sont conservées dans le dossier de soins de votre maison. Plus besoin de vous répéter. Aucune surprise."
+    },
+    "title": "NOS STANDARDS"
+  },
+  "included": {
+    "title": "CE QUI EST INCLUS — CHAQUE SERVICE",
+    "body": "Toutes les pièces, sols, surfaces, installations, appareils.\nCuisine, salles de bain, espaces de vie, chambres.\nProduits éco-certifiés. Équipement filtré HEPA."
+  },
+  "not_included": {
+    "title": "CE QUI N'EST PAS INCLUS",
+    "body": "Risques biologiques, décontamination de moisissures, infestation de nuisibles,\ndébris de construction, conditions d'accumulation compulsive.\nCes cas nécessitent des spécialistes agréés. Nous vous orienterons."
+  },
+  "breaks": {
+    "title": "EN CAS DE CASSE",
+    "body": "Nous sommes assurés. Nous documentons les conditions préexistantes\nlors de votre premier service. Si nous causons des dommages,\nnous les couvrons — sans poser de questions."
   }
 }

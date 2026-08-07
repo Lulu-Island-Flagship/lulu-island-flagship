@@ -1406,7 +1406,30 @@
     "disputeSubmitAria": "Submit hours dispute",
     "disputeSubmit": "Submit",
     "disputeSending": "Sending...",
-    "disputeButtonAria": "Dispute recorded time"
+    "disputeButtonAria": "Dispute recorded time",
+    "marketing": {
+      "title": "Marketing consent",
+      "optionalNotice": "These are 100% optional. You can withdraw your consent at any time — doing so immediately removes anything published, even if it was already approved.",
+      "dayInLifeReel": "Day-in-the-life reel",
+      "dayInLifeReelDesc": "A short video showing what a normal day looks like on the job, used for social media / recruiting.",
+      "publicBadgeShowcase": "Public badge showcase",
+      "publicBadgeShowcaseDesc": "Your earned badges shown on the public website.",
+      "currentlyLive": "Currently live on the site",
+      "consent": "I consent",
+      "withdraw": "Withdraw",
+      "updateFailed": "Failed to update"
+    },
+    "chat": {
+      "title": "Team chat",
+      "rules": "Text only, 7-day history. Closes when the shift ends.",
+      "pendingNotice": "{count, plural, =1 {# message waiting to send — will retry automatically when you're online.} other {# messages waiting to send — will retry automatically when you're online.}}",
+      "sendFailed": "Couldn't send message",
+      "offlineQueued": "No connection — your message will send automatically when you're back online.",
+      "noMessages": "No messages yet.",
+      "inputAria": "Type a chat message",
+      "inputPlaceholder": "Type a message...",
+      "sendAria": "Send message"
+    }
   },
   "survey": {
     "unavailableTitle": "Survey Unavailable",
@@ -4496,7 +4519,6 @@
     "step4": "You pay. Same price. Every time. Reschedule or cancel anytime."
   },
   "standards": {
-    "title": "OUR STANDARDS",
     "1": {
       "title": "Photo-verified completion.",
       "body": "Every area photographed before we leave. You see what we did."
@@ -4512,7 +4534,8 @@
     "4": {
       "title": "Documented home profile.",
       "body": "Your preferences, surfaces, and instructions live in your home's care record. No repeating yourself. No surprises."
-    }
+    },
+    "title": "OUR STANDARDS"
   },
   "included": {
     "title": "WHAT'S INCLUDED — EVERY SERVICE",
@@ -4538,29 +4561,6 @@
     "a4": "Stored encrypted. Accessed only by the dispatched team lead on service day. Logged. Never shared. All staff sign confidentiality agreements.",
     "q5": "ARE YOU INSURED?",
     "a5": "Yes. Liability coverage. WorkSafeBC registered. Documentation available upon request."
-  },
-  "employee.marketing": {
-    "title": "Marketing consent",
-    "optionalNotice": "These are 100% optional. You can withdraw your consent at any time — doing so immediately removes anything published, even if it was already approved.",
-    "dayInLifeReel": "Day-in-the-life reel",
-    "dayInLifeReelDesc": "A short video showing what a normal day looks like on the job, used for social media / recruiting.",
-    "publicBadgeShowcase": "Public badge showcase",
-    "publicBadgeShowcaseDesc": "Your earned badges shown on the public website.",
-    "currentlyLive": "Currently live on the site",
-    "consent": "I consent",
-    "withdraw": "Withdraw",
-    "updateFailed": "Failed to update"
-  },
-  "employee.chat": {
-    "title": "Team chat",
-    "rules": "Text only, 7-day history. Closes when the shift ends.",
-    "pendingNotice": "{count, plural, =1 {# message waiting to send — will retry automatically when you're online.} other {# messages waiting to send — will retry automatically when you're online.}}",
-    "sendFailed": "Couldn't send message",
-    "offlineQueued": "No connection — your message will send automatically when you're back online.",
-    "noMessages": "No messages yet.",
-    "inputAria": "Type a chat message",
-    "inputPlaceholder": "Type a message...",
-    "sendAria": "Send message"
   },
   "checklist": {
     "photoUploadFailed": "Couldn't upload the photo. Please try again.",

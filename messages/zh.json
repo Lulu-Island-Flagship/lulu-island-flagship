@@ -26,7 +26,12 @@
     "descriptionInsured": "经过认证、投保并专业培训,用心呵护您的家,而不只是打扫。报价即为最终价格,绝无隐藏费用。",
     "ctaPrimary": "获取报价",
     "ctaSecondary": "开始获取报价",
-    "timeEstimate": "不到90秒即可完成"
+    "timeEstimate": "不到90秒即可完成",
+    "subtitle": "住宅家庭护理 — 卑诗省里士满",
+    "proposition": "固定价格的家庭护理。\n基于您的物业情况。以照片验证。\n不按小时计费。无争议。",
+    "cta": "查看您的价格",
+    "placeholder": "输入您的地址",
+    "hint": "大约需要90秒"
   },
   "trust": {
     "verifiedTitle": "身份核实 · 专业培训",
@@ -1407,7 +1412,30 @@
     "disputeSubmitAria": "提交工时争议",
     "disputeSubmit": "提交",
     "disputeSending": "发送中...",
-    "disputeButtonAria": "质疑记录的时间"
+    "disputeButtonAria": "质疑记录的时间",
+    "marketing": {
+      "title": "营销同意",
+      "optionalNotice": "这些100%可选。您可以随时撤回同意——撤回后即使已批准的内容也将立即移除。",
+      "dayInLifeReel": "日常工作短视频",
+      "dayInLifeReelDesc": "展示日常工作状态的短视频，用于社交媒体/招聘。",
+      "publicBadgeShowcase": "公开徽章展示",
+      "publicBadgeShowcaseDesc": "您获得的徽章将显示在公开网站上。",
+      "currentlyLive": "当前已在网站上显示",
+      "consent": "我同意",
+      "withdraw": "撤回",
+      "updateFailed": "更新失败"
+    },
+    "chat": {
+      "title": "团队聊天",
+      "rules": "仅限文字，保留7天记录。换班结束后关闭。",
+      "pendingNotice": "{count, plural, other {# 条消息等待发送——恢复网络后将自动重试。}}",
+      "sendFailed": "发送失败",
+      "offlineQueued": "无网络连接——您的消息将在恢复网络后自动发送。",
+      "noMessages": "暂无消息。",
+      "inputAria": "输入聊天消息",
+      "inputPlaceholder": "输入消息...",
+      "sendAria": "发送消息"
+    }
   },
   "survey": {
     "unavailableTitle": "问卷不可用",
@@ -4544,29 +4572,6 @@
     "reasonAriaLabel": "安全警报原因",
     "reasonPlaceholder": "简要描述情况（可选）"
   },
-  "employee.marketing": {
-    "title": "营销同意",
-    "optionalNotice": "这些100%可选。您可以随时撤回同意——撤回后即使已批准的内容也将立即移除。",
-    "dayInLifeReel": "日常工作短视频",
-    "dayInLifeReelDesc": "展示日常工作状态的短视频，用于社交媒体/招聘。",
-    "publicBadgeShowcase": "公开徽章展示",
-    "publicBadgeShowcaseDesc": "您获得的徽章将显示在公开网站上。",
-    "currentlyLive": "当前已在网站上显示",
-    "consent": "我同意",
-    "withdraw": "撤回",
-    "updateFailed": "更新失败"
-  },
-  "employee.chat": {
-    "title": "团队聊天",
-    "rules": "仅限文字，保留7天记录。换班结束后关闭。",
-    "pendingNotice": "{count, plural, other {# 条消息等待发送——恢复网络后将自动重试。}}",
-    "sendFailed": "发送失败",
-    "offlineQueued": "无网络连接——您的消息将在恢复网络后自动发送。",
-    "noMessages": "暂无消息。",
-    "inputAria": "输入聊天消息",
-    "inputPlaceholder": "输入消息...",
-    "sendAria": "发送消息"
-  },
   "checklist": {
     "photoUploadFailed": "无法上传照片，请重试。",
     "photoSaveFailed": "无法保存照片——已回滚，请重试。",
@@ -4586,5 +4591,56 @@
     "hotSurfaceStartTimer": "热表面：启动10分钟计时器。",
     "markComplete": "将\"{label}\"标记为完成",
     "markIncomplete": "将\"{label}\"标记为未完成"
+  },
+  "faq": {
+    "title": "常见问题",
+    "q1": "如果我不满意怎么办？",
+    "a1": "如果带有时间戳的完成照片与您看到的不符，我们会在24小时内返回并纠正特定区域——不收取任何费用。如果照片匹配，则服务视为已完成。无论如何，以证据为准。",
+    "q2": "如果团队人员更换怎么办？",
+    "a2": "您的家有一份记录在案的护理档案。任何经过培训的团队成员都可以提供相同的结果。您可能不总是看到相同的面孔，但您将始终看到相同的结果。",
+    "q3": "如果我需要取消怎么办？",
+    "a3": "在服务前48小时以上可随时免费取消或改期。48小时内改期收取$50改期费。当天取消按50%收费。",
+    "q4": "谁能拿到我的钥匙或报警密码？",
+    "a4": "加密存储。仅在服务日由指派的团队负责人访问。有日志记录。绝不共享。所有员工签署保密协议。",
+    "q5": "你们有保险吗？",
+    "a5": "是的。有责任险。已在WorkSafeBC注册。可应要求提供文件。"
+  },
+  "how": {
+    "title": "服务流程",
+    "step1": "输入您的地址。我们将根据您的物业实际数据计算价格。",
+    "step2": "团队到达。他们遵循您家记录在案的护理档案。每个偏好都被记录。每个表面都按标准处理。",
+    "step3": "您会收到每个完成区域的时间戳照片。查看它们。如有不符，我们修复——以证据为依据，而非主观意见。",
+    "step4": "您付款。同样价格。每次都一样。随时改期或取消。"
+  },
+  "standards": {
+    "1": {
+      "title": "照片验证完成。",
+      "body": "离开前每个区域都拍照。您能看到我们做了什么。"
+    },
+    "2": {
+      "title": "健康筛查团队。",
+      "body": "每位成员在派遣前都经过检查。没有人疲惫或不适地到达。"
+    },
+    "3": {
+      "title": "化学品安全规程。",
+      "body": "产品与表面匹配，绝不交叉污染。您的室内空气保持安全。"
+    },
+    "4": {
+      "title": "记录在案的房屋档案。",
+      "body": "您的偏好、表面和说明保存在您房屋的护理记录中。无需重复。无意外。"
+    },
+    "title": "我们的标准"
+  },
+  "included": {
+    "title": "每次服务包含的内容",
+    "body": "所有房间、地板、表面、固定装置、电器。\n厨房、浴室、客厅、卧室。\n环保认证产品。HEPA过滤设备。"
+  },
+  "not_included": {
+    "title": "不包含的内容",
+    "body": "生物危害、霉菌修复、害虫侵扰、\n建筑垃圾、囤积情况。\n这些需要持牌专业人员。我们会为您推荐。"
+  },
+  "breaks": {
+    "title": "如果物品损坏",
+    "body": "我们有保险。首次服务时记录既有状况。\n如果我们造成损坏，\n我们负责——无需多问。"
   }
 }
