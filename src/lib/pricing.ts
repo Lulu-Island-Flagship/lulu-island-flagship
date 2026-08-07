@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getVancouverTodayString, getVancouverTomorrowString } from "./date-utils";
 import { applyPricingRules, type PricingRule, type RuleContext } from "./rules";
 
@@ -140,7 +141,7 @@ export const HHE_TABLE: Record<ServiceType, number[]> = {
  * Lee la tabla HHE vigente desde Supabase.
  * Fallback: HHE_TABLE hardcodeada si no hay conexión o no hay filas.
  */
-export async function getCurrentHHETable(supabase: any): Promise<Record<ServiceType, number[]>> {
+export async function getCurrentHHETable(supabase: SupabaseClient): Promise<Record<ServiceType, number[]>> {
   try {
     const { data, error } = await supabase.rpc("get_current_hhe_table");
     if (error || !Array.isArray(data) || data.length === 0) return HHE_TABLE;
@@ -183,11 +184,11 @@ export function getHHEForRange(
  * Lee la tarifa objetivo vigente desde Supabase.
  * Fallback: TARIFA_OBJETIVO_HORA (70) si no hay conexión o no hay fila.
  */
-export async function getTargetHourlyRate(supabase: any): Promise<number> {
+export async function getTargetHourlyRate(supabase: SupabaseClient): Promise<number> {
   try {
     const { data, error } = await supabase.rpc("get_current_target_hourly_rate").single();
     if (error || !data) return TARIFA_OBJETIVO_HORA;
-    const rate = data.get_current_target_hourly_rate as number;
+    const rate = (data as { get_current_target_hourly_rate: number }).get_current_target_hourly_rate;
     return typeof rate === "number" && rate > 0 ? rate : TARIFA_OBJETIVO_HORA;
   } catch {
     return TARIFA_OBJETIVO_HORA;

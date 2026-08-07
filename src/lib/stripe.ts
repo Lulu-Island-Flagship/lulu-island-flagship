@@ -15,13 +15,13 @@ export function getStripeServer(): Stripe {
     logEvent("stripe_secret_key_not_set", { module: "stripe" });
     throw new Error("Stripe no está configurado. Configurá STRIPE_SECRET_KEY en .env.local");
   }
-  _stripeServer = new Stripe(secretKey, { apiVersion: "2025-06-30.acacia" as any });
+  _stripeServer = new Stripe(secretKey, { apiVersion: "2026-06-24.dahlia" });
   return _stripeServer;
 }
 
 /** @deprecated Usar getStripeServer() — falla ruidosamente en vez de devolver null. */
 export const stripe = secretKey
-  ? new Stripe(secretKey, { apiVersion: "2025-06-30.acacia" as any })
+  ? new Stripe(secretKey, { apiVersion: "2026-06-24.dahlia" })
   : null;
 
 /** @deprecated Usar getStripeServer() — falla ruidosamente en vez de devolver null. */
