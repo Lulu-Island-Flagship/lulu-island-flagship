@@ -1,32 +1,9 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { safeErrorResponse } from "@/lib/api-errors";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(
-    getSupabaseUrl(),
-    getSupabaseAnonKey(),
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-        },
-      },
-    }
-  );
-}
-
 const RECENT_TEAMMATE_DAYS = 14;
 
 /**
@@ -38,7 +15,7 @@ const RECENT_TEAMMATE_DAYS = 14;
  * a compañeros con los que de verdad se trabajó recientemente.
  */
 async function getRecentTeammateIds(
-  supabase: ReturnType<typeof getSupabaseClient>,
+  supabase: ReturnType<typeof createRouteSupabaseClient>,
   employeeId: string
 ): Promise<Set<string>> {
   const todayStr = getVancouverTodayString();
@@ -78,7 +55,7 @@ async function getRecentTeammateIds(
 // GET /api/employee/voting — compañeros para votar esta semana
 export async function GET() {
   try {
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -160,7 +137,7 @@ export async function GET() {
 // POST /api/employee/voting — enviar voto
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

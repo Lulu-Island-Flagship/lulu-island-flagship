@@ -1,30 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(
-    getSupabaseUrl(),
-    getSupabaseAnonKey(),
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-        },
-      },
-    }
-  );
-}
-
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) {
@@ -42,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
 
     // Rate limit: max 30 events per IP per day (generous for legitimate tracking)
     const ip = getClientIp(request);

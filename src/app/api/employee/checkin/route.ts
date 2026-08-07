@@ -1,32 +1,13 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateCheckinStreakBonus, CHECKIN_STREAK_BONUS_CENTS } from "@/lib/wellbeing-bonus";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { getVancouverTodayString } from "@/lib/date-utils";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
 // GET /api/employee/checkin — mi checkin de hoy (si ya lo hice)
 export async function GET() {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -80,7 +61,7 @@ export async function GET() {
 // POST /api/employee/checkin — checklist matutino (opcional, incentivado).
 // v8.3 E8: NUNCA se lee individualmente por el admin — solo vía agregado.
 export async function POST(request: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

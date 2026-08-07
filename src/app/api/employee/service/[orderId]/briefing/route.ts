@@ -1,27 +1,8 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextResponse } from "next/server";
 import { buildServiceBriefing, type ServiceType } from "@/lib/service-briefing";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 /**
  * GET /api/employee/service/[orderId]/briefing — v8.3 E8.7: preparación
  * contextual por servicio (mismo dato que ya existe en quotes/
@@ -29,7 +10,7 @@ function getSupabaseClient() {
  * líder). Solo lectura; el empleado debe tener una asignación en la orden.
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ orderId: string }> }) {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

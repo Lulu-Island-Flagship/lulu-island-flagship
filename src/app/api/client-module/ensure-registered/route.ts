@@ -1,9 +1,9 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextResponse } from "next/server";
 import { ensureClientForAuthUser } from "@/lib/client-module/client-service";
 import { getServiceRoleClient } from "@/lib/admin";
 import { resolveStaffLogin } from "@/lib/staff-login";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 
 // Fix (auditoría 2026-07-31, hallazgo confirmado): mismo criterio que
 // src/lib/admin.ts -- throw en tiempo de ejecución (dentro de las funciones
@@ -24,37 +24,11 @@ function getSupabaseAnonKey(): string {
   return key;
 }
 
-// Mismo patrón exacto que getSupabaseClient() en src/lib/admin.ts: cliente
+// Mismo patrón exacto que createRouteSupabaseClient() en src/lib/admin.ts: cliente
 // anon + cookies de la request vía @supabase/ssr, para leer la sesión ya
 // establecida por el flujo de auth existente (AuthModal.tsx / auth/callback
 // route.ts) SIN tocar ni reimplementar esa lógica -- este endpoint solo
 // LEE el usuario ya autenticado, nunca inicia ni modifica sesión.
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        try {
-          cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-        } catch {
-          // No-op: mismo caso documentado en src/lib/admin.ts (llamado
-          // desde un contexto donde escribir cookies no está permitido).
-        }
-      },
-      remove(name: string, options: CookieOptions) {
-        try {
-          cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-        } catch {
-          // No-op, ver arriba.
-        }
-      },
-    },
-  });
-}
-
 // Endpoint puramente aditivo: vincula (o crea) la fila de `clients`
 // correspondiente al usuario ya autenticado por el flujo existente. Nunca
 // falla ruidosamente -- si no hay sesión, simplemente no hay nada que
@@ -62,7 +36,7 @@ function getSupabaseClient() {
 // EnsureClientRegistration.tsx tras SIGNED_IN, en segundo plano, sin
 // impacto en el flujo de login/checkout ya en producción.
 export async function POST() {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

@@ -1,33 +1,10 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import { haversineDistance, MEETING_POINT_RADIUS_METERS } from "@/lib/geocode";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { getVancouverTodayString, getVancouverOffset } from "@/lib/date-utils";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(
-    getSupabaseUrl(),
-    getSupabaseAnonKey(),
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-        },
-      },
-    }
-  );
-}
-
 // POST /api/employee/shift — iniciar o cerrar jornada
 export async function POST(request: NextRequest) {
   try {
@@ -38,7 +15,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid action. Use 'start' or 'end'" }, { status: 400 });
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

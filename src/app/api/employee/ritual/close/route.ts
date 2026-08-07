@@ -1,28 +1,9 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextResponse } from "next/server";
 import { safeErrorResponse } from "@/lib/api-errors";
 import { computeClosingEarnings } from "@/lib/shift-ritual";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 /**
  * GET /api/employee/ritual/close — v8.3 E8.13: "fin de jornada: ganancias
  * visibles ('Day Rate $90 + comisiones $12.50 = $102.50') + progreso de
@@ -32,7 +13,7 @@ function getSupabaseClient() {
  */
 export async function GET() {
   try {
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

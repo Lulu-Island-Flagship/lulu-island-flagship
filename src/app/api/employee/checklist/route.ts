@@ -1,34 +1,11 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import { isKitchenTimerExpired } from "@/lib/kitchen-timer";
 import { ensureZoneAssignment } from "@/lib/zone-assignment";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { safeErrorResponse } from "@/lib/api-errors";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { isValidUuid } from "@/lib/validation";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(
-    getSupabaseUrl(),
-    getSupabaseAnonKey(),
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-        },
-      },
-    }
-  );
-}
-
 // GET /api/employee/checklist?orderId=...&serviceSubtype=...
 // Obtiene la plantilla de checklist + respuestas ya guardadas
 export async function GET(request: NextRequest) {
@@ -44,7 +21,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "orderId inválido" }, { status: 400 });
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -223,7 +200,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "checklistId inválido" }, { status: 400 });
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

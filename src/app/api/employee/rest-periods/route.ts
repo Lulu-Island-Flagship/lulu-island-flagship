@@ -1,27 +1,8 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import { safeErrorResponse } from "@/lib/api-errors";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 /**
  * GET /api/employee/rest-periods — el registro de descansos documentados
  * del propio empleado (últimos 30 días), para que pueda ver que sus
@@ -31,7 +12,7 @@ function getSupabaseClient() {
  */
 export async function GET(_request: NextRequest) {
   try {
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

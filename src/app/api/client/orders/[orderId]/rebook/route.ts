@@ -1,29 +1,10 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import { computeRebookDateOptions } from "@/lib/rebook";
 import { getVancouverTodayString } from "@/lib/date-utils";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { isValidUuid } from "@/lib/validation";
 import { requireClientCaller } from "@/lib/require-client-caller";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
 /**
  * GET /api/client/orders/[orderId]/rebook — v8.3 E5.12
  *
@@ -34,7 +15,7 @@ function getSupabaseClient() {
  * se reimplementa el motor de precios aquí (ver comentario en src/lib/rebook.ts).
  */
 export async function GET(request: NextRequest, { params }: { params: { orderId: string } }) {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

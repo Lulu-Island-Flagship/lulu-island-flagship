@@ -1,29 +1,10 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import { computeWalletCreditExpiryDate } from "@/lib/wallet";
 import { dispatchCommunication } from "@/lib/send-communication";
 import { isEligibleForReferralCode } from "@/lib/referrals";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireClientCaller } from "@/lib/require-client-caller";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
 const SURVEY_WALLET_CREDIT_CENTS = 1000; // $10, fijo por spec (E5.7)
 
 // Fix (auditoría 2026-07-31, hallazgo #18): igual que nps_surveys
@@ -48,7 +29,7 @@ const PRE_REVIEW_SURVEY_RESPONSE_WINDOW_MS = 72 * 60 * 60 * 1000;
  * (SLA 4h documentado) ANTES de que el cliente publique algo negativo.
  */
 export async function POST(request: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

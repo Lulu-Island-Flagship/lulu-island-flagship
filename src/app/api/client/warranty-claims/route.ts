@@ -1,36 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+
 import { validateWarrantyClaimInput, isWarrantyClaimEligible, WARRANTY_CLAIM_WINDOW_DAYS } from "@/lib/warranty-claim-validation";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient, getSupabaseUrl } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
 import { requireClientCaller } from "@/lib/require-client-caller";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
 /**
  * GET /api/client/warranty-claims — reclamos propios del cliente
  * autenticado (todas las órdenes). Nunca expone `decision_outcome` crudo:
  * se traduce a un mensaje legible (el enum interno es vocabulario de admin).
  */
 export async function GET() {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -80,7 +62,7 @@ export async function GET() {
  * fije sería reabrir el vector de abuso que ese diseño previene).
  */
 export async function POST(request: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

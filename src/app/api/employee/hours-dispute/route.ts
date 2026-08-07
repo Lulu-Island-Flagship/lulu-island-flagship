@@ -1,8 +1,7 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
@@ -25,24 +24,6 @@ import { safeErrorResponse } from "@/lib/api-errors";
  * pueda hacer cumplir por sí mismo; queda documentado en el contexto del
  * ticket para que el panel admin lo muestre y lo priorice.
  */
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
 // POST /api/employee/hours-dispute
 // Body: { orderId, claimedEventType: "t_in"|"t_start"|"t_out"|"jornada_start"|"jornada_end",
 //         claimedTimestamp: ISO string, reason: string, evidenceNote?: string }
@@ -63,7 +44,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid claimedEventType" }, { status: 400 });
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -168,7 +149,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const orderId = searchParams.get("orderId");
 
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

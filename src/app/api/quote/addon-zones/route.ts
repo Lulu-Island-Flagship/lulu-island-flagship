@@ -1,32 +1,13 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAddonZoneOptions } from "@/lib/addon-zones";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
 
 // Fix (auditoría externa, hallazgo A12): esta ruta lee `request.url`
 // (request-time) -- sin esto Next intentaba pre-renderizarla en build,
 // generando warnings y riesgo de caché incorrecta.
 export const dynamic = "force-dynamic";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
 /**
  * GET /api/quote/addon-zones?serviceSubtype=...
  *
@@ -43,7 +24,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Missing serviceSubtype" }, { status: 400 });
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const zones = await fetchAddonZoneOptions(supabase, serviceSubtype);
 
     return NextResponse.json({ zones }, { status: 200 });

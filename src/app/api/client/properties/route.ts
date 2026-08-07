@@ -1,39 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { safeErrorResponse } from "@/lib/api-errors";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireClientCaller } from "@/lib/require-client-caller";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(
-    getSupabaseUrl(),
-    getSupabaseAnonKey(),
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-        },
-      },
-    }
-  );
-}
-
-async function getCurrentUser(supabase: ReturnType<typeof getSupabaseClient>) {
+async function getCurrentUser(supabase: ReturnType<typeof createRouteSupabaseClient>) {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
   return data.user;
 }
 
 async function getOrCreateClientProfile(
-  supabase: ReturnType<typeof getSupabaseClient>,
+  supabase: ReturnType<typeof createRouteSupabaseClient>,
   userId: string
 ): Promise<{ id: string } | null> {
   const { data: existing, error: selectError } = await supabase
@@ -145,7 +122,7 @@ function validateOptionalPropertyFields(
 // real de conversión (enviar cotización), antes de que el usuario pueda
 // llegar a una pantalla de cuenta con propiedades que listar.
 export async function GET() {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const user = await getCurrentUser(supabase);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -185,7 +162,7 @@ export async function GET() {
 
 // POST /api/client/properties — crear propiedad
 export async function POST(request: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const user = await getCurrentUser(supabase);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -273,7 +250,7 @@ export async function POST(request: NextRequest) {
 
 // PATCH /api/client/properties — actualizar propiedad propia
 export async function PATCH(request: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const user = await getCurrentUser(supabase);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -365,7 +342,7 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE /api/client/properties — desactivar (soft delete) propiedad propia
 export async function DELETE(request: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const user = await getCurrentUser(supabase);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

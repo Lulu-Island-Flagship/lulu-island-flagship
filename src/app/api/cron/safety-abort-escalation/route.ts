@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { evaluateSafetyAbortEscalation, type SafetyAbortStage } from "@/lib/safety-abort";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { requireCronAuth } from "@/lib/cron-auth";
-import { getSupabaseServiceKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient, getSupabaseServiceKey } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
 
 /**
@@ -21,10 +21,6 @@ import { safeErrorResponse } from "@/lib/api-errors";
  * dispatch-scheduler y wellbeing-chemical-reassign: service role para un
  * cron server-to-server, protegido por el mismo guard CRON_SECRET.
  */
-function getSupabaseClient() {
-  return createClient(getSupabaseUrl(), getSupabaseServiceKey());
-}
-
 // GET /api/cron/safety-abort-escalation — recalcula y persiste la etapa de
 // todo SOS activo (no reconocido, no auto-aprobado todavía). Debe correr con
 // frecuencia corta (ej. cada minuto) dado que la ventana más corta es 2 min.
@@ -45,7 +41,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
 
   try {
     const { data: activeAborts, error } = await supabase

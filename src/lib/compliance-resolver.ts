@@ -42,7 +42,7 @@ import {
   type TipoRegla,
   type ReglaLegalRow,
 } from "./compliance-engine";
-import { PAY_PERIODS_PER_YEAR } from "./payroll-deductions";
+import { PAY_PERIODS_PER_YEAR } from "./payroll-constants";
 
 // ---------------------------------------------------------------------------
 // Resolvedores de tasa — usan los seed como fallback; en prod deben leer de DB
@@ -126,6 +126,10 @@ export interface CppCalculationInput {
   periodStart: Date;
   /** Acumulado de ganancias pensionables en el año, ANTES de este período, en centavos. */
   ytdPensionableCents?: number;
+  /** v8.3 H5: períodos de pago por año (default: PAY_PERIODS_PER_YEAR = 24 semi-mensual).
+   *  Recibido como parámetro en vez de importado de payroll para desacoplar
+   *  compliance legal de convenciones contables de nómina. */
+  payPeriodsPerYear?: number;
 }
 
 export interface CppCalculationResult {
@@ -156,7 +160,7 @@ export function calculateCPP(input: CppCalculationInput): CppCalculationResult {
 
   const { tasa_empleado: rate, tope, exencion_basica: exemption } = params;
   const ympEcents = tope * 100;
-  const exemptionPerPeriodCents = Math.round((exemption * 100) / PAY_PERIODS_PER_YEAR);
+  const exemptionPerPeriodCents = Math.round((exemption * 100) / (input.payPeriodsPerYear ?? PAY_PERIODS_PER_YEAR));
   const ytdBefore = Math.max(0, input.ytdPensionableCents ?? 0);
   const ytdAfter = ytdBefore + input.grossPayCents;
 

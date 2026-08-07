@@ -1,28 +1,9 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import { isWithdrawalWindowOpen } from "@/lib/live-portfolio";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { isValidUuid } from "@/lib/validation";
 import { requireClientCaller } from "@/lib/require-client-caller";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
 /**
  * POST /api/client/live-portfolio/[id]/withdraw — v8.3 E5.15
  *
@@ -33,7 +14,7 @@ function getSupabaseClient() {
  * explícito en vez de simularlo.
  */
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

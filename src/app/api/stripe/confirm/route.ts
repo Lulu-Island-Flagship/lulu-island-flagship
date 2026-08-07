@@ -1,6 +1,5 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import { assertStripe } from "@/lib/stripe";
 import {
@@ -19,6 +18,7 @@ import { isSmsProviderConfigured } from "@/lib/sms";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 
 // Fix (auditoría externa, verificado 2026-07-31): antes, si faltaban las
 // env vars de Supabase, se usaban valores placeholder ("https://placeholder
@@ -60,28 +60,6 @@ function getServiceRoleClient() {
   if (!serviceKey) return null;
   return createClient(getSupabaseUrl(), serviceKey);
 }
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(
-    getSupabaseUrl(),
-    getSupabaseAnonKey(),
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-        },
-      },
-    }
-  );
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -111,7 +89,7 @@ export async function POST(request: NextRequest) {
         ? paymentOption
         : "card";
 
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

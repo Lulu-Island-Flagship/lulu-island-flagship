@@ -1,28 +1,9 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateEmployeeMarketingVisibility } from "@/lib/employee-marketing";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { safeErrorResponse } from "@/lib/api-errors";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 /**
  * v8.3 E10.8 — Consentimiento del empleado para marketing (reels "un día en
  * la vida" / insignias públicas en el sitio). El empleado solo puede ver y
@@ -34,7 +15,7 @@ function getSupabaseClient() {
  *   "consent" crea el registro si no existe (o re-consiente si nunca hubo fila).
  */
 export async function GET() {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -65,7 +46,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

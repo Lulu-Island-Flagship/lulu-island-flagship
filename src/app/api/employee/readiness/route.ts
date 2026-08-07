@@ -1,11 +1,10 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateReadinessRequest, detectAbusePattern, type ReadinessRequestType } from "@/lib/wellbeing";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { getVancouverTodayString } from "@/lib/date-utils";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient, getSupabaseUrl } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
 
 // v8.3 auditoría 2026-07-21 (D-P0-3, migración 213): con la RLS
@@ -19,24 +18,6 @@ function getServiceClient() {
   if (!serviceKey) return null;
   return createClient(getSupabaseUrl(), serviceKey);
 }
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
 function getQuarterRange(dateStr: string): { start: string; end: string } {
   const d = new Date(dateStr + "T12:00:00Z");
   const quarter = Math.floor(d.getUTCMonth() / 3);
@@ -48,7 +29,7 @@ function getQuarterRange(dateStr: string): { start: string; end: string } {
 
 // POST /api/employee/readiness — modo "No estoy listo" (v8.3 E8 D.8.6).
 export async function POST(request: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

@@ -1,5 +1,4 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import {
   evaluateClosureProtocol,
@@ -13,30 +12,8 @@ import { haversineDistance, ARRIVAL_GEOFENCE_RADIUS_METERS } from "@/lib/geocode
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { getVancouverOffset } from "@/lib/date-utils";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(
-    getSupabaseUrl(),
-    getSupabaseAnonKey(),
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-        },
-      },
-    }
-  );
-}
-
 /**
  * v8.3 E4.11 — Protocolo de Cierre Externo. Junta checklist + implementos +
  * confirmación externa desde Supabase y delega la decisión a la función
@@ -360,7 +337,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

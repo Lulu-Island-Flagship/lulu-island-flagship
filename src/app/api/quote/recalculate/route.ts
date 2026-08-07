@@ -1,5 +1,4 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import {
   calculatePrice,
@@ -11,7 +10,7 @@ import {
 import { type PricingRule, type RuleContext } from "@/lib/rules";
 import { getZoneDemand } from "@/lib/zone-demand";
 import { getVancouverTodayString, getDayOfWeekFromDateString } from "@/lib/date-utils";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
 import { QUOTE_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
 
@@ -40,24 +39,6 @@ function daysBetween(a: string, b: string): number {
   const db = new Date(b);
   return Math.round((db.getTime() - da.getTime()) / (1000 * 60 * 60 * 24));
 }
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
 /**
  * Recalcula el precio de una quote cuando el cliente elige fecha de servicio.
  * El precio original se congela en el wizard; este endpoint aplica el recargo
@@ -65,7 +46,7 @@ function getSupabaseClient() {
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

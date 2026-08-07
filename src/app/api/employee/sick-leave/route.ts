@@ -1,11 +1,10 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import { calculatePayroll, BC_MIN_WAGE_HOURLY, dollarsToCents } from "@/lib/payroll";
 import { decideSickLeaveEligibility } from "@/lib/sick-leave";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient, getSupabaseUrl } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
 
 // v8.3 auditoría 2026-07-21 (D-P0-2, migración 213): la escritura real de
@@ -19,24 +18,6 @@ function getServiceClient() {
   if (!serviceKey) return null;
   return createClient(getSupabaseUrl(), serviceKey);
 }
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
 /**
  * GET/POST /api/employee/sick-leave — v8.3 (BC ESA Parte 5.1).
  *
@@ -50,7 +31,7 @@ function getSupabaseClient() {
  * la nómina) -- no un promedio distinto.
  */
 export async function POST(request: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -229,7 +210,7 @@ export async function POST(request: NextRequest) {
 
 /** GET: historial propio del empleado, este año calendario. */
 export async function GET() {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

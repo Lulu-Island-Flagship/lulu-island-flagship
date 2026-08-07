@@ -1,33 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { SERVICE_TYPES, type ServiceType } from "@/lib/pricing";
 import { computeClientSegment, type ClientSegment } from "@/lib/client-segmentation";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
 
 // Fix (auditoría externa, hallazgo A12): esta ruta lee `request.url`
 // (request-time) -- sin esto Next intentaba pre-renderizarla en build,
 // generando warnings y riesgo de caché incorrecta.
 export const dynamic = "force-dynamic";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
 // v8.3 E3 fix: buffer de emergencia invisible al cliente. Antes Slots =
 // Capacidad_Neta - HHE_comprometidas (sin buffer), así que un día podía
 // venderse al 100% de su capacidad publicada sin dejar margen para SOS,
@@ -90,7 +71,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid serviceType" }, { status: 400 });
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
 
     // Validar corte de reserva a las 5 PM del día anterior
     const vancouverNowStr = new Date().toLocaleString("en-CA", {

@@ -42,3 +42,33 @@ export function getSupabaseServiceKey(): string {
   }
   return key;
 }
+
+// ─── Cliente Supabase para Route Handlers ───────────────────────────────
+//
+// Reemplaza las ~78 copias de getSupabaseClient() distribuidas por todas
+// las rutas API. Uso canónico dentro de un handler:
+//
+//   import { createRouteSupabaseClient } from "@/lib/supabase-server";
+//   const supabase = createRouteSupabaseClient();
+
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { cookies } from "next/headers";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+export function createRouteSupabaseClient(): SupabaseClient<any, "public", any> {
+  const cookieStore = cookies();
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value;
+      },
+      set(name: string, value: string, options: CookieOptions) {
+        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
+      },
+      remove(name: string, options: CookieOptions) {
+        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
+      },
+    },
+  });
+}

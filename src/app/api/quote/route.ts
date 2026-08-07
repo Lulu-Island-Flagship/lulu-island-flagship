@@ -1,5 +1,4 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import {
   calculatePrice,
@@ -43,8 +42,7 @@ import { getZoneDemand } from "@/lib/zone-demand";
 // silencioso de creación de client_profile (ver comentario junto a esa
 // función más abajo).
 import { captureError } from "@/lib/observability";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
-
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0].trim();
@@ -200,24 +198,6 @@ function deriveOrganicLoad(
   if (hasLongHair || residents >= 3) return "medium";
   return "low";
 }
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
 /**
  * Servicio role key para operaciones que no deben depender de RLS del usuario
  * (crear/actualizar su propio client_profile está permitido por RLS, así que
@@ -226,7 +206,7 @@ function getSupabaseClient() {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const clientIp = getClientIp(request);
 
     // Autenticación obligatoria
@@ -730,7 +710,7 @@ export async function GET(_request: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   void _request;
   try {
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -764,7 +744,7 @@ export async function GET(_request: NextRequest) {
  * bloquear por defecto).
  */
 async function findPropertyRiskForAddress(
-  supabase: ReturnType<typeof getSupabaseClient>,
+  supabase: ReturnType<typeof createRouteSupabaseClient>,
   clientProfileId: string,
   address: string
 ): Promise<{ propertyId: string; tier: RiskTier; hardBlocked: boolean } | null> {
@@ -805,7 +785,7 @@ async function findPropertyRiskForAddress(
   };
 }
 
-async function getOrCreateClientProfile(supabase: ReturnType<typeof getSupabaseClient>, userId: string) {
+async function getOrCreateClientProfile(supabase: ReturnType<typeof createRouteSupabaseClient>, userId: string) {
   const { data: existing, error: selectError } = await supabase
     .from("client_profiles")
     .select("*")

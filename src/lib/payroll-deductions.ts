@@ -31,7 +31,8 @@
  * cada período (sobre-retención, no sub-retención -- pero igual es un
  * error de cálculo que debe corregirse).
  */
-export const PAY_PERIODS_PER_YEAR = 24; // semi-mensual (invariante B.1), NUNCA 26/27
+import { PAY_PERIODS_PER_YEAR } from "./payroll-constants";
+export { PAY_PERIODS_PER_YEAR };
 
 // ---- CPP 2026 (CRA) ----
 export const CPP_RATE_2026 = 0.0595;

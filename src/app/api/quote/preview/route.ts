@@ -1,5 +1,4 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import {
   calculatePrice,
@@ -19,7 +18,7 @@ import { getZoneDemand } from "@/lib/zone-demand";
 import { calculateAddonZonesCharge } from "@/lib/pricing";
 import { fetchAddonZoneOptions } from "@/lib/addon-zones";
 import type { QuoteInput, QuoteData } from "@/types";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
 
 const MIN_SQUARE_FEET = 300;
@@ -143,25 +142,7 @@ function deriveOrganicLoad(
   if (hasLongHair || residents >= 3) return "medium";
   return "low";
 }
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
-async function getClientProfile(supabase: ReturnType<typeof getSupabaseClient>, userId: string) {
+async function getClientProfile(supabase: ReturnType<typeof createRouteSupabaseClient>, userId: string) {
   const { data: existing } = await supabase
     .from("client_profiles")
     .select("score, services_count, account_type")
@@ -182,7 +163,7 @@ async function getClientProfile(supabase: ReturnType<typeof getSupabaseClient>, 
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const { data: authData } = await supabase.auth.getUser();
     const user = authData.user;
 

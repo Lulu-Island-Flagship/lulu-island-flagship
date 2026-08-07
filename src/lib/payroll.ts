@@ -159,19 +159,9 @@ export function calculateOvertimePay(input: OvertimePayInput): OvertimePayResult
   return { overtimeMinutes, hourlyRateCents, overtimePayCents };
 }
 
-/**
- * Convierte un monto en dólares a centavos.
- */
-export function dollarsToCents(dollars: number): number {
-  return Math.round(dollars * 100);
-}
-
-/**
- * Convierte un monto en centavos a dólares.
- */
-export function centsToDollars(cents: number): number {
-  return Number((cents / 100).toFixed(2));
-}
+// v8.3 H8: re-export desde currency.ts para backward compat.
+// Preferir import directo: import { dollarsToCents } from "@/lib/currency";
+export { dollarsToCents, centsToDollars } from "./currency";
 
 // =========================================================================
 // v8.4 — Bridge al Payroll Engine standalone

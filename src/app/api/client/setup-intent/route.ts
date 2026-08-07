@@ -1,33 +1,16 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextResponse } from "next/server";
 import { assertStripe } from "@/lib/stripe";
 import { safeErrorResponse } from "@/lib/api-errors";
 import { requireClientCaller } from "@/lib/require-client-caller";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) { return cookieStore.get(name)?.value; },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 /**
  * POST /api/client/setup-intent — crea un SetupIntent sin requerir quoteId.
  * Para usar desde la página de billetera al agregar un método de pago.
  */
 export async function POST() {
   try {
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -93,7 +76,7 @@ export async function POST() {
   }
 }
 
-async function createCustomer(stripe: ReturnType<typeof assertStripe>, supabase: ReturnType<typeof getSupabaseClient>, user: { id: string; email?: string | undefined }): Promise<string> {
+async function createCustomer(stripe: ReturnType<typeof assertStripe>, supabase: ReturnType<typeof createRouteSupabaseClient>, user: { id: string; email?: string | undefined }): Promise<string> {
   const customer = await stripe.customers.create({
     ...(user.email ? { email: user.email } : {}),
     metadata: { supabase_user_id: user.id },

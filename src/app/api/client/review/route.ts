@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 // Fix M2: Use authenticated client instead of service-role in public endpoint
 import { safeErrorResponse } from "@/lib/api-errors";
 
@@ -21,10 +21,6 @@ import { safeErrorResponse } from "@/lib/api-errors";
  */
 // Fix 2026-08-05 (auditoría, item 2.4): solo cliente anónimo. Los writes
 // se delegaron a la RPC SECURITY DEFINER submit_client_review (migración 357).
-function getSupabaseClient() {
-  return createClient(getSupabaseUrl(), getSupabaseAnonKey());
-}
-
 // v8.3 auditoría 2026-07-21 (E-B7): offset PDT/PST real para una fecha
 // dada, en vez del "-07:00" hardcodeado que el código original etiquetaba
 // como "PST" (PST es -08:00; -07:00 es PDT) -- ese hardcode por sí solo
@@ -58,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
 
     // Verificar orden por review_token (no por orderId directo)
     const { data: order, error: orderError } = await supabase

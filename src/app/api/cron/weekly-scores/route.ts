@@ -8,7 +8,7 @@ import {
 import { evaluateLowScoreStreak, type WeeklyScoreRecord } from "@/lib/low-score-streak";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { requireCronAuth } from "@/lib/cron-auth";
-import { getSupabaseServiceKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient, getSupabaseServiceKey } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
 
 /** v8.3 E5: cuántas semanas anteriores hace falta mirar para detectar una racha de 3. */
@@ -45,10 +45,6 @@ const NEUTRAL_PEER_SCORE = 10; // 0-20, mismo valor neutral que usa recalculate_
  * anti-colusión probablemente nunca se persistieron. Mismo fix que
  * dispatch-scheduler/safety-abort-escalation/wellbeing-chemical-reassign.
  */
-function getSupabaseClient() {
-  return createClient(getSupabaseUrl(), getSupabaseServiceKey());
-}
-
 // GET /api/cron/weekly-scores — recalcular scores semanales de todos los empleados
 // Protegido por CRON_SECRET
 export async function GET(request: NextRequest) {
@@ -62,7 +58,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
 
     // v8.3 auditoría 2026-07-21 (D-P0-6): "el lunes de esta semana" se
     // calculaba tomando la fecha de HOY directamente -- si el cron corre

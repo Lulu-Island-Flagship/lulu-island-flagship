@@ -1,40 +1,18 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { mapToEmployeeService } from "@/lib/employee-service-mapper";
 
 // Fix (auditoría externa, hallazgo A12): esta ruta usa `cookies()`
 // (request-time) -- sin esto Next intentaba pre-renderizarla en build,
 // generando warnings y riesgo de caché incorrecta.
 export const dynamic = "force-dynamic";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(
-    getSupabaseUrl(),
-    getSupabaseAnonKey(),
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-        },
-      },
-    }
-  );
-}
-
 // GET /api/employee/services — lista de servicios del día para el empleado autenticado
 export async function GET() {
   try {
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -209,28 +187,13 @@ export async function GET() {
       const quote = order.quote_id ? quoteMap.get(order.quote_id) : null;
       const profile = quote?.user_id ? profileMap.get(quote.user_id) : null;
 
-      enriched.push({
-        assignmentId: a.id,
-        orderId: a.order_id,
-        status: a.status,
-        assignedAt: a.assigned_at,
-        notes: a.notes,
-        serviceDate: order.service_date,
-        serviceTime: order.service_time,
-        orderStatus: order.status,
-        serviceSubtype: quote?.service_type === 'deep' ? 'first_time' : quote?.service_type,
-        address: quote?.address,
-        zone: quote?.zone,
-        squareFeet: quote?.square_feet,
-        bedrooms: quote?.bedrooms,
-        bathrooms: quote?.bathrooms,
-        petsCount: quote?.pets_count,
-        petsType: quote?.pets_type,
-        residents: quote?.residents,
-        total: quote?.total,
-        clientName: profile?.full_name || "",
-        clientPhone: profile?.phone || "",
-      });
+      enriched.push(mapToEmployeeService({
+        assignment: a,
+        order,
+        quote,
+        clientName: profile?.full_name,
+        clientPhone: profile?.phone,
+      }));
     }
 
     return NextResponse.json(

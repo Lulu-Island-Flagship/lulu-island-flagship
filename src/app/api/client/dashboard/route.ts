@@ -1,29 +1,10 @@
 import { NextResponse } from "next/server";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { ORDER_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireClientCaller } from "@/lib/require-client-caller";
 import { computeAvailableWalletBalance, computeExpiredUnusedAmount, type WalletTransactionRecord } from "@/lib/wallet";
 import { ensureClientForAuthUser } from "@/lib/client-module/client-service";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
 /**
  * GET /api/client/dashboard — agregación para el Dashboard de /cuenta.
  *
@@ -31,7 +12,7 @@ function getSupabaseClient() {
  * wallet balance, y alertas. Evita que el cliente haga 3-4 requests paralelos.
  */
 export async function GET() {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

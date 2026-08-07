@@ -1,31 +1,9 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { NextRequest, NextResponse } from "next/server";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(
-    getSupabaseUrl(),
-    getSupabaseAnonKey(),
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-        },
-      },
-    }
-  );
-}
-
+import { insertPayrollEntry } from "@/lib/payroll-persist";
 const VALID_EXTERNAL_TYPES = ["client_verbal", "leader_audit", "auditor_present"];
 const VALID_ALT_PAYMENT_METHODS = ["e_transfer", "cheque", "cash"];
 
@@ -38,7 +16,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Missing orderId" }, { status: 400 });
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -144,13 +122,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id);
+    // v8.3 H4: se necesita day_rate para crear la entrada de nómina.
+    const { employee, error: empError, status: empStatus } = await requireActiveEmployee(supabase, user.id, "id, day_rate");
     if (!employee) {
       return NextResponse.json({ error: empError }, { status: empStatus });
     }
@@ -259,6 +238,28 @@ export async function POST(request: NextRequest) {
     if (result.error) {
       console.error("service_closures upsert error:", result.error);
       return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+    }
+
+    // v8.3 H4 (auditoría 2026-08-06): crear entrada de nómina al cerrar
+    // servicio. Es fire-and-forget: un fallo aquí NO bloquea el cierre
+    // (la entrada se puede crear después vía admin/reproceso).
+    try {
+      const dayRate = (employee as { id: string; day_rate: number }).day_rate;
+      if (typeof dayRate === "number" && dayRate > 0) {
+        const payrollResult = await insertPayrollEntry({
+          supabase,
+          employeeId: employee.id,
+          orderId,
+          assignmentId: assignment.id,
+          dayRateDollars: dayRate,
+        });
+        if (!payrollResult.created) {
+          console.warn("payroll-persist: entry not created —", payrollResult.reason || payrollResult.error);
+        }
+      }
+    } catch (payrollErr) {
+      console.error("payroll-persist: unexpected error creating payroll entry", payrollErr);
+      // No bloqueamos el cierre — el error se registra para diagnóstico.
     }
 
     return NextResponse.json({ success: true, closure: result.data }, { status: 200 });

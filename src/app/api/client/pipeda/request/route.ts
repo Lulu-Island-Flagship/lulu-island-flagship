@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+
 import { computeRequestDueAt, isRequestOverdue } from "@/lib/pipeda";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient, getSupabaseUrl } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
 import { requireClientCaller } from "@/lib/require-client-caller";
 
@@ -38,24 +38,6 @@ import { requireClientCaller } from "@/lib/require-client-caller";
  * nunca del body -- para que un cliente no pueda abrir una solicitud a
  * nombre de otro.
  */
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
 function getServiceClient() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceKey) return null;
@@ -69,7 +51,7 @@ type SelfServiceRequestType = (typeof SELF_SERVICE_REQUEST_TYPES)[number];
 const OPEN_STATUSES = ["pending", "processing"];
 
 export async function GET() {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -114,7 +96,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

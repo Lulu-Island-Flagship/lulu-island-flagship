@@ -1,29 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
 import { MAX_TRACKED_COMPETITORS, detectCompetitorAlerts, type CompetitorSnapshot } from "@/lib/competitor-tracking";
 import { scrapeCompetitor, type ScrapeConfig } from "@/lib/competitor-scraper";
 import { requireCronAuth } from "@/lib/cron-auth";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase-server";
+import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
-
-function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        cookieStore.set({ name, value, ...options, secure: true, sameSite: "lax" });
-      },
-      remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, secure: true, sameSite: "lax" });
-      },
-    },
-  });
-}
-
 // GET /api/cron/competitor-scrape — v8.3 E10 (D.10.10, Sesión O)
 // Protegido por CRON_SECRET, mismo patrón que /api/cron/weekly-scores.
 //
@@ -50,7 +31,7 @@ export async function GET(request: NextRequest) {
   if (authError) return authError;
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = createRouteSupabaseClient();
 
     const { data: allActiveCompetitors, error: allCompError } = await supabase
       .from("competitors")
