@@ -119,14 +119,13 @@ export default async function middleware(request: NextRequest) {
     try {
       const supabaseApi = createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
         cookies: {
-          get(name: string) {
-            return request.cookies.get(name)?.value;
+          getAll() {
+            return request.cookies.getAll();
           },
-          set(name: string, value: string, options) {
-            apiResponse.cookies.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
-          },
-          remove(name: string, options) {
-            apiResponse.cookies.set({ name, value: '', ...options, httpOnly: true, secure: true, sameSite: "lax" });
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              apiResponse.cookies.set(name, value, options)
+            );
           },
         },
       });
@@ -161,14 +160,13 @@ export default async function middleware(request: NextRequest) {
   try {
     const supabase = createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
+        getAll() {
+          return request.cookies.getAll();
         },
-        set(name: string, value: string, options) {
-          response.cookies.set({ name, value, ...options, httpOnly: true, secure: true, sameSite: "lax" });
-        },
-        remove(name: string, options) {
-          response.cookies.set({ name, value: '', ...options, httpOnly: true, secure: true, sameSite: "lax" });
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
         },
       },
     });

@@ -180,7 +180,7 @@ export default function ContentAdminPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-brand-ink">Apple OAuth</p>
-                <p className="text-xs text-gray-500 mt-0.5">Show "Continue with Apple" button in login modal</p>
+                <p className="text-xs text-gray-500 mt-0.5">Show &ldquo;Continue with Apple&rdquo; button in login modal</p>
               </div>
               <button
                 onClick={async () => {

@@ -1,4 +1,4 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { isAllowedInternalPath } from "@/lib/safe-redirect";
@@ -78,14 +78,13 @@ export async function GET(request: NextRequest) {
         getSupabaseAnonKey(),
         {
           cookies: {
-            get(name: string) {
-              return cookieStore.get(name)?.value;
+            getAll() {
+              return cookieStore.getAll();
             },
-            set(name: string, value: string, options: CookieOptions) {
-              cookieStore.set({ name, value, ...options, path: "/", httpOnly: true, secure: true, sameSite: "lax" });
-            },
-            remove(name: string, options: CookieOptions) {
-              cookieStore.set({ name, value: "", ...options, path: "/", httpOnly: true, secure: true, sameSite: "lax" });
+            setAll(cookiesToSet) {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              );
             },
           },
         }

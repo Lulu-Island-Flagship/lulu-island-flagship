@@ -1,48 +1,83 @@
 # Auditoría del sistema de login — luluislandflagship.ca
 
-**Fecha:** 6 de agosto de 2026
-**Alcance:** Modal de login de clientes (`/en/cuenta/servicios`, `AuthModal.tsx`) y Team Portal (`StaffLoginScreen.tsx`)
-**Método:** Pruebas en vivo sobre producción con Claude in Chrome (clicks reales, inspección de network requests y console logs)
+**Fecha:** 6-7 de agosto de 2026 (actualizado)
+**Alcance:** Modal de login de clientes (`/en/cuenta/servicios`, `AuthModal.tsx`), flujo completo de OAuth con Google hasta `/en/account`, y estado de despliegues en Vercel.
+**Método:** Pruebas en vivo sobre producción con Claude in Chrome (clicks reales con referencia de elemento, no coordenadas), inspección de network requests/console/cookies, y revisión de logs de runtime + historial de deployments en Vercel.
 
-## Resumen
+## Resumen ejecutivo
 
-El login **sí funciona** en general. Se encontró **un bug real** en una de las cuatro opciones del modal de clientes: el botón de Apple. Las demás opciones probadas funcionan correctamente.
+Hay **un bug real y activo** que hace que el login con Google (y probablemente Apple, cuando se reactive) parezca "no servir": el usuario completa el login correctamente en Google, pero al volver al sitio, la sesión no es reconocida y se le vuelve a mostrar el modal de login — en un loop.
 
-## Hallazgos
+Además, se encontró algo más urgente: **el repositorio está recibiendo despliegues automáticos a producción que yo no hice**, varios de ellos rotos (build ERROR). Esto es información nueva e importante, no solo un detalle técnico.
 
-### 1. Botón "Sign In / Sign Up" (header) — OK
-Abre correctamente el modal "Sign In or Sign Up to Reserve" con sus 4 opciones (Google, Apple, Email+código, Teléfono+SMS).
+## Hallazgo 1 (actualizado): "Continue with Apple" ya está oculto
 
-### 2. "Continue with Google" — OK
-Abre el selector de cuentas de Google (`accounts.google.com/.../accountchooser`) con `prompt=select_account`, forzando siempre a elegir cuenta en vez de reusar sesión activa silenciosamente (fix aplicado en esta misma auditoría, sesión anterior). Confirmado funcionando tanto en el modal de clientes como en el login de staff.
+Confirmado en vivo: el modal ahora solo muestra 3 opciones (Google, Email+código, Teléfono+SMS). Alguien ya aplicó la Opción A que propuse en el reporte anterior (ocultar el botón mientras Apple OAuth no esté habilitado en Supabase) — ver Hallazgo 3 para el commit exacto.
 
-### 3. "Continue with Apple" — BUG CONFIRMADO
-Al hacer clic, el navegador sale completamente del sitio y muestra una página de error JSON cruda de Supabase:
+## Hallazgo 2 (NUEVO, root cause real): la sesión de Google no se reconoce después del login
 
-```json
-{"code":400,"error_code":"validation_failed","msg":"Unsupported provider: provider is not enabled"}
+Reproducido de forma consistente, dos veces:
+
+1. Click en "Sign In" → modal se abre.
+2. Click en "Continue with Google" → Google abre el selector de cuentas correctamente.
+3. Se elige una cuenta → Google redirige a `/auth/callback?code=...&next=/en/account` → esa petición responde **200** y redirige a `/en/account`.
+4. En `/en/account`: **el modal de login vuelve a aparecer**, como si nunca te hubieras autenticado. Recargar la página no lo arregla.
+
+**Causa raíz identificada en el código** (`src/app/auth/callback/route.ts`, líneas 84-89):
+
+```ts
+set(name: string, value: string, options: CookieOptions) {
+  cookieStore.set({ name, value, ...options, path: "/", httpOnly: true, secure: true, sameSite: "lax" });
+},
 ```
 
-**Causa:** el proveedor Apple OAuth no está habilitado en Supabase (Auth → Providers → Apple). El botón está visible y es clickeable en la UI, pero el backend lo rechaza.
+Este bloque fuerza `httpOnly: true` en **todas** las cookies que Supabase intenta guardar durante el intercambio del código de OAuth — incluida la cookie de sesión real (`sb-...-auth-token`), no solo las cookies internas de PKCE que sí deberían ser `httpOnly`.
 
-**Impacto:** cualquier visitante que intente entrar con Apple abandona el sitio y ve una pantalla de error técnica sin marca ni forma de regresar — se percibe como "el login no sirve", aunque solo afecta a esa opción.
+El problema: el cliente de Supabase en el navegador (`src/lib/supabase.ts`, usa `createBrowserClient` de `@supabase/ssr`) necesita **leer esa misma cookie desde JavaScript** para saber que hay una sesión activa (`supabase.auth.getUser()` en `src/app/[locale]/account/layout.tsx`, línea 78). Una cookie `httpOnly` es invisible para JavaScript por diseño del navegador — es una protección contra robo de tokens vía XSS, pero aquí bloquea al propio cliente legítimo.
 
-**No se tocó código ni configuración** — solo diagnóstico, según lo pedido.
+Evidencia que lo confirma:
+- Las cookies visibles por JS en el navegador después del login son solo las de PKCE (`...-code-verifier`), nunca una cookie de sesión — consistente con que la de sesión sí se creó pero quedó oculta por `httpOnly`.
+- Al cargar `/en/account`, el navegador hace **cero peticiones de red hacia Supabase** — el cliente ni siquiera intenta validar sesión porque no encuentra ningún token que enviar.
+- El resultado es que `checkSession()` en `account/layout.tsx` concluye "unauthenticated" y vuelve a pintar el `AuthModal`, sin importar cuántas veces se repita el login.
 
-### 4. Email + código / Teléfono + SMS — no probados en esta ronda
-No se ejecutó una prueba completa de extremo a extremo de estas dos opciones en esta auditoría (el foco fue Google/Apple, que eran las señaladas). Quedan pendientes si se quiere cobertura total.
+**Por qué antes parecía que Google "sí funcionaba":** en la auditoría anterior solo verifiqué que el botón abriera el selector de cuentas de Google — nunca completé el flujo hasta el final. Esta vez sí lo completé de principio a fin y ahí apareció el problema real.
 
-## Causa raíz y relación con pendientes ya conocidos
+**Alcance del impacto:** afecta a cualquier login que pase por `/auth/callback` — es decir, Google y (cuando se reactive) Apple. Los métodos de Email+código y Teléfono+SMS probablemente NO estén afectados porque no pasan por este archivo (usan `verifyOtp` directo desde el cliente), pero no se confirmó en esta ronda.
 
-Este hallazgo coincide con uno de los 3 pendientes de dashboard que ya tenías identificados:
-1. **Habilitar Apple OAuth** (Supabase → Auth → Providers → Apple) ← relacionado directamente con este bug
-2. Habilitar Phone OTP
-3. Configurar webhook de Stripe
+No se modificó nada — solo diagnóstico, según pediste.
 
-## Opciones de arreglo (no aplicadas, solo para referencia)
+## Hallazgo 3 (NUEVO, urgente, no relacionado al login): despliegues no controlados a producción
 
-- **Opción A (rápida, sin tocar Supabase):** ocultar el botón de Apple en el modal hasta que el proveedor esté habilitado.
-- **Opción B (mejor UX):** capturar el error antes de que la página navegue fuera del sitio y mostrar un mensaje amigable dentro del modal en vez de la pantalla JSON cruda.
-- **Opción C (raíz):** habilitar Apple OAuth en el dashboard de Supabase — resuelve el problema sin cambios de código, pero requiere tener las credenciales de Apple Developer configuradas.
+Al revisar el historial de deployments en Vercel encontré una cadena larga de commits push directos a `main` que yo no hice ni reconozco de esta conversación, con mensajes como:
 
-Ninguna de estas se aplicó; este documento es solo el reporte solicitado.
+- "fix: remaining TDZ errors in service page, checklist, voting"
+- "fix: clean TDZ in service page — loadLogs before loadService, useEffect after declarations"
+- "fix: remove orphaned loadLogs duplicate closing brace"
+- "fix: NextParamAuthGate — skip AuthModal if already authenticated (post-OAuth redirect)"
+- "fix: hide Apple OAuth button — provider not enabled in Supabase"
+- "feat: Apple OAuth admin toggle — on/off from Content panel, no env var needed" (el más reciente, **en estado ERROR**, no llegó a producción)
+
+De los últimos ~20 deployments, **8 terminaron en estado ERROR** (build roto). Producción está sirviendo actualmente el último que sí compiló bien: commit `a876a0b` ("hide Apple OAuth button"), del cual ya sabemos que el problema del Hallazgo 2 (introducido antes, en el commit `919211...` "NextParamAuthGate") sigue sin arreglarse.
+
+Esto sugiere que hay otro proceso o agente automatizado con acceso de escritura a tu repo (`main`) haciendo commits y desplegando directo a producción, con bastante ensayo-y-error visible en los propios mensajes de commit ("remaining TDZ errors", "clean TDZ", "remove orphaned..." — son 3 intentos seguidos de arreglar lo mismo). Si esto no lo autorizaste tú directamente, vale la pena que revises quién/qué tiene ese acceso, porque ahora mismo está desplegando a producción sin que yo lo vea ni lo controle desde esta conversación.
+
+## Resumen de estado actual
+
+| Método de login | Estado |
+|---|---|
+| Google | Se autentica en Google correctamente, pero la sesión no se reconoce al volver al sitio — el usuario queda atrapado en el modal de login. **Roto.** |
+| Apple | Botón oculto (ya no genera el error JSON del reporte anterior). No probado más allá porque está oculto. |
+| Email + código | No probado en esta ronda. |
+| Teléfono + SMS | No probado en esta ronda. |
+
+## Arreglo sugerido (no aplicado — solo para referencia, dijiste que no arreglara nada)
+
+En `src/app/auth/callback/route.ts`, dejar de forzar `httpOnly: true` sobre todas las cookies y respetar las `options` que Supabase ya decide por cookie (mismo patrón que `src/lib/supabase-server.ts`, que no fuerza `httpOnly` y es el que usan ~146 rutas API sin este problema):
+
+```ts
+set(name: string, value: string, options: CookieOptions) {
+  cookieStore.set({ name, value, ...options, path: "/", secure: true, sameSite: "lax" });
+},
+```
+
+Esto dejaría que Supabase marque `httpOnly` solo en las cookies internas de PKCE (donde sí tiene sentido) y no en la cookie de sesión real (que el cliente necesita leer).
