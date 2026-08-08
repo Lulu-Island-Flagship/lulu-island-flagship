@@ -230,26 +230,74 @@ export default function CotizadorPage() {
     []
   );
 
+function buildValidQuoteInput(raw: Partial<QuoteInput>): QuoteInput {
+  const category = (raw.serviceCategory as "home" | "commercial") || "home";
+  const defaultSubtype = category === "home" ? "regular" : "office";
+  const validSubtypes = category === "home"
+    ? ["first_time", "regular", "move_in_out"]
+    : ["office", "airbnb", "post_construction"];
+  const subtype = (raw.serviceSubtype && validSubtypes.includes(raw.serviceSubtype))
+    ? raw.serviceSubtype
+    : defaultSubtype;
+
+  const subtypeMap: Record<string, "regular" | "deep" | "move_in_out" | "post_construction"> = {
+    first_time: "deep",
+    regular: "regular",
+    move_in_out: "move_in_out",
+    office: "regular",
+    airbnb: "regular",
+    post_construction: "post_construction",
+  };
+  const serviceType = subtypeMap[subtype] || "regular";
+
+  const validZones = ["Richmond", "Vancouver West", "Vancouver East", "Kitsilano", "UBC"];
+  const zone = (raw.zone && validZones.includes(raw.zone)) ? raw.zone : "Richmond";
+
+  const validPets = ["none", "short_hair", "long_hair", "multiple"];
+  const petsType = (raw.petsType && validPets.includes(raw.petsType)) ? raw.petsType : "none";
+
+  const zonePostalMap: Record<string, string> = {
+    Richmond: "V7C1T6",
+    "Vancouver West": "V6J1A1",
+    "Vancouver East": "V5N1A1",
+    Kitsilano: "V6K1A1",
+    UBC: "V6T1Z4",
+  };
+  const cleanPostal = (raw.postalCode || "").replace(/\s/g, "").toUpperCase();
+  const postalCode = /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTVWXYZ]\d[ABCEGHJ-NPRSTVWXYZ]\d$/.test(cleanPostal)
+    ? cleanPostal
+    : (zonePostalMap[zone] || "V7C1T6");
+
+  const address = (raw.address && raw.address.trim().length >= 5)
+    ? raw.address.trim()
+    : `${zone}, BC`;
+
+  return {
+    serviceCategory: category,
+    serviceSubtype: subtype,
+    serviceType: serviceType,
+    bedrooms: raw.bedrooms ?? 2,
+    bathrooms: raw.bathrooms ?? 1,
+    squareFeet: Math.max(300, Math.min(10000, raw.squareFeet ?? 1000)),
+    petsCount: raw.petsCount ?? 0,
+    petsType: petsType as QuoteInput["petsType"],
+    residents: Math.max(1, raw.residents ?? 2),
+    daysSinceCleaning: raw.daysSinceCleaning ?? 30,
+    address: address,
+    zone: zone,
+    postalCode: postalCode,
+    dayOfWeek: raw.dayOfWeek,
+    isPreferredDay: raw.isPreferredDay,
+    addonZones: raw.addonZones,
+    squareFeetDeclared: raw.squareFeetDeclared,
+  };
+}
+
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState("");
 
   const fetchPreviewQuote = useCallback(async (signal?: AbortSignal) => {
-    const effectiveInput = {
-      serviceCategory: input.serviceCategory ?? "home",
-      serviceSubtype: input.serviceSubtype ?? "home_maintenance",
-      serviceType: input.serviceType ?? "regular",
-      bedrooms: input.bedrooms ?? 2,
-      bathrooms: input.bathrooms ?? 1,
-      squareFeet: input.squareFeet ?? 1000,
-      petsCount: input.petsCount ?? 0,
-      petsType: input.petsType ?? "none",
-      residents: input.residents ?? 2,
-      daysSinceCleaning: input.daysSinceCleaning ?? 30,
-      address: input.address || "Richmond, BC",
-      zone: input.zone || "Richmond",
-      postalCode: input.postalCode || "V7C1T6",
-      ...input,
-    };
+    const effectiveInput = buildValidQuoteInput(input);
 
     setPreviewLoading(true);
     setPreviewError("");
@@ -379,36 +427,9 @@ export default function CotizadorPage() {
         return;
       }
 
-      const zonePostalMap: Record<string, string> = {
-        Richmond: "V7C1T6",
-        "Vancouver West": "V6J1A1",
-        "Vancouver East": "V5N1A1",
-        Kitsilano: "V6K1A1",
-        UBC: "V6T1Z4",
-      };
-      const cleanPostal = (input.postalCode || "").replace(/\s/g, "").toUpperCase();
-      const validPostal = /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTVWXYZ]\d[ABCEGHJ-NPRSTVWXYZ]\d$/.test(cleanPostal)
-        ? cleanPostal
-        : (zonePostalMap[input.zone || "Richmond"] || "V7C1T6");
-
+      const validPayload = buildValidQuoteInput(input);
       const rawInputs = {
-        serviceCategory: input.serviceCategory || "home",
-        serviceSubtype: input.serviceSubtype || "home_maintenance",
-        serviceType: input.serviceType || "regular",
-        bedrooms: input.bedrooms ?? 2,
-        bathrooms: input.bathrooms ?? 1,
-        squareFeet: input.squareFeet ?? 1000,
-        petsCount: input.petsCount ?? 0,
-        petsType: input.petsType ?? "none",
-        residents: input.residents ?? 2,
-        daysSinceCleaning: input.daysSinceCleaning ?? 30,
-        address: input.address || "Richmond, BC",
-        zone: input.zone || "Richmond",
-        postalCode: validPostal,
-        dayOfWeek: input.dayOfWeek,
-        isPreferredDay: input.isPreferredDay,
-        addonZones: input.addonZones,
-        squareFeetDeclared: input.squareFeetDeclared,
+        ...validPayload,
         consentTc: consents.tc,
         consentPipa: consents.pipa,
         consentMarketing: consents.marketing,
