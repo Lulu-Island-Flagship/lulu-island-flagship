@@ -7,7 +7,6 @@ import Script from "next/script";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Ship, MapPin, LogIn, UserPlus } from "lucide-react";
 
-import { getBasePrice } from "@/lib/pricing/engine";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { AuthModal } from "@/components/cotizador/AuthModal";
 import { isAllowedInternalPath } from "@/lib/safe-redirect";
@@ -131,61 +130,13 @@ export default function HomePage() {
 
   const [authModal, setAuthModal] = useState<"signin" | "signup" | null>(null);
 
-  // v8.5 landing spec: BC Assessment lookup desde el hero.
-  // El visitante ingresa dirección → se consulta BC Assessment → si devuelve
-  // sq ft, se calcula precio base y se muestra inline. Si el proveedor no está
-  // configurado (confidence=unavailable), se navega al cotizador como fallback.
-  const [bcAddress, setBcAddress] = useState("");
-  const [bcLoading, setBcLoading] = useState(false);
-  const [bcResult, setBcResult] = useState<{
-    squareFeet?: number;
-    price?: number;
-    confidence?: string;
-  } | null>(null);
-  const [bcError, setBcError] = useState("");
+  // Dirección para el hero — navega directo al cotizador sin consulta BC Assessment
+  const [heroAddress, setHeroAddress] = useState("");
 
-  async function handleBcLookup() {
-    const trimmed = bcAddress.trim();
+  function handleHeroSubmit() {
+    const trimmed = heroAddress.trim();
     if (!trimmed) return;
-    setBcLoading(true);
-    setBcError("");
-    try {
-      const res = await fetch(
-        `/api/bc-assessment?address=${encodeURIComponent(trimmed)}`
-      );
-      if (!res.ok) {
-        setBcError("Couldn't look up your address. Try the full quote instead.");
-        setBcLoading(false);
-        return;
-      }
-      const data = await res.json();
-      if (
-        data.squareFeet &&
-        data.confidence &&
-        data.confidence !== "unavailable"
-      ) {
-        const price = getBasePrice("regular", data.squareFeet);
-        setBcResult({
-          squareFeet: data.squareFeet,
-          price,
-          confidence: data.confidence,
-        });
-      } else {
-        // BC Assessment no disponible — navegar al cotizador
-        router.push(
-          `/${locale}/quote?address=${encodeURIComponent(trimmed)}`
-        );
-      }
-    } catch {
-      setBcError("Something went wrong. Please try again.");
-    }
-    setBcLoading(false);
-  }
-
-  function handleBcContinue() {
-    router.push(
-      `/${locale}/quote?address=${encodeURIComponent(bcAddress.trim())}&sqft=${bcResult?.squareFeet || ""}`
-    );
+    router.push(`/${locale}/quote?address=${encodeURIComponent(trimmed)}`);
   }
 
   // v8.5 Day 7: fetch admin-editable content from site_content table
@@ -325,86 +276,34 @@ export default function HomePage() {
             {getContent('hero.subtitle')}
           </p>
 
-          {/* BC Assessment result: cuando el proveedor devuelve sq ft, se muestra
-              el precio base calculado inline — el visitante ve el precio antes
-              de entrar al cotizador completo. */}
-          {bcResult ? (
-            <div className="mb-10 max-w-lg mx-auto">
-              <div className="bg-brand-ice rounded-lg p-6 text-left">
-                <p className="text-sm text-brand-wave-blue mb-1">
-                  {getContent('hero.subtitle')}
-                </p>
-                <p className="text-2xl font-bold text-brand-navy mb-2">
-                  {bcResult.price != null
-                    ? `$${bcResult.price.toLocaleString()} CAD`
-                    : "—"}
-                </p>
-                <p className="text-xs text-brand-wave-blue mb-4">
-                  {bcResult.squareFeet != null
-                    ? `Estimated ${bcResult.squareFeet.toLocaleString()} sq ft — starting price for regular cleaning`
-                    : "Starting price for regular cleaning"}
-                </p>
-                <button
-                  type="button"
-                  onClick={handleBcContinue}
-                  className="w-full px-6 py-3 bg-brand-navy text-white rounded-md font-medium
-                             hover:bg-brand-navy-light transition-colors"
-                >
-                  {getContent('hero.cta')} →
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <p className="text-base md:text-lg text-brand-ink mb-10 max-w-xl mx-auto leading-relaxed whitespace-pre-line">
-                {getContent('hero.proposition')}
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-lg mx-auto">
-                <input
-                  type="text"
-                  value={bcAddress}
-                  onChange={(e) => setBcAddress(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleBcLookup(); }}
-                  placeholder={getContent('hero.placeholder')}
-                  className="flex-1 px-4 py-3 border border-brand-ice rounded-md text-brand-ink bg-white 
-                             focus:outline-none focus:border-brand-navy focus:ring-1 focus:ring-brand-navy
-                             placeholder:text-gray-400"
-                />
-                <button
-                  type="button"
-                  onClick={handleBcLookup}
-                  disabled={bcLoading}
-                  className="px-6 py-3 bg-brand-navy text-white rounded-md font-medium
-                             hover:bg-brand-navy-light transition-colors whitespace-nowrap
-                             disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {bcLoading ? (
-                    <span className="flex items-center gap-2">
-                      <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Looking up…
-                    </span>
-                  ) : (
-                    getContent('hero.cta')
-                  )}
-                </button>
-              </div>
-              {bcError && (
-                <div className="mt-3 space-y-2">
-                  <p className="text-sm text-state-danger">{bcError}</p>
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/${locale}/quote`)}
-                    className="text-sm text-brand-navy underline hover:text-brand-wave-blue transition-colors"
-                  >
-                    {getContent('nav.getQuote')} →
-                  </button>
-                </div>
-              )}
-              <p className="text-xs text-brand-wave-blue mt-3">
-                {getContent('hero.hint')}
-              </p>
-            </>
-          )}
+          <p className="text-base md:text-lg text-brand-ink mb-10 max-w-xl mx-auto leading-relaxed whitespace-pre-line">
+            {getContent('hero.proposition')}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-lg mx-auto">
+            <input
+              type="text"
+              value={heroAddress}
+              onChange={(e) => setHeroAddress(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleHeroSubmit(); }}
+              placeholder={getContent('hero.placeholder')}
+              className="flex-1 px-4 py-3 border border-brand-ice rounded-md text-brand-ink bg-white 
+                         focus:outline-none focus:border-brand-navy focus:ring-1 focus:ring-brand-navy
+                         placeholder:text-gray-400"
+            />
+            <button
+              type="button"
+              onClick={handleHeroSubmit}
+              disabled={!heroAddress.trim()}
+              className="px-6 py-3 bg-brand-navy text-white rounded-md font-medium
+                         hover:bg-brand-navy-light transition-colors whitespace-nowrap
+                         disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {getContent('hero.cta')}
+            </button>
+          </div>
+          <p className="text-xs text-brand-wave-blue mt-3">
+            {getContent('hero.hint')}
+          </p>
         </div>
       </section>
 

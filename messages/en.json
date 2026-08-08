@@ -71,6 +71,25 @@
       "squareFeetHint": "Approximate area — we'll verify with public records later.",
       "zoneHint": "Your service zone affects the base rate."
     },
+    "verify": {
+      "title": "Tell us about your property",
+      "subtitleFound": "We found these details in public property records. Please confirm they're correct.",
+      "subtitleManual": "Tell us about your property — we'll use this to calculate your price.",
+      "propertyTypeResidential": "Residential",
+      "propertyTypeCommercial": "Commercial",
+      "propertyTypeLabel": "Property type",
+      "bedrooms": "bedrooms",
+      "bathrooms": "bathrooms",
+      "zoneLabel": "Service zone",
+      "edit": "Edit",
+      "doneEditing": "Done editing",
+      "noBcData": "Enter your property details below to get your price.",
+      "enterManually": "Enter property details manually",
+      "verifiedFromBc": "Verified from BC Assessment records",
+      "declaredLabel": "If the area above doesn't match, enter what you believe is correct:",
+      "declaredHint": "your declared area (shown on invoice, priced per official records)",
+      "declaredDiffers": "You declared {declared} ft². Price calculated using official area of {official} ft²."
+    },
     "nav": {
       "home": "Home",
       "back": "Back",
