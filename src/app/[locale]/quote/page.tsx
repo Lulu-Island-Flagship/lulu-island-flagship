@@ -234,18 +234,22 @@ export default function CotizadorPage() {
   const [previewError, setPreviewError] = useState("");
 
   const fetchPreviewQuote = useCallback(async (signal?: AbortSignal) => {
-    if (
-      !input.serviceType ||
-      !input.squareFeet ||
-      input.petsCount === undefined ||
-      input.petsType === undefined ||
-      !input.residents ||
-      input.daysSinceCleaning === undefined ||
-      !input.zone
-    ) {
-      setQuote(null);
-      return;
-    }
+    const effectiveInput = {
+      serviceCategory: input.serviceCategory ?? "home",
+      serviceSubtype: input.serviceSubtype ?? "home_maintenance",
+      serviceType: input.serviceType ?? "regular",
+      bedrooms: input.bedrooms ?? 2,
+      bathrooms: input.bathrooms ?? 1,
+      squareFeet: input.squareFeet ?? 1000,
+      petsCount: input.petsCount ?? 0,
+      petsType: input.petsType ?? "none",
+      residents: input.residents ?? 2,
+      daysSinceCleaning: input.daysSinceCleaning ?? 30,
+      address: input.address || "Richmond, BC",
+      zone: input.zone || "Richmond",
+      postalCode: input.postalCode || "V7C1T6",
+      ...input,
+    };
 
     setPreviewLoading(true);
     setPreviewError("");
@@ -253,7 +257,7 @@ export default function CotizadorPage() {
       const response = await fetch("/api/quote/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
+        body: JSON.stringify(effectiveInput),
         signal,
       });
 
@@ -267,11 +271,6 @@ export default function CotizadorPage() {
       setQuote(q);
       setPriceFrozenUntil(new Date(q.priceFrozenUntil));
     } catch (err: Error | unknown) {
-      // Fix (auditoría frontend 2026-08-01, item 6): un cambio rápido de
-      // input/step cancela el fetch anterior -- sin esto, una respuesta
-      // tardía de una preview vieja podía pisar el estado de una más nueva
-      // (race condition clásica). AbortError es la cancelación esperada, no
-      // un error real: no se muestra al usuario.
       if (err instanceof DOMException && err.name === "AbortError") {
         return;
       }
@@ -681,6 +680,19 @@ export default function CotizadorPage() {
                     type="button"
                     onClick={() => fetchPreviewQuote()}
                     className="inline-flex items-center gap-2 bg-state-danger text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
+                  >
+                    {t("summary.retryCalculation")}
+                  </button>
+                </div>
+              )}
+
+              {!previewLoading && !previewError && !quote && (
+                <div className="p-4 bg-brand-navy/5 border border-brand-navy/10 rounded-lg text-sm text-center space-y-3">
+                  <p className="text-brand-ink font-medium">{t("summary.calculating")}</p>
+                  <button
+                    type="button"
+                    onClick={() => fetchPreviewQuote()}
+                    className="inline-flex items-center gap-2 bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-brand-navy-light transition-colors"
                   >
                     {t("summary.retryCalculation")}
                   </button>
