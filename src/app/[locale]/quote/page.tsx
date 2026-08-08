@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { QuoteInput, QuoteData, CotizadorStep } from "@/types";
 import { ServiceType } from "@/lib/pricing";
@@ -102,6 +102,7 @@ function clearPendingAuth() {
 
 export default function CotizadorPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const t = useTranslations("cotizador");
 
   // Estado inicial vacío — localStorage se lee SOLO en useEffect (cliente)
@@ -166,26 +167,53 @@ export default function CotizadorPage() {
 
   useEffect(() => {
     const pendingAuth = wasPendingAuth();
-    // v8.3 fix (auditoría 2026-07-15): antes SOLO se restauraba el estado
-    // guardado si venía de un login pendiente -- un refresh accidental
-    // (F5), cerrar y reabrir la pestaña, o navegar "atrás" y luego
-    // "adelante" hacia /cotizador directamente descartaba TODO el
-    // progreso ya ingresado (dirección, m², mascotas, etc.) sin ningún
-    // aviso, aunque el localStorage con el estado real seguía presente y
-    // válido (TTL de 1h). QuoteButton.tsx ya limpia el storage cuando el
-    // usuario inicia una cotización nueva a propósito desde la landing, así
-    // que si hay un estado guardado no vencido aquí, es señal real de un
-    // flujo interrumpido -- se restaura siempre, no solo tras login.
+
+    // Fix (2026-08-07): si el usuario viene de la landing page con
+    // ?address=..., se salta el paso "address" directo a "verify" y
+    // se pre-llena la dirección. También se consulta BC Assessment.
+    const urlAddress = searchParams.get("address");
+    const urlSqft = searchParams.get("sqft");
+
+    if (urlAddress && !pendingAuth) {
+      const decoded = decodeURIComponent(urlAddress);
+      setInput((prev) => ({
+        ...prev,
+        address: decoded,
+        bedrooms: prev.bedrooms ?? 2,
+        bathrooms: prev.bathrooms ?? 1,
+        squareFeet: urlSqft ? parseInt(urlSqft, 10) || 1000 : (prev.squareFeet ?? 1000),
+        petsCount: prev.petsCount ?? 0,
+        petsType: prev.petsType ?? "none",
+        residents: prev.residents ?? 2,
+        daysSinceCleaning: prev.daysSinceCleaning ?? 30,
+      }));
+      setStepIndex(1); // skip address, go to verify
+      // Consultar BC Assessment con la dirección de la landing
+      fetch("/api/quote/bc-assessment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: decoded }),
+      }).then((res) => res.ok ? res.json() : null)
+        .then((data) => { if (data) setBcResult(data as BcAssessmentResult); })
+        .catch(() => {});
+      // Limpiar params de la URL sin recargar
+      window.history.replaceState({}, "", window.location.pathname);
+      setIsHydrated(true);
+      return;
+    }
+
     const saved = loadStateFromStorage();
     if (pendingAuth || saved) {
       if (saved) {
-        setStepIndex(saved.stepIndex);
+        // Fix (2026-08-07): stepIndex validado contra STEPS.length
+        const safeIndex = saved.stepIndex >= 0 && saved.stepIndex < STEPS.length
+          ? saved.stepIndex
+          : 0;
+        setStepIndex(safeIndex);
         setInput(saved.input);
       }
       if (pendingAuth) clearPendingAuth();
     } else {
-      // Inicializar valores default para que el usuario pueda avanzar sin tocar
-      // cada control, pero sigue pudiendo modificarlos.
       setInput((prev) => ({
         ...prev,
         bedrooms: prev.bedrooms ?? 2,
@@ -197,9 +225,8 @@ export default function CotizadorPage() {
         daysSinceCleaning: prev.daysSinceCleaning ?? 30,
       }));
     }
-    // Si no hay pending_auth, empezamos desde cero (stepIndex=0, input={})
     setIsHydrated(true);
-  }, [t]);
+  }, [t, searchParams]);
 
   const step = STEPS[stepIndex];
 
