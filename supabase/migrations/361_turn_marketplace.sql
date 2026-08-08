@@ -10,6 +10,18 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Helper: verifica si el usuario autenticado es un empleado activo
+CREATE OR REPLACE FUNCTION is_employee(user_uuid UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM employees
+    WHERE user_id = user_uuid
+      AND deleted_at IS NULL
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Tabla: turn_marketplace_offers
 --   Reemplaza el caos de WhatsApp para cobertura de turnos.
 --   src/lib/turn-marketplace.ts contiene las funciones puras de validación.
