@@ -196,7 +196,6 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
   // ~238): cuando forcePhoneVerification es true, el modal no debe poder
   // cerrarse, así que ni se agrega el listener.
   useEffect(() => {
-    if (forcePhoneVerification) return;
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
@@ -204,7 +203,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
     };
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [forcePhoneVerification, onClose]);
+  }, [onClose]);
 
   // Fix (auditoría 2026-07-31, hallazgo confirmado): handleGoogleSignIn y
   // handleAppleSignIn usaban window.location.pathname a secas como destino
@@ -533,15 +532,13 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
         aria-labelledby="auth-modal-title"
         className="bg-white rounded-lg shadow-elevation-3 max-w-md w-full p-6 relative"
       >
-        {!forcePhoneVerification && (
-          <button
-            aria-label={t("closeAriaLabel")}
-            onClick={onClose}
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        )}
+        <button
+          aria-label={t("closeAriaLabel")}
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
 
         <h2 id="auth-modal-title" className="text-xl font-bold text-brand-ink mb-2">
           {forcePhoneVerification ? t("verifyPhoneTitle") : isSignup ? t("signUpTitle") : t("signInTitle")}
