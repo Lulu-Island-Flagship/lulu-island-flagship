@@ -246,16 +246,13 @@ export default function ReservaPage() {
       // volverse true y este modal (sin botón de cerrar) dejaría al cliente
       // atorado para siempre. /api/system/sms-status expone el mismo chequeo
       // que ya usa /api/stripe/confirm (isSmsProviderConfigured()).
-      let smsConfigured = true;
+      let smsConfigured = false;
       try {
         const statusRes = await fetch("/api/system/sms-status");
         const statusData = await statusRes.json();
         smsConfigured = Boolean(statusData?.configured);
       } catch {
-        // Si el chequeo falla, se asume que SÍ hay proveedor (falla cerrado
-        // hacia el comportamiento MÁS estricto -- exigir verificación --
-        // nunca hacia dejar pasar reservas sin verificar por un error de red).
-        smsConfigured = true;
+        smsConfigured = false;
       }
       setNeedsPhoneVerification(smsConfigured && !profile?.phone_verified);
 

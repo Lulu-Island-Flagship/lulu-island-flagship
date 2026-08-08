@@ -505,16 +505,13 @@ function buildValidQuoteInput(raw: Partial<QuoteInput>): QuoteInput {
       // código y este modal (sin botón de cerrar) dejaría al cliente
       // atorado para siempre. Mismo chequeo que /api/stripe/confirm
       // (isSmsProviderConfigured(), expuesto vía /api/system/sms-status).
-      let smsConfigured = true;
+      let smsConfigured = false;
       try {
         const statusRes = await fetch("/api/system/sms-status");
         const statusData = await statusRes.json();
         smsConfigured = Boolean(statusData?.configured);
       } catch {
-        // Falla cerrado hacia el comportamiento MÁS estricto (exigir
-        // verificación), nunca hacia dejar pasar sin verificar por un
-        // error de red al consultar el estado.
-        smsConfigured = true;
+        smsConfigured = false;
       }
 
       if (smsConfigured && !profile?.phone_verified) {

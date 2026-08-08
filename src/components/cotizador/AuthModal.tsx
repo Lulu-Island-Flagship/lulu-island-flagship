@@ -591,6 +591,16 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                 >
                   {loading ? t("sending") : t("sendSmsCode")}
                 </button>
+
+                {forcePhoneVerification && (
+                  <button
+                    type="button"
+                    onClick={onSuccess}
+                    className="w-full mt-3 pt-2 text-xs text-gray-500 hover:text-brand-navy transition-colors text-center border-t border-gray-100 font-medium block"
+                  >
+                    {t("continueWithoutPhone") || "Continuar sin verificación SMS por ahora"}
+                  </button>
+                )}
               </>
             ) : (
               <>
@@ -627,6 +637,16 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                 >
                   {resendCooldown > 0 ? t("resendIn", { seconds: resendCooldown }) : t("resendPhone")}
                 </button>
+
+                {forcePhoneVerification && (
+                  <button
+                    type="button"
+                    onClick={onSuccess}
+                    className="w-full mt-3 pt-2 text-xs text-gray-500 hover:text-brand-navy transition-colors text-center border-t border-gray-100 font-medium block"
+                  >
+                    {t("continueWithoutPhone") || "Continuar sin verificación SMS por ahora"}
+                  </button>
+                )}
               </>
             )}
           </div>
