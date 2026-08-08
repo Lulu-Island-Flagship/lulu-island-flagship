@@ -9,7 +9,6 @@ import { supabase } from "@/lib/supabase";
 import { StepPurpose } from "@/components/cotizador/StepPurpose";
 import { StepOrganic } from "@/components/cotizador/StepOrganic";
 import { StepRecency } from "@/components/cotizador/StepRecency";
-import { StepAddressInput } from "@/components/cotizador/StepAddressInput";
 import { StepVerifyProperty, type VerifiedProperty } from "@/components/cotizador/StepVerifyProperty";
 import type { BcAssessmentResult } from "@/lib/bc-assessment";
 import { PriceBreakdown } from "@/components/cotizador/PriceBreakdown";
@@ -28,7 +27,6 @@ import {
 } from "lucide-react";
 
 const STEPS: CotizadorStep[] = [
-  "address",
   "verify",
   "purpose",
   "organic",
@@ -187,7 +185,7 @@ export default function CotizadorPage() {
         residents: prev.residents ?? 2,
         daysSinceCleaning: prev.daysSinceCleaning ?? 30,
       }));
-      setStepIndex(1); // skip address, go to verify
+      setStepIndex(0); // verify is now the first step
       // Consultar BC Assessment con la dirección de la landing
       fetch("/api/quote/bc-assessment", {
         method: "POST",
@@ -620,13 +618,6 @@ export default function CotizadorPage() {
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-elevation-1 p-6 md:p-8">
-          {step === "address" && (
-            <StepAddressInput
-              address={input.address ?? ""}
-              onChange={(address) => updateInput({ address })}
-              onBcResult={setBcResult}
-            />
-          )}
           {step === "verify" && (
             <StepVerifyProperty
               rawAddress={input.address ?? ""}

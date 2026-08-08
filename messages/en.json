@@ -58,8 +58,7 @@
     "priceLockedUntil": "Price locked until {time}",
     "stepOf": "Step {current} of {total}",
     "stepLabels": {
-      "address": "Your Address",
-      "verify": "Confirm Property",
+      "verify": "Your Property",
       "purpose": "Service Type",
       "organic": "Household",
       "recency": "Recency",

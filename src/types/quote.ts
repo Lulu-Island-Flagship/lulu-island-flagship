@@ -81,7 +81,6 @@ export interface QuoteData extends QuoteInput {
 }
 
 export type CotizadorStep =
-  | "address"       // Cliente escribe su dirección
   | "verify"        // BC Assessment verifica; cliente confirma/edita
   | "purpose"       // Subtipo de servicio
   | "organic"       // Mascotas, residentes
