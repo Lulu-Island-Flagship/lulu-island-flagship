@@ -526,7 +526,7 @@ export default function EmpleadoPage() {
             aria-label={t("dashboard.logout")}
             onClick={handleLogout}
             disabled={isLoggingOut}
-            className="text-gray-300 hover:text-white transition-colors disabled:opacity-50"
+            className="text-gray-300 hover:text-white transition-colors disabled:opacity-50 min-w-[44px] min-h-[44px] p-2 flex items-center justify-center rounded-lg hover:bg-white/10 touch-manipulation"
           >
             {isLoggingOut ? (
               <Loader2 className="w-5 h-5 animate-spin" />

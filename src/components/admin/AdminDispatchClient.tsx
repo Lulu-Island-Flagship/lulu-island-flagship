@@ -264,7 +264,7 @@ export default function AdminDispatchClient() {
                         </span>
                         <button
                           onClick={() => setEditingOrder(order)}
-                          className="flex items-center gap-1 text-xs text-brand-wave-blue hover:text-brand-navy"
+                          className="flex items-center gap-1 text-xs text-brand-wave-blue hover:text-brand-navy min-h-[36px] px-2 py-1 rounded hover:bg-brand-navy/5 transition-colors touch-manipulation"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                           {t("edit")}
