@@ -59,11 +59,17 @@
     "priceLockedUntil": "Price locked until {time}",
     "stepOf": "Step {current} of {total}",
     "stepLabels": {
-      "verify": "Your Property",
-      "purpose": "Service Type",
+      "estimate": "Quick Estimate",
       "organic": "Household",
       "recency": "Recency",
+      "verify": "Your Property",
       "summary": "Summary"
+    },
+    "estimate": {
+      "title": "Get your price",
+      "subtitle": "We'll calculate your estimate instantly — refine it in the next steps.",
+      "squareFeetHint": "Approximate area — we'll verify with public records later.",
+      "zoneHint": "Your service zone affects the base rate."
     },
     "nav": {
       "home": "Home",

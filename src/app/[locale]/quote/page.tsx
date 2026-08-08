@@ -4,9 +4,8 @@ import React, { useState, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { QuoteInput, QuoteData, CotizadorStep } from "@/types";
-import { ServiceType } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
-import { StepPurpose } from "@/components/cotizador/StepPurpose";
+import { StepEstimate, type QuickEstimate } from "@/components/cotizador/StepEstimate";
 import { StepOrganic } from "@/components/cotizador/StepOrganic";
 import { StepRecency } from "@/components/cotizador/StepRecency";
 import { StepVerifyProperty, type VerifiedProperty } from "@/components/cotizador/StepVerifyProperty";
@@ -27,10 +26,10 @@ import {
 } from "lucide-react";
 
 const STEPS: CotizadorStep[] = [
-  "verify",
-  "purpose",
+  "estimate",
   "organic",
   "recency",
+  "verify",
   "summary",
 ];
 
@@ -185,7 +184,7 @@ export default function CotizadorPage() {
         residents: prev.residents ?? 2,
         daysSinceCleaning: prev.daysSinceCleaning ?? 30,
       }));
-      setStepIndex(0); // verify is now the first step
+      setStepIndex(3); // verify is step 4 (after estimate, organic, recency)
       // Consultar BC Assessment con la dirección de la landing
       fetch("/api/quote/bc-assessment", {
         method: "POST",
@@ -618,10 +617,33 @@ export default function CotizadorPage() {
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-elevation-1 p-6 md:p-8">
+          {step === "estimate" && (
+            <StepEstimate
+              onChange={(data: QuickEstimate) => {
+                updateInput({
+                  serviceCategory: data.serviceCategory,
+                  serviceSubtype: data.serviceSubtype,
+                  serviceType: data.serviceType,
+                  squareFeet: data.squareFeet,
+                  zone: data.zone,
+                });
+              }}
+            />
+          )}
           {step === "verify" && (
             <StepVerifyProperty
               rawAddress={input.address ?? ""}
               bcResult={bcResult}
+              initial={{
+                address: input.address,
+                zone: input.zone,
+                postalCode: input.postalCode,
+                serviceCategory: input.serviceCategory,
+                bedrooms: input.bedrooms,
+                bathrooms: input.bathrooms,
+                squareFeet: input.squareFeet,
+                squareFeetDeclared: input.squareFeetDeclared,
+              }}
               onChange={(data: VerifiedProperty) => {
                 updateInput({
                   address: data.address,
@@ -633,15 +655,6 @@ export default function CotizadorPage() {
                   squareFeet: data.squareFeet,
                   squareFeetDeclared: data.squareFeetDeclared,
                 });
-              }}
-            />
-          )}
-          {step === "purpose" && (
-            <StepPurpose
-              category={input.serviceCategory}
-              value={input.serviceSubtype}
-              onChange={(subtype, serviceTypeVal) => {
-                updateInput({ serviceSubtype: subtype, serviceType: serviceTypeVal as ServiceType });
               }}
             />
           )}

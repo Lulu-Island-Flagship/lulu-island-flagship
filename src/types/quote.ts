@@ -81,10 +81,10 @@ export interface QuoteData extends QuoteInput {
 }
 
 export type CotizadorStep =
-  | "verify"        // BC Assessment verifica; cliente confirma/edita
-  | "purpose"       // Subtipo de servicio
+  | "estimate"      // Precio instantáneo: categoría + subtipo + ft² + zona
   | "organic"       // Mascotas, residentes
   | "recency"       // Días desde última limpieza
+  | "verify"        // Dirección → BC Assessment verifica; cliente confirma/edita
   | "summary";      // Precio final y reservar
 
 export interface CotizadorState {
