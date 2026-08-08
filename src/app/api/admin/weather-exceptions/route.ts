@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole } from "@/lib/admin";
+import { requireAdminRole, logAdminAction } from "@/lib/admin";
 import { classifyWeatherException } from "@/lib/weather-exception";
 
 /**
@@ -53,6 +53,12 @@ export async function POST(request: NextRequest) {
   if (auth.error || !auth.supabase || !auth.user) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
+
+  const logResult = await logAdminAction({
+    supabase: auth.supabase, user: auth.user, roles: auth.roles,
+    resource: "risk_assessments", method: request.method, path: request.url,
+  });
+  if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
   const { supabase } = auth;
 
   let body: DeclareBody;

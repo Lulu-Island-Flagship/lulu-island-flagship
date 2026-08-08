@@ -1,5 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getHiringFlowServiceClient } from "@/lib/supabase-service-client";
+import {
+  generatePaymentJournalEntry,
+  type ClientPayment,
+} from "@/lib/billing-to-ledger";
 
 // Módulo nuevo y separado: "Módulo de Cliente" -- facturación. Registro de
 // pagos (client_payments) contra facturas (client_invoices).
@@ -141,6 +145,30 @@ export async function recordPayment(
     throw new PaymentRecordingError(
       `record_client_payment did not return invoice_status for invoice "${params.invoiceId}" -- RPC contract mismatch`
     );
+  }
+
+  // ── Pipeline: Billing → Financial Ledger ──────────────────────────
+  // Registrar el cobro en el libro mayor (débito a efectivo, crédito a AR).
+  // Fire-and-forget: el pago ya está registrado; un fallo aquí no lo revierte.
+  try {
+    const { data: paymentRow, error: fetchError } = await resolved
+      .from("client_payments")
+      .select("*")
+      .eq("id", row.id)
+      .single();
+    if (!fetchError && paymentRow) {
+      const journalRows = generatePaymentJournalEntry(paymentRow as ClientPayment);
+      const { error: ledgerError } = await resolved
+        .from("financial_ledger")
+        .insert(journalRows);
+      if (ledgerError) {
+        console.error("billing-to-ledger: payment journal insert failed", ledgerError);
+      }
+    } else if (fetchError) {
+      console.error("billing-to-ledger: failed to fetch payment for journal", fetchError);
+    }
+  } catch (bridgeError) {
+    console.error("billing-to-ledger: unexpected bridge error", bridgeError);
   }
 
   return {

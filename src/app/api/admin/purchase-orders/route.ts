@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole } from "@/lib/admin";
+import { requireAdminRole, logAdminAction } from "@/lib/admin";
 import { computeReorderSuggestions, formatReorderReason, type InventoryItemStock } from "@/lib/inventory-reorder";
 import { safeErrorResponse } from "@/lib/api-errors";
 
@@ -46,6 +46,12 @@ export async function POST(request: NextRequest) {
   if (!supabase || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const logResult = await logAdminAction({
+    supabase, user, roles: auth.roles,
+    resource: "inventory", method: request.method, path: request.url,
+  });
+  if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
 
   try {
     // Ya hay una PO pendiente de aprobacion abierta: no generar otra (evita

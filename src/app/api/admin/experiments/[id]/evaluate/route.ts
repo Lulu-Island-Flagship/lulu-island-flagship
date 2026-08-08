@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole } from "@/lib/admin";
+import { requireAdminRole, logAdminAction } from "@/lib/admin";
 import { evaluateExperimentWinner, type VariantOutcome, type ExperimentType } from "@/lib/ab-experiments";
 
 /**
@@ -15,6 +15,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (auth.error || !auth.supabase) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
+
+  if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const logResult = await logAdminAction({
+    supabase: auth.supabase, user: auth.user, roles: auth.roles,
+    resource: "finance", method: request.method, path: request.url,
+  });
+  if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
   const { supabase } = auth;
   const { id: experimentId } = await params;
 

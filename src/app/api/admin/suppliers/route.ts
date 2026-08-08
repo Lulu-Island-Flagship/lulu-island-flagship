@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole } from "@/lib/admin";
+import { requireAdminRole, logAdminAction } from "@/lib/admin";
 import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/suppliers — listar proveedores
@@ -37,6 +37,13 @@ export async function POST(request: NextRequest) {
   if (!supabase) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const logResult = await logAdminAction({
+    supabase, user: auth.user, roles: auth.roles,
+    resource: "inventory", method: request.method, path: request.url,
+  });
+  if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
 
   try {
     const body = await request.json();

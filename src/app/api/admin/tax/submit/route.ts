@@ -72,7 +72,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { requireAdminRole, getServiceRoleClient } from "@/lib/admin";
+import { requireAdminRole, getServiceRoleClient, logAdminAction } from "@/lib/admin";
 import { captureError } from "@/lib/observability";
 import { getClientIp } from "@/lib/request-ip";
 
@@ -285,6 +285,12 @@ export async function POST(request: NextRequest) {
   if (!supabase || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const logResult = await logAdminAction({
+    supabase, user, roles: auth.roles,
+    resource: "finance", method: request.method, path: request.url,
+  });
+  if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
 
   // ── Rate limit ────────────────────────────────────────────────────────
   const rateLimit = await checkSubmitRateLimit(supabase, user.id);

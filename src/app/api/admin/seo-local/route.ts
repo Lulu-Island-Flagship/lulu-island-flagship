@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole, getServiceRoleClient } from "@/lib/admin";
+import { requireAdminRole, getServiceRoleClient, logAdminAction } from "@/lib/admin";
 import { computeAllGbpItemStatuses, isNapCheckOverdue, type GbpFrequency } from "@/lib/gbp-checklist";
 import { safeErrorResponse } from "@/lib/api-errors";
 
@@ -80,6 +80,13 @@ export async function POST(request: NextRequest) {
   if (!auth.supabase) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const logResult = await logAdminAction({
+    supabase: auth.supabase, user: auth.user, roles: auth.roles,
+    resource: "finance", method: request.method, path: request.url,
+  });
+  if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
   const supabase = getServiceRoleClient();
   if (!supabase) {
     return NextResponse.json({ error: "Server misconfigured (service role)" }, { status: 500 });

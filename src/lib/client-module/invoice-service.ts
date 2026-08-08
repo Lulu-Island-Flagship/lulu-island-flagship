@@ -7,6 +7,10 @@ import {
   type InvoiceTotals,
   type LineItemInput,
 } from "./billing-calculations";
+import {
+  generateInvoiceJournalEntry,
+  type ClientInvoice,
+} from "@/lib/billing-to-ledger";
 
 // Módulo nuevo y separado: "Módulo de Cliente" -- facturación. Creación de
 // facturas (client_invoices + client_invoice_line_items).
@@ -364,6 +368,30 @@ export async function createInvoice(
     { clientId: params.clientId, issueDate: params.issueDate, dueDate, totals, invoiceNumber, lineItems: params.lineItems },
     resolved
   );
+
+  // ── Pipeline: Billing → Financial Ledger ──────────────────────────
+  // Registrar el devengo contable de la factura en el libro mayor.
+  // Fire-and-forget: la factura ya está creada; un fallo aquí no la revierte.
+  try {
+    const { data: invoiceRow, error: fetchError } = await resolved
+      .from("client_invoices")
+      .select("*")
+      .eq("id", invoiceId)
+      .single();
+    if (!fetchError && invoiceRow) {
+      const journalRows = generateInvoiceJournalEntry(invoiceRow as ClientInvoice);
+      const { error: ledgerError } = await resolved
+        .from("financial_ledger")
+        .insert(journalRows);
+      if (ledgerError) {
+        console.error("billing-to-ledger: invoice journal insert failed", ledgerError);
+      }
+    } else if (fetchError) {
+      console.error("billing-to-ledger: failed to fetch invoice for journal", fetchError);
+    }
+  } catch (bridgeError) {
+    console.error("billing-to-ledger: unexpected bridge error", bridgeError);
+  }
 
   return { invoiceId, totals };
 }

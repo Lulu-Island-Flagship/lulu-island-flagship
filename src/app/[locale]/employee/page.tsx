@@ -40,6 +40,7 @@ import { SkeletonServiceList } from "@/components/ui/Skeleton";
 // componente genérico en vez de crear uno nuevo -- no tiene ninguna lógica
 // específica de admin, solo confirmación accesible con focus trap.
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
+import MarketplaceSection from "@/components/empleado/MarketplaceSection";
 
 type JornadaStatus = "not_started" | "started";
 type OfflineDownloadStatus = "idle" | "downloading" | "ready" | "failed";
@@ -729,6 +730,9 @@ export default function EmpleadoPage() {
             </div>
           )}
         </div>
+
+        {/* v8.3 F.8: Marketplace de Turnos entre empleados */}
+        <MarketplaceSection locale={safeLocale} />
 
         {/* Quick Links -- movidos a segunda prioridad visual (antes ocupaban
             toda la mitad superior de la pantalla con el mismo peso que

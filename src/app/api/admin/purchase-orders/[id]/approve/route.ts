@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole } from "@/lib/admin";
+import { requireAdminRole, logAdminAction } from "@/lib/admin";
 // Fix M13: Use centralized isValidUuid from @/lib/validation
 import { isValidUuid } from "@/lib/validation";
 import { safeErrorResponse } from "@/lib/api-errors";
@@ -65,6 +65,13 @@ export async function POST(
   if (!supabase) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const logResult = await logAdminAction({
+    supabase, user: auth.user, roles: auth.roles,
+    resource: "inventory", method: request.method, path: request.url,
+  });
+  if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
 
   try {
     const { id } = await params;

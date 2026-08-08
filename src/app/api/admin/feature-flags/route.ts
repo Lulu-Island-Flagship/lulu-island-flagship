@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole } from "@/lib/admin";
+import { requireAdminRole, logAdminAction } from "@/lib/admin";
 
 /**
  * v8.3 E0-C4 — API del panel de feature flags (wireframe aprobado por el dueño).
@@ -40,6 +40,12 @@ export async function PATCH(request: NextRequest) {
   if (auth.error || !auth.supabase || !auth.user) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
+
+  const logResult = await logAdminAction({
+    supabase: auth.supabase, user: auth.user, roles: auth.roles,
+    resource: "feature_flags", method: request.method, path: request.url,
+  });
+  if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
 
   let body: { nombre?: string; activo?: boolean; reason?: string };
   try {

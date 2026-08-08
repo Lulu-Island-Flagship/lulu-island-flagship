@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole } from "@/lib/admin";
+import { requireAdminRole, logAdminAction } from "@/lib/admin";
 import { isFeedBlind } from "@/lib/pipeda";
 import { safeErrorResponse } from "@/lib/api-errors";
 
@@ -70,6 +70,12 @@ export async function PATCH(request: NextRequest) {
   if (auth.error || !auth.supabase || !auth.user) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
+
+  const logResult = await logAdminAction({
+    supabase: auth.supabase, user: auth.user, roles: auth.roles,
+    resource: "compliance", method: request.method, path: request.url,
+  });
+  if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
   const { supabase } = auth;
 
   try {

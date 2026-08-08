@@ -12,9 +12,9 @@ import { z } from "zod";
 /** Días estándar de crédito para facturas B2B. */
 export const DEFAULT_PAYMENT_TERMS_DAYS = 30;
 
-/** Tasas impositivas canadienses para facturación B2B. */
-export const GST_RATE = 0.05; // 5% Goods and Services Tax (federal)
-export const PST_RATE = 0.07; // 7% Provincial Sales Tax (BC)
+/** Tasas impositivas canadienses — fuente canónica en @/lib/pricing/taxes (auditoría 2026-08-07). */
+import { GST_RATE, PST_RATE } from "@/lib/pricing/taxes";
+export { GST_RATE, PST_RATE };
 
 // =========================================================================
 // Domain types
