@@ -281,6 +281,7 @@ export async function POST(request: NextRequest) {
       preferredLanguages,
       acquisitionChannel,
       printedInvoiceRequested,
+      squareFeetDeclared,
     } = rawInput;
 
     // Obtener o crear perfil de cliente para score y tipo de cuenta
