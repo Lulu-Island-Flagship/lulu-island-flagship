@@ -1,7 +1,7 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server';
 import type { Metadata, Viewport } from "next";
-import { Inter, Noto_Sans_SC } from "next/font/google";
+import { Inter, Noto_Sans_SC, Playfair_Display } from "next/font/google";
 import { isPublicInsuredClaimReady } from "@/lib/business-insurance";
 import { EnsureClientRegistration } from "@/components/client-module/EnsureClientRegistration";
 import { locales } from "@/i18n/config";
@@ -38,6 +38,14 @@ const notoSansSC = Noto_Sans_SC({
   subsets: ["latin"],
   weight: ["400", "500", "700"],
   variable: "--font-noto-sc",
+  display: "swap",
+});
+
+// v8.5 landing spec: Playfair Display para headings (serif editorial,
+// evoca patrimonio y permanencia -- contrapunto a Inter para UI).
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-playfair",
   display: "swap",
 });
 
@@ -147,7 +155,7 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className={`${inter.variable} ${notoSansSC.variable}`}>
+    <html lang={locale} className={`${inter.variable} ${notoSansSC.variable} ${playfair.variable}`}>
       <body className="antialiased font-sans">
         <NextIntlClientProvider messages={messages} locale={locale}>
           {children}

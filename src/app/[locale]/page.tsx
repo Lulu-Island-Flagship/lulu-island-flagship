@@ -5,8 +5,9 @@ import { useTranslations } from 'next-intl';
 import Image from "next/image";
 import Script from "next/script";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Ship, MapPin, LogIn, UserPlus } from "lucide-react";
+import { Ship, MapPin, LogIn, UserPlus, Search } from "lucide-react";
 import { QuoteButton } from "@/components/landing/QuoteButton";
+import { getBasePrice } from "@/lib/pricing/engine";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { AuthModal } from "@/components/cotizador/AuthModal";
 import { isAllowedInternalPath } from "@/lib/safe-redirect";
@@ -130,6 +131,63 @@ export default function HomePage() {
 
   const [authModal, setAuthModal] = useState<"signin" | "signup" | null>(null);
 
+  // v8.5 landing spec: BC Assessment lookup desde el hero.
+  // El visitante ingresa dirección → se consulta BC Assessment → si devuelve
+  // sq ft, se calcula precio base y se muestra inline. Si el proveedor no está
+  // configurado (confidence=unavailable), se navega al cotizador como fallback.
+  const [bcAddress, setBcAddress] = useState("");
+  const [bcLoading, setBcLoading] = useState(false);
+  const [bcResult, setBcResult] = useState<{
+    squareFeet?: number;
+    price?: number;
+    confidence?: string;
+  } | null>(null);
+  const [bcError, setBcError] = useState("");
+
+  async function handleBcLookup() {
+    const trimmed = bcAddress.trim();
+    if (!trimmed) return;
+    setBcLoading(true);
+    setBcError("");
+    try {
+      const res = await fetch(
+        `/api/bc-assessment?address=${encodeURIComponent(trimmed)}`
+      );
+      if (!res.ok) {
+        setBcError("Couldn't look up your address. Try the full quote instead.");
+        setBcLoading(false);
+        return;
+      }
+      const data = await res.json();
+      if (
+        data.squareFeet &&
+        data.confidence &&
+        data.confidence !== "unavailable"
+      ) {
+        const price = getBasePrice("regular", data.squareFeet);
+        setBcResult({
+          squareFeet: data.squareFeet,
+          price,
+          confidence: data.confidence,
+        });
+      } else {
+        // BC Assessment no disponible — navegar al cotizador
+        router.push(
+          `/${locale}/quote?address=${encodeURIComponent(trimmed)}`
+        );
+      }
+    } catch {
+      setBcError("Something went wrong. Please try again.");
+    }
+    setBcLoading(false);
+  }
+
+  function handleBcContinue() {
+    router.push(
+      `/${locale}/quote?address=${encodeURIComponent(bcAddress.trim())}&sqft=${bcResult?.squareFeet || ""}`
+    );
+  }
+
   // v8.5 Day 7: fetch admin-editable content from site_content table
   const [siteContent, setSiteContent] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -237,7 +295,9 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Hero */}
+      {/* Hero — v8.5 landing spec: campo de dirección + BC Assessment → precio inline.
+          Playfair Display en el título principal (serif editorial, contrapunto a Inter UI).
+          Sin headline retórico. El precio es el producto. */}
       <section className="relative overflow-hidden bg-white py-20 md:py-28">
         {siteContent["image.hero"] && (
           <div className="absolute inset-0 -z-10">
@@ -246,35 +306,84 @@ export default function HomePage() {
           </div>
         )}
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-3xl md:text-4xl font-bold text-brand-ink mb-2">
+          <h1 className="text-3xl md:text-4xl font-bold text-brand-ink mb-2 font-[family-name:var(--font-playfair)]">
             {getContent('hero.title')}
           </h1>
           <p className="text-sm text-brand-wave-blue mb-8">
             {getContent('hero.subtitle')}
           </p>
-          <p className="text-base md:text-lg text-brand-ink mb-10 max-w-xl mx-auto leading-relaxed whitespace-pre-line">
-            {getContent('hero.proposition')}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-lg mx-auto">
-            <input
-              type="text"
-              placeholder={getContent('hero.placeholder')}
-              className="flex-1 px-4 py-3 border border-brand-ice rounded-md text-brand-ink bg-white 
-                         focus:outline-none focus:border-brand-navy focus:ring-1 focus:ring-brand-navy
-                         placeholder:text-gray-400"
-            />
-            <button
-              type="button"
-              onClick={() => router.push(`/${locale}/quote`)}
-              className="px-6 py-3 bg-brand-navy text-white rounded-md font-medium
-                         hover:bg-brand-navyLight transition-colors whitespace-nowrap"
-            >
-              {getContent('hero.cta')}
-            </button>
-          </div>
-          <p className="text-xs text-brand-wave-blue mt-3">
-            {getContent('hero.hint')}
-          </p>
+
+          {/* BC Assessment result: cuando el proveedor devuelve sq ft, se muestra
+              el precio base calculado inline — el visitante ve el precio antes
+              de entrar al cotizador completo. */}
+          {bcResult ? (
+            <div className="mb-10 max-w-lg mx-auto">
+              <div className="bg-brand-ice rounded-lg p-6 text-left">
+                <p className="text-sm text-brand-wave-blue mb-1">
+                  {getContent('hero.subtitle')}
+                </p>
+                <p className="text-2xl font-bold text-brand-navy mb-2">
+                  {bcResult.price != null
+                    ? `$${bcResult.price.toLocaleString()} CAD`
+                    : "—"}
+                </p>
+                <p className="text-xs text-brand-wave-blue mb-4">
+                  {bcResult.squareFeet != null
+                    ? `Estimated ${bcResult.squareFeet.toLocaleString()} sq ft — starting price for regular cleaning`
+                    : "Starting price for regular cleaning"}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleBcContinue}
+                  className="w-full px-6 py-3 bg-brand-navy text-white rounded-md font-medium
+                             hover:bg-brand-navy-light transition-colors"
+                >
+                  {getContent('hero.cta')} →
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-base md:text-lg text-brand-ink mb-10 max-w-xl mx-auto leading-relaxed whitespace-pre-line">
+                {getContent('hero.proposition')}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-lg mx-auto">
+                <input
+                  type="text"
+                  value={bcAddress}
+                  onChange={(e) => setBcAddress(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleBcLookup(); }}
+                  placeholder={getContent('hero.placeholder')}
+                  className="flex-1 px-4 py-3 border border-brand-ice rounded-md text-brand-ink bg-white 
+                             focus:outline-none focus:border-brand-navy focus:ring-1 focus:ring-brand-navy
+                             placeholder:text-gray-400"
+                />
+                <button
+                  type="button"
+                  onClick={handleBcLookup}
+                  disabled={bcLoading}
+                  className="px-6 py-3 bg-brand-navy text-white rounded-md font-medium
+                             hover:bg-brand-navy-light transition-colors whitespace-nowrap
+                             disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {bcLoading ? (
+                    <span className="flex items-center gap-2">
+                      <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Looking up…
+                    </span>
+                  ) : (
+                    getContent('hero.cta')
+                  )}
+                </button>
+              </div>
+              {bcError && (
+                <p className="text-sm text-state-danger mt-3">{bcError}</p>
+              )}
+              <p className="text-xs text-brand-wave-blue mt-3">
+                {getContent('hero.hint')}
+              </p>
+            </>
+          )}
         </div>
       </section>
 
@@ -315,14 +424,46 @@ export default function HomePage() {
       </section>
 
 
-      {/* Image divider 1 — admin-uploaded */}
+      {/* Image divider 1 — admin-uploaded (entre How It Works y What's Included) */}
       {siteContent["image.divider1"] && (
         <div className="relative w-full h-[300px]">
           <Image src={siteContent["image.divider1"]} alt="" fill className="object-cover" />
         </div>
       )}
 
-      {/* Our Standards */}
+      {/* What's Included / Not — v8.5 spec: antes de Our Standards */}
+      <section className="py-16 bg-brand-ice">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="space-y-8">
+            <div>
+              <p className="text-xs text-brand-navy uppercase tracking-wide mb-3">
+                {getContent('included.title')}
+              </p>
+              <p className="text-base text-brand-ink leading-relaxed whitespace-pre-line">
+                {getContent('included.body')}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-brand-navy uppercase tracking-wide mb-3">
+                {getContent('not_included.title')}
+              </p>
+              <p className="text-base text-brand-ink leading-relaxed whitespace-pre-line">
+                {getContent('not_included.body')}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-brand-navy uppercase tracking-wide mb-3">
+                {getContent('breaks.title')}
+              </p>
+              <p className="text-base text-brand-ink leading-relaxed whitespace-pre-line">
+                {getContent('breaks.body')}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Our Standards — v8.5 spec: después de What's Included */}
       <section className="py-16 bg-white">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
           <p className="text-xs text-brand-wave-blue uppercase tracking-wide mb-8">
@@ -365,41 +506,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* What's Included / Not */}
-      <section className="py-16 bg-brand-ice">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="space-y-8">
-            <div>
-              <p className="text-xs text-brand-navy uppercase tracking-wide mb-3">
-                {getContent('included.title')}
-              </p>
-              <p className="text-base text-brand-ink leading-relaxed whitespace-pre-line">
-                {getContent('included.body')}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-brand-navy uppercase tracking-wide mb-3">
-                {getContent('not_included.title')}
-              </p>
-              <p className="text-base text-brand-ink leading-relaxed whitespace-pre-line">
-                {getContent('not_included.body')}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-brand-navy uppercase tracking-wide mb-3">
-                {getContent('breaks.title')}
-              </p>
-              <p className="text-base text-brand-ink leading-relaxed whitespace-pre-line">
-                {getContent('breaks.body')}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-
-
-      {/* Image divider 2 — admin-uploaded */}
+      {/* Image divider 2 — admin-uploaded (entre Our Standards y FAQ) */}
       {siteContent["image.divider2"] && (
         <div className="relative w-full h-[300px]">
           <Image src={siteContent["image.divider2"]} alt="" fill className="object-cover" />
@@ -456,25 +563,16 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-      {/* CTA Section */}
-      <section className="py-16 bg-brand-ice">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-brand-ink mb-4">
-            {getContent('cta.title')}
-          </h2>
-          <p className="text-gray-600 mb-8 text-lg">
-            {getContent('cta.description')}
-          </p>
-          <QuoteButton variant="secondary">{getContent('hero.ctaSecondary')}</QuoteButton>
-        </div>
-      </section>
-
-      {/* Footer — claro con línea divisoria, no bloque oscuro */}
+      {/* Footer — v8.5 spec: sin CTA extra después del FAQ.
+          Tagline "Residential Home Care" visible, portal/staff links discretos. */}
       <footer className="bg-white text-gray-500 py-8 border-t border-brand-ice">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Ship className="w-5 h-5 text-brand-navy" />
-            <span className="text-brand-ink font-semibold">Lulu Island Flagship</span>
+            <div>
+              <span className="text-brand-ink font-semibold">Lulu Island Flagship</span>
+              <p className="text-xs text-brand-wave-blue">Residential Home Care</p>
+            </div>
           </div>
           <p className="text-sm">
             {getContent('footer.copyright')}

@@ -143,8 +143,8 @@ El sistema es **event-aware** (no event-driven). Cada evento de negocio, dentro 
 - **The Difference:** Pricing pre-decided, chemical lockout, documented profile, no same-team promise.
 - **FAQ:** 5 preguntas con tono directo. Garantía condicional a evidencia fotográfica.
 - **Flujo:** Dirección → BC Assessment → precio fijo → auth → checkout (Stripe).
-- **Paleta:** Navy (#0F1B2A), Ice (#E8F0F8), Wave Blue (#4A90D9), Ink (#1A1A2E).
-- **Tipografía:** Inter (UI), Playfair Display (headings).
+- **Paleta (Powder Sky):** Navy (#2E5C8A), Navy Light (#3E6D9E), Wave Blue (#3A6E9E), Gold/Blush (#E3AAB8 — solo acentos), Gold Dark (#772238), Ink (#1F2E3D), Ice (#EAF4FB). Fuente única: `src/design/tokens.ts`.
+- **Tipografía:** Inter (UI), Playfair Display (headings), Noto Sans SC (CJK).
 
 ## D.2 Cotizador (E1 del plan)
 
