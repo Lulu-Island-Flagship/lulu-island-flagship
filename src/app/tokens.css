@@ -2,18 +2,18 @@
 /* v8.3 E0-C5: fuente única de tokens. Regla de dos lenguajes: esta paleta de
    marca nunca se mezcla con el código cromático de seguridad química (M11). */
 :root {
-  --brand-navy: #2E5C8A;
-  --brand-navy-light: #3E6D9E;
-  --brand-wave-blue: #3A6E9E;
-  --brand-gold: #E3AAB8;
-  --brand-gold-dark: #772238;
-  --brand-ink: #1F2E3D;
-  --brand-ice: #EAF4FB;
+  --brand-navy: #0B1E3D;
+  --brand-navy-light: #14315C;
+  --brand-wave-blue: #2E6E96;
+  --brand-gold: #C9A961;
+  --brand-gold-dark: #A8863F;
+  --brand-ink: #10192B;
+  --brand-ice: #F5F5F5;
   --brand-white: #FFFFFF;
   --state-success: #1E7A6E;
-  --state-warning: #946A2C;
+  --state-warning: #B8863F;
   --state-danger: #C0392B;
-  --state-info: #3A6E9E;
+  --state-info: #2E6E96;
   --space-unit: 8px;
   --space-xs: 4px;
   --space-sm: 8px;
@@ -35,5 +35,5 @@
   --font-size-xl: 24px;
   --font-size-2xl: 32px;
   --background: #FFFFFF;
-  --foreground: #1F2E3D;
+  --foreground: #10192B;
 }

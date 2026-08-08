@@ -22,19 +22,19 @@ export const BRAND = {
   // náutico oscuro). Mismos NOMBRES de token que antes a propósito: cero
   // archivos consumidores tuvieron que tocarse, todo el sitio (público +
   // admin/empleado) hereda el cambio desde esta única fuente.
-  navy: "#2E5C8A",        // azul cielo profundo — primario, headers, CTA principal (6.97:1 sobre blanco)
-  navyLight: "#3E6D9E",   // hover / estados activos
-  waveBlue: "#3A6E9E",    // secundario, links, iconografía (5.38:1 sobre blanco)
-  gold: "#E3AAB8",        // acento blush — SOLO acentos e insignias, nunca fondos grandes ni texto de cuerpo
+  navy: "#0B1E3D",        // azul marino oscuro — primario, headers, CTA principal
+  navyLight: "#14315C",   // hover / estados activos
+  waveBlue: "#2E6E96",    // secundario, links, iconografía
+  gold: "#C9A961",        // dorado — SOLO acentos e insignias, nunca fondos grandes ni texto de cuerpo
   // Fix (2026-08-01, a petición del usuario: "que el color no tenga negro en
   // él"): el valor anterior (#8A3A46) técnicamente no tenía negro mezclado,
   // pero leía como un marrón apagado. #772238 es el MISMO matiz rosa/blush
   // de `gold` (~345° de tono) llevado a saturación alta (~63%) y luminosidad
   // baja (~30%) -- un vino/burdeos puro, sin desaturar hacia gris/negro --
   // y da 10.1:1 de contraste sobre blanco (mejor que el 7.57:1 anterior).
-  goldDark: "#772238",    // blush saturado, sin negro mezclado (10.1:1 sobre blanco — ver tests/lib/a11y-audit.test.ts)
-  ink: "#1F2E3D",         // texto principal (13.8:1 sobre blanco)
-  ice: "#EAF4FB",         // fondo secundario — celeste muy pálido
+  goldDark: "#A8863F",    // dorado oscuro — hover, bordes activos
+  ink: "#10192B",         // texto principal
+  ice: "#F5F5F5",         // fondo secundario — gris muy pálido
   white: "#FFFFFF",       // fondo primario
 } as const;
 
@@ -48,7 +48,7 @@ export const STATE = {
   // grande, así que necesita el umbral de texto normal, no el de 3:1 de
   // texto grande. #946A2C se queda en la misma familia ámbar/dorada y da
   // 4.82:1 (verificado con la fórmula WCAG de src/lib/a11y-audit.ts).
-  warning: "#946A2C",
+  warning: "#B8863F",
   danger: "#C0392B",
   info: BRAND.waveBlue,
 } as const;
