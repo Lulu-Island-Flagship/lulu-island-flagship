@@ -33,8 +33,8 @@ export function StepVerifyProperty({ rawAddress, bcResult, initial, onChange }: 
 
   const isAvailable = bcResult && bcResult.confidence !== "unavailable" && bcResult.squareFeet;
 
-  // Estado editable
-  const [editing, setEditing] = useState(false);
+  // Estado editable — si no hay datos de BC Assessment, entramos directo en modo edición
+  const [editing, setEditing] = useState(!isAvailable);
   const [address, setAddress] = useState(initial?.address ?? bcResult?.completeAddress ?? rawAddress);
   const [zone, setZone] = useState(initial?.zone ?? (bcResult?.postalCode ? inferZoneFromPostal(bcResult.postalCode) : ""));
   const [postalCode] = useState(initial?.postalCode ?? bcResult?.postalCode ?? "");
@@ -48,9 +48,13 @@ export function StepVerifyProperty({ rawAddress, bcResult, initial, onChange }: 
     initial?.squareFeetDeclared ?? bcResult?.squareFeet ?? squareFeet
   );
 
-  // Emitir al padre en cada cambio
+  // Emitir al padre en cada cambio. onChange se guarda en ref para evitar
+  // re-disparos por cambio de referencia (es inline en el padre).
+  const onChangeRef = React.useRef(onChange);
+  onChangeRef.current = onChange;
+
   useEffect(() => {
-    onChange({
+    onChangeRef.current({
       address,
       zone,
       postalCode,
@@ -60,7 +64,8 @@ export function StepVerifyProperty({ rawAddress, bcResult, initial, onChange }: 
       squareFeet,
       squareFeetDeclared,
     });
-  }, [address, zone, postalCode, serviceCategory, bedrooms, bathrooms, squareFeet, squareFeetDeclared, onChange]);
+  }, [address, zone, postalCode, serviceCategory, bedrooms, bathrooms, squareFeet, squareFeetDeclared]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const hasBcData = isAvailable;
 
