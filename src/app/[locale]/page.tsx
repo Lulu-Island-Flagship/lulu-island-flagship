@@ -245,6 +245,12 @@ export default function HomePage() {
               {getContent('nav.location')}
             </span>
             <button
+              onClick={() => router.push(`/${locale}/quote`)}
+              className="text-brand-navy hover:text-brand-wave-blue transition-colors font-medium"
+            >
+              {getContent('nav.getQuote')}
+            </button>
+            <button
               onClick={() => setAuthModal("signin")}
               className="flex items-center gap-1 text-brand-navy hover:text-brand-wave-blue transition-colors"
             >
@@ -276,6 +282,12 @@ export default function HomePage() {
               queda visible junto al ícono, igual que en desktop. */}
           <div className="md:hidden flex items-center gap-2">
             <LanguageSelector />
+            <button
+              onClick={() => router.push(`/${locale}/quote`)}
+              className="text-brand-navy hover:text-brand-wave-blue transition-colors text-sm font-medium"
+            >
+              {getContent('nav.getQuote')}
+            </button>
             <button
               onClick={() => setAuthModal("signin")}
               aria-label={getContent('nav.signIn')}
@@ -377,7 +389,16 @@ export default function HomePage() {
                 </button>
               </div>
               {bcError && (
-                <p className="text-sm text-state-danger mt-3">{bcError}</p>
+                <div className="mt-3 space-y-2">
+                  <p className="text-sm text-state-danger">{bcError}</p>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/${locale}/quote`)}
+                    className="text-sm text-brand-navy underline hover:text-brand-wave-blue transition-colors"
+                  >
+                    {getContent('nav.getQuote')} →
+                  </button>
+                </div>
               )}
               <p className="text-xs text-brand-wave-blue mt-3">
                 {getContent('hero.hint')}
