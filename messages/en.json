@@ -58,13 +58,11 @@
     "priceLockedUntil": "Price locked until {time}",
     "stepOf": "Step {current} of {total}",
     "stepLabels": {
-      "category": "Category",
+      "address": "Your Address",
+      "verify": "Confirm Property",
       "purpose": "Service Type",
-      "dimensions": "Dimensions",
-      "addonZones": "Extras",
       "organic": "Household",
       "recency": "Recency",
-      "address": "Location",
       "summary": "Summary"
     },
     "nav": {

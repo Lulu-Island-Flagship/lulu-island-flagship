@@ -1,18 +1,17 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { QuoteInput, QuoteData, CotizadorStep } from "@/types";
-import { ServiceType, TARIFA_OBJETIVO_HORA } from "@/lib/pricing";
+import { ServiceType } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
-import { StepCategory } from "@/components/cotizador/StepCategory";
 import { StepPurpose } from "@/components/cotizador/StepPurpose";
-import { StepDimensions } from "@/components/cotizador/StepDimensions";
-import { StepAddonZones } from "@/components/cotizador/StepAddonZones";
 import { StepOrganic } from "@/components/cotizador/StepOrganic";
 import { StepRecency } from "@/components/cotizador/StepRecency";
-import { StepAddress } from "@/components/cotizador/StepAddress";
+import { StepAddressInput } from "@/components/cotizador/StepAddressInput";
+import { StepVerifyProperty, type VerifiedProperty } from "@/components/cotizador/StepVerifyProperty";
+import type { BcAssessmentResult } from "@/lib/bc-assessment";
 import { PriceBreakdown } from "@/components/cotizador/PriceBreakdown";
 import { ConsentCheck } from "@/components/cotizador/ConsentCheck";
 import { LanguagePreference } from "@/components/cotizador/LanguagePreference";
@@ -29,13 +28,11 @@ import {
 } from "lucide-react";
 
 const STEPS: CotizadorStep[] = [
-  "category",
+  "address",
+  "verify",
   "purpose",
-  "dimensions",
-  "addonZones",
   "organic",
   "recency",
-  "address",
   "summary",
 ];
 
@@ -126,6 +123,8 @@ export default function CotizadorPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  /** Resultado de BC Assessment para el paso de verificación. */
+  const [bcResult, setBcResult] = useState<BcAssessmentResult | null>(null);
   // v8.3 fix (auditoría 2026-07-15): antes un fallo de OAuth (Google/Apple)
   // era completamente silencioso -- /auth/callback ya agrega ?auth_error=
   // a la URL de redirect, pero ningún componente lo leía. El usuario volvía
@@ -283,18 +282,20 @@ export default function CotizadorPage() {
 
   const canProceed = () => {
     switch (step) {
-      case "category":
-        return !!input.serviceCategory;
-      case "purpose":
-        return !!input.serviceSubtype;
-      case "dimensions":
+      case "address":
+        return !!input.address && input.address.trim().length >= 5;
+      case "verify":
         return (
+          !!input.address &&
+          !!input.zone &&
+          !!input.postalCode &&
+          !!input.serviceCategory &&
           input.bedrooms !== undefined &&
           input.bathrooms !== undefined &&
           input.squareFeet !== undefined
         );
-      case "addonZones":
-        return true; // paso opcional, nunca bloquea el avance
+      case "purpose":
+        return !!input.serviceSubtype;
       case "organic":
         return (
           input.petsCount !== undefined &&
@@ -302,20 +303,7 @@ export default function CotizadorPage() {
         );
       case "recency":
         return input.daysSinceCleaning !== undefined;
-      case "address":
-        return (
-          !!input.address &&
-          !!input.zone &&
-          !!input.postalCode &&
-          /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTVWXYZ]\s?\d[ABCEGHJ-NPRSTVWXYZ]\d$/i.test(input.postalCode)
-        );
       case "summary":
-        // Fix (auditoría 2026-07-31, hallazgo #4): no comprobaba que el
-        // preview del precio (`quote`) ya existiera ni que hubiera
-        // terminado de cargar/fallado -- el botón "Reservar ahora" quedaba
-        // habilitado mientras fetchPreviewQuote todavía estaba en vuelo, o
-        // incluso si había fallado y `quote` era null, permitiendo enviar
-        // handleSubmit() sin una cotización sellada real.
         return (
           consents.tc &&
           !!acquisitionChannel &&
@@ -329,15 +317,8 @@ export default function CotizadorPage() {
     }
   };
 
-  // Fix (2026-07-24): dirección de la última navegación real (no la que
-  // dispara el auto-skip de "addonZones" más abajo), para que el salto del
-  // paso vacío avance o retroceda según el sentido en que el cliente venía
-  // moviéndose, en vez de forzar siempre "adelante".
-  const navDirectionRef = useRef<"forward" | "backward">("forward");
-
   const handleNext = () => {
     if (stepIndex < STEPS.length - 1) {
-      navDirectionRef.current = "forward";
       setStepIndex((prev) => prev + 1);
     }
   };
@@ -350,23 +331,8 @@ export default function CotizadorPage() {
       router.push(`/${locale}`);
       return;
     }
-    navDirectionRef.current = "backward";
     setStepIndex((prev) => prev - 1);
   };
-
-  // Fix (2026-07-24): StepAddonZones documentaba "si no hay zonas add-on,
-  // el paso no renderiza nada (el wizard lo salta)" pero ese salto nunca
-  // estaba implementado -- ver comentario en StepAddonZones.tsx. Esto lo
-  // implementa: cuando el componente confirma que no hay zonas para el
-  // service_subtype elegido, se avanza/retrocede un paso más en la misma
-  // dirección en la que el cliente venía navegando.
-  const handleEmptyAddonZones = useCallback(() => {
-    setStepIndex((prev) =>
-      navDirectionRef.current === "forward"
-        ? Math.min(prev + 1, STEPS.length - 1)
-        : Math.max(prev - 1, 0)
-    );
-  }, []);
 
   // Fix (2026-07-25, auditoría UX): /api/quote devuelve `profileWarning`
   // (el perfil de cliente no se pudo crear/actualizar del todo -- ver
@@ -626,11 +592,28 @@ export default function CotizadorPage() {
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-elevation-1 p-6 md:p-8">
-          {step === "category" && (
-            <StepCategory
-              value={input.serviceCategory}
-              onChange={(val) => {
-                updateInput({ serviceCategory: val, serviceSubtype: undefined, serviceType: undefined });
+          {step === "address" && (
+            <StepAddressInput
+              address={input.address ?? ""}
+              onChange={(address) => updateInput({ address })}
+              onBcResult={setBcResult}
+            />
+          )}
+          {step === "verify" && (
+            <StepVerifyProperty
+              rawAddress={input.address ?? ""}
+              bcResult={bcResult}
+              onChange={(data: VerifiedProperty) => {
+                updateInput({
+                  address: data.address,
+                  zone: data.zone,
+                  postalCode: data.postalCode,
+                  serviceCategory: data.serviceCategory,
+                  bedrooms: data.bedrooms,
+                  bathrooms: data.bathrooms,
+                  squareFeet: data.squareFeet,
+                  squareFeetDeclared: data.squareFeetDeclared,
+                });
               }}
             />
           )}
@@ -641,23 +624,6 @@ export default function CotizadorPage() {
               onChange={(subtype, serviceTypeVal) => {
                 updateInput({ serviceSubtype: subtype, serviceType: serviceTypeVal as ServiceType });
               }}
-            />
-          )}
-          {step === "dimensions" && (
-            <StepDimensions
-              bedrooms={input.bedrooms ?? 2}
-              bathrooms={input.bathrooms ?? 1}
-              squareFeet={input.squareFeet ?? 1000}
-              onChange={(vals) => updateInput(vals)}
-            />
-          )}
-          {step === "addonZones" && (
-            <StepAddonZones
-              serviceSubtype={input.serviceSubtype}
-              targetHourlyRate={TARIFA_OBJETIVO_HORA}
-              selected={input.addonZones ?? []}
-              onChange={(zones) => updateInput({ addonZones: zones })}
-              onEmpty={handleEmptyAddonZones}
             />
           )}
           {step === "organic" && (
@@ -672,16 +638,6 @@ export default function CotizadorPage() {
             <StepRecency
               days={input.daysSinceCleaning ?? 30}
               onChange={(val) => updateInput({ daysSinceCleaning: val })}
-            />
-          )}
-          {step === "address" && (
-            <StepAddress
-              address={input.address ?? ""}
-              zone={input.zone ?? ""}
-              postalCode={input.postalCode ?? ""}
-              onChange={(vals) => updateInput(vals)}
-              squareFeet={input.squareFeet}
-              onSquareFeetConfirm={(squareFeet) => updateInput({ squareFeet })}
             />
           )}
           {step === "summary" && (

@@ -11,6 +11,9 @@ export interface QuoteInput {
   bedrooms: number;
   bathrooms: number;
   squareFeet: number;
+  /** Lo que el cliente declaró como área. Puede diferir de squareFeet.
+   *  Se imprime en la factura; el precio SIEMPRE se calcula con squareFeet. */
+  squareFeetDeclared?: number;
   petsCount: number;
   petsType: string;
   residents: number;
@@ -78,14 +81,12 @@ export interface QuoteData extends QuoteInput {
 }
 
 export type CotizadorStep =
-  | "category"      // NUEVO: elegir Home / Commercial
-  | "purpose"       // Subtipo específico
-  | "dimensions"
-  | "addonZones"    // v8.3 E4 (D.7): zonas add-on editables por el admin (ej. Garaje)
-  | "organic"
-  | "recency"
-  | "address"
-  | "summary";
+  | "address"       // Cliente escribe su dirección
+  | "verify"        // BC Assessment verifica; cliente confirma/edita
+  | "purpose"       // Subtipo de servicio
+  | "organic"       // Mascotas, residentes
+  | "recency"       // Días desde última limpieza
+  | "summary";      // Precio final y reservar
 
 export interface CotizadorState {
   step: CotizadorStep;
