@@ -14,6 +14,7 @@ import { SavedCardSelector } from "@/components/reserva/SavedCardSelector";
 import { ApplePayButton } from "@/components/reserva/ApplePayButton";
 import { WalletPayButton } from "@/components/reserva/WalletPayButton";
 import { ReservationSummary } from "@/components/reserva/ReservationSummary";
+import { BillingSection } from "@/components/reserva/BillingSection";
 import { CheckoutBenefitsPanel } from "@/components/reserva/CheckoutBenefitsPanel";
 import { PriceFreezeCountdown } from "@/components/reserva/PriceFreezeCountdown";
 import { AuthModal } from "@/components/cotizador/AuthModal";
@@ -164,6 +165,19 @@ export default function ReservaPage() {
   const [confirmError, setConfirmError] = useState("");
   const [needsPhoneVerification, setNeedsPhoneVerification] = useState(false);
 
+  // v9.1: billing information collected during reservation
+  const [billingData, setBillingData] = useState({
+    billingPartyName: "",
+    billingAddressLine1: "",
+    billingAddressLine2: "",
+    billingCity: "",
+    billingProvince: "BC",
+    billingPostalCode: "",
+    gstNumber: "",
+    serviceRecipientName: "",
+  });
+  const [accountType, setAccountType] = useState<"b2c" | "b2b" | "government">("b2c");
+
   // Fetch quote from Supabase and map snake_case → camelCase
   useEffect(() => {
     async function loadQuote() {
@@ -232,6 +246,7 @@ export default function ReservaPage() {
         return;
       }
 
+      setAccountType((profile?.account_type as "b2c" | "b2b" | "government") ?? "b2c");
       setIsFirstTimeClient(profile?.services_count === 0);
 
       // v8.3 fix (auditoría E1 2026-07-18): defensa en profundidad -- si un
@@ -371,15 +386,10 @@ export default function ReservaPage() {
       if (!serviceDate || !serviceTime || !quote) return;
 
       setSetupIntentError("");
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        // Fix 2026-07-24: antes esto era un `return` silencioso -- el
-        // cliente se quedaba viendo "Preparing secure checkout..." para
-        // siempre sin saber que necesitaba loguearse. Ahora se explica el
-        // motivo y se abre el AuthModal sin recargar la página ni perder la
-        // fecha/hora ya elegidas.
+      // v8.4: usar el user_id de la quote (que puede venir de una cuenta
+      // auto-creada) como fuente primaria. Si no existe, intentar la sesión.
+      const userId = quote.userId || (await supabase.auth.getUser()).data.user?.id;
+      if (!userId) {
         setSetupIntentError(t("payment.signInRequired"));
         setNeedsAuthForCheckout(true);
         return;
@@ -392,7 +402,7 @@ export default function ReservaPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             quoteId: quote.id,
-            userId: user.id,
+            userId,
           }),
         });
 
@@ -505,6 +515,14 @@ export default function ReservaPage() {
           stripeCustomerId,
           stripeSetupIntentId,
           holdAmount: quote.holdAmount,
+          billingPartyName: billingData.billingPartyName || undefined,
+          billingAddressLine1: billingData.billingAddressLine1 || undefined,
+          billingAddressLine2: billingData.billingAddressLine2 || undefined,
+          billingCity: billingData.billingCity || undefined,
+          billingProvince: billingData.billingProvince || undefined,
+          billingPostalCode: billingData.billingPostalCode || undefined,
+          gstNumber: billingData.gstNumber || undefined,
+          serviceRecipientName: billingData.serviceRecipientName || undefined,
         }),
       });
 
@@ -632,6 +650,15 @@ export default function ReservaPage() {
                 )}
               </div>
             </div>
+
+            {/* v9.1: Billing Information */}
+            {serviceDate && serviceTime && quote && (
+              <BillingSection
+                quote={quote}
+                accountType={accountType}
+                onChange={setBillingData}
+              />
+            )}
 
             {/* Payment Method */}
             {serviceDate && serviceTime && stripeClientSecret && (

@@ -10,6 +10,7 @@ import { StepOrganic } from "@/components/cotizador/StepOrganic";
 import { StepRecency } from "@/components/cotizador/StepRecency";
 import { StepVerifyProperty, type VerifiedProperty } from "@/components/cotizador/StepVerifyProperty";
 import { PriceBreakdown } from "@/components/cotizador/PriceBreakdown";
+import { ServiceDetails } from "@/components/cotizador/ServiceDetails";
 import { ConsentCheck } from "@/components/cotizador/ConsentCheck";
 import { LanguagePreference } from "@/components/cotizador/LanguagePreference";
 import { AcquisitionChannelSelect } from "@/components/cotizador/AcquisitionChannelSelect";
@@ -71,14 +72,6 @@ function clearStateFromStorage() {
   }
 }
 
-function markPendingAuth() {
-  try {
-    localStorage.setItem(PENDING_AUTH_KEY, "true");
-  } catch {
-    // ignore
-  }
-}
-
 function wasPendingAuth(): boolean {
   try {
     const val = localStorage.getItem(PENDING_AUTH_KEY);
@@ -116,6 +109,16 @@ export default function CotizadorPage() {
   });
   const [purchaseOrder, setPurchaseOrder] = useState("");
   const [preferredLanguages, setPreferredLanguages] = useState<string[]>(["en"]);
+  // v8.4: email y teléfono para crear cuenta automática si el cliente no está autenticado
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setIsAuthenticated(!!user);
+    });
+  }, []);
   const [acquisitionChannel, setAcquisitionChannel] = useState<AcquisitionChannel | "">("");
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -421,10 +424,13 @@ function buildValidQuoteInput(raw: Partial<QuoteInput>): QuoteInput {
       }
 
       if (!currentUserId) {
-        markPendingAuth();
-        setShowAuthModal(true);
-        setIsSubmitting(false);
-        return;
+        // v8.4: en vez de bloquear con AuthModal, pedimos email de contacto
+        // y mandamos todo al backend — el servidor crea la cuenta automáticamente
+        if (!contactEmail || !contactEmail.includes("@")) {
+          setSubmitError(t("errors.emailRequired"));
+          setIsSubmitting(false);
+          return;
+        }
       }
 
       const validPayload = buildValidQuoteInput(input);
@@ -437,6 +443,8 @@ function buildValidQuoteInput(raw: Partial<QuoteInput>): QuoteInput {
         purchaseOrder: purchaseOrder.trim() || undefined,
         preferredLanguages,
         acquisitionChannel: acquisitionChannel || "other",
+        contactEmail: contactEmail.trim() || undefined,
+        contactPhone: contactPhone.trim() || undefined,
       };
 
       const response = await fetch("/api/quote", {
@@ -731,6 +739,8 @@ function buildValidQuoteInput(raw: Partial<QuoteInput>): QuoteInput {
                     </div>
                   )}
 
+                  <ServiceDetails quote={quote} />
+
                   <PriceBreakdown quote={quote} />
 
                   {b2bReviewRequired && (
@@ -761,6 +771,36 @@ function buildValidQuoteInput(raw: Partial<QuoteInput>): QuoteInput {
                     value={acquisitionChannel}
                     onChange={setAcquisitionChannel}
                   />
+
+                  {/* v8.4: si no está autenticado, pedir email y teléfono para crear cuenta automática */}
+                  {!isAuthenticated && (
+                    <div className="space-y-3 p-4 bg-brand-navy/5 rounded-lg border border-brand-navy/10">
+                      <p className="text-sm font-semibold text-brand-ink">
+                        {t("summary.contactTitle")}
+                      </p>
+                      <p className="text-xs text-gray-500 -mt-1">
+                        {t("summary.contactSubtitle")}
+                      </p>
+                      <input
+                        id="contact-email"
+                        type="email"
+                        autoComplete="email"
+                        value={contactEmail}
+                        onChange={(e) => setContactEmail(e.target.value)}
+                        placeholder={t("summary.emailPlaceholder")}
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold text-sm"
+                      />
+                      <input
+                        id="contact-phone"
+                        type="tel"
+                        autoComplete="tel"
+                        value={contactPhone}
+                        onChange={(e) => setContactPhone(e.target.value)}
+                        placeholder={t("summary.phonePlaceholder")}
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold text-sm"
+                      />
+                    </div>
+                  )}
 
                   <ConsentCheck
                     consents={consents}

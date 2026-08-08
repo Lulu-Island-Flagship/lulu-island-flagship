@@ -96,7 +96,8 @@
       "commercialReview": "企业/团体预订需要人工开户及采购单（PO）设置，我们的团队将尽快与您联系。",
       "genericSubmit": "报价保存失败，请重试。",
       "genericAuth": "身份验证失败，请重试。",
-      "genericPreview": "预览计算失败"
+      "genericPreview": "预览计算失败",
+      "emailRequired": "请输入您的邮箱地址以继续。"
     },
     "summary": {
       "calculating": "正在计算您的服务器核实报价...",
@@ -113,7 +114,11 @@
       "profileWarningDesc": "您的报价已保存，但部分账户资料未能完全更新。这不会影响您预订，但请稍后在“我的账户”中核实您的联系信息。",
       "adminReviewTitle": "您的报价需要人工快速审核",
       "adminReviewDesc": "您的报价已保存，但我们的团队需要在最终确认前人工核实部分细节。您现在可以继续预订，如有需要我们会主动联系您。",
-      "continueToReservation": "继续预订"
+      "continueToReservation": "继续预订",
+      "contactTitle": "您的联系信息",
+      "contactSubtitle": "预订完成后我们将自动为您创建账户。确认邮件将发送至此邮箱。",
+      "emailPlaceholder": "your@email.com",
+      "phonePlaceholder": "+1 604 555 0123"
     },
     "category": {
       "title": "您需要清洁哪种类型的空间？",
@@ -239,6 +244,24 @@
       "holdTitle": "预订保留金：{amount}",
       "holdDesc": "服务开始前72小时，我们会在您的信用卡上进行一笔临时授权（非实际扣款）。如提前超过72小时取消，将全额释放；如在服务前24-72小时内取消，将保留50%；如爽约或在24小时内取消，将保留全部保留金。"
     },
+    "serviceDetails": {
+      "title": "您的服务",
+      "spaceDetails": "{bedrooms} 卧 · {bathrooms} 卫 · {squareFeet} 平方英尺",
+      "petsLine": "{count} {type}",
+      "noPets": "无宠物",
+      "petTypes": {
+        "dog": "狗",
+        "dogs": "狗",
+        "cat": "猫",
+        "cats": "猫",
+        "dog_cat": "狗+猫",
+        "other": "其他宠物",
+        "none": "无宠物"
+      },
+      "residentsLine": "{count} 位居住者",
+      "daysLine": "距上次清洁 {days} 天",
+      "addonZonesLabel": "额外区域"
+    },
     "consentCheck": {
       "title": "同意条款与协议",
       "tcLabel": "服务条款",
@@ -345,6 +368,21 @@
     },
     "dateTime": {
       "title": "您希望我们何时上门服务？"
+    },
+    "billing": {
+      "title": "账单信息",
+      "nameLabel": "全名（用于发票）",
+      "namePlaceholder": "您的法定全名",
+      "billingAddressLabel": "账单地址",
+      "billingAddressPlaceholder": "街道地址",
+      "billingCityPlaceholder": "城市",
+      "billingProvincePlaceholder": "省份",
+      "billingPostalPlaceholder": "邮政编码",
+      "sameAsService": "与服务地址相同",
+      "gstLabel": "GST/HST 税号（仅B2B）",
+      "gstPlaceholder": "123456789 RT0001",
+      "recipientNameLabel": "服务接收人姓名（如与付款人不同）",
+      "recipientNamePlaceholder": "物业现场联系人姓名"
     },
     "datePicker": {
       "label": "选择服务日期",

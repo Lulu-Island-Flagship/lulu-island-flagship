@@ -43,6 +43,7 @@ import { getZoneDemand } from "@/lib/zone-demand";
 // función más abajo).
 import { captureError } from "@/lib/observability";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
+import { createClient } from "@supabase/supabase-js";
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0].trim();
@@ -209,17 +210,57 @@ export async function POST(request: NextRequest) {
     const supabase = createRouteSupabaseClient();
     const clientIp = getClientIp(request);
 
-    // Autenticación obligatoria
+    // Solo aceptamos los inputs brutos del cotizador. NUNCA precios calculados.
+    const body = await request.json();
+    const rawInput = body as QuoteInput & {
+      consentTc?: boolean;
+      consentPipa?: boolean;
+      consentMarketing?: boolean;
+      consentPhotoMarketing?: boolean;
+      purchaseOrder?: string;
+      preferredLanguages?: string[];
+      acquisitionChannel?: string;
+      contactEmail?: string;
+      contactPhone?: string;
+    };
+
+    // Intentar obtener usuario autenticado
     const {
-      data: { user },
+      data: { user: authUser },
     } = await supabase.auth.getUser();
+    let user = authUser;
+
+    // v8.4: si no hay sesión pero hay contactEmail, crear cuenta automática
+    if (!user && rawInput.contactEmail) {
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!serviceRoleKey) {
+        console.error("quote: SUPABASE_SERVICE_ROLE_KEY not configured, cannot auto-create user");
+        return NextResponse.json({ error: "Service configuration error" }, { status: 500 });
+      }
+      const serviceClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        serviceRoleKey
+      );
+      const { data: newUser, error: createError } = await serviceClient.auth.admin.createUser({
+        email: rawInput.contactEmail,
+        email_confirm: false,
+        user_metadata: { created_via_quote: true, contact_phone: rawInput.contactPhone || undefined },
+      });
+      if (createError) {
+        console.error("Auto-create user failed:", createError);
+        return NextResponse.json({ error: "Could not create account. Please try again." }, { status: 500 });
+      }
+      user = newUser.user;
+    }
+
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Rate limiting por usuario autenticado (evita bloquear hogares compartidos por IP)
+    // Rate limiting por usuario (usa IP como fallback si el usuario es nuevo sin historial)
+    const rateLimitKey = user.id;
     const { data: rateLimitData, error: rateLimitError } = await supabase.rpc("check_rate_limit", {
-      p_ip_address: user.id,
+      p_ip_address: rateLimitKey,
       p_max_requests: 30,
     });
     // Fix (auditoría externa, hallazgo CRÍTICO): antes, si el RPC fallaba, el
@@ -243,14 +284,6 @@ export async function POST(request: NextRequest) {
         }
       );
     }
-
-    // Solo aceptamos los inputs brutos del cotizador. NUNCA precios calculados.
-    const body = await request.json();
-    const rawInput = body as QuoteInput & {
-      consentTc?: boolean;
-      consentPipa?: boolean;
-      consentMarketing?: boolean;
-    };
 
     const validation = validateQuoteInputs(rawInput);
     if (!validation.valid) {

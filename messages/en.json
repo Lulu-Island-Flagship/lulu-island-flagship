@@ -112,7 +112,8 @@
       "commercialReview": "Commercial / B2B bookings require manual onboarding and PO setup. Our team will contact you shortly.",
       "genericSubmit": "Failed to save quote. Please try again.",
       "genericAuth": "Authentication failed. Please try again.",
-      "genericPreview": "Failed to calculate preview"
+      "genericPreview": "Failed to calculate preview",
+      "emailRequired": "Please enter your email address to continue."
     },
     "summary": {
       "calculating": "Calculating your server-verified quote...",
@@ -129,7 +130,11 @@
       "profileWarningDesc": "Your quote was saved, but part of your account profile couldn't be updated. This won't stop you from booking, but please double-check your contact details in My Account afterwards.",
       "adminReviewTitle": "Your quote needs a quick review",
       "adminReviewDesc": "Your quote was saved, but our team needs to manually review a few details before it's fully confirmed. You can continue to reservation now — we'll follow up if anything needs your input.",
-      "continueToReservation": "Continue to Reservation"
+      "continueToReservation": "Continue to Reservation",
+      "contactTitle": "Your contact info",
+      "contactSubtitle": "We'll create your account automatically after booking. Your reservation confirmation will be sent here.",
+      "emailPlaceholder": "your@email.com",
+      "phonePlaceholder": "+1 604 555 0123"
     },
     "category": {
       "title": "What type of space do you need cleaned?",
@@ -255,6 +260,24 @@
       "holdTitle": "Reservation Hold: {amount}",
       "holdDesc": "A temporary authorization (not a charge) will be placed on your card 72 hours before the service. Released if cancelled with more than 72 hours notice. 50% retained if cancelled 24-72 hours before. Full hold retained for no-shows or cancellations within 24 hours."
     },
+    "serviceDetails": {
+      "title": "Your Service",
+      "spaceDetails": "{bedrooms} beds · {bathrooms} baths · {squareFeet} ft²",
+      "petsLine": "{count} {type}",
+      "noPets": "No pets",
+      "petTypes": {
+        "dog": "dog",
+        "dogs": "dogs",
+        "cat": "cat",
+        "cats": "cats",
+        "dog_cat": "dog + cat",
+        "other": "other pet",
+        "none": "No pets"
+      },
+      "residentsLine": "{count} resident(s)",
+      "daysLine": "{days} days since last clean",
+      "addonZonesLabel": "Extra areas"
+    },
     "consentCheck": {
       "title": "Consent & Agreements",
       "tcLabel": "Terms & Conditions",
@@ -361,6 +384,21 @@
     },
     "dateTime": {
       "title": "When do you need us?"
+    },
+    "billing": {
+      "title": "Billing Information",
+      "nameLabel": "Full name (for invoice)",
+      "namePlaceholder": "Your full legal name",
+      "billingAddressLabel": "Billing address",
+      "billingAddressPlaceholder": "Street address",
+      "billingCityPlaceholder": "City",
+      "billingProvincePlaceholder": "Province",
+      "billingPostalPlaceholder": "Postal code",
+      "sameAsService": "Same as service address",
+      "gstLabel": "GST/HST Number (B2B only)",
+      "gstPlaceholder": "123456789 RT0001",
+      "recipientNameLabel": "Service recipient name (if different)",
+      "recipientNamePlaceholder": "Name of person at the property"
     },
     "datePicker": {
       "label": "Select Service Date",

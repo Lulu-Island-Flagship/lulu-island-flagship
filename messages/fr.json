@@ -96,7 +96,8 @@
       "commercialReview": "Les réservations commerciales / B2B requièrent une intégration manuelle et une configuration de bon de commande. Notre équipe vous contactera sous peu.",
       "genericSubmit": "Échec de l'enregistrement de la soumission. Veuillez réessayer.",
       "genericAuth": "Échec de l'authentification. Veuillez réessayer.",
-      "genericPreview": "Échec du calcul de l'estimation"
+      "genericPreview": "Échec du calcul de l'estimation",
+      "emailRequired": "Veuillez entrer votre adresse courriel pour continuer."
     },
     "summary": {
       "calculating": "Calcul de votre soumission vérifiée par le serveur en cours...",
@@ -113,7 +114,11 @@
       "profileWarningDesc": "Votre soumission a été enregistrée, mais une partie de votre profil n'a pas pu être mise à jour. Cela ne vous empêche pas de réserver, mais veuillez vérifier vos coordonnées dans Mon compte par la suite.",
       "adminReviewTitle": "Votre soumission nécessite une vérification rapide",
       "adminReviewDesc": "Votre soumission a été enregistrée, mais notre équipe doit vérifier manuellement certains détails avant confirmation complète. Vous pouvez continuer vers la réservation dès maintenant — nous vous contacterons si nécessaire.",
-      "continueToReservation": "Continuer vers la réservation"
+      "continueToReservation": "Continuer vers la réservation",
+      "contactTitle": "Vos coordonnées",
+      "contactSubtitle": "Nous créerons votre compte automatiquement après la réservation. Votre confirmation sera envoyée ici.",
+      "emailPlaceholder": "votre@email.com",
+      "phonePlaceholder": "+1 604 555 0123"
     },
     "category": {
       "title": "Quel type d'espace avez-vous besoin de faire nettoyer?",
@@ -239,6 +244,24 @@
       "holdTitle": "Retenue de réservation : {amount}",
       "holdDesc": "Une autorisation temporaire (pas un débit) sera placée sur votre carte 72 heures avant le service. Libérée en cas d'annulation avec plus de 72 heures de préavis. 50% retenu en cas d'annulation entre 24 et 72 heures avant. Retenue complète en cas d'absence ou d'annulation dans les 24 heures."
     },
+    "serviceDetails": {
+      "title": "Votre service",
+      "spaceDetails": "{bedrooms} ch. · {bathrooms} sdb · {squareFeet} pi²",
+      "petsLine": "{count} {type}",
+      "noPets": "Aucun animal",
+      "petTypes": {
+        "dog": "chien",
+        "dogs": "chiens",
+        "cat": "chat",
+        "cats": "chats",
+        "dog_cat": "chien + chat",
+        "other": "autre animal",
+        "none": "Aucun animal"
+      },
+      "residentsLine": "{count} résident(s)",
+      "daysLine": "{days} jours depuis le dernier nettoyage",
+      "addonZonesLabel": "Zones supplémentaires"
+    },
     "consentCheck": {
       "title": "Consentements et accords",
       "tcLabel": "Modalités et conditions",
@@ -345,6 +368,21 @@
     },
     "dateTime": {
       "title": "Quand avez-vous besoin de nous?"
+    },
+    "billing": {
+      "title": "Informations de facturation",
+      "nameLabel": "Nom complet (pour la facture)",
+      "namePlaceholder": "Votre nom légal complet",
+      "billingAddressLabel": "Adresse de facturation",
+      "billingAddressPlaceholder": "Adresse",
+      "billingCityPlaceholder": "Ville",
+      "billingProvincePlaceholder": "Province",
+      "billingPostalPlaceholder": "Code postal",
+      "sameAsService": "Identique à l'adresse de service",
+      "gstLabel": "Numéro TPS/TVH (B2B seulement)",
+      "gstPlaceholder": "123456789 RT0001",
+      "recipientNameLabel": "Nom du bénéficiaire du service (si différent)",
+      "recipientNamePlaceholder": "Nom de la personne sur place"
     },
     "datePicker": {
       "label": "Sélectionner la date du service",

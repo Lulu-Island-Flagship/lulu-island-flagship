@@ -36,6 +36,16 @@ export interface QuoteInput {
   addonZones?: string[];
   /** v8.3 E6.6: factura impresa por correo, +$2 (B2C). B2B/Gov siempre true sin recargo. */
   printedInvoiceRequested?: boolean;
+  /** v8.4: email de contacto para crear cuenta automática si el cliente no está autenticado. */
+  contactEmail?: string;
+  /** v8.4: teléfono de contacto (mismo propósito que contactEmail). */
+  contactPhone?: string;
+  /** v9.1: nombre de quien paga (Billing Party). Puede diferir del Service Recipient. */
+  billingPartyName?: string;
+  /** v9.1: GST/HST number para facturación B2B. */
+  gstNumber?: string;
+  /** v9.1: nombre de quien recibe el servicio si ≠ Billing Party. */
+  serviceRecipientName?: string;
 }
 
 export interface QuoteData extends QuoteInput {
@@ -69,6 +79,9 @@ export interface QuoteData extends QuoteInput {
   consentPhotoMarketing: boolean;
   pipaAltRequiresAudit?: boolean;
   purchaseOrder?: string;
+  billingPartyName?: string;
+  gstNumber?: string;
+  serviceRecipientName?: string;
   tcVersion: string;
   pipaVersion: string;
   marketingVersion: string;

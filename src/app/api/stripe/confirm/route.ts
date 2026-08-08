@@ -75,6 +75,13 @@ export async function POST(request: NextRequest) {
       paypalPayerEmail,
       useInstallmentPlan,
       walletPaymentIntentId,
+      billingPartyName,
+      billingAddressLine1,
+      billingAddressLine2,
+      billingCity,
+      billingProvince,
+      gstNumber,
+      serviceRecipientName,
     } = body;
 
     if (!quoteId || !serviceDate || !serviceTime || !paymentMethodId) {
@@ -734,6 +741,13 @@ export async function POST(request: NextRequest) {
         address_lng: quoteRow.address_lng ?? null,
         pipa_alt_requires_audit: quoteRow.pipa_alt_requires_audit ?? false,
         purchase_order: quoteRow.purchase_order ?? null,
+        billing_party_name: billingPartyName ?? null,
+        billing_address_line1: billingAddressLine1 ?? null,
+        billing_address_line2: billingAddressLine2 ?? null,
+        billing_city: billingCity ?? null,
+        billing_province: billingProvince ?? null,
+        gst_number: gstNumber ?? null,
+        service_recipient_name: serviceRecipientName ?? null,
         client_property_id: quoteRow.client_property_id ?? null,
         requires_field_auditor: quoteRow.requires_field_auditor ?? false,
         property_risk_tier: quoteRow.property_risk_tier ?? "standard",
@@ -915,6 +929,31 @@ export async function POST(request: NextRequest) {
       });
     } catch (commErr) {
       console.error("Error disparando order_confirmed:", commErr);
+    }
+
+    // v8.4: si el usuario fue creado automáticamente durante la cotización
+    // (sin email confirmado), enviar link para que cree su contraseña.
+    // user_metadata.created_via_quote es la señal que dejó /api/quote.
+    if (user.user_metadata?.created_via_quote && !user.email_confirmed_at) {
+      try {
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (serviceKey) {
+          const serviceClient = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            serviceKey
+          );
+          // "magiclink" confirma el email y además inicia sesión automáticamente.
+          // Es mejor que "signup" (que requiere password) porque el usuario
+          // no tiene contraseña todavía — fue creado vía admin.createUser.
+          await serviceClient.auth.admin.generateLink({
+            type: "magiclink",
+            email: user.email!,
+          });
+        }
+      } catch (linkErr) {
+        // No bloqueamos la confirmación del pago si falla el email
+        console.error("Error enviando link de confirmación post-pago:", linkErr);
+      }
     }
 
     return NextResponse.json(

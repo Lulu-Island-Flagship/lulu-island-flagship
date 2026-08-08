@@ -78,6 +78,14 @@ export interface Order {
   cancellationWindowHours: number;
   pipaAltRequiresAudit?: boolean;
   purchaseOrder?: string;
+  /** v9.1: billing party name for invoice generation. */
+  billingPartyName?: string;
+  billingAddressLine1?: string;
+  billingAddressLine2?: string;
+  billingCity?: string;
+  billingProvince?: string;
+  gstNumber?: string;
+  serviceRecipientName?: string;
   createdAt?: string;
   updatedAt?: string;
 }
