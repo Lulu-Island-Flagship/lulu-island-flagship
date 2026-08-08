@@ -306,20 +306,18 @@ export default function CotizadorPage() {
 
   const canProceed = () => {
     switch (step) {
-      case "address":
-        return !!input.address && input.address.trim().length >= 5;
+      case "estimate":
+        return (
+          !!input.serviceCategory &&
+          !!input.serviceSubtype &&
+          !!input.zone &&
+          input.squareFeet !== undefined
+        );
       case "verify":
         return (
           !!input.address &&
-          !!input.zone &&
-          !!input.postalCode &&
-          !!input.serviceCategory &&
-          input.bedrooms !== undefined &&
-          input.bathrooms !== undefined &&
-          input.squareFeet !== undefined
+          input.address.trim().length >= 5
         );
-      case "purpose":
-        return !!input.serviceSubtype;
       case "organic":
         return (
           input.petsCount !== undefined &&
