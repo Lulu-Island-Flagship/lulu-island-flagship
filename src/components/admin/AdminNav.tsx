@@ -131,10 +131,8 @@ export function buildGroups(adminPath: string, t: NavT): NavGroup[] {
         // v8.3 fix B-2: alta/revocación de owner_admin/ops_coordinator/qc_only
         // -- resource dedicado "admin_roles_management", solo owner_admin.
         { label: t("links.roles"), href: `${adminPath}/roles`, resource: "admin_roles_management" },
-        // v8.4 — Compliance y Remesas Fiscales: paneles de administración
-        // para reglas legales (compliance) y remesas de nómina (payroll).
-        { label: t("links.compliance"), href: `${adminPath}/compliance`, resource: "compliance" },
-        { label: t("links.payrollRemittances"), href: `${adminPath}/payroll-remittances`, resource: "payroll" },
+        // v8.4 — Compliance y Payroll Remittances: páginas pendientes de crear (auditoría 2026-08-07).
+        // Los links se desactivan hasta que existan las páginas correspondientes.
       ],
     },
   ];

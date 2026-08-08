@@ -206,13 +206,13 @@ export default function MisServiciosClient() {
             client-side de next/link. Se usa el mismo patrón de rutas
             absolutas con locale que CuentaNav.tsx (`/${locale}/cuenta/...`). */}
         <div className="flex items-center justify-center gap-3 mt-2">
-          <Link href={`/${locale}/cuenta/propiedades`} className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
+          <Link href={`/${locale}/account/properties`} className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
             {t("manageProperties")}
           </Link>
-          <Link href={`/${locale}/cuenta/billetera`} className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
+          <Link href={`/${locale}/account/wallet`} className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
             {t("luluWallet")}
           </Link>
-          <Link href={`/${locale}/cuenta/referidos`} className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
+          <Link href={`/${locale}/account/referrals`} className="text-xs text-brand-wave-blue hover:text-brand-navy underline">
             {t("referFriend")}
           </Link>
         </div>
@@ -286,13 +286,13 @@ export default function MisServiciosClient() {
                     {order.status === "completed" && (
                       <>
                         <Link
-                          href={`/${locale}/cuenta/servicios/${order.id}/galeria`}
+                          href={`/${locale}/account/services/${order.id}/gallery`}
                           className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-navy hover:underline"
                         >
                           {t("viewPhotosChecklist")}
                         </Link>
                         <Link
-                          href={`/${locale}/cuenta/servicios/${order.id}/invoice`}
+                          href={`/${locale}/account/services/${order.id}/invoice`}
                           className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-navy hover:underline"
                         >
                           <Receipt className="w-3.5 h-3.5" />
@@ -302,7 +302,7 @@ export default function MisServiciosClient() {
                     )}
                     {order.status === "confirmed" && (
                       <Link
-                        href={`/${locale}/cuenta/servicios/${order.id}/tracking`}
+                        href={`/${locale}/account/services/${order.id}/tracking`}
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-navy hover:underline"
                       >
                         {t("trackYourTeam")}
@@ -673,7 +673,7 @@ function CancelOrderPanel({
       <p className="text-xs text-gray-600">
         {t.rich("intro", {
           link: (chunks) => (
-            <a href={`/${locale}/cancelacion`} target="_blank" rel="noopener noreferrer" className="underline hover:text-brand-navy">
+            <a href={`/${locale}/cancellation`} target="_blank" rel="noopener noreferrer" className="underline hover:text-brand-navy">
               {chunks}
             </a>
           ),
@@ -814,7 +814,7 @@ function NextRecurringVisitCard() {
         return;
       }
       const safeLocale = ["en", "zh", "fr"].includes(locale) ? locale : "en";
-      router.push(`/${safeLocale}/reserva/${quoteJson.quoteId}?date=${info.nextDate}`);
+      router.push(`/${safeLocale}/booking/${quoteJson.quoteId}?date=${info.nextDate}`);
     } catch {
       setBookError(t("networkError"));
     } finally {
@@ -972,7 +972,7 @@ function LivePortfolioNotice() {
                 {t.rich("explanation", {
                   link: (chunks) => (
                     <a
-                      href={`/${safeLocale}/privacidad`}
+                      href={`/${safeLocale}/privacy`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="underline hover:text-brand-navy"

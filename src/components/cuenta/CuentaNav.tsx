@@ -27,12 +27,12 @@ import { useTranslations } from "next-intl";
 import { ArrowLeft, Wrench, Home, Wallet, Gift, Settings, LogOut, User } from "lucide-react";
 
 const SECTIONS = [
-  { key: "servicios", href: "servicios", icon: Wrench },
-  { key: "propiedades", href: "propiedades", icon: Home },
-  { key: "billetera", href: "billetera", icon: Wallet },
-  { key: "referidos", href: "referidos", icon: Gift },
-  { key: "preferencias", href: "preferencias", icon: Settings },
-  { key: "perfil", href: "perfil", icon: User },
+  { key: "services", href: "services", icon: Wrench },
+  { key: "properties", href: "properties", icon: Home },
+  { key: "wallet", href: "wallet", icon: Wallet },
+  { key: "referrals", href: "referrals", icon: Gift },
+  { key: "preferences", href: "preferences", icon: Settings },
+  { key: "profile", href: "profile", icon: User },
 ] as const;
 
 export function CuentaNav() {
