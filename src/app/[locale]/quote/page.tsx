@@ -407,6 +407,7 @@ export default function CotizadorPage() {
         dayOfWeek: input.dayOfWeek,
         isPreferredDay: input.isPreferredDay,
         addonZones: input.addonZones,
+        squareFeetDeclared: input.squareFeetDeclared,
         consentTc: consents.tc,
         consentPipa: consents.pipa,
         consentMarketing: consents.marketing,

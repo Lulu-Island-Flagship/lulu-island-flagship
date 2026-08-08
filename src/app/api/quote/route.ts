@@ -593,6 +593,7 @@ export async function POST(request: NextRequest) {
         bedrooms,
         bathrooms,
         square_feet: squareFeet,
+        square_feet_declared: squareFeetDeclared ?? null,
         pets_count: petsCount,
         pets_type: petsType,
         residents,
