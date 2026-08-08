@@ -5,24 +5,26 @@ import { useTranslations } from 'next-intl';
 import Image from "next/image";
 import Script from "next/script";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Ship, MapPin, LogIn, UserPlus } from "lucide-react";
+import {
+  Ship,
+  MapPin,
+  LogIn,
+  UserPlus,
+  Sparkles,
+  CheckCircle2,
+  AlertTriangle,
+  ShieldCheck,
+  Clock,
+  FileText,
+  HelpCircle,
+  ArrowRight,
+} from "lucide-react";
 
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { AuthModal } from "@/components/cotizador/AuthModal";
 import { isAllowedInternalPath } from "@/lib/safe-redirect";
 import { supabase } from "@/lib/supabase";
 
-// Fix (auditoría en vivo 2026-08-01, prueba E2E como cliente real): middleware.ts
-// (líneas ~243-253) redirige del lado del servidor cualquier visita sin sesión a
-// /[locale]/cuenta/** de vuelta al home con "?next=<ruta original>" -- pero ese
-// param nunca se consumía. El link "Sign In" del header (líneas ~116/141 de este
-// archivo) manda ahí, así que un cliente sin sesión que hacía clic terminaba de
-// vuelta en el home sin modal, sin error, sin ninguna explicación de qué pasó.
-// Este componente lee "next", y si es una ruta interna válida (misma allowlist
-// que ya usa el middleware), abre el AuthModal real -- el mismo que ya usa el
-// flujo de cotización -- y al autenticarse redirige a esa ruta original.
-// Envuelto en <Suspense> porque useSearchParams lo exige para no sacar la página
-// entera de la renderización estática.
 function NextParamAuthGate() {
   const router = useRouter();
   const pathname = usePathname();
@@ -33,8 +35,6 @@ function NextParamAuthGate() {
   const [dismissed, setDismissed] = useState(false);
   const [checking, setChecking] = useState(true);
 
-  // After OAuth (Google/Apple), the user arrives here with a session
-  // and ?next= param. Skip the AuthModal and redirect directly.
   useEffect(() => {
     if (!nextParam || !isAllowedInternalPath(nextParam)) { setChecking(false); return; }
     supabase.auth.getUser().then(({ data }) => {
@@ -49,9 +49,6 @@ function NextParamAuthGate() {
   return (
     <AuthModal
       onClose={() => {
-        // No tiene caso reintentar el destino protegido tras cerrar -- se
-        // limpia el query param y se deja al usuario en el home normal,
-        // mismo patrón que cuenta/layout.tsx usa para su propio AuthModal.
         setDismissed(true);
         router.replace(`/${locale}`);
       }}
@@ -67,21 +64,6 @@ function LocalBusinessSchema() {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
     "name": "Lulu Island Flagship Cleaning Services",
-    // v8.3 E7 fix de auditoría (D.9 punto 9 / B.4 regla #25): este texto
-    // decía literalmente "insured" de forma incondicional en el JSON-LD
-    // público, violando la regla explícita del spec ("Nunca publicar
-    // asegurados/bonded en el sitio hasta que las pólizas reales estén
-    // contratadas") sin importar el estado real de
-    // business_insurance_policies (src/lib/business-insurance.ts,
-    // GET /api/admin/business-insurance -> allThreePoliciesReady).
-    //
-    // v8.3 P0-4 fix (auditoría Fable5): el resto de la copia VISIBLE de esta
-    // página (bloque "trust" + hero + meta description en layout.tsx) SÍ
-    // quedó condicionada, vía GET /api/public/insured-status (fail-closed) —
-    // ver `insuredClaimReady` más abajo. Este JSON-LD sigue sin afirmar
-    // "insured/bonded" en absoluto, a propósito: es un componente estático
-    // sin acceso a ese estado en build time, así que el texto base se
-    // mantiene siempre neutro en vez de intentar condicionarlo aquí también.
     "description": "Vetted, trained cleaning professionals caring for your home — not just cleaning it. Full price from quote, no surprises.",
     "url": "https://luluislandflagship.ca",
     "email": "hello@luluislandflagship.ca",
@@ -127,10 +109,7 @@ export default function HomePage() {
   const pathLocale = pathname.match(/^\/(en|zh|fr)(\/|$)/);
   const locale = pathLocale ? pathLocale[1] : "en";
 
-
   const [authModal, setAuthModal] = useState<"signin" | "signup" | null>(null);
-
-  // Dirección para el hero — navega directo al cotizador sin consulta BC Assessment
   const [heroAddress, setHeroAddress] = useState("");
 
   function handleHeroSubmit() {
@@ -139,7 +118,6 @@ export default function HomePage() {
     router.push(`/${locale}/quote?address=${encodeURIComponent(trimmed)}`);
   }
 
-  // v8.5 Day 7: fetch admin-editable content from site_content table
   const [siteContent, setSiteContent] = useState<Record<string, string>>({});
   useEffect(() => {
     let cancelled = false;
@@ -152,11 +130,12 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Returns admin-edited content if available, falls back to i18n
   function getContent(key: string): string {
     if (siteContent[key]) return siteContent[key];
     return t(key);
   }
+
+  const standardIcons = [CheckCircle2, Clock, ShieldCheck, FileText];
 
   return (
     <main className="min-h-screen bg-white">
@@ -165,12 +144,6 @@ export default function HomePage() {
         <NextParamAuthGate />
       </Suspense>
 
-      {/* Fix (auditoría 2026-08-06): los botones de Sign In/Sign Up del header
-          llamaban setAuthModal() pero _authModal (con underscore) nunca se
-          consumía en el JSX — los botones estaban muertos, cero feedback al
-          usuario. Se quita el underscore y se renderiza el AuthModal cuando
-          authModal tiene valor. onSuccess redirige a /account (portal unificado
-          que ya tiene su propio AuthModal si no hay sesión). */}
       {authModal && (
         <AuthModal
           signupMode={authModal === "signup"}
@@ -180,76 +153,65 @@ export default function HomePage() {
         />
       )}
 
-      {/* Header — v8.3 rediseño "Powder Sky": fondo claro, no bloque oscuro */}
-      <header className="bg-white border-b border-brand-ice">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+      {/* Sticky Glassmorphism Header */}
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100/80 transition-all shadow-sm">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Ship className="w-8 h-8 text-brand-navy" />
+            <div className="w-10 h-10 rounded-xl bg-brand-navy text-brand-gold flex items-center justify-center shadow-elevation-1">
+              <Ship className="w-6 h-6 text-brand-gold" />
+            </div>
             <div>
-              <h1 className="text-lg font-bold tracking-tight text-brand-ink">Lulu Island Flagship</h1>
-              <p className="text-xs text-brand-wave-blue">Residential Home Care</p>
+              <h1 className="text-base font-bold tracking-tight text-brand-ink leading-snug">Lulu Island Flagship</h1>
+              <p className="text-xs text-brand-wave-blue font-medium">Residential Home Care</p>
             </div>
           </div>
           <nav className="hidden md:flex items-center gap-6 text-sm">
-            <span className="flex items-center gap-1 text-brand-navy">
-              <MapPin className="w-4 h-4" />
+            <span className="flex items-center gap-1.5 text-brand-navy font-medium bg-brand-ice/80 px-3 py-1.5 rounded-full text-xs border border-brand-navy/5">
+              <MapPin className="w-3.5 h-3.5 text-brand-wave-blue" />
               {getContent('nav.location')}
             </span>
             <button
               onClick={() => router.push(`/${locale}/quote`)}
-              className="text-brand-navy hover:text-brand-wave-blue transition-colors font-medium"
+              className="text-brand-navy hover:text-brand-wave-blue transition-colors font-semibold"
             >
               {getContent('nav.getQuote')}
             </button>
             <button
               onClick={() => setAuthModal("signin")}
-              className="flex items-center gap-1 text-brand-navy hover:text-brand-wave-blue transition-colors"
+              className="flex items-center gap-1.5 text-brand-navy hover:text-brand-wave-blue transition-colors font-medium"
             >
               <LogIn className="w-4 h-4" />
               {getContent('nav.signIn')}
             </button>
             <button
               onClick={() => setAuthModal("signup")}
-              className="flex items-center gap-1 bg-brand-navy text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-brand-navy-light transition-colors"
+              className="flex items-center gap-1.5 bg-brand-navy text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-brand-navy-light transition-all shadow-sm hover:shadow"
             >
               <UserPlus className="w-4 h-4" />
               {getContent('nav.signUp')}
             </button>
             <LanguageSelector />
           </nav>
-          {/* v8.3 fix (auditoría M-1): el link de "Iniciar sesión" vivía SOLO
-              dentro del <nav> "hidden md:flex" -- en mobile (menos de md)
-              el cliente no tenía ninguna forma de llegar a /cuenta. Se
-              agrega este link duplicado, visible únicamente por debajo de
-              md (md:hidden), fuera del nav oculto. No se toca el resto del
-              nav (LanguageSelector, ubicación) para no alterar el layout
-              mobile existente en otras partes del header.
 
-              Fix (auditoría UX 2026-07-25, items 7-8): este bloque mobile
-              mostraba SOLO el ícono de login con texto oculto (sr-only) --
-              ni el selector de idioma (LanguageSelector) ni un texto de
-              "Sign In" visible aparecían en mobile. Se agrega el
-              LanguageSelector junto al link, y el texto ya no es sr-only:
-              queda visible junto al ícono, igual que en desktop. */}
           <div className="md:hidden flex items-center gap-2">
             <LanguageSelector />
             <button
               onClick={() => router.push(`/${locale}/quote`)}
-              className="text-brand-navy hover:text-brand-wave-blue transition-colors text-sm font-medium"
+              className="text-brand-navy hover:text-brand-wave-blue transition-colors text-xs font-semibold px-2 py-1"
             >
               {getContent('nav.getQuote')}
             </button>
             <button
               onClick={() => setAuthModal("signin")}
               aria-label={getContent('nav.signIn')}
-              className="flex items-center gap-1 text-brand-navy hover:text-brand-wave-blue transition-colors text-sm"
+              className="flex items-center gap-1 text-brand-navy hover:text-brand-wave-blue transition-colors text-xs p-1"
             >
               <LogIn className="w-4 h-4" />
               <span>{getContent('nav.signIn')}</span>
             </button>
             <button
               onClick={() => setAuthModal("signup")}
-              className="flex items-center gap-1 bg-brand-navy text-white px-2 py-1 rounded-lg text-xs font-medium hover:bg-brand-navy-light transition-colors"
+              className="flex items-center gap-1 bg-brand-navy text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-brand-navy-light transition-colors"
             >
               <UserPlus className="w-3.5 h-3.5" />
               <span>{getContent('nav.signUp')}</span>
@@ -258,124 +220,129 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Hero — v8.5 landing spec: campo de dirección + BC Assessment → precio inline.
-          Playfair Display en el título principal (serif editorial, contrapunto a Inter UI).
-          Sin headline retórico. El precio es el producto. */}
-      <section className="relative overflow-hidden bg-white py-20 md:py-28">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-brand-ice/70 via-white to-white py-20 md:py-28">
         {siteContent["image.hero"] && (
           <div className="absolute inset-0 -z-10">
             <Image src={siteContent["image.hero"]} alt="" fill className="object-cover" priority />
-            <div className="absolute inset-0 bg-black/30" />
+            <div className="absolute inset-0 bg-brand-navy/40 backdrop-blur-[2px]" />
           </div>
         )}
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-3xl md:text-4xl font-bold text-brand-ink mb-2 font-[family-name:var(--font-playfair)]">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          {/* Micro-badge */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-navy/5 border border-brand-navy/10 text-xs font-semibold text-brand-navy mb-6 shadow-sm">
+            <Sparkles className="w-3.5 h-3.5 text-brand-gold-dark" />
+            <span>Residential Home Care · Richmond & Vancouver</span>
+          </div>
+
+          <h1 className="text-3xl md:text-5xl font-bold text-brand-ink mb-3 font-[family-name:var(--font-playfair)] leading-tight tracking-tight">
             {getContent('hero.title')}
           </h1>
-          <p className="text-sm text-brand-wave-blue mb-8">
+          <p className="text-sm md:text-base font-semibold text-brand-wave-blue mb-8 tracking-wide">
             {getContent('hero.subtitle')}
           </p>
 
-          <p className="text-base md:text-lg text-brand-ink mb-10 max-w-xl mx-auto leading-relaxed whitespace-pre-line">
+          <p className="text-base md:text-lg text-gray-700 mb-10 max-w-2xl mx-auto leading-relaxed whitespace-pre-line font-normal">
             {getContent('hero.proposition')}
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-lg mx-auto">
-            <input
-              type="text"
-              value={heroAddress}
-              onChange={(e) => setHeroAddress(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleHeroSubmit(); }}
-              placeholder={getContent('hero.placeholder')}
-              className="flex-1 px-4 py-3 border border-brand-ice rounded-md text-brand-ink bg-white 
-                         focus:outline-none focus:border-brand-navy focus:ring-1 focus:ring-brand-navy
-                         placeholder:text-gray-400"
-            />
+
+          {/* Hero Command Bar */}
+          <div className="bg-white/90 backdrop-blur-sm p-2 md:p-2.5 rounded-2xl border border-gray-200/80 shadow-elevation-2 flex flex-col sm:flex-row gap-2 max-w-xl mx-auto transition-all hover:shadow-elevation-3">
+            <div className="relative flex-1 flex items-center">
+              <MapPin className="w-5 h-5 text-brand-wave-blue absolute left-3.5" />
+              <input
+                type="text"
+                value={heroAddress}
+                onChange={(e) => setHeroAddress(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleHeroSubmit(); }}
+                placeholder={getContent('hero.placeholder')}
+                className="w-full pl-11 pr-4 py-3 rounded-xl border border-transparent text-brand-ink bg-transparent focus:outline-none text-sm font-medium placeholder:text-gray-400"
+              />
+            </div>
             <button
               type="button"
               onClick={handleHeroSubmit}
               disabled={!heroAddress.trim()}
-              className="px-6 py-3 bg-brand-navy text-white rounded-md font-medium
-                         hover:bg-brand-navy-light transition-colors whitespace-nowrap
-                         disabled:opacity-60 disabled:cursor-not-allowed"
+              className="px-6 py-3.5 bg-brand-navy text-white rounded-xl font-semibold hover:bg-brand-navy-light transition-all shadow-sm hover:shadow flex items-center justify-center gap-2 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {getContent('hero.cta')}
+              <span>{getContent('hero.cta')}</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
           </div>
-          <p className="text-xs text-brand-wave-blue mt-3">
+          <p className="text-xs text-brand-wave-blue mt-4 font-medium">
             {getContent('hero.hint')}
           </p>
         </div>
       </section>
 
-
       {/* How It Works */}
-      <section className="py-16 bg-white">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-xs text-brand-wave-blue uppercase tracking-wide mb-8">
-            {getContent('how.title')}
-          </p>
-          <div className="space-y-6">
-            <div>
-              <span className="text-lg font-bold text-brand-navy">1.</span>
-              <p className="text-base text-brand-ink leading-relaxed mt-1">
-                {getContent('how.step1')}
-              </p>
-            </div>
-            <div>
-              <span className="text-lg font-bold text-brand-navy">2.</span>
-              <p className="text-base text-brand-ink leading-relaxed mt-1">
-                {getContent('how.step2')}
-              </p>
-            </div>
-            <div>
-              <span className="text-lg font-bold text-brand-navy">3.</span>
-              <p className="text-base text-brand-ink leading-relaxed mt-1">
-                {getContent('how.step3')}
-              </p>
-            </div>
-            <div>
-              <span className="text-lg font-bold text-brand-navy">4.</span>
-              <p className="text-base text-brand-ink leading-relaxed mt-1">
-                {getContent('how.step4')}
-              </p>
-            </div>
+      <section className="py-20 bg-white border-t border-gray-100">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <p className="text-xs font-bold text-brand-wave-blue uppercase tracking-widest mb-2">
+              {getContent('how.title')}
+            </p>
+            <div className="w-12 h-1 bg-brand-gold mx-auto rounded-full" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[1, 2, 3, 4].map((stepNum) => (
+              <div
+                key={stepNum}
+                className="bg-white rounded-2xl p-6 border border-gray-100 shadow-elevation-1 hover:shadow-elevation-2 hover:-translate-y-0.5 transition-all duration-300 flex items-start gap-4"
+              >
+                <div className="w-10 h-10 rounded-xl bg-brand-navy text-brand-gold flex items-center justify-center font-bold text-base shrink-0 shadow-sm">
+                  {stepNum}
+                </div>
+                <p className="text-sm md:text-base text-brand-ink leading-relaxed font-medium mt-1">
+                  {getContent(`how.step${stepNum}`)}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-
-      {/* Image divider 1 — admin-uploaded (entre How It Works y What's Included) */}
+      {/* Image divider 1 */}
       {siteContent["image.divider1"] && (
-        <div className="relative w-full h-[300px]">
+        <div className="relative w-full h-[320px] shadow-inner">
           <Image src={siteContent["image.divider1"]} alt="" fill className="object-cover" />
+          <div className="absolute inset-0 bg-brand-navy/10" />
         </div>
       )}
 
-      {/* What's Included / Not — v8.5 spec: antes de Our Standards */}
-      <section className="py-16 bg-brand-ice">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="space-y-8">
-            <div>
-              <p className="text-xs text-brand-navy uppercase tracking-wide mb-3">
-                {getContent('included.title')}
-              </p>
-              <p className="text-base text-brand-ink leading-relaxed whitespace-pre-line">
+      {/* What's Included / Not / Breaks */}
+      <section className="py-20 bg-brand-ice/60 border-t border-b border-gray-200/60">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Included */}
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 border-t-4 border-t-state-success shadow-elevation-1 hover:shadow-elevation-2 transition-all space-y-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-state-success shrink-0" />
+                <h3 className="font-bold text-xs text-brand-navy uppercase tracking-wider">{getContent('included.title')}</h3>
+              </div>
+              <p className="text-sm text-brand-ink leading-relaxed whitespace-pre-line font-medium text-gray-700">
                 {getContent('included.body')}
               </p>
             </div>
-            <div>
-              <p className="text-xs text-brand-navy uppercase tracking-wide mb-3">
-                {getContent('not_included.title')}
-              </p>
-              <p className="text-base text-brand-ink leading-relaxed whitespace-pre-line">
+
+            {/* Not Included */}
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 border-t-4 border-t-state-warning shadow-elevation-1 hover:shadow-elevation-2 transition-all space-y-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-state-warning shrink-0" />
+                <h3 className="font-bold text-xs text-brand-navy uppercase tracking-wider">{getContent('not_included.title')}</h3>
+              </div>
+              <p className="text-sm text-brand-ink leading-relaxed whitespace-pre-line font-medium text-gray-700">
                 {getContent('not_included.body')}
               </p>
             </div>
-            <div>
-              <p className="text-xs text-brand-navy uppercase tracking-wide mb-3">
-                {getContent('breaks.title')}
-              </p>
-              <p className="text-base text-brand-ink leading-relaxed whitespace-pre-line">
+
+            {/* Breaks */}
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 border-t-4 border-t-brand-navy shadow-elevation-1 hover:shadow-elevation-2 transition-all space-y-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-brand-navy shrink-0" />
+                <h3 className="font-bold text-xs text-brand-navy uppercase tracking-wider">{getContent('breaks.title')}</h3>
+              </div>
+              <p className="text-sm text-brand-ink leading-relaxed whitespace-pre-line font-medium text-gray-700">
                 {getContent('breaks.body')}
               </p>
             </div>
@@ -383,155 +350,111 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Our Standards — v8.5 spec: después de What's Included */}
-      <section className="py-16 bg-white">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-xs text-brand-wave-blue uppercase tracking-wide mb-8">
-            {getContent('standards.title')}
-          </p>
-          <div className="space-y-6">
-            <div>
-              <p className="text-base font-bold text-brand-ink">
-                {getContent('standards.1.title')}
-              </p>
-              <p className="text-base text-brand-ink leading-relaxed">
-                {getContent('standards.1.body')}
-              </p>
-            </div>
-            <div>
-              <p className="text-base font-bold text-brand-ink">
-                {getContent('standards.2.title')}
-              </p>
-              <p className="text-base text-brand-ink leading-relaxed">
-                {getContent('standards.2.body')}
-              </p>
-            </div>
-            <div>
-              <p className="text-base font-bold text-brand-ink">
-                {getContent('standards.3.title')}
-              </p>
-              <p className="text-base text-brand-ink leading-relaxed">
-                {getContent('standards.3.body')}
-              </p>
-            </div>
-            <div>
-              <p className="text-base font-bold text-brand-ink">
-                {getContent('standards.4.title')}
-              </p>
-              <p className="text-base text-brand-ink leading-relaxed">
-                {getContent('standards.4.body')}
-              </p>
-            </div>
+      {/* Our Standards */}
+      <section className="py-20 bg-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <p className="text-xs font-bold text-brand-wave-blue uppercase tracking-widest mb-2">
+              {getContent('standards.title')}
+            </p>
+            <div className="w-12 h-1 bg-brand-gold mx-auto rounded-full" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {[1, 2, 3, 4].map((i) => {
+              const Icon = standardIcons[i - 1] || ShieldCheck;
+              return (
+                <div
+                  key={i}
+                  className="bg-white rounded-2xl p-6 border border-gray-100 shadow-elevation-1 hover:shadow-elevation-2 hover:-translate-y-0.5 transition-all space-y-3"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-brand-ice text-brand-navy flex items-center justify-center">
+                    <Icon className="w-5 h-5 text-brand-navy" />
+                  </div>
+                  <h4 className="text-base font-bold text-brand-ink">
+                    {getContent(`standards.${i}.title`)}
+                  </h4>
+                  <p className="text-sm text-gray-600 leading-relaxed font-normal">
+                    {getContent(`standards.${i}.body`)}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* Image divider 2 — admin-uploaded (entre Our Standards y FAQ) */}
+      {/* Image divider 2 */}
       {siteContent["image.divider2"] && (
-        <div className="relative w-full h-[300px]">
+        <div className="relative w-full h-[320px] shadow-inner">
           <Image src={siteContent["image.divider2"]} alt="" fill className="object-cover" />
+          <div className="absolute inset-0 bg-brand-navy/10" />
         </div>
       )}
 
       {/* FAQ */}
-      <section className="py-16 bg-brand-ice">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-xs text-brand-navy uppercase tracking-wide mb-8">
-            {getContent('faq.title')}
-          </p>
-          <div className="space-y-6">
-            <div>
-              <p className="text-base font-bold text-brand-ink mb-2">
-                {getContent('faq.q1')}
-              </p>
-              <p className="text-base text-brand-ink leading-relaxed">
-                {getContent('faq.a1')}
-              </p>
-            </div>
-            <div>
-              <p className="text-base font-bold text-brand-ink mb-2">
-                {getContent('faq.q2')}
-              </p>
-              <p className="text-base text-brand-ink leading-relaxed">
-                {getContent('faq.a2')}
-              </p>
-            </div>
-            <div>
-              <p className="text-base font-bold text-brand-ink mb-2">
-                {getContent('faq.q3')}
-              </p>
-              <p className="text-base text-brand-ink leading-relaxed">
-                {getContent('faq.a3')}
-              </p>
-            </div>
-            <div>
-              <p className="text-base font-bold text-brand-ink mb-2">
-                {getContent('faq.q4')}
-              </p>
-              <p className="text-base text-brand-ink leading-relaxed">
-                {getContent('faq.a4')}
-              </p>
-            </div>
-            <div>
-              <p className="text-base font-bold text-brand-ink mb-2">
-                {getContent('faq.q5')}
-              </p>
-              <p className="text-base text-brand-ink leading-relaxed">
-                {getContent('faq.a5')}
-              </p>
-            </div>
+      <section className="py-20 bg-brand-ice/60 border-t border-gray-200/60">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <p className="text-xs font-bold text-brand-navy uppercase tracking-widest mb-2">
+              {getContent('faq.title')}
+            </p>
+            <div className="w-12 h-1 bg-brand-gold mx-auto rounded-full" />
+          </div>
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                className="bg-white rounded-2xl p-6 border border-gray-100 shadow-elevation-1 hover:shadow-elevation-2 transition-all"
+              >
+                <div className="flex items-start gap-3">
+                  <HelpCircle className="w-5 h-5 text-brand-wave-blue shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-base font-bold text-brand-ink mb-2">
+                      {getContent(`faq.q${i}`)}
+                    </h4>
+                    <p className="text-sm text-gray-600 leading-relaxed font-normal">
+                      {getContent(`faq.a${i}`)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
-      {/* Footer — v8.5 spec: sin CTA extra después del FAQ.
-          Tagline "Residential Home Care" visible, portal/staff links discretos. */}
-      <footer className="bg-white text-gray-500 py-8 border-t border-brand-ice">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Ship className="w-5 h-5 text-brand-navy" />
+
+      {/* Footer */}
+      <footer className="bg-white text-gray-500 py-10 border-t border-gray-200">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-brand-navy text-brand-gold flex items-center justify-center shadow-sm">
+              <Ship className="w-5 h-5 text-brand-gold" />
+            </div>
             <div>
-              <span className="text-brand-ink font-semibold">Lulu Island Flagship</span>
-              <p className="text-xs text-brand-wave-blue">Residential Home Care</p>
+              <span className="text-brand-ink font-bold text-sm block">Lulu Island Flagship</span>
+              <p className="text-xs text-brand-wave-blue font-medium">Residential Home Care</p>
             </div>
           </div>
-          <p className="text-sm">
+          <p className="text-xs text-gray-400">
             {getContent('footer.copyright')}
           </p>
-          {/* Enlaces legales (términos, privacidad, cancelación) -- páginas
-              públicas nuevas, contenido fiel a las reglas reales de
-              src/lib/order-cancellation.ts y src/lib/pipeda.ts. */}
-          <nav className="flex items-center gap-4 text-xs text-gray-400">
-            <a href={`/${locale}/terms`} className="hover:text-gray-600 transition-colors">
+          <nav className="flex items-center gap-4 text-xs text-gray-500 font-medium">
+            <a href={`/${locale}/terms`} className="hover:text-brand-navy transition-colors">
               {getContent('legal.nav.terms')}
             </a>
-            <a href={`/${locale}/privacy`} className="hover:text-gray-600 transition-colors">
+            <a href={`/${locale}/privacy`} className="hover:text-brand-navy transition-colors">
               {getContent('legal.nav.privacy')}
             </a>
-            <a href={`/${locale}/cancellation`} className="hover:text-gray-600 transition-colors">
+            <a href={`/${locale}/cancellation`} className="hover:text-brand-navy transition-colors">
               {getContent('legal.nav.cancellation')}
             </a>
+            <a href={`/${locale}/portal`} className="hover:text-brand-navy transition-colors">
+              {getContent('nav.teamPortal')}
+            </a>
+            <a href={`/${locale}/jobs`} className="hover:text-brand-navy transition-colors">
+              {getContent('footer.workWithUs')}
+            </a>
           </nav>
-          {/* v8.3: enlace discreto al Portal de equipo (empleado, coordinador,
-              QC, manager) -- deliberadamente en el footer, no en el hero, para
-              no confundir a clientes potenciales con acceso de staff. */}
-          <a
-            href={`/${locale}/portal`}
-            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            {getContent('nav.teamPortal')}
-          </a>
-          {/* Nuevo: enlace público al formulario de aplicación del flujo de
-              contratación (src/app/[locale]/empleo/page.tsx). Deliberadamente
-              junto al link de Portal de equipo -- mismo estilo visual
-              discreto, no compite con el CTA principal de cotización -- pero
-              va dirigido a candidatos externos, no a staff ya contratado, por
-              lo que es un link separado con su propio texto. */}
-          <a
-            href={`/${locale}/jobs`}
-            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            {getContent('footer.workWithUs')}
-          </a>
         </div>
       </footer>
     </main>
