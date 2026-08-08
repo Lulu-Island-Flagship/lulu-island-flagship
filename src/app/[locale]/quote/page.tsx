@@ -9,7 +9,6 @@ import { StepEstimate, type QuickEstimate } from "@/components/cotizador/StepEst
 import { StepOrganic } from "@/components/cotizador/StepOrganic";
 import { StepRecency } from "@/components/cotizador/StepRecency";
 import { StepVerifyProperty, type VerifiedProperty } from "@/components/cotizador/StepVerifyProperty";
-import type { BcAssessmentResult } from "@/lib/bc-assessment";
 import { PriceBreakdown } from "@/components/cotizador/PriceBreakdown";
 import { ConsentCheck } from "@/components/cotizador/ConsentCheck";
 import { LanguagePreference } from "@/components/cotizador/LanguagePreference";
@@ -121,8 +120,6 @@ export default function CotizadorPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  /** Resultado de BC Assessment para el paso de verificación. */
-  const [bcResult, setBcResult] = useState<BcAssessmentResult | null>(null);
   // v8.3 fix (auditoría 2026-07-15): antes un fallo de OAuth (Google/Apple)
   // era completamente silencioso -- /auth/callback ya agrega ?auth_error=
   // a la URL de redirect, pero ningún componente lo leía. El usuario volvía
@@ -184,15 +181,7 @@ export default function CotizadorPage() {
         residents: prev.residents ?? 2,
         daysSinceCleaning: prev.daysSinceCleaning ?? 30,
       }));
-      setStepIndex(3); // verify is step 4 (after estimate, organic, recency)
-      // Consultar BC Assessment con la dirección de la landing
-      fetch("/api/quote/bc-assessment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: decoded }),
-      }).then((res) => res.ok ? res.json() : null)
-        .then((data) => { if (data) setBcResult(data as BcAssessmentResult); })
-        .catch(() => {});
+      setStepIndex(0); // start at estimate — user needs to fill service type, zone, pets, recency
       // Limpiar params de la URL sin recargar
       window.history.replaceState({}, "", window.location.pathname);
       setIsHydrated(true);
@@ -631,7 +620,6 @@ export default function CotizadorPage() {
           {step === "verify" && (
             <StepVerifyProperty
               rawAddress={input.address ?? ""}
-              bcResult={bcResult}
               initial={{
                 address: input.address,
                 zone: input.zone,
