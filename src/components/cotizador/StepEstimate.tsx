@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Home, Building2, Ruler, MapPin } from "lucide-react";
 import { SERVICE_CATEGORIES, SERVICE_SUBTYPES, ACTIVE_ZONES, type ServiceCategory } from "@/lib/pricing";
@@ -30,52 +30,37 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 export function StepEstimate({ initial, onChange }: StepEstimateProps) {
   const t = useTranslations("cotizador");
 
-  const [category, setCategory] = useState<ServiceCategory>(initial?.serviceCategory ?? "home");
-  const [subtype, setSubtype] = useState(initial?.serviceSubtype ?? "");
+  const defaultCategory = initial?.serviceCategory ?? "home";
+  const defaultFirstSubtype = SERVICE_SUBTYPES[defaultCategory][0]?.key ?? "";
+
+  const [category, setCategory] = useState<ServiceCategory>(defaultCategory);
+  const [subtype, setSubtype] = useState(initial?.serviceSubtype ?? defaultFirstSubtype);
   const [squareFeet, setSquareFeet] = useState(initial?.squareFeet ?? 1000);
   const [zone, setZone] = useState(initial?.zone ?? "");
 
   const subtypes = SERVICE_SUBTYPES[category];
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
-  const emit = useCallback(
-    (overrides: Partial<QuickEstimate>) => {
-      const svcType = subtypes.find((s) => s.key === (overrides.serviceSubtype ?? subtype))?.mapsTo;
-      if (!svcType) return;
-      onChange({
-        serviceCategory: overrides.serviceCategory ?? category,
-        serviceSubtype: overrides.serviceSubtype ?? subtype,
-        serviceType: svcType,
-        squareFeet: overrides.squareFeet ?? squareFeet,
-        zone: overrides.zone ?? zone,
-      });
-    },
-    [category, subtype, squareFeet, zone, subtypes, onChange]
-  );
+  // Emit changes to parent — uses ref to avoid re-render loops from inline onChange
+  useEffect(() => {
+    if (!subtype || subtype.length === 0) return;
+    const svcType = subtypes.find((s) => s.key === subtype)?.mapsTo;
+    if (!svcType) return;
+    onChangeRef.current({
+      serviceCategory: category,
+      serviceSubtype: subtype,
+      serviceType: svcType,
+      squareFeet,
+      zone,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, subtype, squareFeet, zone]);
 
   function handleCategory(cat: ServiceCategory) {
     setCategory(cat);
-    setSubtype("");
-    const newSubtypes = SERVICE_SUBTYPES[cat];
-    if (newSubtypes.length > 0) {
-      const first = newSubtypes[0];
-      setSubtype(first.key);
-      emit({ serviceCategory: cat, serviceSubtype: first.key });
-    }
-  }
-
-  function handleSubtype(key: string) {
-    setSubtype(key);
-    emit({ serviceSubtype: key });
-  }
-
-  function handleSquareFeet(val: number) {
-    setSquareFeet(val);
-    emit({ squareFeet: val });
-  }
-
-  function handleZone(z: string) {
-    setZone(z);
-    emit({ zone: z });
+    const first = SERVICE_SUBTYPES[cat][0]?.key ?? "";
+    setSubtype(first);
   }
 
   return (
@@ -123,7 +108,7 @@ export function StepEstimate({ initial, onChange }: StepEstimateProps) {
               <button
                 key={s.key}
                 type="button"
-                onClick={() => handleSubtype(s.key)}
+                onClick={() => setSubtype(s.key)}
                 className={`p-3 rounded-lg border-2 text-left transition-all ${
                   isSelected
                     ? "border-brand-gold bg-brand-gold/10"
@@ -152,7 +137,7 @@ export function StepEstimate({ initial, onChange }: StepEstimateProps) {
           max={MAX_SQFT}
           step={100}
           value={squareFeet}
-          onChange={(e) => handleSquareFeet(parseInt(e.target.value))}
+          onChange={(e) => setSquareFeet(parseInt(e.target.value))}
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-gold"
         />
         <div className="flex justify-between mt-2 text-sm text-gray-500">
@@ -178,7 +163,7 @@ export function StepEstimate({ initial, onChange }: StepEstimateProps) {
               <button
                 key={z.name}
                 type="button"
-                onClick={() => handleZone(z.name)}
+                onClick={() => setZone(z.name)}
                 className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
                   isSelected
                     ? "border-brand-gold bg-brand-gold/10 text-brand-ink"
