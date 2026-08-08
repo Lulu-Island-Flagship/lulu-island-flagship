@@ -101,6 +101,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [streetAddress, setStreetAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(initialError || "");
   const [otpSent, setOtpSent] = useState(false);
@@ -275,6 +276,14 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
       setError(t("nameRequired"));
       return;
     }
+    if (!email.trim() || !EMAIL_REGEX.test(email.trim())) {
+      setError(t("errors.invalidEmail"));
+      return;
+    }
+    if (!streetAddress.trim()) {
+      setError(t("addressRequired"));
+      return;
+    }
     setError("");
     setMode("options");
   };
@@ -435,15 +444,19 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
 
   const handleVerifyOtp = async () => {
     // Guardar nombre en client_profiles si estamos en modo signup
-    async function saveSignupName() {
+    async function saveSignupProfile() {
       if (!isSignup || !firstName.trim() || !lastName.trim()) return;
       try {
         const { data: userData } = await supabase.auth.getUser();
         if (!userData.user) return;
-        await supabase.from("client_profiles").upsert(
-          { user_id: userData.user.id, first_name: firstName.trim(), last_name: lastName.trim() },
-          { onConflict: "user_id" }
-        );
+        const profileData: Record<string, unknown> = {
+          user_id: userData.user.id,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+        };
+        if (email.trim()) profileData.email = email.trim();
+        if (streetAddress.trim()) profileData.street_address = streetAddress.trim();
+        await supabase.from("client_profiles").upsert(profileData, { onConflict: "user_id" });
       } catch {
         // Best-effort: no bloqueamos el flujo si falla
       }
@@ -489,7 +502,7 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
 
       // Si estamos en modo signup con nombres ingresados, guardarlos en
       // client_profiles (best-effort, no bloquea el flujo si falla).
-      await saveSignupName();
+      await saveSignupProfile();
 
       // v8.3 fix (auditoría E1): el login por teléfono+OTP YA prueba
       // posesión del número -- marcar phone_verified aquí evita pedirle
@@ -674,6 +687,34 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
                 autoComplete="family-name"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none"
+              />
+            </div>
+            <div>
+              <label htmlFor="auth-signup-email" className="block text-sm font-medium text-brand-ink mb-1">
+                {t("emailAddressLabel")}
+              </label>
+              <input
+                id="auth-signup-email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none"
+              />
+            </div>
+            <div>
+              <label htmlFor="auth-signup-address" className="block text-sm font-medium text-brand-ink mb-1">
+                {t("streetAddressLabel")}
+              </label>
+              <input
+                id="auth-signup-address"
+                type="text"
+                autoComplete="street-address"
+                value={streetAddress}
+                onChange={(e) => setStreetAddress(e.target.value)}
+                placeholder={t("streetAddressPlaceholder")}
                 className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none"
               />
             </div>

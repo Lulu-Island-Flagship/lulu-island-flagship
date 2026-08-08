@@ -302,6 +302,9 @@
       "lastNameLabel": "Nom",
       "continueButton": "Continuer",
       "nameRequired": "Veuillez entrer votre prénom et votre nom.",
+      "streetAddressLabel": "Adresse",
+      "streetAddressPlaceholder": "123 rue Principale, Richmond, BC",
+      "addressRequired": "Veuillez entrer votre adresse.",
       "verifyPhoneDesc": "Pour votre sécurité, un numéro de téléphone vérifié est requis avant de pouvoir compléter une réservation. Cela ne prend qu'une minute.",
       "sameMethodWarning": "Veuillez toujours utiliser la même méthode de connexion — changer de méthode (p. ex. Google, puis courriel) crée un compte distinct et vous perdrez l'accès à votre historique et à votre portefeuille.",
       "phoneNumberLabel": "Numéro de téléphone",
@@ -700,10 +703,16 @@
     "nav": {
       "ariaLabel": "Navigation du compte",
       "backToHome": "Retour à l'accueil",
-      "servicios": "Mes services",
-      "propiedades": "Mes propriétés",
-      "billetera": "Portefeuille Lulu",
-      "referidos": "Ambassadeur Lulu",
+      "services": "Services",
+      "properties": "Propriétés",
+      "wallet": "Portefeuille",
+      "referrals": "Ambassadeur",
+      "preferences": "Préférences",
+      "profile": "Profil",
+      "servicios": "Services",
+      "propiedades": "Propriétés",
+      "billetera": "Portefeuille",
+      "referidos": "Ambassadeur",
       "preferencias": "Préférences",
       "perfil": "Profil",
       "logout": "Déconnexion",
@@ -1592,7 +1601,8 @@
         "configHistory": "Historique de configuration",
         "roles": "Rôles",
         "compliance": "Conformité",
-        "payrollRemittances": "Remises fiscales"
+        "payrollRemittances": "Cotisations Sociales",
+        "tax": "Taxes et Prélèvements"
       }
     },
     "layout": {

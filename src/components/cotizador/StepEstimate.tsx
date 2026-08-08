@@ -170,7 +170,7 @@ export function StepEstimate({ initial, onChange }: StepEstimateProps) {
                     : "border-gray-200 text-gray-600 hover:border-brand-wave-blue"
                 }`}
               >
-                {z.name}{z.surcharge > 0 ? ` (+$${z.surcharge})` : ""}
+                {z.name}
               </button>
             );
           })}

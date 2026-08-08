@@ -302,6 +302,9 @@
       "lastNameLabel": "姓氏",
       "continueButton": "继续",
       "nameRequired": "请输入您的名字和姓氏。",
+      "streetAddressLabel": "街道地址",
+      "streetAddressPlaceholder": "例：Richmond, BC Main St 123号",
+      "addressRequired": "请输入您的街道地址。",
       "verifyPhoneDesc": "为了您的账户安全，完成预订前需要验证手机号码，仅需一分钟。",
       "sameMethodWarning": "请每次使用同一种登录方式 — 切换方式（例如先用谷歌登录，后改用邮箱）会创建一个不同的账户，您将无法访问之前的历史记录和钱包。",
       "phoneNumberLabel": "手机号码",
@@ -700,10 +703,16 @@
     "nav": {
       "ariaLabel": "账户导航",
       "backToHome": "返回首页",
-      "servicios": "我的服务",
+      "services": "服务项目",
+      "properties": "我的物业",
+      "wallet": "Lulu钱包",
+      "referrals": "Lulu大使",
+      "preferences": "偏好设置",
+      "profile": "个人资料",
+      "servicios": "服务项目",
       "propiedades": "我的物业",
       "billetera": "Lulu钱包",
-      "referidos": "Lulu大使计划",
+      "referidos": "Lulu大使",
       "preferencias": "偏好设置",
       "perfil": "个人资料",
       "logout": "退出登录",
@@ -1592,7 +1601,8 @@
         "configHistory": "配置变更记录",
         "roles": "角色管理",
         "compliance": "合规管理",
-        "payrollRemittances": "税务汇款"
+        "payrollRemittances": "薪资汇缴",
+        "tax": "税费设置"
       }
     },
     "layout": {

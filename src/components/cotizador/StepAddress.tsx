@@ -362,14 +362,6 @@ export function StepAddress({ address, zone, postalCode, onChange, squareFeet, o
               >
                 <div className="flex items-center justify-between">
                   <span className="font-medium">{z.name}</span>
-                  {z.surcharge > 0 && (
-                    <span className="text-sm text-state-warning font-medium">
-                      +${z.surcharge}
-                    </span>
-                  )}
-                  {z.surcharge === 0 && (
-                    <span className="text-sm text-state-success font-medium">{t("zoneBase")}</span>
-                  )}
                 </div>
               </button>
             );

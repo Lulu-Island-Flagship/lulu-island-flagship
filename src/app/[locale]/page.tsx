@@ -148,8 +148,14 @@ export default function HomePage() {
         <AuthModal
           signupMode={authModal === "signup"}
           onClose={() => setAuthModal(null)}
-          onSuccess={() => router.push(`/${locale}/account`)}
-          postLoginRedirect={`/${locale}/account`}
+          onSuccess={() => {
+            if (authModal === "signup") {
+              router.push(`/${locale}/account`);
+            } else {
+              router.push(`/${locale}`);
+            }
+          }}
+          postLoginRedirect={authModal === "signup" ? `/${locale}/account` : `/${locale}`}
         />
       )}
 
@@ -170,12 +176,6 @@ export default function HomePage() {
               <MapPin className="w-3.5 h-3.5 text-brand-wave-blue" />
               {getContent('nav.location')}
             </span>
-            <button
-              onClick={() => router.push(`/${locale}/quote`)}
-              className="text-brand-navy hover:text-brand-wave-blue transition-colors font-semibold"
-            >
-              {getContent('nav.getQuote')}
-            </button>
             <button
               onClick={() => setAuthModal("signin")}
               className="flex items-center gap-1.5 text-brand-navy hover:text-brand-wave-blue transition-colors font-medium"
