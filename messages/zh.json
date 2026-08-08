@@ -13,6 +13,7 @@
   },
   "nav": {
     "location": "里士满，卑诗省",
+    "getQuote": "获取报价",
     "login": "登录 / 注册",
     "signIn": "登录",
     "signUp": "注册",

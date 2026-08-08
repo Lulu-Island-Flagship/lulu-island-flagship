@@ -13,6 +13,7 @@
   },
   "nav": {
     "location": "Richmond, C.-B.",
+    "getQuote": "Obtenir un devis",
     "signIn": "Se connecter",
     "signUp": "S'inscrire",
     "login": "Se connecter / S'inscrire",
