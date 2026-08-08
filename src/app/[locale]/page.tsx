@@ -5,8 +5,8 @@ import { useTranslations } from 'next-intl';
 import Image from "next/image";
 import Script from "next/script";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Ship, MapPin, LogIn, UserPlus, Search } from "lucide-react";
-import { QuoteButton } from "@/components/landing/QuoteButton";
+import { Ship, MapPin, LogIn, UserPlus } from "lucide-react";
+
 import { getBasePrice } from "@/lib/pricing/engine";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { AuthModal } from "@/components/cotizador/AuthModal";

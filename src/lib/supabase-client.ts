@@ -3,7 +3,7 @@
 // getSupabaseClient()  → cliente anónimo + cookies
 // getServiceRoleClient() → service role (bypassea RLS)
 
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { getSupabaseUrl, getSupabaseAnonKey } from "@/lib/supabase-env";

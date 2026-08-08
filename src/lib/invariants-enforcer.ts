@@ -53,7 +53,7 @@
  */
 
 import { z } from "zod";
-import { logEvent } from "@/lib/observability";
+
 
 // ── Tipos comunes ────────────────────────────────────────────────────────────
 
@@ -649,14 +649,7 @@ export function enforceAllInvariants(
 
   const allPassed = failed.length === 0;
 
-  // Auditoría: loguear el resultado agregado.
-  logEvent("sistema.invariants_enforced", {
-    allPassed,
-    failedCount: failed.length,
-    passedCount: passed.length,
-    failed,
-    evaluatedAtIso: referenceIso,
-  });
+  // Auditoría: el caller decide si loguear.
 
   return {
     evaluatedAtIso: referenceIso,
