@@ -1,6 +1,15 @@
 -- ============================================================
 -- v8.3 F.8 — Marketplace de Turnos entre empleados
 -- ============================================================
+
+-- Función auxiliar para triggers de updated_at (usada por varias tablas)
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 -- Tabla: turn_marketplace_offers
 --   Reemplaza el caos de WhatsApp para cobertura de turnos.
 --   src/lib/turn-marketplace.ts contiene las funciones puras de validación.
