@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole, getServiceRoleClient } from "@/lib/admin";
+import { requireAdminRole, getServiceRoleClient, logAdminAction } from "@/lib/admin";
 import { safeErrorResponse } from "@/lib/api-errors";
 import {
   getActiveSuccessors,
@@ -69,6 +69,12 @@ export async function POST(request: NextRequest) {
   if (auth.error || !auth.supabase || !auth.user) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
+
+  const logResult = await logAdminAction({
+    supabase: auth.supabase, user: auth.user, roles: auth.roles,
+    resource: "access_recovery", method: request.method, path: request.url,
+  });
+  if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
 
   // Se usa service role para las operaciones sobre la tabla (RLS es
   // false/false, ver 202_e11_access_recovery_requests.sql) -- requireAdminRole

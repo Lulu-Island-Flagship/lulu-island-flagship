@@ -21,6 +21,21 @@ export {
 } from "../payroll";
 export type { PayrollCalculationInput, PayrollCalculationResult } from "../payroll";
 
+// ─── Payroll Calculator (engine) ───────────────────────────────
+export {
+  calculatePayrollForEmployee,
+} from "../payroll-calculator";
+export type {
+  PayrollEarnings,
+  PayrollDeductions,
+  PayrollEmployerContributions,
+  PayrollYtdSnapshot,
+  // PayrollCalculationResult ya está exportado arriba desde ../payroll
+  // (la versión simple por-servicio). La versión del engine se importa
+  // directamente desde payroll-calculator cuando se necesita.
+} from "../payroll-calculator";
+export type { YtdPrevious, PayrollOptions } from "../payroll-calculator";
+
 // ─── Engine multi-ciclo ────────────────────────────────────────
 export {
   createPayrollCycle,
@@ -28,6 +43,7 @@ export {
   transitionCycle,
   updateCycleTotals,
   generatePayrollJournalEntry,
+  executePayrollCycle,
   VALID_TRANSITIONS,
   payrollCicloSchema,
   PAYROLL_CHART_OF_ACCOUNTS,
@@ -40,6 +56,7 @@ export type {
   PayrollDisbursementEvent,
   PayrollJournalRow,
   PayrollJournalInput,
+  ExecutePayrollCycleResult,
 } from "../payroll-engine";
 
 // ─── Deductions (CPP, EI, tax) ─────────────────────────────────
@@ -87,8 +104,15 @@ export type {
 } from "../payroll-export";
 
 // ─── Persistence ───────────────────────────────────────────────
-export { insertPayrollEntry } from "../payroll-persist";
-export type { InsertPayrollEntryInput, InsertPayrollEntryResult } from "../payroll-persist";
+export {
+  computeAndInsertPayrollEntry,
+  insertPayrollEntry,
+} from "../payroll-persist";
+export type {
+  InsertPayrollEntryInput,
+  InsertPayrollEntryComputedInput,
+  InsertPayrollEntryResult,
+} from "../payroll-persist";
 
 // ─── Constants ─────────────────────────────────────────────────
 export { PAY_PERIODS_PER_YEAR as PAYROLL_PERIODS_PER_YEAR } from "../payroll-constants";

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole } from "@/lib/admin";
+import { requireAdminRole, logAdminAction } from "@/lib/admin";
 import { suggestNotesForContext, type EntityNote, type EntityType } from "@/lib/entity-notes";
 import { safeErrorResponse } from "@/lib/api-errors";
 
@@ -110,13 +110,17 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   const auth = await requireAdminRole("dispatch", { method: request.method, url: request.url });
-  if (auth.error) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  if (auth.error || !auth.supabase || !auth.user) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
+
+  const logResult = await logAdminAction({
+    supabase: auth.supabase, user: auth.user, roles: auth.roles,
+    resource: "dispatch", method: request.method, path: request.url,
+  });
+  if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
+
   const { supabase } = auth;
-  if (!supabase) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   const id = request.nextUrl.searchParams.get("id");
   if (!id) {

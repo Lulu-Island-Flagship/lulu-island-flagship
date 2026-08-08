@@ -1,0 +1,13 @@
+src/app/api/admin/payroll/roe/route.ts
+src/app/api/admin/communication-templates/route.ts
+src/app/api/admin/route-shortcuts/[id]/validate/route.ts
+src/app/api/admin/access-recovery/route.ts
+src/app/api/admin/qc/[orderId]/review/route.ts
+src/app/api/admin/qc/route.ts
+src/app/api/admin/payroll-export/route.ts
+src/app/api/admin/entity-notes/route.ts
+src/app/api/admin/employees/route.ts
+src/app/api/admin/employees/[id]/offboard/route.ts
+src/app/api/admin/employees/[id]/route.ts
+src/app/api/client-module/ensure-registered/route.ts
+src/app/api/client/pipeda/request/route.ts

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole } from "@/lib/admin";
+import { requireAdminRole, logAdminAction } from "@/lib/admin";
 
 /**
  * GET /api/admin/content — list all site_content keys (admin panel)
@@ -34,6 +34,15 @@ export async function PUT(request: NextRequest) {
   if (auth.error || !auth.supabase) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
+  if (!auth.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const logResult = await logAdminAction({
+    supabase: auth.supabase, user: auth.user, roles: auth.roles,
+    resource: "site_content", method: request.method, path: request.url,
+  });
+  if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
 
   const body = await request.json();
   const { key, value } = body;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole } from "@/lib/admin";
+import { requireAdminRole, logAdminAction } from "@/lib/admin";
 import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/tickets — cola de tickets priorizada
@@ -66,9 +66,19 @@ export async function POST(request: NextRequest) {
   if (auth.error || !auth.supabase) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
+  if (!auth.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   try {
     const body = await request.json();
+
+    const logResult = await logAdminAction({
+      supabase: auth.supabase, user: auth.user, roles: auth.roles,
+      resource: "tickets", method: request.method, path: request.url,
+    });
+    if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
+ 
     const { orderId, employeeId, type, priority, context } = body;
 
     if (!type || !priority) {

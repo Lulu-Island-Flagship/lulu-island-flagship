@@ -1,4 +1,12 @@
 /**
+ * DEPRECATED: este módulo es un wrapper de compatibilidad. Todo cálculo nuevo
+ * debe ir en payroll-calculator.ts + compliance-resolver.ts.
+ *
+ * v8.4 — Unificación de cálculo de CPP, EI, WorkSafeBC y Vacation Pay.
+ * Las funciones de cálculo delegan a compliance-resolver.ts (fuente canónica
+ * con parámetros configurables desde BD). Solo WorkSafeBC conserva lógica
+ * local porque usa tasa por defecto distinta y acepta rate personalizada.
+ *
  * v8.3 E9 — Deducciones de nómina canadienses (CPP, CPP2, EI, WorkSafeBC,
  * Vacation Pay BC ESA). Funciones puras: reciben el bruto del período y el
  * acumulado del año (YTD), devuelven la deducción del período y el nuevo YTD.
@@ -15,24 +23,26 @@
  * certificado (ej. QBO Payroll) — este módulo cubre CPP/CPP2/EI/WorkSafeBC/
  * Vacation Pay para que el ciclo interno tenga el desglose completo salvo esa
  * pieza, que se deja explícitamente en cero/fuera de alcance.
- */
-
-/**
+ *
  * v8.3 fix auditoría E9 (fiscal): el ciclo de nómina real (ver
  * payroll-cycle.ts, invariante B.1) es SEMI-MENSUAL (día 1-15 / día 16-fin
  * de mes), NO quincenal cada 14 días. Un ciclo semi-mensual tiene SIEMPRE
- * exactamente 24 períodos por año calendario -- a diferencia de un ciclo
- * quincenal real (cada 14 días desde una fecha ancla), que sí varía entre
- * 26 y 27 períodos según el año. Como este sistema nunca usa el ciclo de
- * 14 días, ese caso de 26/27 no aplica aquí; el valor correcto y estable
- * es 24, no 26. Antes de este fix, usar 26 subestimaba la exención básica
- * de CPP prorrateada por período (3500/26=$134.62 vs 3500/24=$145.83),
- * causando una retención de CPP ligeramente MAYOR a la que exige CRA en
- * cada período (sobre-retención, no sub-retención -- pero igual es un
- * error de cálculo que debe corregirse).
+ * exactamente 24 períodos por año calendario.
  */
+
 import { PAY_PERIODS_PER_YEAR } from "./payroll-constants";
 export { PAY_PERIODS_PER_YEAR };
+
+import {
+  calculateCPP,
+  calculateEI,
+  calculateEmployerEI,
+  calculateVacationAccrual,
+  type CppCalculationInput,
+  type EiCalculationInput,
+  type EmployerEiInput,
+} from "./compliance-resolver";
+import { cumulativeInBand } from "./payroll-math";
 
 // ---- CPP 2026 (CRA) ----
 export const CPP_RATE_2026 = 0.0595;
@@ -58,15 +68,6 @@ export const VACATION_PAY_RATE_UNDER_5Y = 0.04;
 export const VACATION_PAY_RATE_5Y_PLUS = 0.06;
 export const VACATION_PAY_YEARS_THRESHOLD = 5;
 
-function clamp(val: number, lo: number, hi: number): number {
-  return Math.min(Math.max(val, lo), hi);
-}
-
-/** Cuánto de `cumulative` cae dentro de la banda (bandLow, bandHigh]. */
-function cumulativeInBand(cumulativeCents: number, bandLowCents: number, bandHighCents: number): number {
-  return clamp(cumulativeCents, bandLowCents, bandHighCents) - bandLowCents;
-}
-
 // ------------------------------------------------------------
 // CPP / CPP2
 // ------------------------------------------------------------
@@ -85,32 +86,40 @@ export interface CppResult {
   ytdPensionableAfterCents: number;
 }
 
-/** CPP base (hasta YMPE) + CPP2 (entre YMPE y YAMPE), con exención básica prorrateada por período. */
+/**
+ * CPP base (hasta YMPE) + CPP2 (entre YMPE y YAMPE).
+ *
+ * Delega el cálculo base a compliance-resolver.ts (calculateCPP) que resuelve
+ * tasa, exención y tope desde los seed data versionados. CPP2 se calcula
+ * localmente porque el compliance-resolver aún no tiene soporte para CPP2.
+ */
 export function calculateCppContribution(input: CppInput): CppResult {
   const periods = input.payPeriodsPerYear ?? PAY_PERIODS_PER_YEAR;
-  const exemptionPerPeriodCents = Math.round((CPP_BASIC_EXEMPTION_ANNUAL_2026 * 100) / periods);
-  const ympeCents = CPP_YMPE_2026 * 100;
-  const yampeCents = CPP_YAMPE_2026 * 100;
+
+  // Base CPP delegado a compliance-resolver
+  const cppInput: CppCalculationInput = {
+    grossPayCents: input.grossCents,
+    periodStart: new Date(),
+    ytdPensionableCents: input.ytdPensionableCents,
+    payPeriodsPerYear: periods,
+  };
+  const baseResult = calculateCPP(cppInput);
 
   const ytdBefore = Math.max(0, input.ytdPensionableCents);
   const ytdAfter = ytdBefore + input.grossCents;
-
-  // Ganancias pensionables base: gross menos exención, acotadas por el
-  // espacio restante hasta el YMPE según el acumulado del año.
-  const roomToYmpe = cumulativeInBand(ytdAfter, 0, ympeCents) - cumulativeInBand(ytdBefore, 0, ympeCents);
-  const grossLessExemption = Math.max(0, input.grossCents - exemptionPerPeriodCents);
-  const basePensionableThisPeriod = Math.min(grossLessExemption, Math.max(0, roomToYmpe));
-  const baseContributionCents = Math.round(basePensionableThisPeriod * CPP_RATE_2026);
+  const ympeCents = baseResult.ympEcents; // from compliance-resolver seed
+  const yampeCents = CPP_YAMPE_2026 * 100;
 
   // CPP2: ganancias entre YMPE y YAMPE, sin exención adicional.
   const cpp2PensionableThisPeriod =
-    cumulativeInBand(ytdAfter, ympeCents, yampeCents) - cumulativeInBand(ytdBefore, ympeCents, yampeCents);
+    cumulativeInBand(ytdAfter, ympeCents, yampeCents) -
+    cumulativeInBand(ytdBefore, ympeCents, yampeCents);
   const cpp2ContributionCents = Math.round(Math.max(0, cpp2PensionableThisPeriod) * CPP2_RATE_2026);
 
   return {
-    baseContributionCents,
+    baseContributionCents: baseResult.employeeCents,
     cpp2ContributionCents,
-    totalContributionCents: baseContributionCents + cpp2ContributionCents,
+    totalContributionCents: baseResult.employeeCents + cpp2ContributionCents,
     ytdPensionableAfterCents: ytdAfter,
   };
 }
@@ -131,18 +140,33 @@ export interface EiResult {
   ytdInsurableAfterCents: number;
 }
 
+/**
+ * Calcula la prima EI del empleado + empleador.
+ *
+ * Delega a compliance-resolver.ts (calculateEI + calculateEmployerEI) que
+ * resuelve tasa y tope asegurable desde los seed data versionados.
+ */
 export function calculateEiPremium(input: EiInput): EiResult {
-  const maxInsurableCents = EI_MAX_INSURABLE_2026 * 100;
-  const ytdBefore = Math.max(0, input.ytdInsurableCents);
-  const ytdAfter = ytdBefore + input.grossCents;
+  const eiInput: EiCalculationInput = {
+    grossPayCents: input.grossCents,
+    periodStart: new Date(),
+    ytdInsurableCents: input.ytdInsurableCents,
+  };
 
-  const insurableThisPeriod =
-    cumulativeInBand(ytdAfter, 0, maxInsurableCents) - cumulativeInBand(ytdBefore, 0, maxInsurableCents);
+  const eiResult = calculateEI(eiInput);
 
-  const employeeCents = Math.round(Math.max(0, insurableThisPeriod) * EI_EMPLOYEE_RATE_2026);
-  const employerCents = Math.round(employeeCents * EI_EMPLOYER_MULTIPLIER);
+  const employerInput: EmployerEiInput = {
+    grossPayCents: input.grossCents,
+    periodStart: new Date(),
+    ytdInsurableCents: input.ytdInsurableCents,
+  };
+  const employerCents = calculateEmployerEI(employerInput);
 
-  return { employeeCents, employerCents, ytdInsurableAfterCents: ytdAfter };
+  return {
+    employeeCents: eiResult.employeeCents,
+    employerCents,
+    ytdInsurableAfterCents: eiResult.ytdInsurableAfterCents,
+  };
 }
 
 // ------------------------------------------------------------
@@ -151,8 +175,11 @@ export function calculateEiPremium(input: EiInput): EiResult {
 
 export interface WorkSafeBcInput {
   grossCents: number;
+  /** Acumulado de ganancias evaluables del empleado en el año, ANTES de este período. */
   ytdAssessableCents: number;
-  rate?: number; // fracción, ej. 0.0155
+  /** Tasa personalizada por unidad de clasificación (dólares por $1 de nómina).
+   *  Si no se provee, usa WORKSAFEBC_AVG_BASE_RATE_2026. */
+  rate?: number;
 }
 
 export interface WorkSafeBcResult {
@@ -160,6 +187,14 @@ export interface WorkSafeBcResult {
   ytdAssessableAfterCents: number;
 }
 
+/**
+ * Calcula la prima de WorkSafeBC (solo empleador) con tope anual.
+ *
+ * Conserva lógica local porque accepta tasa personalizada (rate) y usa un
+ * default distinto al del compliance-resolver (0.0155 vs class_rate 2.15).
+ * El compliance-resolver's getWorksafeBCPremium es una función más simple
+ * que no maneja YTD caps ni tasas custom.
+ */
 export function calculateWorkSafeBcPremium(input: WorkSafeBcInput): WorkSafeBcResult {
   const rate = input.rate ?? WORKSAFEBC_AVG_BASE_RATE_2026;
   const maxAssessableCents = WORKSAFEBC_MAX_ASSESSABLE_EARNINGS_2026 * 100;
@@ -167,7 +202,8 @@ export function calculateWorkSafeBcPremium(input: WorkSafeBcInput): WorkSafeBcRe
   const ytdAfter = ytdBefore + input.grossCents;
 
   const assessableThisPeriod =
-    cumulativeInBand(ytdAfter, 0, maxAssessableCents) - cumulativeInBand(ytdBefore, 0, maxAssessableCents);
+    cumulativeInBand(ytdAfter, 0, maxAssessableCents) -
+    cumulativeInBand(ytdBefore, 0, maxAssessableCents);
 
   const employerCents = Math.round(Math.max(0, assessableThisPeriod) * rate);
 
@@ -183,8 +219,14 @@ export function getVacationPayRate(yearsOfService: number): number {
   return yearsOfService >= VACATION_PAY_YEARS_THRESHOLD ? VACATION_PAY_RATE_5Y_PLUS : VACATION_PAY_RATE_UNDER_5Y;
 }
 
+/**
+ * Calcula la acumulación de Vacation Pay delegando a compliance-resolver.ts.
+ *
+ * El compliance-resolver resuelve las tasas (4% / 6%) desde los seed data
+ * versionados, que coinciden con las constantes locales de BC ESA.
+ */
 export function calculateVacationPayAccrual(grossCents: number, yearsOfService: number): number {
-  return Math.round(grossCents * getVacationPayRate(yearsOfService));
+  return calculateVacationAccrual(grossCents, yearsOfService, new Date());
 }
 
 // ------------------------------------------------------------

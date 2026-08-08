@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getSetting, getHiringFlowServiceClient } from "../hiring-flow/settings-service";
+import { getSetting } from "../hiring-flow/settings-service";
+import { getHiringFlowServiceClient } from "@/lib/supabase-service-client";
 import {
   calculateInvoiceTotals,
   generateInvoiceNumber,

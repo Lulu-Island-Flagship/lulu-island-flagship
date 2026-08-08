@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getHiringFlowServiceClient } from "../hiring-flow/settings-service";
+import { getHiringFlowServiceClient } from "@/lib/supabase-service-client";
 
 // Módulo nuevo y separado: "Módulo de Cliente" -- facturación. Gestión de
 // métodos de pago (client_payment_methods).

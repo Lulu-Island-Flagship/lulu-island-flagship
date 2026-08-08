@@ -25,13 +25,22 @@ export type {
 } from "./order";
 export type { AppliedRule } from "./order";
 
-// Empleado y Operaciones (Módulos 3 y 4)
+// Empleado (Módulo 3)
 export type {
   EmployeeRole,
   TrustLevel,
   Employee,
+  EmployeeProfile,
+} from "./employee";
+
+// Flota / Vehículos
+export type {
   Vehicle,
   VehicleTracking,
+} from "./fleet";
+
+// Despacho y Asignaciones
+export type {
   SlotType,
   CapacitySlot,
   DispatchRunPhase,
@@ -41,15 +50,19 @@ export type {
   FieldAudit,
   AssignmentStatus,
   Assignment,
+  EmployeeService,
+} from "./dispatch";
+
+// Ejecución de Servicio (Módulo 4)
+export type {
   ServiceLogEvent,
   ServiceLog,
-  EmployeeService,
   SOPChecklistItem,
   SOPChecklist,
   ServiceChecklistItem,
   ServiceUpsell,
   ChecklistZoneProgress,
-} from "./employee";
+} from "./service-execution";
 
 // Nómina (Módulo 2)
 export type {

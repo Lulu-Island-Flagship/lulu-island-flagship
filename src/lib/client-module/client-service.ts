@@ -1,11 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-// getHiringFlowServiceClient() vive en el módulo hermano hiring-flow por
-// razones históricas (fue la primera cosa que necesitó un cliente
-// Supabase con SUPABASE_SERVICE_ROLE_KEY en este repo), pero es GENÉRICA:
-// crea un cliente admin con la misma env var que usa cualquier módulo del
-// sistema, no tiene nada específico de "hiring". Se importa tal cual, sin
-// duplicarla ni envolverla.
-import { getHiringFlowServiceClient } from "../hiring-flow/settings-service";
+import { getHiringFlowServiceClient } from "@/lib/supabase-service-client";
 import {
   isValidEmail,
   isValidCanadianPhone,
@@ -15,6 +9,7 @@ import {
   type PreferredLanguage,
 } from "./types";
 import { assertValidTransition } from "./client-lifecycle";
+import { VALID_CLIENT_TYPES, VALID_LANGUAGES, LEGAL_NAME_MIN_LENGTH, LEGAL_NAME_MAX_LENGTH } from "@/lib/validation-constants";
 
 // Módulo nuevo y separado: "Módulo de Cliente" (quien contrata el servicio
 // de limpieza). Complementario al módulo de empleado, pero independiente
@@ -53,10 +48,6 @@ export interface ClientValidationError {
   message: string;
 }
 
-const VALID_CLIENT_TYPES: ClientType[] = ["residential", "commercial", "industrial"];
-const VALID_LANGUAGES: PreferredLanguage[] = ["en", "fr", "es", "zh"];
-const LEGAL_NAME_MIN_LENGTH = 2;
-const LEGAL_NAME_MAX_LENGTH = 200;
 
 // Pura, acumula TODOS los errores (no fail-fast) -- mismo patrón que
 // hiring-flow/step1-validator.ts, reimplementado aquí para independencia.

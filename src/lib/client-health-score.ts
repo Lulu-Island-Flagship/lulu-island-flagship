@@ -25,7 +25,6 @@
  */
 
 import { z } from "zod";
-import { logEvent } from "@/lib/observability";
 
 // ── Constantes ───────────────────────────────────────────────────────────────
 
@@ -113,6 +112,24 @@ export interface ClientHealthScore {
   /** Gasto mensual promedio de los últimos 6 meses (centavos). */
   avgMonthlySpendCents: number;
   /** Fecha de generación del reporte. */
+  generatedAtIso: string;
+  /** Evento de auditoría para registro externo (el caller decide si loguear). */
+  auditEvent: HealthScoreAuditEvent;
+}
+
+/** Registro de auditoría que el caller puede escribir en event_log. */
+export interface HealthScoreAuditEvent {
+  event_type: "cliente.health_score_computed";
+  healthScore: number;
+  trend: string;
+  currentSegment: string;
+  avgServicesPerMonth: number;
+  avgMonthlySpendCents: number;
+  ltvActualCents: number;
+  ltvProjectedCents: number;
+  ltvGapPercent: number | null;
+  signalsCount: number;
+  signalTypes: string[];
   generatedAtIso: string;
 }
 
@@ -241,12 +258,14 @@ export function computeClientHealthScore(
     ? recentSnapshots[recentSnapshots.length - 1].segment
     : "new";
 
-  // Auditoría.
-  logEvent("cliente.health_score_computed", {
+  const round1 = Math.round(avgServicesPerMonth * 10) / 10;
+
+  const auditEvent: HealthScoreAuditEvent = {
+    event_type: "cliente.health_score_computed",
     healthScore,
     trend,
     currentSegment,
-    avgServicesPerMonth: Math.round(avgServicesPerMonth * 10) / 10,
+    avgServicesPerMonth: round1,
     avgMonthlySpendCents,
     ltvActualCents,
     ltvProjectedCents,
@@ -254,7 +273,7 @@ export function computeClientHealthScore(
     signalsCount: signals.length,
     signalTypes: signals.map(s => s.type),
     generatedAtIso: validated.referenceIso,
-  });
+  };
 
   return {
     healthScore,
@@ -267,9 +286,10 @@ export function computeClientHealthScore(
     daysSinceLastCommunication: validated.daysSinceLastCommunication,
     daysSinceLastService: validated.daysSinceLastService,
     currentSegment,
-    avgServicesPerMonth: Math.round(avgServicesPerMonth * 10) / 10,
+    avgServicesPerMonth: round1,
     avgMonthlySpendCents,
     generatedAtIso: validated.referenceIso,
+    auditEvent,
   };
 }
 

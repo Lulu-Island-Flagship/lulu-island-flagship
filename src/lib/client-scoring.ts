@@ -22,7 +22,7 @@ export const CLIENT_SCORE_FIRST_SERVICE_NO_DISPUTE = 20;
 export const CLIENT_SCORE_NO_SHOW_PENALTY = 30;
 export const CLIENT_SCORE_DISPUTE_LOST_PENALTY = 25;
 
-export type ClientType = "new" | "returning" | "elite";
+export type ClientScoreTier = "new" | "returning" | "elite";
 
 export interface ClientScoreInput {
   /** Servicios completados sin disputa (total histórico). */
@@ -64,7 +64,7 @@ export function computeClientScore(input: ClientScoreInput): number {
 export function deriveClientType(
   servicesCount: number,
   clientScore: number
-): ClientType {
+): ClientScoreTier {
   if (servicesCount === 0) return "new";
   if (servicesCount >= 10 && clientScore > 80) return "elite";
   return "returning";

@@ -101,6 +101,31 @@ export async function resolveStaffLogin(
   //    tras el primer login, o empleado invitado vía
   //    supabase.auth.admin.inviteUserByEmail que ya trae user_id desde la
   //    creación -- ver POST /api/admin/empleados).
+  //
+  //    CONSOLIDACIÓN (2026-08-06, auditoría "Esponja"): este check de
+  //    "empleado activo" es estructuralmente similar al de
+  //    requireActiveEmployee() en src/lib/require-active-employee.ts, pero
+  //    NO puede delegar en esa función por tres razones:
+  //
+  //    a) Cliente distinto: resolveStaffLogin() opera con serviceSupabase
+  //       (service_role, bypassea RLS), mientras que requireActiveEmployee()
+  //       espera un cliente autenticado como el usuario (RLS activo). Pasarle
+  //       el service_role haría que la función se comporte de forma
+  //       impredecible (RLS de employees no restringe al service_role, pero
+  //       el contrato de requireActiveEmployee asume un cliente de usuario).
+  //
+  //    b) Semántica de error distinta: requireActiveEmployee() colapsa
+  //       "no existe fila" y "existe pero inactivo" en un solo error
+  //       genérico (GENERIC_ERROR / 403). resolveStaffLogin() NECESITA
+  //       distinguir ambos casos: "inactivo" → pending_activation (el
+  //       empleado existe pero el manager no lo ha activado todavía),
+  //       mientras que "no existe" → cae al paso 3 (intentar vinculación
+  //       por email).
+  //
+  //    c) maybeSingle() vs single(): requireActiveEmployee() usa .single()
+  //       (lanza PGRST116 si 0 filas) y tiene lógica compleja de distinción
+  //       de códigos de error. resolveStaffLogin() usa .maybeSingle() porque
+  //       "0 filas" es un resultado esperado y no un error.
   const { data: byUserId } = await serviceSupabase
     .from("employees")
     .select("id, is_active")

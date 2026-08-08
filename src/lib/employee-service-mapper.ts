@@ -8,7 +8,7 @@
 // Si cambia una columna en la BD, solo se actualiza este archivo;
 // los componentes y rutas que consumen EmployeeService no se tocan.
 
-import type { EmployeeService, AssignmentStatus } from "@/types/employee";
+import type { EmployeeService, AssignmentStatus } from "@/types/dispatch";
 
 /** Datos crudos de la BD (snake_case) necesarios para construir un EmployeeService. */
 export interface EmployeeServiceMappingInput {

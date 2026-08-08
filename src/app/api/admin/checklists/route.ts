@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole } from "@/lib/admin";
+import { requireAdminRole, logAdminAction } from "@/lib/admin";
 import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/admin/checklists — listar todas las plantillas (activas e inactivas)
@@ -35,13 +35,17 @@ export async function GET() {
 // POST /api/admin/checklists — crear nueva zona de checklist
 export async function POST(request: NextRequest) {
   const auth = await requireAdminRole("checklists_sop", { method: request.method, url: request.url });
-  if (auth.error) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  if (auth.error || !auth.supabase || !auth.user) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });
   }
+
+  const logResult = await logAdminAction({
+    supabase: auth.supabase, user: auth.user, roles: auth.roles,
+    resource: "checklists_sop", method: request.method, path: request.url,
+  });
+  if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
+
   const { supabase } = auth;
-  if (!supabase) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   try {
     const body = await request.json();

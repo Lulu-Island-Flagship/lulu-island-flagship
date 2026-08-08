@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getHiringFlowServiceClient } from "../hiring-flow/settings-service";
+import { getHiringFlowServiceClient } from "@/lib/supabase-service-client";
 import type { ClientCommunication } from "./types";
 
 // Módulo nuevo y separado: "Módulo de Cliente" -- Comunicaciones.

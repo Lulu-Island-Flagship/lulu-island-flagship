@@ -43,10 +43,8 @@ import {
   type PayrollCuentaContable,
 } from "./payroll-engine";
 import type { PayrollLineaRow } from "./payroll-line";
-import {
-  CHART_OF_ACCOUNTS,
-  type LedgerEntryStatus,
-} from "./financial-ledger";
+import { CHART_OF_ACCOUNTS } from "./chart-of-accounts";
+import type { LedgerEntryStatus } from "./ledger-types";
 import { nextBusinessDay } from "./cra-remittances";
 
 // =========================================================================

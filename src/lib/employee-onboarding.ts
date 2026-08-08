@@ -62,17 +62,46 @@ export const ONBOARDING_TOTAL_SCREENS = ONBOARDING_SCREEN_ORDER.length;
 // Datos del empleado (provistos por el caller)
 // ---------------------------------------------------------------------------
 
-/** Datos del empleado nuevo necesarios para personalizar el wizard. */
+/**
+ * Datos del empleado nuevo necesarios para personalizar el wizard de
+ * onboarding. Es un DTO (Data Transfer Object) específico para este flujo,
+ * NO un subtipo de `Employee` (@/types/employee).
+ *
+ * CONSOLIDACIÓN "Esponja" (auditoría 2026-08-06):
+ *
+ * - `firstName` (solo el nombre de pila) es intencionalmente distinto de
+ *   `Employee.name` (nombre completo). El wizard usa el nombre de pila para
+ *   un tono personal y cercano ("¡Bienvenido, John!"), no el nombre completo
+ *   ("John Smith") que almacena la DB. Mantener la distinción semántica.
+ *
+ * - `assignedZone` es el equivalente onboarding de `Employee.homeZone`
+ *   (la zona asignada al empleado). El nombre difiere porque en onboarding
+ *   es una asignación inicial, mientras que `homeZone` es la zona de trabajo
+ *   habitual ya establecida.
+ *
+ * - `hireDate` existe en ambas interfaces (Employee.hireDate? es opcional
+ *   porque las filas legacy pueden no tenerla; aquí es required porque el
+ *   wizard DEBE saber la fecha de contratación para la pantalla "Primer Día").
+ *
+ * - `employeeId` mapea a `Employee.id`, no a `Employee.userId`.
+ *
+ * - Los campos `dayRate`, `isActive`, `userId`, `languages`, `trustLevel`
+ *   no están presentes porque el wizard no los necesita: el Day Rate se
+ *   recibe por separado (`estimatedDayRateCents` en buildFirstDayScreen),
+ *   y los demás no se muestran en el onboarding.
+ */
 export interface OnboardingEmployeeData {
+  /** UUID del empleado — equivale a Employee.id. */
   employeeId: string;
+  /** Nombre de pila (NO nombre completo — ver docblock arriba). */
   firstName: string;
   /** Rol: cleaner, supervisor, driver. */
   role: "cleaner" | "supervisor" | "driver";
-  /** Fecha de contratación (YYYY-MM-DD). */
+  /** Fecha de contratación (YYYY-MM-DD) — equivale a Employee.hireDate. */
   hireDate: string;
   /** Día y hora del primer turno (ISO). */
   firstShiftAtIso: string | null;
-  /** Zona asignada (ej. "Richmond Centro"). */
+  /** Zona asignada (ej. "Richmond Centro") — equivale a Employee.homeZone. */
   assignedZone: string;
 }
 

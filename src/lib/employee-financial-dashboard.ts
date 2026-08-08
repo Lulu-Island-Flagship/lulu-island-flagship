@@ -18,6 +18,11 @@
  *      `employeeId` y el caller es responsable de pasar SOLO los datos
  *      de ese empleado. No existe una función que reciba datos de
  *      múltiples empleados y los compare.
+ */
+
+import { assertSingleEmployee, formatCents } from "./financial-utils";
+
+/**
  *   2. Capa de runtime: `assertSingleEmployee` escanea cualquier input
  *      que contenga arrays de eventos/shifts y LANZA si detecta más de
  *      un employee_id distinto — fail-closed.
@@ -131,19 +136,8 @@ export const PAY_PERIOD_DAYS = 15;
  *
  * Mismo patrón que `assertNoIndividualIdentifier` en team-ranking.ts.
  */
-export function assertSingleEmployee(
-  items: ReadonlyArray<{ employeeId: string }>,
-  context: string
-): void {
-  const ids = new Set(items.map((i) => i.employeeId));
-  if (ids.size > 1) {
-    throw new Error(
-      `F.5 PRIVACY VIOLATION: ${context} contains ${ids.size} distinct employee_ids. ` +
-        `Employee financial dashboard must only show data for ONE employee. ` +
-        `Caller must filter by authenticated employee_id before calling this module.`
-    );
-  }
-}
+// Re-exported from financial-utils.ts (single source of truth, auditoría 2026-08-07)
+export { assertSingleEmployee } from "./financial-utils";
 
 // ---------------------------------------------------------------------------
 // Cálculo de ganancias del día
@@ -373,10 +367,8 @@ export function buildCancellationCelebrations(
 // Formateo para PWA
 // ---------------------------------------------------------------------------
 
-/** Convierte centavos a string con formato $XX.XX. */
-export function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
+// Re-exported from financial-utils.ts (single source of truth, auditoría 2026-08-07)
+export { formatCents } from "./financial-utils";
 
 /**
  * Genera el texto de resumen diario para la PWA, formato spec F.5:

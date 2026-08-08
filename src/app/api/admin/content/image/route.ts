@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole } from "@/lib/admin";
+import { requireAdminRole, logAdminAction } from "@/lib/admin";
 
 /**
  * POST /api/admin/content/image — upload image to landing-images bucket
@@ -20,6 +20,15 @@ export async function POST(request: NextRequest) {
   if (auth.error || !auth.supabase) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
+  if (!auth.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const logResult = await logAdminAction({
+    supabase: auth.supabase, user: auth.user, roles: auth.roles,
+    resource: "site_content", method: request.method, path: request.url,
+  });
+  if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
 
   const formData = await request.formData();
   const slot = formData.get("slot") as string;
@@ -72,8 +81,17 @@ export async function DELETE(request: NextRequest) {
   if (auth.error || !auth.supabase) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
+  if (!auth.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const body = await request.json();
+
+  const logResult = await logAdminAction({
+    supabase: auth.supabase, user: auth.user, roles: auth.roles,
+    resource: "site_content", method: request.method, path: request.url,
+  });
+  if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
   const { slot } = body;
 
   if (!slot || !ALLOWED_SLOTS.includes(slot)) {

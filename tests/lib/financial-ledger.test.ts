@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert";
-import { generateJournalEntry, type BusinessEvent } from "../../src/lib/financial-ledger";
+import { generateJournalEntry } from "../../src/lib/journal-entry";
+import type { BusinessEvent } from "../../src/lib/ledger-types";
 
 function makeEvent(overrides: Partial<BusinessEvent> = {}): BusinessEvent {
   return {

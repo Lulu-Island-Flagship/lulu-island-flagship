@@ -35,6 +35,9 @@ import {
   type EiParams,
   type VacationPayParams,
   type WorkSafeBcParams,
+  eiParamsSchema,
+  vacationPayParamsSchema,
+  workSafeBcParamsSchema,
   type MinWageParams,
   type GstParams,
   type PstParams,
@@ -259,7 +262,8 @@ export function calculateEmployerEI(input: EmployerEiInput): number {
   });
 
   const params = getCurrentRate("EI", input.periodStart);
-  const multiplier = (params as EiParams)?.tasa_employer ?? 1.4;
+  const eiParams = eiParamsSchema.parse(params);
+  const multiplier = eiParams.tasa_employer;
 
   return Math.round(eiResult.employeeCents * multiplier);
 }
@@ -284,8 +288,9 @@ export function calculateVacationAccrual(
   periodStart?: Date
 ): number {
   const params = getCurrentRate("VacationPay", periodStart);
-  const rateUnder5 = (params as VacationPayParams)?.rate_under_5y ?? 0.04;
-  const rate5Plus = (params as VacationPayParams)?.rate_5y_plus ?? 0.06;
+  const vpParams = vacationPayParamsSchema.parse(params);
+  const rateUnder5 = vpParams.rate_under_5y;
+  const rate5Plus = vpParams.rate_5y_plus;
 
   const rate = yearsOfService >= 5 ? rate5Plus : rateUnder5;
   return Math.round(grossPayCents * rate);
@@ -379,7 +384,8 @@ export interface WorkSafeBCPremiumInput {
  */
 export function getWorksafeBCPremium(input: WorkSafeBCPremiumInput): number {
   const params = getCurrentRate("WorkSafeBC", input.referenceDate);
-  const classRate = (params as WorkSafeBcParams)?.class_rate ?? 2.15;
+  const wsbParams = workSafeBcParamsSchema.parse(params);
+  const classRate = wsbParams.class_rate;
 
   // class_rate es $ por cada $100 de nómina → rate = class_rate / 100
   // totalPayrollCents * (class_rate / 100) = totalPayrollCents * class_rate / 100

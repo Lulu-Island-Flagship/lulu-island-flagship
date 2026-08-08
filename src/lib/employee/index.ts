@@ -8,6 +8,14 @@
 // Los imports directos a archivos individuales siguen funcionando
 // por compatibilidad.
 
+// ─── Tipo Employee (fuente de verdad canónica) ─────────────────
+// Re-exportado desde @/types/employee para que los consumidores del
+// barrel no necesiten importar de dos lugares distintos.
+export { type Employee } from "@/types/employee";
+
+// ─── Helpers de antigüedad ─────────────────────────────────────
+export { computeYearsOfService } from "./tenure";
+
 // ─── Auth / Gate ───────────────────────────────────────────────
 export { requireActiveEmployee } from "../require-active-employee";
 export type { RequireActiveEmployeeResult } from "../require-active-employee";

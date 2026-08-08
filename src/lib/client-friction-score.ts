@@ -28,7 +28,6 @@
  */
 
 import { z } from "zod";
-import { logEvent } from "@/lib/observability";
 
 // ── Constantes ───────────────────────────────────────────────────────────────
 
@@ -209,9 +208,6 @@ export function evaluateClientFriction(
     showSurchargeModal,
     evaluatedAtIso: validated.evaluatedAtIso,
   };
-
-  // Registrar en event_log estructurado (siempre, para auditoría).
-  logEvent("cliente.friction_score_evaluated", auditEvent as unknown as Record<string, unknown>);
 
   return {
     frictionRatio,

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
-import { generateJournalEntry, type BusinessEvent } from "@/lib/financial-ledger";
+import { generateJournalEntry } from "@/lib/journal-entry";
+import type { BusinessEvent } from "@/lib/ledger-types";
 import { captureError } from "@/lib/observability";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

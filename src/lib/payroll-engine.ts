@@ -240,6 +240,10 @@ export function isValidTransition(from: PayrollCycleStatus, to: PayrollCycleStat
  * devuelve una copia del ciclo con el nuevo estado y actualizado_en al momento
  * actual.
  *
+ * **@internal** — Preferí {@link executePayrollCycle} que orquesta la
+ * secuencia completa del ciclo. Llamar este paso individualmente puede
+ * dejar el ciclo en un estado inconsistente.
+ *
  * @param ciclo — ciclo de nómina existente.
  * @param to — nuevo estado deseado.
  * @returns Copia del ciclo con estado actualizado.
@@ -263,6 +267,9 @@ export function transitionCycle(ciclo: PayrollCiclo, to: PayrollCycleStatus): Pa
 /**
  * Actualiza los totales de un ciclo a partir de un conjunto de líneas de
  * nómina ya calculadas y los resultados del PayrollCalculator.
+ *
+ * **@internal** — Preferí {@link executePayrollCycle} que orquesta la
+ * secuencia completa incluyendo la actualización de totales.
  *
  * @param ciclo — ciclo a actualizar (se devuelve copia; no se muta).
  * @param resultados — array de PayrollCalculationResult, uno por empleado.
@@ -493,6 +500,9 @@ function computePayrollRowHash(row: Omit<PayrollJournalRow, "hash_sha256">): str
  *   = total_bruto + cpp_employer + ei_employer + total_worksafebc
  *   = total_bruto + total_employer_contributions ✓
  *
+ * **@internal** — Preferí {@link executePayrollCycle} que orquesta la
+ * secuencia completa incluyendo la generación del asiento contable.
+ *
  * @param input — datos agregados del ciclo de nómina.
  * @param createdBy — quién genera el JE (user_id o "system").
  * @returns Array de 7 PayrollJournalRow (2 débitos + 5 créditos).
@@ -666,6 +676,124 @@ export function generatePayrollJournalEntry(
     ...row,
     hash_sha256: computePayrollRowHash(row),
   }));
+}
+
+// =========================================================================
+// executePayrollCycle — orchestrator
+// =========================================================================
+
+/**
+ * Resultado de {@link executePayrollCycle}.
+ */
+export interface ExecutePayrollCycleResult {
+  /** Ciclo en estado CERRADO con totales actualizados. */
+  ciclo: PayrollCiclo;
+  /** Asiento contable generado (7 filas: 2 débitos + 5 créditos). */
+  journalEntry: PayrollJournalRow[];
+}
+
+/**
+ * Orquesta la secuencia completa de cierre de un ciclo de nómina.
+ *
+ * Pipeline (atómico — falla entero si algún paso falla):
+ *   1. `transitionCycle` CALCULANDO → APROBADO_ADMIN
+ *   2. `transitionCycle` APROBADO_ADMIN → CERRADO
+ *   3. `updateCycleTotals` con los resultados por empleado
+ *   4. `generatePayrollJournalEntry` con los totales del ciclo cerrado
+ *
+ * Este es el punto de entrada canónico para cerrar un ciclo de nómina.
+ * **No llames los pasos individuales directamente** — están documentados
+ * como `@internal` porque llamarlos fuera de secuencia puede dejar el
+ * ciclo en un estado inconsistente (ej. journal entry generado sin
+ * totales actualizados).
+ *
+ * @param ciclo — ciclo en estado CALCULANDO (recién creado o con líneas calculadas).
+ * @param resultados — array de {@link PayrollCalculationResult}, uno por empleado.
+ * @param createdBy — quién ejecuta el cierre (user_id o "system").
+ * @returns Ciclo cerrado con totales + asiento contable.
+ *
+ * @throws {Error} si el ciclo no está en CALCULANDO.
+ * @throws {Error} si alguna transición de estado es inválida.
+ * @throws {Error} si la invariante contable no se cumple.
+ *
+ * @example
+ * ```ts
+ * const ciclo = createPayrollCycle({
+ *   quincena: "2026-08 Q1",
+ *   fecha_inicio: "2026-08-01",
+ *   fecha_fin: "2026-08-15",
+ *   fecha_pago: "2026-08-20",
+ * });
+ *
+ * // Calcular líneas por empleado...
+ * const resultados = empleados.map((emp) =>
+ *   calculatePayrollForEmployee(emp.id, ciclo.ciclo_id, emp.events, emp.options)
+ * );
+ *
+ * const { ciclo: cerrado, journalEntry } = executePayrollCycle(
+ *   ciclo,
+ *   resultados,
+ *   "admin-user-id"
+ * );
+ * // cerrado.estado === "CERRADO"
+ * // journalEntry.length === 7
+ * ```
+ */
+export function executePayrollCycle(
+  ciclo: PayrollCiclo,
+  resultados: PayrollCalculationResult[],
+  createdBy: string = "system",
+): ExecutePayrollCycleResult {
+  // Guardrail: el ciclo debe estar en CALCULANDO
+  if (ciclo.estado !== "CALCULANDO") {
+    throw new Error(
+      `executePayrollCycle: el ciclo debe estar en CALCULANDO (actual: ${ciclo.estado}). ` +
+        `Usá los pasos individuales (@internal) solo si sabés lo que hacés.`,
+    );
+  }
+
+  // Paso 1: CALCULANDO → APROBADO_ADMIN
+  const aprobado = transitionCycle(ciclo, "APROBADO_ADMIN");
+
+  // Paso 2: APROBADO_ADMIN → CERRADO
+  const cerrado = transitionCycle(aprobado, "CERRADO");
+
+  // Paso 3: Actualizar totales del ciclo con los resultados por empleado
+  const conTotales = updateCycleTotals(cerrado, resultados);
+
+  // Paso 4: Generar asiento contable
+  // Derivar totales detallados desde los resultados por empleado
+  let total_cpp = 0;
+  let total_ei = 0;
+  let total_tax = 0;
+  let total_worksafebc = 0;
+  let total_vacation_pay = 0;
+
+  for (const r of resultados) {
+    total_cpp += r.cpp_employee_cents + r.cpp_employer_cents;
+    total_ei += r.ei_employee_cents + r.ei_employer_cents;
+    total_tax += r.tax_federal_cents + r.tax_provincial_cents;
+    total_worksafebc += r.worksafebc_cents;
+    total_vacation_pay += r.vacation_pay_cents;
+  }
+
+  const journalEntry = generatePayrollJournalEntry(
+    {
+      total_bruto: conTotales.total_bruto,
+      total_cpp,
+      total_ei,
+      total_tax,
+      total_worksafebc,
+      total_vacation_pay,
+      total_neto: conTotales.total_neto,
+      total_employer_contributions: conTotales.total_employer_contributions,
+      ciclo_id: conTotales.ciclo_id,
+      quincena: conTotales.quincena,
+    },
+    createdBy,
+  );
+
+  return { ciclo: conTotales, journalEntry };
 }
 
 // =========================================================================

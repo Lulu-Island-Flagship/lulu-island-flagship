@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole } from "@/lib/admin";
+import { requireAdminRole, logAdminAction } from "@/lib/admin";
 import { generateBackupCodeSet, hashBackupCode, backupCodeExpiryIso, BACKUP_CODE_COUNT } from "@/lib/backup-codes";
 
 /**
@@ -62,6 +62,12 @@ export async function POST(request: NextRequest) {
   if (auth.error || !auth.supabase || !auth.user) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
+
+  const logResult = await logAdminAction({
+    supabase: auth.supabase, user: auth.user, roles: auth.roles,
+    resource: "security_backup_codes", method: request.method, path: request.url,
+  });
+  if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
 
   // Invalida cualquier código sin usar del set anterior. Función
   // SECURITY DEFINER angosta (194_e0_owner_admin_backup_codes.sql) en vez de

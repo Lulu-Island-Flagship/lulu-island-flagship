@@ -1,3 +1,5 @@
+> **ACTUALIZACIÓN (7 de agosto, minutos después del hallazgo):** el equipo desplegó el commit `2e92565` ("fix: update Supabase SSR cookie API — getAll/setAll, remove forced httpOnly overrides"), que corrige exactamente la causa raíz descrita en el Hallazgo 2. Re-probé el flujo completo de Google en producción (login → `/en/account` → recarga en frío) y **ya funciona correctamente**: la sesión se reconoce y persiste. Detalle de la verificación al final del documento.
+
 # Auditoría del sistema de login — luluislandflagship.ca
 
 **Fecha:** 6-7 de agosto de 2026 (actualizado)
@@ -81,3 +83,13 @@ set(name: string, value: string, options: CookieOptions) {
 ```
 
 Esto dejaría que Supabase marque `httpOnly` solo en las cookies internas de PKCE (donde sí tiene sentido) y no en la cookie de sesión real (que el cliente necesita leer).
+
+## Verificación post-fix (7 de agosto)
+
+El equipo aplicó exactamente este cambio (commit `2e92565646...`, desplegado como `dpl_B65utN5t5T27J4n5rF8jUt82fVKf`, estado READY en producción). Repetí la prueba completa en vivo:
+
+1. Sign In → Continue with Google → elegir cuenta en Google → redirige a `/en/account`.
+2. Resultado: pantalla "Welcome back!" con el dashboard del cliente completo (My Services, My Properties, Lulu Wallet, etc.) — ya no vuelve a mostrar el modal de login.
+3. Recargué `/en/account` en frío (navegación nueva, no solo refresh de React) — la sesión sigue activa. Esto confirma que la cookie de sesión ahora sí es legible por el cliente y persiste entre cargas de página.
+
+**Conclusión: el login con Google funciona correctamente ahora mismo en producción.** No se probaron en esta ronda Email+código ni Teléfono+SMS (no tenían el problema descrito, pero tampoco se re-confirmaron).

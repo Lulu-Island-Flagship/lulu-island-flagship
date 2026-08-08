@@ -4,7 +4,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ServiceWorkerRegister } from "@/components/empleado/ServiceWorkerRegister";
 import { SafetyAbortButton } from "@/components/empleado/SafetyAbortButton";
-import { getServiceRoleClient, getSupabaseClient } from "@/lib/admin";
+import { getServiceRoleClient } from "@/lib/supabase-client";
+import { getSupabaseClient } from "@/lib/admin";
 import { resolveStaffLogin } from "@/lib/staff-login";
 import { isAllowedInternalPath } from "@/lib/safe-redirect";
 

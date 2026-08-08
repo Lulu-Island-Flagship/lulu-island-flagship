@@ -59,6 +59,28 @@ export async function requireClientCaller(
   supabase: SupabaseLike,
   userId: string
 ): Promise<RequireClientCallerResult> {
+  // CONSOLIDACIÓN (2026-08-06, auditoría "Esponja"): el sub-check de
+  // `employees` (.eq("is_active", true).is("deleted_at", null)) es
+  // estructuralmente idéntico al de requireActiveEmployee() en
+  // src/lib/require-active-employee.ts, pero NO puede delegar en esa
+  // función por tres razones:
+  //
+  // a) Propósito inverso: requireActiveEmployee() exige que el empleado
+  //    EXISTA y esté activo (rechaza si no). requireClientCaller() exige
+  //    que el empleado NO EXISTA como staff (rechaza si sí). Son
+  //    comprobaciones opuestas — una es un guard de presencia, la otra
+  //    es un guard de ausencia.
+  //
+  // b) Doble tabla en paralelo: requireClientCaller() consulta
+  //    `employees` y `admin_roles` en un solo Promise.all para minimizar
+  //    latencia. requireActiveEmployee() solo consulta `employees`. Si se
+  //    delegara, se perdería el paralelismo o se duplicaría la latencia.
+  //
+  // c) maybeSingle() vs single(): requireActiveEmployee() usa .single()
+  //    y tiene lógica de distinción PGRST116. requireClientCaller() usa
+  //    .maybeSingle() porque la ausencia de fila NO es un error — es el
+  //    resultado esperado (el llamador SÍ es un cliente legítimo).
+  //
   const [employeeResult, adminRoleResult] = await Promise.all([
     supabase
       .from("employees")

@@ -22,7 +22,7 @@
  *   payroll-ytd-dashboard.ts ──(importa)──→ payroll-line.ts (centsToDollars)
  */
 
-import { assertSingleEmployee, formatCents } from "./employee-financial-dashboard";
+import { assertSingleEmployee, formatCents } from "./financial-utils";
 import type { BadgeProgress } from "./employee-financial-dashboard";
 // import { centsToDollars } from "./payroll-line";
 

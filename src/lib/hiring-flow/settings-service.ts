@@ -1,4 +1,5 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { getHiringFlowServiceClient } from "@/lib/supabase-service-client";
 
 // Módulo nuevo y separado: flujo de contratación v0.4.1 (candidate hiring
 // flow). No tiene integración con el resto del sistema todavía.
@@ -15,24 +16,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 //     updated_by UUID
 //   )
 
-// Fix (auditoría de seguridad externa, 2026-08-01): antes, si faltaba
-// NEXT_PUBLIC_SUPABASE_URL, se caía en silencio a
-// "https://placeholder.supabase.co". Aquí es más grave que en otros lugares
-// del repo: getHiringFlowServiceClient() (abajo) sigue devolviendo un
-// cliente "válido" mientras SUPABASE_SERVICE_ROLE_KEY exista, así que la
-// service role key REAL viajaría hacia ese dominio placeholder inexistente
-// en vez de fallar de forma explícita. Se lanza un error claro en vez de
-// permitir esa fuga silenciosa. Mismo patrón que src/lib/admin.ts.
-function getSupabaseUrl(): string {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) {
-    throw new Error("NEXT_PUBLIC_SUPABASE_URL no está configurado");
-  }
-  return url;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SettingsAdmin = SupabaseClient<any, "public", any>;
+type SettingsAdmin = SupabaseClient<any, "public", any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export type SettingValueType = "string" | "number" | "boolean" | "json";
 
@@ -171,13 +155,9 @@ export function castValue(
 // Supabase client
 // ---------------------------------------------------------------------------
 
-// Replica EXACTAMENTE el patrón de getServiceRoleClient() en src/lib/admin.ts:
-// misma env var, mismo manejo de ausencia -> null.
-export function getHiringFlowServiceClient(): SettingsAdmin | null {
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceKey) return null;
-  return createClient(getSupabaseUrl(), serviceKey);
-}
+// Re-export para backward compat. La definición real está en
+// src/lib/supabase-service-client.ts (módulo genérico, no específico de hiring).
+export { getHiringFlowServiceClient };
 
 function resolveClient(client?: SettingsAdmin): SettingsAdmin {
   const resolved = client ?? getHiringFlowServiceClient();

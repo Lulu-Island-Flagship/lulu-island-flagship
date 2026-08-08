@@ -324,94 +324,116 @@ function calcTax(gross_cents: number, period_start: Date): TaxResult {
 // Resultado del cálculo
 // =========================================================================
 
+// ── Sub-interfaces (composable) ──────────────────────────────────────────
+
+/**
+ * Desglose de ingresos (earnings) del empleado en el período.
+ *
+ * Incluye todos los conceptos que suman al gross pay: day rate base,
+ * comisiones, horas extra, y vacation pay devengado.
+ *
+ * Importalo directamente cuando solo necesités los earnings sin
+ * deducciones ni YTD: `import type { PayrollEarnings } from "..."`
+ */
+export interface PayrollEarnings {
+  /** Day Rate total del ciclo (base diaria × días trabajados). */
+  day_rate_cents: number;
+  /** Comisiones ganadas en el ciclo. */
+  comisiones_cents: number;
+  /** Horas extra pagadas en el ciclo (recargo 1.5× incluido). */
+  horas_extra_cents: number;
+  /** Vacation Pay devengado en este período. */
+  vacation_pay_cents: number;
+  /** Total bruto del período = day_rate + comisiones + horas_extra. */
+  gross_cents: number;
+}
+
+/**
+ * Deducciones del empleado en el período.
+ *
+ * Montos que se retienen del salario bruto: CPP, EI, impuestos
+ * federal y provincial.
+ */
+export interface PayrollDeductions {
+  /** CPP empleado. El empleador iguala 1:1. */
+  cpp_employee_cents: number;
+  /** EI empleado. */
+  ei_employee_cents: number;
+  /** Retención de impuesto federal estimada. */
+  tax_federal_cents: number;
+  /** Retención de impuesto provincial BC estimada. */
+  tax_provincial_cents: number;
+  /** Total deducciones del empleado. */
+  total_deductions_cents: number;
+}
+
+/**
+ * Contribuciones del empleador en el período.
+ *
+ * Estos montos NO se descuentan del empleado — son costo adicional
+ * que el empleador paga (CPP matching, EI 1.4×, WorkSafeBC).
+ */
+export interface PayrollEmployerContributions {
+  /** CPP empleador — matching 1:1 con el empleado. */
+  cpp_employer_cents: number;
+  /** EI empleador — 1.4× la prima del empleado. */
+  ei_employer_cents: number;
+  /** WorkSafeBC prima del período (solo empleador). */
+  worksafebc_cents: number;
+  /** Total contribuciones del empleador. */
+  total_employer_cents: number;
+}
+
+/**
+ * Acumulados Year-To-Date (YTD) después de este ciclo.
+ *
+ * Refleja los totales acumulados en el año calendario incluyendo
+ * las contribuciones de este período.
+ */
+export interface PayrollYtdSnapshot {
+  /** Gross acumulado en el año calendario DESPUÉS de este ciclo. */
+  ytd_gross: number;
+  /** CPP acumulado (employee side) en el año DESPUÉS de este ciclo. */
+  ytd_cpp: number;
+  /** EI acumulado (employee side) en el año DESPUÉS de este ciclo. */
+  ytd_ei: number;
+  /** Impuesto total (federal + provincial) acumulado en el año. */
+  ytd_tax: number;
+}
+
+// ── Resultado compuesto ─────────────────────────────────────────────────
+
 /**
  * Resultado completo del cálculo de nómina para un empleado en un ciclo.
  *
  * Incluye TODOS los campos necesarios para insertar una fila en payroll_linea
- * y para generar el pay statement correspondiente. Todos los montos en
- * centavos enteros CAD.
+ * y para generar el pay statement correspondiente.
+ *
+ * Compone {@link PayrollEarnings}, {@link PayrollDeductions},
+ * {@link PayrollEmployerContributions}, y {@link PayrollYtdSnapshot}.
+ * Si solo necesitás earnings o YTD, importá la sub-interfaz directamente.
+ *
+ * Todos los montos en centavos enteros CAD.
  */
-export interface PayrollCalculationResult {
+export interface PayrollCalculationResult
+  extends PayrollEarnings,
+    PayrollDeductions,
+    PayrollEmployerContributions,
+    PayrollYtdSnapshot {
   /** UUID del empleado. */
   employee_id: string;
 
   /** UUID del ciclo de pago. */
   ciclo_id: string;
 
-  // ── Earnings desglosados ────────────────────────────────────────────────
-
-  /** Day Rate total del ciclo (base diaria × días trabajados). */
-  day_rate_cents: number;
-
-  /** Comisiones ganadas en el ciclo. */
-  comisiones_cents: number;
-
-  /** Horas extra pagadas en el ciclo (recargo 1.5× incluido). */
-  horas_extra_cents: number;
-
-  /** Vacation Pay devengado en este período. */
-  vacation_pay_cents: number;
-
-  /** Total bruto del período = day_rate + comisiones + horas_extra. */
-  gross_cents: number;
-
-  // ── Deducciones del empleado ────────────────────────────────────────────
-
-  /** CPP empleado. El empleador iguala 1:1. */
-  cpp_employee_cents: number;
-
-  /** EI empleado. */
-  ei_employee_cents: number;
-
-  /** Retención de impuesto federal estimada. */
-  tax_federal_cents: number;
-
-  /** Retención de impuesto provincial BC estimada. */
-  tax_provincial_cents: number;
-
-  /** Total deducciones del empleado. */
-  total_deductions_cents: number;
-
-  // ── Contribuciones del empleador ───────────────────────────────────────
-
-  /** CPP empleador — matching 1:1 con el empleado. */
-  cpp_employer_cents: number;
-
-  /** EI empleador — 1.4× la prima del empleado. */
-  ei_employer_cents: number;
-
-  /** WorkSafeBC prima del período (solo empleador). */
-  worksafebc_cents: number;
-
-  /** Total contribuciones del empleador. */
-  total_employer_cents: number;
-
-  // ── Vacation Pay ────────────────────────────────────────────────────────
-
   /** Tasa de Vacation Pay aplicada (0.04 o 0.06). */
   vacation_pay_rate: number;
-
-  // ── Neto ────────────────────────────────────────────────────────────────
 
   /**
    * Neto a pagar al empleado = gross + vacation_pay − deducciones empleado.
    * Vacation Pay es un earning (se paga al empleado), no una deducción.
    */
   neto_pagar_cents: number;
-
-  // ── YTD actualizados (después de este ciclo) ────────────────────────────
-
-  /** Gross acumulado en el año calendario DESPUÉS de este ciclo. */
-  ytd_gross: number;
-
-  /** CPP acumulado (employee side) en el año DESPUÉS de este ciclo. */
-  ytd_cpp: number;
-
-  /** EI acumulado (employee side) en el año DESPUÉS de este ciclo. */
-  ytd_ei: number;
-
-  /** Impuesto total (federal + provincial) acumulado en el año. */
-  ytd_tax: number;
 
   /** Años de servicio usados para este cálculo. */
   years_of_service: number;

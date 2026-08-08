@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole } from "@/lib/admin";
+import { requireAdminRole, logAdminAction } from "@/lib/admin";
 import { roleAllows } from "@/lib/admin-rbac";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { calculateTeamRequirements, getHHEForRange, type ServiceType } from "@/lib/pricing";
@@ -22,6 +22,12 @@ export async function POST(request: NextRequest) {
       { status: auth.status || 401 }
     );
   }
+
+  const logResult = await logAdminAction({
+    supabase: auth.supabase, user: auth.user, roles: auth.roles,
+    resource: "dispatch", method: request.method, path: request.url,
+  });
+  if (logResult.error) return NextResponse.json({ error: logResult.error }, { status: logResult.status });
 
   try {
     const body = await request.json();

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
-import { insertPayrollEntry } from "@/lib/payroll-persist";
+import { computeAndInsertPayrollEntry } from "@/lib/payroll-persist";
 const VALID_EXTERNAL_TYPES = ["client_verbal", "leader_audit", "auditor_present"];
 const VALID_ALT_PAYMENT_METHODS = ["e_transfer", "cheque", "cash"];
 
@@ -246,7 +246,7 @@ export async function POST(request: NextRequest) {
     try {
       const dayRate = (employee as { id: string; day_rate: number }).day_rate;
       if (typeof dayRate === "number" && dayRate > 0) {
-        const payrollResult = await insertPayrollEntry({
+        const payrollResult = await computeAndInsertPayrollEntry({
           supabase,
           employeeId: employee.id,
           orderId,
