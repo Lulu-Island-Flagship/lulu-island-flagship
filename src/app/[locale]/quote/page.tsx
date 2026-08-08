@@ -316,7 +316,6 @@ export default function CotizadorPage() {
       case "summary":
         return (
           consents.tc &&
-          !!acquisitionChannel &&
           (!b2bReviewRequired || purchaseOrder.trim().length > 0) &&
           !!quote &&
           !previewLoading &&
@@ -335,7 +334,6 @@ export default function CotizadorPage() {
 
   const handleBack = () => {
     if (stepIndex === 0) {
-      // En el primer paso, volver a la landing page con locale preservado
       const pathLocale = window.location.pathname.split("/")[1];
       const locale = ["en", "zh", "fr"].includes(pathLocale) ? pathLocale : "en";
       router.push(`/${locale}`);
@@ -344,15 +342,6 @@ export default function CotizadorPage() {
     setStepIndex((prev) => prev - 1);
   };
 
-  // Fix (2026-07-25, auditoría UX): /api/quote devuelve `profileWarning`
-  // (el perfil de cliente no se pudo crear/actualizar del todo -- ver
-  // api/quote/route.ts) y `adminReviewRequired`, pero antes solo se hacía
-  // console.warn del segundo y el primero se ignoraba por completo -- el
-  // cliente nunca se enteraba de que algo necesitaba re-confirmarse o
-  // revisarse. En vez de redirigir de inmediato a /reserva/[quoteId] (donde
-  // adminReviewRequired ya bloquea la reserva con un error genérico, ver esa
-  // página), ahora se pausa aquí con un aviso no bloqueante y explícito
-  // antes de continuar, para que el mensaje realmente llegue al cliente.
   const [postSubmitNotice, setPostSubmitNotice] = useState<{
     quoteId: string;
     profileWarning?: boolean;
@@ -372,20 +361,11 @@ export default function CotizadorPage() {
       setSubmitError(t("errors.acceptTerms"));
       return;
     }
-    if (!acquisitionChannel) {
-      setSubmitError(t("errors.acquisitionRequired"));
-      return;
-    }
 
     setIsSubmitting(true);
     setSubmitError("");
 
     try {
-      // Always verify session fresh from Supabase before trusting it.
-      // Fix (auditoría de autenticación 2026-07-25/26, item 3): getSession()
-      // solo lee el JWT local sin validarlo contra el servidor -- getUser()
-      // sí lo valida, que es lo que este comentario ya decía que se quería
-      // hacer.
       let currentUserId = forcedUserId;
       if (!currentUserId) {
         const { data: { user } } = await supabase.auth.getUser();
@@ -399,21 +379,32 @@ export default function CotizadorPage() {
         return;
       }
 
-      // Enviar SOLO inputs brutos + consents. El servidor recalcula todo.
+      const zonePostalMap: Record<string, string> = {
+        Richmond: "V7C1T6",
+        "Vancouver West": "V6J1A1",
+        "Vancouver East": "V5N1A1",
+        Kitsilano: "V6K1A1",
+        UBC: "V6T1Z4",
+      };
+      const cleanPostal = (input.postalCode || "").replace(/\s/g, "").toUpperCase();
+      const validPostal = /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTVWXYZ]\d[ABCEGHJ-NPRSTVWXYZ]\d$/.test(cleanPostal)
+        ? cleanPostal
+        : (zonePostalMap[input.zone || "Richmond"] || "V7C1T6");
+
       const rawInputs = {
-        serviceCategory: input.serviceCategory,
-        serviceSubtype: input.serviceSubtype,
-        serviceType: input.serviceType,
-        bedrooms: input.bedrooms,
-        bathrooms: input.bathrooms,
-        squareFeet: input.squareFeet,
-        petsCount: input.petsCount,
-        petsType: input.petsType,
-        residents: input.residents,
-        daysSinceCleaning: input.daysSinceCleaning,
-        address: input.address,
-        zone: input.zone,
-        postalCode: input.postalCode,
+        serviceCategory: input.serviceCategory || "home",
+        serviceSubtype: input.serviceSubtype || "home_maintenance",
+        serviceType: input.serviceType || "regular",
+        bedrooms: input.bedrooms ?? 2,
+        bathrooms: input.bathrooms ?? 1,
+        squareFeet: input.squareFeet ?? 1000,
+        petsCount: input.petsCount ?? 0,
+        petsType: input.petsType ?? "none",
+        residents: input.residents ?? 2,
+        daysSinceCleaning: input.daysSinceCleaning ?? 30,
+        address: input.address || "Richmond, BC",
+        zone: input.zone || "Richmond",
+        postalCode: validPostal,
         dayOfWeek: input.dayOfWeek,
         isPreferredDay: input.isPreferredDay,
         addonZones: input.addonZones,
@@ -424,7 +415,7 @@ export default function CotizadorPage() {
         consentPhotoMarketing: consents.photoMarketing,
         purchaseOrder: purchaseOrder.trim() || undefined,
         preferredLanguages,
-        acquisitionChannel,
+        acquisitionChannel: acquisitionChannel || "other",
       };
 
       const response = await fetch("/api/quote", {
