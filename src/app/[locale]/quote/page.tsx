@@ -37,8 +37,17 @@ const STEPS: CotizadorStep[] = [
 const LOCAL_STORAGE_KEY = "lulu_cotizador_state";
 const PENDING_AUTH_KEY = "lulu_pending_auth_quote";
 
+const COTIZADOR_VERSION = "v9.2";
+
 function loadStateFromStorage(): { stepIndex: number; input: Partial<QuoteInput> } | null {
+  if (typeof window === "undefined") return null;
   try {
+    const version = localStorage.getItem("cotizador_version");
+    if (version !== COTIZADOR_VERSION) {
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      localStorage.setItem("cotizador_version", COTIZADOR_VERSION);
+      return null;
+    }
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
