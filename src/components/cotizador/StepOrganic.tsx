@@ -29,7 +29,39 @@ export function StepOrganic({ petsCount, petsType, residents, onChange }: StepOr
         <p className="text-gray-600">{t("subtitle")}</p>
       </div>
 
-      {/* Pets */}
+      {/* Residents (Mandatory, placed above Pets) */}
+      <div className="bg-brand-ice rounded-lg p-6">
+        <h3 className="font-semibold text-brand-ink flex items-center gap-2 mb-4">
+          <Users className="w-5 h-5 text-brand-wave-blue" />
+          {t("residentsTitle")}
+          <span className="text-state-danger font-bold text-xs" title="Required">*</span>
+        </h3>
+        <div className="flex items-center gap-2 flex-wrap">
+          {[1, 2, 3, 4, 5, "6+"].map((n) => (
+            <button
+              key={n}
+              type="button"
+              aria-pressed={residents === (n === "6+" ? 6 : n)}
+              onClick={() =>
+                onChange({
+                  petsCount,
+                  petsType,
+                  residents: n === "6+" ? 6 : (n as number),
+                })
+              }
+              className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-medium transition-all ${
+                residents === (n === "6+" ? 6 : n)
+                  ? "bg-brand-navy text-white shadow-sm"
+                  : "bg-white border border-gray-200 text-gray-600 hover:border-brand-wave-blue"
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Pets (Placed below Residents) */}
       <div className="bg-brand-ice rounded-lg p-6 space-y-4">
         <h3 className="font-semibold text-brand-ink flex items-center gap-2">
           <PawPrint className="w-5 h-5 text-brand-wave-blue" />
@@ -41,6 +73,7 @@ export function StepOrganic({ petsCount, petsType, residents, onChange }: StepOr
             return (
               <button
                 key={type}
+                type="button"
                 aria-pressed={isSelected}
                 onClick={() =>
                   onChange({
@@ -71,6 +104,7 @@ export function StepOrganic({ petsCount, petsType, residents, onChange }: StepOr
               {[1, 2, 3, "4+"].map((n) => (
                 <button
                   key={n}
+                  type="button"
                   aria-pressed={petsCount === (n === "4+" ? 4 : n)}
                   onClick={() =>
                     onChange({
@@ -91,36 +125,6 @@ export function StepOrganic({ petsCount, petsType, residents, onChange }: StepOr
             </div>
           </div>
         )}
-      </div>
-
-      {/* Residents */}
-      <div className="bg-brand-ice rounded-lg p-6">
-        <h3 className="font-semibold text-brand-ink flex items-center gap-2 mb-4">
-          <Users className="w-5 h-5 text-brand-wave-blue" />
-          {t("residentsTitle")}
-        </h3>
-        <div className="flex items-center gap-2">
-          {[1, 2, 3, 4, 5, "6+"].map((n) => (
-            <button
-              key={n}
-              aria-pressed={residents === (n === "6+" ? 6 : n)}
-              onClick={() =>
-                onChange({
-                  petsCount,
-                  petsType,
-                  residents: n === "6+" ? 6 : (n as number),
-                })
-              }
-              className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-medium transition-all ${
-                residents === (n === "6+" ? 6 : n)
-                  ? "bg-brand-navy text-white"
-                  : "bg-white border border-gray-200 text-gray-600 hover:border-brand-wave-blue"
-              }`}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );

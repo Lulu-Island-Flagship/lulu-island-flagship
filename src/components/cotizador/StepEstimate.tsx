@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Home, Building2, Ruler, MapPin } from "lucide-react";
 import { SERVICE_CATEGORIES, SERVICE_SUBTYPES, ACTIVE_ZONES, type ServiceCategory } from "@/lib/pricing";
 import type { ServiceType } from "@/lib/pricing";
+import { StepAddressInput } from "@/components/cotizador/StepAddressInput";
 
 export interface QuickEstimate {
   serviceCategory: ServiceCategory;
@@ -12,6 +13,7 @@ export interface QuickEstimate {
   serviceType: ServiceType;
   squareFeet: number;
   zone: string;
+  address?: string;
 }
 
 interface StepEstimateProps {
@@ -37,6 +39,7 @@ export function StepEstimate({ initial, onChange }: StepEstimateProps) {
   const [subtype, setSubtype] = useState(initial?.serviceSubtype ?? defaultFirstSubtype);
   const [squareFeet, setSquareFeet] = useState(initial?.squareFeet ?? 1000);
   const [zone, setZone] = useState(initial?.zone ?? "");
+  const [address, setAddress] = useState(initial?.address ?? "");
 
   const subtypes = SERVICE_SUBTYPES[category];
   const onChangeRef = useRef(onChange);
@@ -53,9 +56,10 @@ export function StepEstimate({ initial, onChange }: StepEstimateProps) {
       serviceType: svcType,
       squareFeet,
       zone,
+      address,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, subtype, squareFeet, zone]);
+  }, [category, subtype, squareFeet, zone, address]);
 
   function handleCategory(cat: ServiceCategory) {
     setCategory(cat);
@@ -146,6 +150,13 @@ export function StepEstimate({ initial, onChange }: StepEstimateProps) {
           <span>{MAX_SQFT.toLocaleString()} ft²</span>
         </div>
       </div>
+
+      {/* Address Input */}
+      <StepAddressInput
+        hideHeader
+        address={address}
+        onChange={(newAddress) => setAddress(newAddress)}
+      />
 
       {/* Zone */}
       <div className="bg-brand-ice rounded-lg p-6">

@@ -201,6 +201,20 @@
         }
       }
     },
+    "verify": {
+      "title": "确认您的物业信息",
+      "subtitleManual": "核对物业详情以计算准确报价。",
+      "propertyTypeResidential": "住宅",
+      "propertyTypeCommercial": "商业",
+      "propertyTypeLabel": "物业类型",
+      "bedrooms": "卧室",
+      "bathrooms": "浴室",
+      "zoneLabel": "区域",
+      "edit": "修改",
+      "doneEditing": "完成",
+      "confirmedAddressLabel": "物业地址",
+      "noAddressProvided": "在上一步中提供的地址"
+    },
     "address": {
       "title": "您的住址在哪里？",
       "subtitle": "我们的服务范围覆盖里士满、温哥华、北温哥华、西温哥华及UBC地区。",

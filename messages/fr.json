@@ -201,6 +201,20 @@
         }
       }
     },
+    "verify": {
+      "title": "Parlez-nous de votre propriété",
+      "subtitleManual": "Vérification des détails de votre propriété pour calculer votre tarif.",
+      "propertyTypeResidential": "Résidentiel",
+      "propertyTypeCommercial": "Commercial",
+      "propertyTypeLabel": "Type de propriété",
+      "bedrooms": "chambres",
+      "bathrooms": "salles de bain",
+      "zoneLabel": "Secteur / Zone",
+      "edit": "Modifier",
+      "doneEditing": "Terminé",
+      "confirmedAddressLabel": "Adresse de la propriété",
+      "noAddressProvided": "Adresse fournie à l'étape précédente"
+    },
     "address": {
       "title": "Où se trouve votre domicile?",
       "subtitle": "Nous desservons Richmond, Vancouver, North Vancouver, West Vancouver et UBC.",

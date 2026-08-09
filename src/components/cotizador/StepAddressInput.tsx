@@ -10,9 +10,10 @@ interface StepAddressInputProps {
   onChange: (address: string) => void;
   /** BC Assessment result se emite al padre para el paso de verificación. */
   onBcResult?: (result: BcAssessmentResult) => void;
+  hideHeader?: boolean;
 }
 
-export function StepAddressInput({ address, onChange, onBcResult }: StepAddressInputProps) {
+export function StepAddressInput({ address, onChange, onBcResult, hideHeader = false }: StepAddressInputProps) {
   const t = useTranslations("cotizador.address");
 
   const [suggestions, setSuggestions] = useState<{ placeId: string; description: string }[]>([]);
@@ -113,10 +114,12 @@ export function StepAddressInput({ address, onChange, onBcResult }: StepAddressI
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-brand-ink mb-2">{t("title")}</h2>
-        <p className="text-gray-600">{t("subtitle")}</p>
-      </div>
+      {!hideHeader && (
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-brand-ink mb-2">{t("title")}</h2>
+          <p className="text-gray-600">{t("subtitle")}</p>
+        </div>
+      )}
 
       <div className="bg-brand-ice rounded-lg p-6">
         <label htmlFor="address-input" className="block font-semibold text-brand-ink mb-2 flex items-center gap-2">

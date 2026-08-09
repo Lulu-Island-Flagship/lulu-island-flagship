@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { MapPin, CheckCircle2 } from "lucide-react";
+import { MapPin, CheckCircle2, Edit2 } from "lucide-react";
 
 export interface VerifiedProperty {
   address: string;
@@ -26,8 +26,8 @@ interface StepVerifyPropertyProps {
 export function StepVerifyProperty({ rawAddress, initial, onChange }: StepVerifyPropertyProps) {
   const t = useTranslations("cotizador.verify");
 
-  const [address, setAddress] = useState(initial?.address ?? rawAddress ?? "");
-  const [confirmed, setConfirmed] = useState(false);
+  const [address, setAddress] = useState(initial?.address || rawAddress || "");
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
 
   // Emitir al padre en cada cambio de dirección
   const onChangeRef = React.useRef(onChange);
@@ -47,6 +47,8 @@ export function StepVerifyProperty({ rawAddress, initial, onChange }: StepVerify
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address]);
 
+  const displayAddress = address.trim() || (initial?.zone ? `${initial.zone}, BC` : "");
+
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -54,37 +56,73 @@ export function StepVerifyProperty({ rawAddress, initial, onChange }: StepVerify
         <p className="text-gray-600">{t("subtitleManual")}</p>
       </div>
 
-      {/* Dirección */}
-      <div className="bg-brand-ice rounded-lg p-6">
-        <label htmlFor="verify-address" className="block font-semibold text-brand-ink mb-2 flex items-center gap-2">
-          <MapPin className="w-5 h-5 text-brand-wave-blue" />
-          {t("edit")}
-        </label>
-        <input
-          id="verify-address"
-          type="text"
-          value={address}
-          onChange={(e) => { setAddress(e.target.value); setConfirmed(false); }}
-          placeholder="e.g. 6911 No 1 Rd, Richmond, BC"
-          className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none transition-all"
-        />
-        {confirmed && (
-          <div className="mt-3 flex items-center gap-2 text-sm text-state-success">
-            <CheckCircle2 className="w-4 h-4" />
-            {t("verifiedFromBc")}
+      {/* Confirmed Property Address Display */}
+      <div className="bg-brand-ice rounded-lg p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-state-success/10 text-state-success flex items-center justify-center flex-shrink-0">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">
+                {t("confirmedAddressLabel")}
+              </span>
+              <span className="text-base font-semibold text-brand-ink block">
+                {displayAddress || t("noAddressProvided")}
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsEditingAddress(!isEditingAddress)}
+            className="text-xs font-medium text-brand-wave-blue hover:underline flex items-center gap-1 flex-shrink-0 ml-2"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+            {isEditingAddress ? t("doneEditing") : t("edit")}
+          </button>
+        </div>
+
+        {isEditingAddress && (
+          <div className="pt-4 border-t border-gray-200">
+            <label htmlFor="verify-address-edit" className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5 text-brand-wave-blue" />
+              {t("edit")}
+            </label>
+            <input
+              id="verify-address-edit"
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="e.g. 6911 No 1 Rd, Richmond, BC"
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none text-sm transition-all"
+            />
           </div>
         )}
       </div>
 
-      {/* Botón de confirmación visual — solo feedback, el Next del wizard avanza */}
-      <button
-        type="button"
-        onClick={() => setConfirmed(true)}
-        disabled={!address.trim() || address.trim().length < 5}
-        className="w-full px-6 py-3 bg-brand-navy text-white rounded-lg font-medium hover:bg-brand-navy-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {confirmed ? "✓ " : ""}{t("doneEditing")}
-      </button>
+      {/* Property Details Card Summary */}
+      <div className="bg-brand-ice rounded-lg p-6 space-y-3">
+        <h3 className="font-semibold text-brand-ink text-sm uppercase tracking-wider">
+          {t("propertyTypeLabel")}
+        </h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+          <div className="p-3 bg-white rounded-lg border border-gray-200">
+            <span className="text-xs text-gray-500 block">{t("zoneLabel")}</span>
+            <span className="font-medium text-brand-ink">{initial?.zone || "Richmond"}</span>
+          </div>
+          <div className="p-3 bg-white rounded-lg border border-gray-200">
+            <span className="text-xs text-gray-500 block">ft²</span>
+            <span className="font-medium text-brand-ink">{(initial?.squareFeet ?? 1000).toLocaleString()} ft²</span>
+          </div>
+          <div className="p-3 bg-white rounded-lg border border-gray-200 col-span-2 sm:col-span-1">
+            <span className="text-xs text-gray-500 block">{t("propertyTypeLabel")}</span>
+            <span className="font-medium text-brand-ink">
+              {initial?.serviceCategory === "commercial" ? t("propertyTypeCommercial") : t("propertyTypeResidential")}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
+

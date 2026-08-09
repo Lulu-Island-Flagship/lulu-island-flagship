@@ -353,14 +353,12 @@ function buildValidQuoteInput(raw: Partial<QuoteInput>): QuoteInput {
           input.squareFeet !== undefined
         );
       case "verify":
-        return (
-          !!input.address &&
-          input.address.trim().length >= 5
-        );
+        return true;
       case "organic":
         return (
-          input.petsCount !== undefined &&
-          input.residents !== undefined
+          input.residents !== undefined &&
+          input.residents >= 1 &&
+          input.petsCount !== undefined
         );
       case "recency":
         return input.daysSinceCleaning !== undefined;
@@ -622,6 +620,13 @@ function buildValidQuoteInput(raw: Partial<QuoteInput>): QuoteInput {
         <div className="bg-white rounded-lg shadow-elevation-1 p-6 md:p-8">
           {step === "estimate" && (
             <StepEstimate
+              initial={{
+                serviceCategory: input.serviceCategory,
+                serviceSubtype: input.serviceSubtype,
+                squareFeet: input.squareFeet,
+                zone: input.zone,
+                address: input.address,
+              }}
               onChange={(data: QuickEstimate) => {
                 updateInput({
                   serviceCategory: data.serviceCategory,
@@ -629,6 +634,7 @@ function buildValidQuoteInput(raw: Partial<QuoteInput>): QuoteInput {
                   serviceType: data.serviceType,
                   squareFeet: data.squareFeet,
                   zone: data.zone,
+                  address: data.address,
                 });
               }}
             />

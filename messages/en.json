@@ -83,6 +83,8 @@
       "zoneLabel": "Service zone",
       "edit": "Edit",
       "doneEditing": "Done editing",
+      "confirmedAddressLabel": "Property Address",
+      "noAddressProvided": "Address provided in previous step",
       "noBcData": "Enter your property details below to get your price.",
       "enterManually": "Enter property details manually",
       "verifiedFromBc": "Verified from BC Assessment records",
