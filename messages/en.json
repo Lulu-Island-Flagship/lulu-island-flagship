@@ -227,6 +227,8 @@
       "streetLabel": "Street Address",
       "streetPlaceholder": "e.g. 123 Main Street, Richmond",
       "addressSuggestionsLoading": "Loading address suggestions…",
+      "bcLookingUp": "Looking up property details in BC Assessment...",
+      "bcDisclaimer": "Property details sourced from BC Assessment public records.",
       "bcSuggestionText": "Public records suggest ~{value} ft². Confirm it?",
       "bcSuggestionCorrect": "Correct",
       "bcSuggestionDifferent": "No, it's different",

@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { Home, Building2, Ruler } from "lucide-react";
 import { SERVICE_CATEGORIES, SERVICE_SUBTYPES, type ServiceCategory } from "@/lib/pricing";
 import type { ServiceType } from "@/lib/pricing";
-import { StepAddressInput } from "@/components/cotizador/StepAddressInput";
 
 export interface QuickEstimate {
   serviceCategory: ServiceCategory;
@@ -150,13 +149,6 @@ export function StepEstimate({ initial, onChange }: StepEstimateProps) {
           <span>{MAX_SQFT.toLocaleString()} ft²</span>
         </div>
       </div>
-
-      {/* Address Input */}
-      <StepAddressInput
-        hideHeader
-        address={address}
-        onChange={(newAddress) => setAddress(newAddress)}
-      />
     </div>
   );
 }

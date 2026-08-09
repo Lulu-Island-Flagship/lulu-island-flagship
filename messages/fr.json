@@ -223,6 +223,8 @@
       "streetLabel": "Adresse civique",
       "streetPlaceholder": "ex. 123 Main Street, Richmond",
       "addressSuggestionsLoading": "Chargement des suggestions d'adresse…",
+      "bcLookingUp": "Recherche des détails de la propriété dans BC Assessment...",
+      "bcDisclaimer": "Détails de la propriété issus des registres publics de BC Assessment.",
       "bcSuggestionText": "Les registres publics suggèrent environ {value} pi². Confirmer?",
       "bcSuggestionCorrect": "Exact",
       "bcSuggestionDifferent": "Non, c'est différent",

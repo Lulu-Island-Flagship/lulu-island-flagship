@@ -223,6 +223,8 @@
       "streetLabel": "街道地址",
       "streetPlaceholder": "例如：123 Main Street, Richmond",
       "addressSuggestionsLoading": "正在加载地址建议…",
+      "bcLookingUp": "正在查询 BC Assessment 公共记录...",
+      "bcDisclaimer": "物业数据来源于 BC Assessment 公共记录。",
       "bcSuggestionText": "公开记录显示约 {value} 平方英尺，是否确认？",
       "bcSuggestionCorrect": "正确",
       "bcSuggestionDifferent": "不，有出入",
