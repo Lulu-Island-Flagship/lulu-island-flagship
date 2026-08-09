@@ -11,16 +11,13 @@ const LOCALES = [
   { code: "fr", label: "FR" },
 ];
 
-export function LanguageSelector() {
+interface LanguageSelectorProps {
+  variant?: "default" | "select";
+}
+
+export function LanguageSelector({ variant = "default" }: LanguageSelectorProps) {
   const router = useRouter();
   const pathname = usePathname();
-  // Fix (auditoría UX/seguridad 2026-07-25, bug #2b): la URL es la fuente de
-  // verdad de qué idioma se está mostrando AHORA MISMO. Antes se leía
-  // localStorage primero, así que un idioma guardado de una visita anterior
-  // podía marcar como activo un locale distinto al que el usuario en
-  // realidad está viendo (ej. link compartido en /en/... con 'fr' guardado).
-  // localStorage solo se usa como fallback defensivo si la ruta actual no
-  // trae prefijo de locale (no debería pasar dado el ruteo actual).
   const pathLocale = pathname.match(/^\/(en|zh|fr)(\/|$)/);
   const [currentLocale, setCurrentLocale] = useState(() => {
     if (pathLocale) {
@@ -37,15 +34,6 @@ export function LanguageSelector() {
     return "en";
   });
 
-  // Fix (auditoría 2026-07-31, item 15): `useState(() => ...)` solo corre su
-  // inicializador en el primer render -- si el locale de la ruta cambia
-  // DESPUÉS del montaje sin pasar por `switchLanguage` (ej. el usuario
-  // navega manualmente a otra URL con distinto prefijo de locale, o usa
-  // atrás/adelante del navegador entre rutas de distinto idioma), este
-  // componente seguía marcando como "activo" el idioma con el que se montó
-  // la primera vez, desincronizado de la URL real. `usePathname()` sí es
-  // reactivo a cambios de ruta; se resincroniza `currentLocale` cada vez que
-  // cambia, siempre que la ruta traiga un prefijo de locale reconocido.
   useEffect(() => {
     if (pathLocale && pathLocale[1] !== currentLocale) {
       setCurrentLocale(pathLocale[1]);
@@ -61,16 +49,34 @@ export function LanguageSelector() {
       // ignore
     }
 
-    // Navigate to same path with new locale prefix
-    // Remove current locale prefix if present
     const pathWithoutLocale = pathname.replace(/^\/(en|zh|fr)(\/|$)/, "/");
     const newPath = `/${locale}${pathWithoutLocale}`;
     router.push(newPath);
   };
 
+  if (variant === "select") {
+    return (
+      <div className="relative flex items-center bg-brand-ice/90 border border-brand-navy/10 rounded-lg px-2 py-1 gap-1 min-h-[36px]">
+        <Globe className="w-3.5 h-3.5 text-brand-navy shrink-0" />
+        <select
+          value={currentLocale}
+          onChange={(e) => switchLanguage(e.target.value)}
+          aria-label="Language selection"
+          className="bg-transparent text-xs font-semibold text-brand-navy outline-none cursor-pointer pr-1 appearance-none"
+        >
+          {LOCALES.map((loc) => (
+            <option key={loc.code} value={loc.code}>
+              {loc.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-center gap-1">
-      <Globe className="w-4 h-4 text-brand-navy mr-1" />
+    <div className="flex items-center gap-1 min-h-[36px]">
+      <Globe className="w-4 h-4 text-brand-navy mr-1 shrink-0" />
       {LOCALES.map((locale, index) => (
         <React.Fragment key={locale.code}>
           <button
@@ -78,7 +84,7 @@ export function LanguageSelector() {
             aria-label={`${locale.label} (${locale.code})`}
             aria-pressed={currentLocale === locale.code}
             lang={locale.code}
-            className={`text-sm font-medium transition-colors ${
+            className={`text-sm font-medium transition-colors px-1 py-1 rounded touch-manipulation ${
               currentLocale === locale.code
                 ? "text-brand-navy font-bold underline underline-offset-4"
                 : "text-gray-500 hover:text-brand-navy"
@@ -87,7 +93,7 @@ export function LanguageSelector() {
             {locale.label}
           </button>
           {index < LOCALES.length - 1 && (
-            <span className="text-gray-400 mx-1">|</span>
+            <span className="text-gray-400 mx-0.5">|</span>
           )}
         </React.Fragment>
       ))}

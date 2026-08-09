@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { Home, Building2, Ruler, MapPin } from "lucide-react";
-import { SERVICE_CATEGORIES, SERVICE_SUBTYPES, ACTIVE_ZONES, type ServiceCategory } from "@/lib/pricing";
+import { Home, Building2, Ruler } from "lucide-react";
+import { SERVICE_CATEGORIES, SERVICE_SUBTYPES, type ServiceCategory } from "@/lib/pricing";
 import type { ServiceType } from "@/lib/pricing";
 import { StepAddressInput } from "@/components/cotizador/StepAddressInput";
 
@@ -38,7 +38,7 @@ export function StepEstimate({ initial, onChange }: StepEstimateProps) {
   const [category, setCategory] = useState<ServiceCategory>(defaultCategory);
   const [subtype, setSubtype] = useState(initial?.serviceSubtype ?? defaultFirstSubtype);
   const [squareFeet, setSquareFeet] = useState(initial?.squareFeet ?? 1000);
-  const [zone, setZone] = useState(initial?.zone ?? "");
+  const zone = initial?.zone ?? "";
   const [address, setAddress] = useState(initial?.address ?? "");
 
   const subtypes = SERVICE_SUBTYPES[category];
@@ -157,36 +157,6 @@ export function StepEstimate({ initial, onChange }: StepEstimateProps) {
         address={address}
         onChange={(newAddress) => setAddress(newAddress)}
       />
-
-      {/* Zone */}
-      <div className="bg-brand-ice rounded-lg p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <MapPin className="w-5 h-5 text-brand-wave-blue" />
-          <div>
-            <h3 className="font-semibold text-brand-ink">{t("address.zoneLabel")}</h3>
-            <p className="text-sm text-gray-500">{t("estimate.zoneHint")}</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {ACTIVE_ZONES.map((z) => {
-            const isSelected = zone === z.name;
-            return (
-              <button
-                key={z.name}
-                type="button"
-                onClick={() => setZone(z.name)}
-                className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-                  isSelected
-                    ? "border-brand-gold bg-brand-gold/10 text-brand-ink"
-                    : "border-gray-200 text-gray-600 hover:border-brand-wave-blue"
-                }`}
-              >
-                {z.name}
-              </button>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }

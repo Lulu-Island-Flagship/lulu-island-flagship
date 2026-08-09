@@ -56,49 +56,59 @@ export function StepVerifyProperty({ rawAddress, initial, onChange }: StepVerify
         <p className="text-gray-600">{t("subtitleManual")}</p>
       </div>
 
-      {/* Confirmed Property Address Display */}
-      <div className="bg-brand-ice rounded-lg p-6 space-y-4">
-        <div className="flex items-center justify-between">
+      {/* Confirmed Property Address Preview (read-only if address already present) */}
+      {displayAddress && (
+        <div className="bg-brand-ice rounded-lg p-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-state-success/10 text-state-success flex items-center justify-center flex-shrink-0">
+            <div className="w-9 h-9 rounded-full bg-state-success/10 text-state-success flex items-center justify-center flex-shrink-0">
               <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">
                 {t("confirmedAddressLabel")}
               </span>
-              <span className="text-base font-semibold text-brand-ink block">
-                {displayAddress || t("noAddressProvided")}
+              <span className="text-sm font-semibold text-brand-ink block">
+                {displayAddress}
               </span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsEditingAddress(!isEditingAddress)}
-            className="text-xs font-medium text-brand-wave-blue hover:underline flex items-center gap-1 flex-shrink-0 ml-2"
-          >
-            <Edit2 className="w-3.5 h-3.5" />
-            {isEditingAddress ? t("doneEditing") : t("edit")}
-          </button>
-        </div>
-
-        {isEditingAddress && (
-          <div className="pt-4 border-t border-gray-200">
-            <label htmlFor="verify-address-edit" className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-brand-wave-blue" />
+          {!isEditingAddress ? (
+            <button
+              type="button"
+              onClick={() => setIsEditingAddress(true)}
+              className="text-xs font-medium text-brand-wave-blue hover:underline flex items-center gap-1 flex-shrink-0 ml-2"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
               {t("edit")}
-            </label>
-            <input
-              id="verify-address-edit"
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="e.g. 6911 No 1 Rd, Richmond, BC"
-              className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none text-sm transition-all"
-            />
-          </div>
-        )}
-      </div>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsEditingAddress(false)}
+              className="text-xs font-medium text-state-success hover:underline flex items-center gap-1 flex-shrink-0 ml-2"
+            >
+              ✓ {t("doneEditing")}
+            </button>
+          )}
+        </div>
+      )}
+
+      {isEditingAddress && (
+        <div className="bg-brand-ice rounded-lg p-4">
+          <label htmlFor="verify-address-edit" className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+            <MapPin className="w-3.5 h-3.5 text-brand-wave-blue" />
+            {t("edit")}
+          </label>
+          <input
+            id="verify-address-edit"
+            type="text"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="e.g. 6911 No 1 Rd, Richmond, BC"
+            className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-brand-wave-blue focus:ring-2 focus:ring-brand-wave-blue/20 outline-none text-sm transition-all"
+          />
+        </div>
+      )}
 
       {/* Property Details Card Summary */}
       <div className="bg-brand-ice rounded-lg p-6 space-y-3">

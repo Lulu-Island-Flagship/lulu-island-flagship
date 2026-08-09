@@ -18,6 +18,7 @@ import { BillingSection } from "@/components/reserva/BillingSection";
 import { CheckoutBenefitsPanel } from "@/components/reserva/CheckoutBenefitsPanel";
 import { PriceFreezeCountdown } from "@/components/reserva/PriceFreezeCountdown";
 import { AuthModal } from "@/components/cotizador/AuthModal";
+import Link from "next/link";
 import {
   ChevronLeft,
   Shield,
@@ -597,10 +598,14 @@ export default function ReservaPage() {
       {/* Header */}
       <header className="bg-brand-navy text-white">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <Link
+            href={`/${locale}`}
+            className="flex items-center gap-2 hover:opacity-90 transition-opacity cursor-pointer"
+            aria-label="Return to home"
+          >
             <Shield className="w-6 h-6 text-brand-gold" />
             <span className="font-semibold">{t("header.brand")}</span>
-          </div>
+          </Link>
           <span className="text-sm text-gray-300">{t("header.completeReservation")}</span>
         </div>
       </header>

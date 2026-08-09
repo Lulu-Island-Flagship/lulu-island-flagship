@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { QuoteInput, QuoteData, CotizadorStep } from "@/types";
 import { supabase } from "@/lib/supabase";
@@ -16,6 +16,7 @@ import { LanguagePreference } from "@/components/cotizador/LanguagePreference";
 import { AcquisitionChannelSelect } from "@/components/cotizador/AcquisitionChannelSelect";
 import type { AcquisitionChannel } from "@/lib/acquisition-channel";
 import { AuthModal } from "@/components/cotizador/AuthModal";
+import Link from "next/link";
 import {
   ChevronLeft,
   ChevronRight,
@@ -92,6 +93,8 @@ function clearPendingAuth() {
 export default function CotizadorPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const params = useParams();
+  const locale = (params?.locale as string) || "en";
   const t = useTranslations("cotizador");
 
   // Estado inicial vacío — localStorage se lee SOLO en useEffect (cliente)
@@ -253,7 +256,7 @@ function buildValidQuoteInput(raw: Partial<QuoteInput>): QuoteInput {
   };
   const serviceType = subtypeMap[subtype] || "regular";
 
-  const validZones = ["Richmond", "Vancouver West", "Vancouver East", "Kitsilano", "UBC"];
+  const validZones = ["Richmond", "Vancouver", "West Vancouver", "North Vancouver", "UBC"];
   const zone = (raw.zone && validZones.includes(raw.zone)) ? raw.zone : "Richmond";
 
   const validPets = ["none", "short_hair", "long_hair", "multiple"];
@@ -261,9 +264,9 @@ function buildValidQuoteInput(raw: Partial<QuoteInput>): QuoteInput {
 
   const zonePostalMap: Record<string, string> = {
     Richmond: "V7C1T6",
-    "Vancouver West": "V6J1A1",
-    "Vancouver East": "V5N1A1",
-    Kitsilano: "V6K1A1",
+    Vancouver: "V6B1A1",
+    "West Vancouver": "V7T1A1",
+    "North Vancouver": "V7M1A1",
     UBC: "V6T1Z4",
   };
   const cleanPostal = (raw.postalCode || "").replace(/\s/g, "").toUpperCase();
@@ -567,10 +570,14 @@ function buildValidQuoteInput(raw: Partial<QuoteInput>): QuoteInput {
       {/* Header */}
       <header className="bg-brand-navy text-white">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <Link
+            href={`/${locale}`}
+            className="flex items-center gap-2 hover:opacity-90 transition-opacity cursor-pointer"
+            aria-label="Return to home"
+          >
             <Shield className="w-6 h-6 text-brand-gold" />
             <span className="font-semibold">{t("brand")}</span>
-          </div>
+          </Link>
           <div className="flex items-center gap-2 text-sm text-gray-300">
             <Clock className="w-4 h-4" />
             {/* Fix (auditoría UX/seguridad 2026-07-30, BUG 1): antes este aviso

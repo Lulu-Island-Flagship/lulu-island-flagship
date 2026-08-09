@@ -210,25 +210,19 @@ export default function HomePage() {
             <LanguageSelector />
           </nav>
 
-          <div className="md:hidden flex items-center gap-2">
-            <LanguageSelector />
-            <button
-              onClick={() => router.push(`/${locale}/quote`)}
-              className="text-brand-navy hover:text-brand-wave-blue transition-colors text-xs font-semibold px-2 py-1"
-            >
-              {getContent('nav.getQuote')}
-            </button>
+          <div className="md:hidden flex items-center gap-1.5 shrink-0">
+            <LanguageSelector variant="select" />
             <button
               onClick={() => setAuthModal("signin")}
               aria-label={getContent('nav.signIn')}
-              className="flex items-center gap-1 text-brand-navy hover:text-brand-wave-blue transition-colors text-xs p-1"
+              className="flex items-center gap-1 text-brand-navy hover:text-brand-wave-blue transition-colors text-xs font-semibold px-2 py-1.5 rounded-lg hover:bg-brand-ice/60 min-h-[36px]"
             >
-              <LogIn className="w-4 h-4" />
+              <LogIn className="w-3.5 h-3.5" />
               <span>{getContent('nav.signIn')}</span>
             </button>
             <button
               onClick={() => setAuthModal("signup")}
-              className="flex items-center gap-1 bg-brand-navy text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-brand-navy-light transition-colors"
+              className="flex items-center gap-1 bg-brand-navy text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-brand-navy-light transition-colors min-h-[36px] shadow-sm"
             >
               <UserPlus className="w-3.5 h-3.5" />
               <span>{getContent('nav.signUp')}</span>
@@ -336,10 +330,10 @@ export default function HomePage() {
                   className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-brand-ink text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-navy/20 focus:border-brand-navy bg-white"
                 >
                   <option value="Richmond">Richmond, BC</option>
-                  <option value="Vancouver West">Vancouver West, BC</option>
-                  <option value="Vancouver East">Vancouver East, BC</option>
-                  <option value="Kitsilano">Kitsilano, BC</option>
-                  <option value="UBC">UBC Campus, BC</option>
+                  <option value="Vancouver">Vancouver, BC</option>
+                  <option value="West Vancouver">West Vancouver, BC</option>
+                  <option value="North Vancouver">North Vancouver, BC</option>
+                  <option value="UBC">UBC, BC</option>
                 </select>
               </div>
             </div>
