@@ -38,7 +38,7 @@ export function StepEstimate({ initial, onChange }: StepEstimateProps) {
   const [subtype, setSubtype] = useState(initial?.serviceSubtype ?? defaultFirstSubtype);
   const [squareFeet, setSquareFeet] = useState(initial?.squareFeet ?? 1000);
   const zone = initial?.zone ?? "";
-  const [address, setAddress] = useState(initial?.address ?? "");
+  const address = initial?.address ?? "";
 
   const subtypes = SERVICE_SUBTYPES[category];
   const onChangeRef = useRef(onChange);
