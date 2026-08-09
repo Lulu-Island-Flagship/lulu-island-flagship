@@ -110,12 +110,29 @@ export default function HomePage() {
   const locale = pathLocale ? pathLocale[1] : "en";
 
   const [authModal, setAuthModal] = useState<"signin" | "signup" | null>(null);
-  const [heroAddress, setHeroAddress] = useState("");
+  const [buildingStreet, setBuildingStreet] = useState("");
+  const [unit, setUnit] = useState("");
+  const [heroPostalCode, setHeroPostalCode] = useState("");
+  const [heroZone, setHeroZone] = useState("Richmond");
 
   function handleHeroSubmit() {
-    const trimmed = heroAddress.trim();
-    if (!trimmed) return;
-    router.push(`/${locale}/quote?address=${encodeURIComponent(trimmed)}`);
+    const trimmedStreet = buildingStreet.trim();
+    if (!trimmedStreet) return;
+    const cleanUnit = unit.trim();
+    const cleanPostal = heroPostalCode.replace(/\s/g, "").toUpperCase();
+
+    const addressParts = [
+      cleanUnit ? `Unit ${cleanUnit}` : "",
+      trimmedStreet,
+      heroZone,
+      "BC",
+      cleanPostal,
+    ].filter(Boolean);
+
+    const fullAddress = addressParts.join(", ");
+    router.push(
+      `/${locale}/quote?address=${encodeURIComponent(fullAddress)}&zone=${encodeURIComponent(heroZone)}&postal=${encodeURIComponent(cleanPostal)}`
+    );
   }
 
   const [siteContent, setSiteContent] = useState<Record<string, string>>({});
@@ -148,14 +165,8 @@ export default function HomePage() {
         <AuthModal
           signupMode={authModal === "signup"}
           onClose={() => setAuthModal(null)}
-          onSuccess={() => {
-            if (authModal === "signup") {
-              router.push(`/${locale}/account`);
-            } else {
-              router.push(`/${locale}`);
-            }
-          }}
-          postLoginRedirect={authModal === "signup" ? `/${locale}/account` : `/${locale}`}
+          onSuccess={() => router.push(`/${locale}/account`)}
+          postLoginRedirect={`/${locale}/account`}
         />
       )}
 
@@ -176,6 +187,12 @@ export default function HomePage() {
               <MapPin className="w-3.5 h-3.5 text-brand-wave-blue" />
               {getContent('nav.location')}
             </span>
+            <button
+              onClick={() => router.push(`/${locale}/quote`)}
+              className="text-brand-navy hover:text-brand-wave-blue transition-colors font-semibold"
+            >
+              {getContent('nav.getQuote')}
+            </button>
             <button
               onClick={() => setAuthModal("signin")}
               className="flex items-center gap-1.5 text-brand-navy hover:text-brand-wave-blue transition-colors font-medium"
@@ -246,24 +263,92 @@ export default function HomePage() {
             {getContent('hero.proposition')}
           </p>
 
-          {/* Hero Command Bar */}
-          <div className="bg-white/90 backdrop-blur-sm p-2 md:p-2.5 rounded-2xl border border-gray-200/80 shadow-elevation-2 flex flex-col sm:flex-row gap-2 max-w-xl mx-auto transition-all hover:shadow-elevation-3">
-            <div className="relative flex-1 flex items-center">
-              <MapPin className="w-5 h-5 text-brand-wave-blue absolute left-3.5" />
-              <input
-                type="text"
-                value={heroAddress}
-                onChange={(e) => setHeroAddress(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleHeroSubmit(); }}
-                placeholder={getContent('hero.placeholder')}
-                className="w-full pl-11 pr-4 py-3 rounded-xl border border-transparent text-brand-ink bg-transparent focus:outline-none text-sm font-medium placeholder:text-gray-400"
-              />
+          {/* Structured 4-Field Canadian Address Command Bar */}
+          <div className="bg-white/95 backdrop-blur-md p-4 md:p-5 rounded-2xl border border-gray-200/90 shadow-elevation-2 max-w-xl mx-auto space-y-3 text-left transition-all hover:shadow-elevation-3">
+            <div className="text-xs font-bold text-brand-navy tracking-wide flex items-center justify-between border-b border-gray-100 pb-2">
+              <span className="flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-brand-wave-blue" />
+                <span>Enter Your Property Address (Canada)</span>
+              </span>
+              <span className="text-[11px] font-medium text-gray-400">Canadian Format</span>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+              {/* Field 1: Building # & Street Name */}
+              <div className="md:col-span-2">
+                <label htmlFor="hero-street" className="block text-[11px] font-semibold text-gray-600 mb-1">
+                  Building # & Street Name *
+                </label>
+                <input
+                  id="hero-street"
+                  type="text"
+                  value={buildingStreet}
+                  onChange={(e) => setBuildingStreet(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleHeroSubmit(); }}
+                  placeholder="e.g. 7360 Westminster Hwy"
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-brand-ink text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-navy/20 focus:border-brand-navy bg-white"
+                />
+              </div>
+
+              {/* Field 2: Unit / Suite # (Optional) */}
+              <div>
+                <label htmlFor="hero-unit" className="block text-[11px] font-semibold text-gray-600 mb-1">
+                  Unit / Apt # (Opt.)
+                </label>
+                <input
+                  id="hero-unit"
+                  type="text"
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleHeroSubmit(); }}
+                  placeholder="e.g. 402"
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-brand-ink text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-navy/20 focus:border-brand-navy bg-white"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {/* Field 3: Postal Code (Canadian format) */}
+              <div>
+                <label htmlFor="hero-postal" className="block text-[11px] font-semibold text-gray-600 mb-1">
+                  Postal Code *
+                </label>
+                <input
+                  id="hero-postal"
+                  type="text"
+                  value={heroPostalCode}
+                  onChange={(e) => setHeroPostalCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleHeroSubmit(); }}
+                  placeholder="e.g. V7C 1T6"
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-brand-ink text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-navy/20 focus:border-brand-navy bg-white tracking-wider"
+                />
+              </div>
+
+              {/* Field 4: City / Zone * */}
+              <div>
+                <label htmlFor="hero-zone" className="block text-[11px] font-semibold text-gray-600 mb-1">
+                  City / Zone *
+                </label>
+                <select
+                  id="hero-zone"
+                  value={heroZone}
+                  onChange={(e) => setHeroZone(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-brand-ink text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-navy/20 focus:border-brand-navy bg-white"
+                >
+                  <option value="Richmond">Richmond, BC</option>
+                  <option value="Vancouver West">Vancouver West, BC</option>
+                  <option value="Vancouver East">Vancouver East, BC</option>
+                  <option value="Kitsilano">Kitsilano, BC</option>
+                  <option value="UBC">UBC Campus, BC</option>
+                </select>
+              </div>
+            </div>
+
             <button
               type="button"
               onClick={handleHeroSubmit}
-              disabled={!heroAddress.trim()}
-              className="px-6 py-3.5 bg-brand-navy text-white rounded-xl font-semibold hover:bg-brand-navy-light transition-all shadow-sm hover:shadow flex items-center justify-center gap-2 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!buildingStreet.trim()}
+              className="w-full py-3.5 bg-brand-navy text-white rounded-xl font-semibold hover:bg-brand-navy-light transition-all shadow-sm hover:shadow flex items-center justify-center gap-2 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed mt-2"
             >
               <span>{getContent('hero.cta')}</span>
               <ArrowRight className="w-4 h-4" />
