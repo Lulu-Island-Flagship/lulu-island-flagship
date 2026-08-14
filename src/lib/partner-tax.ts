@@ -30,6 +30,7 @@ import {
   type T4AYearlyAggregate,
 } from "./t4a-generator";
 import { type PartnerType } from "./partner-commissions";
+import { vancouverDayRangeUtc } from "./date-utils";
 
 // =========================================================================
 // Constants
@@ -166,8 +167,16 @@ export async function getPartnerEarnings(
   partnerId: string,
   taxYear: number,
 ): Promise<PartnerEarnings> {
-  const startISO = `${taxYear}-01-01`;
-  const endISO = `${taxYear}-12-31T23:59:59`;
+  // Fix (auditoria 2026-08-14): `partner_commissions.paid_at` es TIMESTAMPTZ y
+  // el ano fiscal se delimitaba con strings sin offset, que Postgres lee en UTC
+  // y no en America/Vancouver. Una comision pagada el 31-dic despues de las
+  // ~16:00/17:00 hora local ya es 1-ene en UTC: quedaba fuera del T4A del ano
+  // que le corresponde y se reportaba en el siguiente. Ademas corre el umbral
+  // de $600 de elegibilidad sobre el conjunto equivocado.
+  const { startUtc: startISO, endUtcExclusive: endISO } = vancouverDayRangeUtc(
+    `${taxYear}-01-01`,
+    `${taxYear}-12-31`
+  );
 
   const { data, error } = await supabase
     .from("partner_commissions")
@@ -177,7 +186,7 @@ export async function getPartnerEarnings(
     .eq("partner_id", partnerId)
     .eq("status", "paid")
     .gte("paid_at", startISO)
-    .lte("paid_at", endISO)
+    .lt("paid_at", endISO)
     .is("deleted_at", null)
     .order("paid_at", { ascending: true });
 
@@ -285,8 +294,16 @@ export async function getEligiblePartners(
   supabase: SupabaseClient,
   taxYear: number,
 ): Promise<EligiblePartnersResult> {
-  const startISO = `${taxYear}-01-01`;
-  const endISO = `${taxYear}-12-31T23:59:59`;
+  // Fix (auditoria 2026-08-14): `partner_commissions.paid_at` es TIMESTAMPTZ y
+  // el ano fiscal se delimitaba con strings sin offset, que Postgres lee en UTC
+  // y no en America/Vancouver. Una comision pagada el 31-dic despues de las
+  // ~16:00/17:00 hora local ya es 1-ene en UTC: quedaba fuera del T4A del ano
+  // que le corresponde y se reportaba en el siguiente. Ademas corre el umbral
+  // de $600 de elegibilidad sobre el conjunto equivocado.
+  const { startUtc: startISO, endUtcExclusive: endISO } = vancouverDayRangeUtc(
+    `${taxYear}-01-01`,
+    `${taxYear}-12-31`
+  );
 
   // Obtener todas las comisiones pagadas del año, agrupadas por partner
   const { data, error } = await supabase
@@ -296,7 +313,7 @@ export async function getEligiblePartners(
     )
     .eq("status", "paid")
     .gte("paid_at", startISO)
-    .lte("paid_at", endISO)
+    .lt("paid_at", endISO)
     .is("deleted_at", null);
 
   if (error) {
