@@ -46,7 +46,7 @@ export const STATE = {
   // grande, así que necesita el umbral de texto normal, no el de 3:1 de
   // texto grande. #946A2C se queda en la misma familia ámbar/dorada y da
   // 4.82:1 (verificado con la fórmula WCAG de src/lib/a11y-audit.ts).
-  warning: "#B8863F",
+  warning: "#946A2C",
   danger: "#C0392B",
   info: BRAND.waveBlue,
 } as const;
