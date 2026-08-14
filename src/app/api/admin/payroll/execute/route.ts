@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole, logAdminAction } from "@/lib/admin";
+import { requireAdminRole, logAdminAction, getServiceRoleClient } from "@/lib/admin";
 import { safeErrorResponse } from "@/lib/api-errors";
 import { executePayrollCycle, type PayrollCiclo } from "@/lib/payroll-engine";
 import type { PayrollCalculationResult } from "@/lib/payroll-calculator";
@@ -174,7 +174,14 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Insertar asiento contable en financial_ledger ──────────────────
-    const { error: ledgerError } = await auth.supabase
+    // Fix (migración 368): financial_ledger solo acepta escrituras de
+    // service_role. requireAdminRole ya validó el rol del caller; la escritura
+    // se hace con el cliente de servicio (bypasea RLS a propósito).
+    const serviceClient = getServiceRoleClient();
+    if (!serviceClient) {
+      return NextResponse.json({ error: "Service client unavailable" }, { status: 500 });
+    }
+    const { error: ledgerError } = await serviceClient
       .from("financial_ledger")
       .insert(journalEntry);
 

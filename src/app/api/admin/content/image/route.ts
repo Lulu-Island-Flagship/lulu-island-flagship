@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole, logAdminAction } from "@/lib/admin";
+import { requireAdminRole, logAdminAction, getServiceRoleClient } from "@/lib/admin";
 
 /**
  * POST /api/admin/content/image — upload image to landing-images bucket
@@ -79,8 +79,12 @@ export async function POST(request: NextRequest) {
 
   const publicUrl = urlData.publicUrl;
 
-  // Save URL to site_content
-  const { error: dbError } = await auth.supabase
+  // Save URL to site_content — escritura service_role (migración 369)
+  const serviceClient = getServiceRoleClient();
+  if (!serviceClient) {
+    return NextResponse.json({ error: "Service client unavailable" }, { status: 500 });
+  }
+  const { error: dbError } = await serviceClient
     .from("site_content")
     .upsert({ key: slot, value: publicUrl, updated_at: new Date().toISOString() }, { onConflict: "key" });
 
@@ -135,11 +139,14 @@ export async function DELETE(request: NextRequest) {
     }
   }
 
-  // Remove key from site_content
-  await auth.supabase
-    .from("site_content")
-    .delete()
-    .eq("key", slot);
+  // Remove key from site_content — escritura service_role (migración 369)
+  const svcClient = getServiceRoleClient();
+  if (svcClient) {
+    await svcClient
+      .from("site_content")
+      .delete()
+      .eq("key", slot);
+  }
 
   return NextResponse.json({ ok: true, slot });
 }

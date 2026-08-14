@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminRole, logAdminAction } from "@/lib/admin";
+import { requireAdminRole, logAdminAction, getServiceRoleClient } from "@/lib/admin";
 
 /**
  * GET /api/admin/content — list all site_content keys (admin panel)
@@ -51,7 +51,13 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Missing key or value" }, { status: 400 });
   }
 
-  const { error } = await auth.supabase
+  // Fix (migración 369): site_content solo acepta escrituras de service_role.
+  // requireAdminRole ya validó el rol; la escritura usa el cliente de servicio.
+  const serviceClient = getServiceRoleClient();
+  if (!serviceClient) {
+    return NextResponse.json({ error: "Service client unavailable" }, { status: 500 });
+  }
+  const { error } = await serviceClient
     .from("site_content")
     .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
 
