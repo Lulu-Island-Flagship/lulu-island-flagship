@@ -183,6 +183,11 @@ export default function ContentAdminPage() {
                 <p className="text-xs text-gray-500 mt-0.5">Show &ldquo;Continue with Apple&rdquo; button in login modal</p>
               </div>
               <button
+                aria-label={
+                  content["feature.apple_oauth_enabled"] === "true"
+                    ? "Disable Apple OAuth login"
+                    : "Enable Apple OAuth login"
+                }
                 onClick={async () => {
                   const current = content["feature.apple_oauth_enabled"] === "true";
                   const next = String(!current);

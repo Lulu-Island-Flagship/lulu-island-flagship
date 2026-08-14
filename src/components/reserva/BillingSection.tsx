@@ -121,6 +121,7 @@ export function BillingSection({
             type="checkbox"
             checked={sameAsService}
             onChange={(e) => handleSameAsService(e.target.checked)}
+            aria-label={t("sameAsService")}
             className="w-4 h-4 accent-brand-gold"
           />
           {t("sameAsService")}
@@ -136,6 +137,7 @@ export function BillingSection({
               onChange={(e) => setBillingLine1(e.target.value)}
               onBlur={emit}
               placeholder={t("billingAddressPlaceholder")}
+              aria-label={t("billingAddressPlaceholder")}
               className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold text-sm"
             />
             <input
@@ -143,7 +145,8 @@ export function BillingSection({
               value={billingLine2}
               onChange={(e) => setBillingLine2(e.target.value)}
               onBlur={emit}
-              placeholder="Apt / Suite / Unit"
+              placeholder={t("billingAddressLine2Placeholder")}
+              aria-label={t("billingAddressLine2Placeholder")}
               className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold text-sm"
             />
             <div className="grid grid-cols-2 gap-2">
@@ -153,6 +156,7 @@ export function BillingSection({
                 onChange={(e) => setBillingCity(e.target.value)}
                 onBlur={emit}
                 placeholder={t("billingCityPlaceholder")}
+                aria-label={t("billingCityPlaceholder")}
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold text-sm"
               />
               <input
@@ -161,6 +165,7 @@ export function BillingSection({
                 onChange={(e) => setBillingProvince(e.target.value)}
                 onBlur={emit}
                 placeholder={t("billingProvincePlaceholder")}
+                aria-label={t("billingProvincePlaceholder")}
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold text-sm"
               />
             </div>
@@ -170,6 +175,7 @@ export function BillingSection({
               onChange={(e) => setBillingPostal(e.target.value)}
               onBlur={emit}
               placeholder={t("billingPostalPlaceholder")}
+              aria-label={t("billingPostalPlaceholder")}
               className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold text-sm"
             />
           </div>

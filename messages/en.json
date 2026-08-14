@@ -398,6 +398,7 @@
       "namePlaceholder": "Your full legal name",
       "billingAddressLabel": "Billing address",
       "billingAddressPlaceholder": "Street address",
+      "billingAddressLine2Placeholder": "Apt / Suite / Unit",
       "billingCityPlaceholder": "City",
       "billingProvincePlaceholder": "Province",
       "billingPostalPlaceholder": "Postal code",

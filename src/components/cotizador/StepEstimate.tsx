@@ -141,6 +141,7 @@ export function StepEstimate({ initial, onChange }: StepEstimateProps) {
           step={100}
           value={squareFeet}
           onChange={(e) => setSquareFeet(parseInt(e.target.value))}
+          aria-label={t("dimensions.squareFeetAriaLabel")}
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-gold"
         />
         <div className="flex justify-between mt-2 text-sm text-gray-500">

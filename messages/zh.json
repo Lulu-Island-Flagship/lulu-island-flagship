@@ -409,6 +409,7 @@
       "namePlaceholder": "您的法定全名",
       "billingAddressLabel": "账单地址",
       "billingAddressPlaceholder": "街道地址",
+      "billingAddressLine2Placeholder": "公寓 / 套房 / 单元号",
       "billingCityPlaceholder": "城市",
       "billingProvincePlaceholder": "省份",
       "billingPostalPlaceholder": "邮政编码",

@@ -409,6 +409,7 @@
       "namePlaceholder": "Votre nom légal complet",
       "billingAddressLabel": "Adresse de facturation",
       "billingAddressPlaceholder": "Adresse",
+      "billingAddressLine2Placeholder": "Appt / Suite / Unité",
       "billingCityPlaceholder": "Ville",
       "billingProvincePlaceholder": "Province",
       "billingPostalPlaceholder": "Code postal",
