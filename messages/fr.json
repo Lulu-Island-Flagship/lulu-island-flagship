@@ -69,10 +69,18 @@
       "purpose": "Type de service",
       "dimensions": "Dimensions",
       "addonZones": "Suppléments",
+      "estimate": "Estimation rapide",
       "organic": "Foyer",
       "recency": "Dernier nettoyage",
+      "verify": "Votre propriété",
       "address": "Emplacement",
       "summary": "Résumé"
+    },
+    "estimate": {
+      "title": "Obtenez votre prix",
+      "subtitle": "Nous calculerons votre estimation instantanément — vous la préciserez dans les étapes suivantes.",
+      "squareFeetHint": "Superficie approximative — nous la vérifierons plus tard à l'aide des registres publics.",
+      "zoneHint": "Votre secteur de service influence le tarif de base."
     },
     "nav": {
       "home": "Accueil",
@@ -203,6 +211,7 @@
     },
     "verify": {
       "title": "Parlez-nous de votre propriété",
+      "subtitleFound": "Nous avons trouvé ces détails dans les registres publics de propriété. Veuillez confirmer qu'ils sont exacts.",
       "subtitleManual": "Vérification des détails de votre propriété pour calculer votre tarif.",
       "propertyTypeResidential": "Résidentiel",
       "propertyTypeCommercial": "Commercial",
@@ -213,7 +222,13 @@
       "edit": "Modifier",
       "doneEditing": "Terminé",
       "confirmedAddressLabel": "Adresse de la propriété",
-      "noAddressProvided": "Adresse fournie à l'étape précédente"
+      "noAddressProvided": "Adresse fournie à l'étape précédente",
+      "noBcData": "Entrez les détails de votre propriété ci-dessous pour obtenir votre prix.",
+      "enterManually": "Entrer les détails de la propriété manuellement",
+      "verifiedFromBc": "Vérifié à partir des registres de BC Assessment",
+      "declaredLabel": "Si la superficie ci-dessus ne correspond pas, entrez ce que vous croyez être exact :",
+      "declaredHint": "votre superficie déclarée (indiquée sur la facture, tarifée selon les registres officiels)",
+      "declaredDiffers": "Vous avez déclaré {declared} pi². Le prix est calculé selon la superficie officielle de {official} pi²."
     },
     "address": {
       "title": "Où se trouve votre domicile?",
@@ -1702,6 +1717,12 @@
           "title": "État des sauvegardes",
           "description": "Dernier backup transactions/paie/clients/photos"
         }
+      },
+      "sections": {
+        "kpi": "Santé de l'entreprise",
+        "actions": "Nécessite votre attention",
+        "monitoring": "Surveillance",
+        "modules": "Modules"
       }
     },
     "modules": {

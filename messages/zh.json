@@ -69,10 +69,18 @@
       "purpose": "服务类型",
       "dimensions": "房屋信息",
       "addonZones": "附加项目",
+      "estimate": "快速估价",
       "organic": "家庭情况",
       "recency": "上次清洁时间",
+      "verify": "您的物业",
       "address": "地址",
       "summary": "摘要"
+    },
+    "estimate": {
+      "title": "获取您的报价",
+      "subtitle": "我们将立即为您计算估价 — 在接下来的步骤中进一步完善。",
+      "squareFeetHint": "大致面积 — 我们稍后会通过公共记录进行核实。",
+      "zoneHint": "您所在的服务区域会影响基础费率。"
     },
     "nav": {
       "home": "首页",
@@ -203,6 +211,7 @@
     },
     "verify": {
       "title": "确认您的物业信息",
+      "subtitleFound": "我们在公共物业记录中找到了以下信息，请确认是否准确。",
       "subtitleManual": "核对物业详情以计算准确报价。",
       "propertyTypeResidential": "住宅",
       "propertyTypeCommercial": "商业",
@@ -213,7 +222,13 @@
       "edit": "修改",
       "doneEditing": "完成",
       "confirmedAddressLabel": "物业地址",
-      "noAddressProvided": "在上一步中提供的地址"
+      "noAddressProvided": "在上一步中提供的地址",
+      "noBcData": "请在下方填写您的物业信息以获取报价。",
+      "enterManually": "手动输入物业信息",
+      "verifiedFromBc": "已通过 BC Assessment 记录核实",
+      "declaredLabel": "如果以上面积与实际不符，请输入您认为正确的数值：",
+      "declaredHint": "您申报的面积（显示在账单上，按官方记录计价）",
+      "declaredDiffers": "您申报的面积为 {declared} 平方英尺，报价按官方面积 {official} 平方英尺计算。"
     },
     "address": {
       "title": "您的住址在哪里？",
@@ -1702,6 +1717,12 @@
           "title": "备份状态",
           "description": "最近的事务/薪资/客户/照片备份"
         }
+      },
+      "sections": {
+        "kpi": "业务健康",
+        "actions": "需要关注",
+        "monitoring": "监控",
+        "modules": "模块"
       }
     },
     "modules": {
