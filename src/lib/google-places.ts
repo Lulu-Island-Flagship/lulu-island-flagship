@@ -55,6 +55,9 @@ export async function autocompleteAddress(input: string): Promise<AutocompleteRe
   try {
     const response = await fetch("https://places.googleapis.com/v1/places:autocomplete", {
       method: "POST",
+      // Fix (auditoría MANIFEST v4.2 · F.4): timeout explícito para no colgar el
+      // proceso serverless si el proveedor no responde.
+      signal: AbortSignal.timeout(15_000),
       headers: {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": apiKey,
@@ -118,6 +121,7 @@ export async function getPlaceAddressDetails(placeId: string): Promise<PlaceAddr
       `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`,
       {
         method: "GET",
+        signal: AbortSignal.timeout(15_000),
         headers: {
           "X-Goog-Api-Key": apiKey,
           "X-Goog-FieldMask": "formattedAddress,addressComponents",

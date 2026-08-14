@@ -53,6 +53,7 @@ export async function lookupBcAssessment(address: string): Promise<BcAssessmentR
     const response = await fetch(url.toString(), {
       method: "GET",
       headers,
+      signal: AbortSignal.timeout(10_000),
       // No seguir redirecciones de forma agresiva; timeout corto para no bloquear UX
       redirect: "follow",
     });

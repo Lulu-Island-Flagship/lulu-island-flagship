@@ -72,6 +72,8 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
+      // Fix (auditoría MANIFEST v4.2 · F.4): timeout explícito.
+      signal: AbortSignal.timeout(15_000),
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",

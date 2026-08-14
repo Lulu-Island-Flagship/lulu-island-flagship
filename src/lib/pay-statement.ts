@@ -60,10 +60,42 @@ export const periodoSchema = z.object({
   fecha_pago: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
+/**
+ * Forma mínima validada del resultado de nómina consumido por el generador.
+ * Valida los campos que efectivamente se usan (montos en centavos + IDs);
+ * `.passthrough()` permite campos extra sin rechazarlos.
+ */
+const payrollCalculationShape = z
+  .object({
+    gross_cents: z.number(),
+    day_rate_cents: z.number(),
+    horas_extra_cents: z.number(),
+    comisiones_cents: z.number(),
+    vacation_pay_cents: z.number(),
+    neto_pagar_cents: z.number(),
+    total_deductions_cents: z.number(),
+    cpp_employee_cents: z.number(),
+    ei_employee_cents: z.number(),
+    tax_federal_cents: z.number(),
+    tax_provincial_cents: z.number(),
+    total_employer_cents: z.number(),
+    cpp_employer_cents: z.number(),
+    ei_employer_cents: z.number(),
+    worksafebc_cents: z.number(),
+    ytd_gross: z.number(),
+    ytd_cpp: z.number(),
+    ytd_ei: z.number(),
+    ytd_tax: z.number(),
+    employee_id: z.string(),
+    ciclo_id: z.string(),
+    vacation_pay_rate: z.number(),
+    years_of_service: z.number(),
+  });
+
 /** Esquema Zod para las opciones de generatePayStatement. */
 export const payStatementOptionsSchema = z.object({
   /** Resultado del PayrollCalculator para este empleado y ciclo. */
-  calculation: z.any().transform((v) => v as PayrollCalculationResult),
+  calculation: payrollCalculationShape.transform((v) => v as unknown as PayrollCalculationResult),
 
   /** Nombre completo del empleado. */
   employee_name: z.string().min(1).default("Empleado"),

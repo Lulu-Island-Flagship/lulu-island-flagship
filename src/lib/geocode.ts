@@ -61,7 +61,7 @@ export async function geocodeAddress(address: string): Promise<LatLng | null> {
       const url = providerUrl
         .replace("{address}", encodeURIComponent(address))
         .replace("{key}", encodeURIComponent(apiKey || ""));
-      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(10_000) });
       if (!res.ok) return null;
       const json = await res.json();
       // Adapter genérico: intenta leer lat/lng de formatos comunes
@@ -111,6 +111,7 @@ export async function geocodeAddress(address: string): Promise<LatLng | null> {
         Accept: "application/json",
         "User-Agent": "LuluIslandFlagship/1.0 (support@luluislandflagship.ca)",
       },
+      signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return null;
     const data = await res.json();
