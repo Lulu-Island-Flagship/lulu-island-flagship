@@ -21,7 +21,7 @@ BEGIN
       AND deleted_at IS NULL
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public STABLE;
 -- Tabla: turn_marketplace_offers
 --   Reemplaza el caos de WhatsApp para cobertura de turnos.
 --   src/lib/turn-marketplace.ts contiene las funciones puras de validación.
