@@ -141,11 +141,15 @@ export async function DELETE(request: NextRequest) {
 
   // Remove key from site_content — escritura service_role (migración 369)
   const svcClient = getServiceRoleClient();
-  if (svcClient) {
-    await svcClient
-      .from("site_content")
-      .delete()
-      .eq("key", slot);
+  if (!svcClient) {
+    return NextResponse.json({ error: "Service client unavailable" }, { status: 500 });
+  }
+  const { error: deleteError } = await svcClient
+    .from("site_content")
+    .delete()
+    .eq("key", slot);
+  if (deleteError) {
+    return NextResponse.json({ error: "Failed to remove key" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, slot });
