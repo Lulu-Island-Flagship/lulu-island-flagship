@@ -104,7 +104,7 @@ function ConfirmacionContent() {
   if (loading) {
     return (
       <main className="min-h-screen bg-brand-ice flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
       </main>
     );
   }
@@ -143,7 +143,7 @@ function ConfirmacionContent() {
       <header className="bg-brand-navy text-white">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Shield className="w-6 h-6 text-brand-gold" />
+            <Shield className="w-6 h-6 text-brand-gold-dark" />
             <span className="font-semibold">{t("brand")}</span>
           </div>
         </div>
@@ -166,7 +166,7 @@ function ConfirmacionContent() {
 
           <div className="text-left bg-brand-ice rounded-lg p-5 space-y-3">
             <div className="flex items-center gap-3">
-              <Home className="w-5 h-5 text-brand-gold" />
+              <Home className="w-5 h-5 text-brand-gold-dark" />
               <div>
                 <p className="text-sm text-gray-500">{t("serviceLabel")}</p>
                 <p className="font-medium text-brand-ink capitalize">
@@ -176,7 +176,7 @@ function ConfirmacionContent() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Calendar className="w-5 h-5 text-brand-gold" />
+              <Calendar className="w-5 h-5 text-brand-gold-dark" />
               <div>
                 <p className="text-sm text-gray-500">{t("dateTimeLabel")}</p>
                 <p className="font-medium text-brand-ink">
@@ -187,7 +187,7 @@ function ConfirmacionContent() {
             </div>
 
             <div className="flex items-center gap-3">
-              <MapPin className="w-5 h-5 text-brand-gold" />
+              <MapPin className="w-5 h-5 text-brand-gold-dark" />
               <div>
                 <p className="text-sm text-gray-500">{t("locationLabel")}</p>
                 <p className="font-medium text-brand-ink">
@@ -197,7 +197,7 @@ function ConfirmacionContent() {
             </div>
 
             <div className="flex items-center gap-3">
-              <DollarSign className="w-5 h-5 text-brand-gold" />
+              <DollarSign className="w-5 h-5 text-brand-gold-dark" />
               <div>
                 <p className="text-sm text-gray-500">{t("totalLabel")}</p>
                 <p className="font-medium text-brand-ink">
@@ -277,7 +277,7 @@ export default function ConfirmacionPage() {
     <Suspense
       fallback={
         <main className="min-h-screen bg-brand-ice flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+          <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
         </main>
       }
     >

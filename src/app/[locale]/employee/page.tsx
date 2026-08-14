@@ -474,7 +474,7 @@ export default function EmpleadoPage() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "pending": return <AlertCircle className="w-4 h-4 text-gray-400" />;
-      case "en_route": return <Navigation className="w-4 h-4 text-brand-gold" />;
+      case "en_route": return <Navigation className="w-4 h-4 text-brand-gold-dark" />;
       case "arrived": return <MapPin className="w-4 h-4 text-state-success" />;
       case "in_progress": return <Play className="w-4 h-4 text-brand-navy" />;
       case "completed": return <CheckCircle2 className="w-4 h-4 text-state-success" />;
@@ -694,7 +694,7 @@ export default function EmpleadoPage() {
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <Home className="w-4 h-4 text-brand-gold" />
+                      <Home className="w-4 h-4 text-brand-gold-dark" />
                       <span className="font-medium text-brand-ink capitalize text-sm">
                         {svc.serviceSubtype?.replace(/_/g, " ") || t("dashboard.defaultServiceLabel")}
                       </span>

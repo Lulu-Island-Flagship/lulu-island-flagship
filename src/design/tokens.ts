@@ -25,7 +25,10 @@ export const BRAND = {
   navy: "#0B1E3D",        // azul marino oscuro — primario, headers, CTA principal
   navyLight: "#14315C",   // hover / estados activos
   waveBlue: "#2E6E96",    // secundario, links, iconografía
-  gold: "#C9A961",        // dorado — SOLO acentos e insignias, nunca fondos grandes ni texto de cuerpo
+  gold: "#C9A961",        // dorado CLARO — SOLO fondos/acentos (bg-brand-gold), NUNCA texto/icono
+                        // (2.25:1, no cumple AA 4.5:1). Para texto/icono usar goldDark →
+                        // text-brand-gold-dark (4.53:1). El CI (ci.yml) falla si alguien usa
+                        // text-brand-gold claro como color de texto/icono.
   // Fix (auditoría MANIFEST v4.2, 2026-08-14 · D.1/a11y): #A8863F daba 3.42:1
   // de contraste sobre blanco (< 4.5:1 AA). Se restaura #93712A (~4.53:1),
   // valor ya establecido en el commit a11y y exigido por el guard en

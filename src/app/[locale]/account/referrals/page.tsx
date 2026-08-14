@@ -141,7 +141,7 @@ export default function ReferralsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
       </div>
     );
   }
@@ -181,7 +181,7 @@ export default function ReferralsPage() {
               </button>
             </div>
           ) : (
-            <Loader2 className="w-5 h-5 animate-spin text-brand-gold" />
+            <Loader2 className="w-5 h-5 animate-spin text-brand-gold-dark" />
           )}
           {/* Fix (2026-07-25, auditoría UX, item 14): antes `creditCents || 3000`
               fabricaba "$30.00" (REFERRAL_CREDIT_CENTS, ver src/lib/referrals.ts)

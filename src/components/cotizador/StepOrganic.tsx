@@ -88,7 +88,7 @@ export function StepOrganic({ petsCount, petsType, residents, onChange }: StepOr
                     : "border-gray-200 hover:border-brand-wave-blue"
                 }`}
               >
-                <div className={`mb-2 ${isSelected ? "text-brand-gold" : "text-brand-navy"}`}>
+                <div className={`mb-2 ${isSelected ? "text-brand-gold-dark" : "text-brand-navy"}`}>
                   {PET_TYPE_ICONS[type]}
                 </div>
                 <span className="text-sm font-medium">{t(`petTypes.${type}`)}</span>

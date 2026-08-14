@@ -76,7 +76,7 @@ export default function ServiceGalleryPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
       </div>
     );
   }
@@ -355,7 +355,7 @@ function RebookWidget({ orderId }: { orderId: string }) {
     <div className="bg-white rounded-xl border p-4 space-y-3">
       <p className="text-sm font-medium text-brand-ink">{t("whenNextVisit")}</p>
 
-      {loadingOptions && <Loader2 className="w-5 h-5 animate-spin text-brand-gold" />}
+      {loadingOptions && <Loader2 className="w-5 h-5 animate-spin text-brand-gold-dark" />}
 
       {rebookInfo && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">

@@ -220,7 +220,7 @@ export default function EntityNotesPage() {
 
             <div className="border-t pt-4">
               {loadingNotes ? (
-                <Loader2 className="w-5 h-5 animate-spin text-brand-gold" />
+                <Loader2 className="w-5 h-5 animate-spin text-brand-gold-dark" />
               ) : notes.length === 0 ? (
                 <p className="text-sm text-gray-400 flex items-center gap-2">
                   <StickyNote className="w-4 h-4" /> {t("noNotes")}

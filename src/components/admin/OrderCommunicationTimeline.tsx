@@ -63,7 +63,7 @@ export default function OrderCommunicationTimeline({ orderId }: { orderId: strin
   if (loading) {
     return (
       <div className="flex items-center justify-center py-6">
-        <Loader2 className="w-5 h-5 animate-spin text-brand-gold" />
+        <Loader2 className="w-5 h-5 animate-spin text-brand-gold-dark" />
       </div>
     );
   }

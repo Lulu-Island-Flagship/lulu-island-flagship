@@ -548,7 +548,7 @@ export default function ReservaPage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-brand-ice flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
       </main>
     );
   }
@@ -603,7 +603,7 @@ export default function ReservaPage() {
             className="flex items-center gap-2 hover:opacity-90 transition-opacity cursor-pointer"
             aria-label="Return to home"
           >
-            <Shield className="w-6 h-6 text-brand-gold" />
+            <Shield className="w-6 h-6 text-brand-gold-dark" />
             <span className="font-semibold">{t("header.brand")}</span>
           </Link>
           <span className="text-sm text-gray-300">{t("header.completeReservation")}</span>
@@ -638,7 +638,7 @@ export default function ReservaPage() {
             {/* Date & Time */}
             <div className="bg-white rounded-lg shadow-elevation-1 p-6">
               <h2 className="text-lg font-semibold text-brand-ink mb-4 flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-brand-gold" />
+                <Calendar className="w-5 h-5 text-brand-gold-dark" />
                 {t("dateTime.title")}
               </h2>
               <div className="space-y-4">
@@ -669,7 +669,7 @@ export default function ReservaPage() {
             {serviceDate && serviceTime && stripeClientSecret && (
               <div className="bg-white rounded-lg shadow-elevation-1 p-6 space-y-4">
                 <h2 className="text-lg font-semibold text-brand-ink mb-4 flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-brand-gold" />
+                  <CreditCard className="w-5 h-5 text-brand-gold-dark" />
                   {t("payment.title")}
                 </h2>
 
@@ -932,7 +932,7 @@ export default function ReservaPage() {
 
             {serviceDate && serviceTime && !stripeClientSecret && paymentOption === "card" && !setupIntentError && (
               <div className="bg-white rounded-lg shadow-elevation-1 p-6 text-center">
-                <Loader2 className="w-6 h-6 animate-spin text-brand-gold mx-auto mb-2" />
+                <Loader2 className="w-6 h-6 animate-spin text-brand-gold-dark mx-auto mb-2" />
                 <p className="text-sm text-gray-500">{t("payment.preparingCheckout")}</p>
               </div>
             )}

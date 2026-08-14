@@ -183,7 +183,7 @@ export default function PanosPage() {
         </form>
 
         {loading ? (
-          <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
+          <Loader2 className="w-6 h-6 animate-spin text-brand-gold-dark" />
         ) : loadError ? (
           <ErrorBanner message={loadError} onRetry={load} retrying={loading} />
         ) : (

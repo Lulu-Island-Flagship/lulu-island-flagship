@@ -180,7 +180,7 @@ export default function LlavesPage() {
         )}
 
         {loading ? (
-          <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
+          <Loader2 className="w-6 h-6 animate-spin text-brand-gold-dark" />
         ) : (
           <>
             <form onSubmit={submit} className="bg-white rounded-xl shadow-elevation-1 p-4 space-y-3">

@@ -208,7 +208,7 @@ export default function EvaluarPage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-brand-ice flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
       </main>
     );
   }

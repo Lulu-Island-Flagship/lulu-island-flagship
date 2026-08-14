@@ -197,7 +197,7 @@ export default function AuditsPage() {
         <h2 className="text-lg font-semibold text-brand-ink mb-4">{t("sections.pendingAudits")}</h2>
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
+            <Loader2 className="w-6 h-6 animate-spin text-brand-gold-dark" />
           </div>
         ) : pendingOrders.length === 0 ? (
           <div className="bg-white rounded-xl border p-6 text-center">
@@ -315,7 +315,7 @@ export default function AuditsPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-brand-ink">{vote.name}</span>
                   <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 text-brand-gold fill-brand-gold" />
+                    <Star className="w-4 h-4 text-brand-gold-dark fill-brand-gold" />
                     <span className="text-sm font-bold">{vote.avg.toFixed(1)}</span>
                   </div>
                 </div>

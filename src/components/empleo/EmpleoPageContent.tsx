@@ -22,7 +22,7 @@ export function EmpleoPageContent() {
       <header className="bg-brand-navy text-white">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href={`/${locale}`} className="flex items-center gap-2">
-            <Ship className="w-6 h-6 text-brand-gold" />
+            <Ship className="w-6 h-6 text-brand-gold-dark" />
             <span className="font-semibold">Lulu Island Flagship</span>
           </Link>
         </div>

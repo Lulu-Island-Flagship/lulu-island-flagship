@@ -228,7 +228,7 @@ export default function EmpleadoScorePage() {
       <header className="bg-brand-navy text-white">
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Star className="w-5 h-5 text-brand-gold" />
+            <Star className="w-5 h-5 text-brand-gold-dark" />
             <span className="font-semibold text-sm">My Score</span>
           </div>
           <a
@@ -243,7 +243,7 @@ export default function EmpleadoScorePage() {
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
+            <Loader2 className="w-6 h-6 animate-spin text-brand-gold-dark" />
           </div>
         ) : error ? (
           <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
@@ -351,7 +351,7 @@ export default function EmpleadoScorePage() {
                       : b.employee_badge_bonuses;
                     return (
                       <div key={b.id} className="bg-white rounded-xl shadow-elevation-1 p-4 flex items-start gap-3">
-                        <Trophy className="w-5 h-5 text-brand-gold shrink-0 mt-0.5" />
+                        <Trophy className="w-5 h-5 text-brand-gold-dark shrink-0 mt-0.5" />
                         <div className="flex-1">
                           <div className="flex items-center justify-between">
                             <p className="text-sm font-semibold text-brand-ink">{def?.name || b.badge_key}</p>

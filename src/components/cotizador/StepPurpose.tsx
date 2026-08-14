@@ -50,7 +50,7 @@ export function StepPurpose({ category, value, onChange }: StepPurposeProps) {
             >
               <div
                 className={`mb-4 ${
-                  isSelected ? "text-brand-gold" : "text-brand-navy"
+                  isSelected ? "text-brand-gold-dark" : "text-brand-navy"
                 }`}
               >
                 {ICONS[type.key]}

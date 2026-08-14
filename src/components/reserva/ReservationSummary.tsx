@@ -59,7 +59,7 @@ export function ReservationSummary({
   return (
     <div className="bg-brand-ice rounded-lg p-5 space-y-4">
       <h3 className="font-semibold text-brand-ink flex items-center gap-2">
-        <Shield className="w-5 h-5 text-brand-gold" />
+        <Shield className="w-5 h-5 text-brand-gold-dark" />
         {t("title")}
       </h3>
 
@@ -143,7 +143,7 @@ export function ReservationSummary({
 
       <div className="bg-white rounded-lg p-3 border border-brand-gold/30">
         <div className="flex items-center gap-2 text-sm">
-          <DollarSign className="w-4 h-4 text-brand-gold" />
+          <DollarSign className="w-4 h-4 text-brand-gold-dark" />
           <span className="text-gray-600">{t("securityHoldLabel")}</span>
           <span className="font-semibold text-brand-ink">
             {formatCurrency(quote.holdAmount)}

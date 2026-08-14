@@ -181,7 +181,7 @@ export default function AdminServiciosClient() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
       </div>
     );
   }
@@ -257,7 +257,7 @@ export default function AdminServiciosClient() {
                   </div>
 
                   <div className="flex items-center gap-2 text-sm text-brand-ink">
-                    <Clock className="w-4 h-4 text-brand-gold" />
+                    <Clock className="w-4 h-4 text-brand-gold-dark" />
                     <span className="font-medium">{s.serviceTime}</span>
                   </div>
 

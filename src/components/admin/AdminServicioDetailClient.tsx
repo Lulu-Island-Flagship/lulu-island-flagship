@@ -127,7 +127,7 @@ export default function AdminServicioDetailClient() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
       </div>
     );
   }
@@ -166,7 +166,7 @@ export default function AdminServicioDetailClient() {
         <div className="bg-white rounded-xl border p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <ClipboardCheck className="w-5 h-5 text-brand-gold" />
+              <ClipboardCheck className="w-5 h-5 text-brand-gold-dark" />
               <span className="font-medium text-brand-ink">{t("progress.title")}</span>
             </div>
             <span className="text-lg font-bold text-brand-ink">

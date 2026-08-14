@@ -67,7 +67,7 @@ export default function EmployeeMarketingConsentPage() {
       <main className="min-h-screen bg-brand-ice">
         <EmpleadoBackHeader title={t("title")} backHref={backHref} />
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+          <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
         </div>
       </main>
     );

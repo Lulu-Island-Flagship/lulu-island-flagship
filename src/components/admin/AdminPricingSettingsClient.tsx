@@ -230,7 +230,7 @@ export default function AdminPricingSettingsClient() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
       </div>
     );
   }
@@ -264,7 +264,7 @@ export default function AdminPricingSettingsClient() {
       <div className="bg-white rounded-xl border p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-lg bg-brand-gold/10 flex items-center justify-center">
-            <DollarSign className="w-5 h-5 text-brand-gold" />
+            <DollarSign className="w-5 h-5 text-brand-gold-dark" />
           </div>
           <div>
             <h2 className="font-semibold text-brand-ink">{t("targetRate.title")}</h2>
@@ -337,7 +337,7 @@ export default function AdminPricingSettingsClient() {
         <div className="bg-white rounded-xl border p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-lg bg-brand-gold/10 flex items-center justify-center">
-              <Table2 className="w-5 h-5 text-brand-gold" />
+              <Table2 className="w-5 h-5 text-brand-gold-dark" />
             </div>
             <div>
               <h2 className="font-semibold text-brand-ink">{t("hheTable.title")}</h2>

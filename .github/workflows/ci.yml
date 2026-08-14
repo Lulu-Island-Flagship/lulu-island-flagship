@@ -46,6 +46,12 @@ jobs:
             | grep -v "src/design/tokens.ts" | grep -v "src/app/tokens.css"; then
             echo "::error::Hex de marca fuera de src/design/tokens.ts (invariante E0-C5)"; exit 1
           fi
+      - name: Contraste — dorado claro nunca como texto (invariante a11y)
+        run: |
+          if grep -rnE 'text-brand-gold([^-]|$)' src/ --include="*.tsx" --include="*.ts" \
+            | grep -v "src/design/tokens.ts"; then
+            echo "::error::text-brand-gold (dorado claro) no cumple AA; usar text-brand-gold-dark"; exit 1
+          fi
       - name: Privacidad — sin select(*) en páginas del cliente sobre quotes/orders
         run: |
           if grep -rn 'from("quotes")' src/app/\[locale\]/ -A2 | grep 'select("\*")'; then

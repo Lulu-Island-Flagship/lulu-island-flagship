@@ -129,7 +129,7 @@ export default function EmpleadoVotacionPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
+            <Loader2 className="w-6 h-6 animate-spin text-brand-gold-dark" />
           </div>
         ) : error ? (
           <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">

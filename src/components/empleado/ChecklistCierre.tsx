@@ -534,7 +534,7 @@ export function ChecklistCierre({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
+        <Loader2 className="w-6 h-6 animate-spin text-brand-gold-dark" />
       </div>
     );
   }

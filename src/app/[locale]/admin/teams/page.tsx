@@ -137,7 +137,7 @@ export default function AdminTeamsPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+          <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
         </div>
       ) : teams.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center text-sm text-gray-500">{t("emptyState")}</div>

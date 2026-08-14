@@ -29,7 +29,7 @@ export function EmpleadoBackHeader({ title, backHref, icon: Icon }: EmpleadoBack
     <header className="bg-brand-navy text-white">
       <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {Icon && <Icon className="w-5 h-5 text-brand-gold" />}
+          {Icon && <Icon className="w-5 h-5 text-brand-gold-dark" />}
           <span className="font-semibold text-sm">{title}</span>
         </div>
         {/* v8.3 ROUND 4 fix (#8): antes era <a href>, que forzaba una recarga

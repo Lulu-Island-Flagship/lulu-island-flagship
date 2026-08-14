@@ -111,7 +111,7 @@ export default function SosPage() {
         )}
 
         {loading ? (
-          <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
+          <Loader2 className="w-6 h-6 animate-spin text-brand-gold-dark" />
         ) : (
           <div className="space-y-3">
             {items.length === 0 && (

@@ -77,7 +77,7 @@ export function CheckoutBenefitsPanel() {
   return (
     <div className="bg-white rounded-lg shadow-elevation-1 p-4 space-y-2">
       <h3 className="text-sm font-semibold text-brand-ink flex items-center gap-2">
-        <Gift className="w-4 h-4 text-brand-gold" />
+        <Gift className="w-4 h-4 text-brand-gold-dark" />
         {t("title")}
       </h3>
 

@@ -181,7 +181,7 @@ export default function ShiftRitualPage() {
       <main className="min-h-screen bg-brand-ice">
         <EmpleadoBackHeader title={t("headerTitle")} backHref={backHref} />
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+          <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
         </div>
       </main>
     );
@@ -207,7 +207,7 @@ export default function ShiftRitualPage() {
           </div>
 
           <div className="flex items-start gap-2">
-            <CloudSun className="w-4 h-4 text-brand-gold shrink-0 mt-0.5" />
+            <CloudSun className="w-4 h-4 text-brand-gold-dark shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-brand-ink">{t("weatherTraffic")}</p>
               <p className="text-xs text-gray-500">
@@ -370,7 +370,7 @@ export default function ShiftRitualPage() {
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <Award className="w-4 h-4 text-brand-gold shrink-0 mt-0.5" />
+              <Award className="w-4 h-4 text-brand-gold-dark shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-brand-ink">{t("badges")}</p>
                 <p className="text-xs text-gray-500">{t("badgesEarned", { count: cierre?.badgeCount ?? 0 })}</p>

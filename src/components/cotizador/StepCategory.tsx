@@ -44,7 +44,7 @@ export function StepCategory({ value, onChange }: StepCategoryProps) {
             >
               <div
                 className={`mb-4 ${
-                  isSelected ? "text-brand-gold" : "text-brand-navy"
+                  isSelected ? "text-brand-gold-dark" : "text-brand-navy"
                 }`}
               >
                 {ICONS[cat.key]}

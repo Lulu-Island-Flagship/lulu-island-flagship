@@ -584,7 +584,7 @@ function buildValidQuoteInput(raw: Partial<QuoteInput>): QuoteInput {
             className="flex items-center gap-2 hover:opacity-90 transition-opacity cursor-pointer"
             aria-label="Return to home"
           >
-            <Shield className="w-6 h-6 text-brand-gold" />
+            <Shield className="w-6 h-6 text-brand-gold-dark" />
             <span className="font-semibold">{t("brand")}</span>
           </Link>
           <div className="flex items-center gap-2 text-sm text-gray-300">
@@ -700,7 +700,7 @@ function buildValidQuoteInput(raw: Partial<QuoteInput>): QuoteInput {
             <div className="space-y-6">
               {previewLoading && (
                 <div className="flex flex-col items-center justify-center py-12 gap-3">
-                  <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+                  <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
                   <p className="text-sm text-gray-600">{t("summary.calculating")}</p>
                 </div>
               )}

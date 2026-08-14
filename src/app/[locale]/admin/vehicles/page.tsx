@@ -121,7 +121,7 @@ export default function VehiclesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
       </div>
     );
   }
@@ -216,7 +216,7 @@ export default function VehiclesPage() {
               </div>
               {v.current_lat != null && v.current_lng != null ? (
                 <div className="text-sm text-gray-600 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-brand-gold" />
+                  <MapPin className="w-4 h-4 text-brand-gold-dark" />
                   <span>
                     {v.current_lat.toFixed(5)}, {v.current_lng.toFixed(5)}
                   </span>

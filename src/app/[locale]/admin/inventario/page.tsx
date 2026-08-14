@@ -359,7 +359,7 @@ export default function InventarioPage() {
         )}
 
         {loading ? (
-          <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
+          <Loader2 className="w-6 h-6 animate-spin text-brand-gold-dark" />
         ) : tab === "items" ? (
           <>
 

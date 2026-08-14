@@ -115,7 +115,7 @@ export default function AdminUpsellsClient() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
       </div>
     );
   }
@@ -150,7 +150,7 @@ export default function AdminUpsellsClient() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2">
-                    <Tag className="w-4 h-4 text-brand-gold" />
+                    <Tag className="w-4 h-4 text-brand-gold-dark" />
                     <span className="font-medium text-brand-ink">{u.upsell_label}</span>
                     <span className="text-xs text-gray-400">{u.upsell_type}</span>
                   </div>

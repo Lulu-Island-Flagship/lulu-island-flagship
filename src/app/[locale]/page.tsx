@@ -174,8 +174,8 @@ export default function HomePage() {
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100/80 transition-all shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-navy text-brand-gold flex items-center justify-center shadow-elevation-1">
-              <Ship className="w-6 h-6 text-brand-gold" />
+            <div className="w-10 h-10 rounded-xl bg-brand-navy text-brand-gold-dark flex items-center justify-center shadow-elevation-1">
+              <Ship className="w-6 h-6 text-brand-gold-dark" />
             </div>
             <div>
               <h1 className="text-base font-bold tracking-tight text-brand-ink leading-snug">Lulu Island Flagship</h1>
@@ -369,7 +369,7 @@ export default function HomePage() {
                 key={stepNum}
                 className="bg-white rounded-2xl p-6 border border-gray-100 shadow-elevation-1 hover:shadow-elevation-2 hover:-translate-y-0.5 transition-all duration-300 flex items-start gap-4"
               >
-                <div className="w-10 h-10 rounded-xl bg-brand-navy text-brand-gold flex items-center justify-center font-bold text-base shrink-0 shadow-sm">
+                <div className="w-10 h-10 rounded-xl bg-brand-navy text-brand-gold-dark flex items-center justify-center font-bold text-base shrink-0 shadow-sm">
                   {stepNum}
                 </div>
                 <p className="text-sm md:text-base text-brand-ink leading-relaxed font-medium mt-1">
@@ -506,8 +506,8 @@ export default function HomePage() {
       <footer className="bg-white text-gray-500 py-10 border-t border-gray-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-brand-navy text-brand-gold flex items-center justify-center shadow-sm">
-              <Ship className="w-5 h-5 text-brand-gold" />
+            <div className="w-9 h-9 rounded-xl bg-brand-navy text-brand-gold-dark flex items-center justify-center shadow-sm">
+              <Ship className="w-5 h-5 text-brand-gold-dark" />
             </div>
             <div>
               <span className="text-brand-ink font-bold text-sm block">Lulu Island Flagship</span>

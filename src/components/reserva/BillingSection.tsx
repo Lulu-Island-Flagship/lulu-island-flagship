@@ -93,7 +93,7 @@ export function BillingSection({
   return (
     <div className="bg-white rounded-lg shadow-elevation-1 p-6">
       <h2 className="text-lg font-semibold text-brand-ink mb-4 flex items-center gap-2">
-        <Receipt className="w-5 h-5 text-brand-gold" />
+        <Receipt className="w-5 h-5 text-brand-gold-dark" />
         {t("title")}
       </h2>
 

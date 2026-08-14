@@ -175,7 +175,7 @@ export default function RiesgoPage() {
         </div>
 
         {loading ? (
-          <Loader2 className="w-6 h-6 animate-spin text-brand-gold" />
+          <Loader2 className="w-6 h-6 animate-spin text-brand-gold-dark" />
         ) : (
           <div className="bg-white rounded-xl shadow-elevation-1 divide-y">
             {assessments.length === 0 && (

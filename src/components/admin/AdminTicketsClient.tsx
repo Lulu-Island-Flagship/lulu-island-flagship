@@ -277,7 +277,7 @@ export default function AdminTicketsClient() {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+          <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
         </div>
       ) : error && !selectedTicket ? (
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">

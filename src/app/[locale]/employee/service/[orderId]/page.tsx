@@ -655,7 +655,7 @@ export default function ServicioPage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-brand-ice flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
       </main>
     );
   }
@@ -1164,7 +1164,7 @@ export default function ServicioPage() {
                           {log.event_type === "t_in" && <MapPin className="w-4 h-4 text-state-success" />}
                           {log.event_type === "t_start" && <Play className="w-4 h-4 text-brand-navy" />}
                           {log.event_type === "t_out" && <Flag className="w-4 h-4 text-state-success" />}
-                          {log.event_type === "photo" && <Camera className="w-4 h-4 text-brand-gold" />}
+                          {log.event_type === "photo" && <Camera className="w-4 h-4 text-brand-gold-dark" />}
                           {log.event_type === "note" && <AlertTriangle className="w-4 h-4 text-gray-400" />}
                         </div>
                         <div className="flex-1 min-w-0">

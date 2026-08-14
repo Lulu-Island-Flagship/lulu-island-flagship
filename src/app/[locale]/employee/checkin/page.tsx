@@ -145,7 +145,7 @@ export default function CheckinPage() {
       <main className="min-h-screen bg-brand-ice">
         <EmpleadoBackHeader title={t("title")} backHref={backHref} />
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+          <Loader2 className="w-8 h-8 animate-spin text-brand-gold-dark" />
         </div>
       </main>
     );
@@ -174,7 +174,7 @@ export default function CheckinPage() {
 
       {streakBonusAwarded && (
         <div className="bg-brand-gold/10 border border-brand-gold/40 rounded-lg p-3 text-sm text-brand-ink flex items-center gap-2">
-          <Zap className="w-4 h-4 text-brand-gold" /> {t("streakBonus")}
+          <Zap className="w-4 h-4 text-brand-gold-dark" /> {t("streakBonus")}
         </div>
       )}
 
@@ -227,7 +227,7 @@ export default function CheckinPage() {
         <label htmlFor="checkin-shortcut-accepted" className="flex items-center gap-2 text-sm text-gray-600">
           <input id="checkin-shortcut-accepted" type="checkbox" aria-label={t("shortcutAccept")} checked={shortcutAccepted} onChange={(e) => setShortcutAccepted(e.target.checked)} />
           <span className="flex items-center gap-1">
-            <Zap className="w-3.5 h-3.5 text-brand-gold" /> {t("shortcutAccept")}
+            <Zap className="w-3.5 h-3.5 text-brand-gold-dark" /> {t("shortcutAccept")}
           </span>
         </label>
         <p className="text-xs text-gray-400 -mt-3">
