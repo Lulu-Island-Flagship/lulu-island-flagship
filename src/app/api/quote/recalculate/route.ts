@@ -46,7 +46,7 @@ function daysBetween(a: string, b: string): number {
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

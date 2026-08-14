@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "orderId inválido" }, { status: 400 });
     }
 
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "orderId inválido" }, { status: 400 });
     }
 
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

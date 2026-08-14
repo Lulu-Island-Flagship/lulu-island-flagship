@@ -19,8 +19,9 @@ import { isValidUuid } from "@/lib/validation";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+  { params: paramsPromise }: { params: Promise<{ id: string }> })
+{
+  const params = await paramsPromise;
   const auth = await requireAdminRole("quotes_review", {
     method: request.method,
     url: request.url,

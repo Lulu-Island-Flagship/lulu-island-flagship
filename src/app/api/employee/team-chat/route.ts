@@ -17,7 +17,7 @@ const HISTORY_DAYS = 7;
  * POST /api/employee/team-chat — { orderId, body }
  */
 export async function GET(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

@@ -1,6 +1,6 @@
 // Clientes Supabase compartidos.
 // Extraídos de src/lib/admin.ts para romper dependencia circular.
-// getSupabaseClient()  → cliente anónimo + cookies
+// await getSupabaseClient()  → cliente anónimo + cookies
 // getServiceRoleClient() → service role (bypassea RLS)
 
 import { createServerClient } from "@supabase/ssr";
@@ -14,8 +14,8 @@ export function getServiceRoleClient() {
   return createClient(getSupabaseUrl(), serviceKey);
 }
 
-export function getSupabaseClient() {
-  const cookieStore = cookies();
+export async function getSupabaseClient() {
+  const cookieStore = await cookies();
   return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       getAll() {

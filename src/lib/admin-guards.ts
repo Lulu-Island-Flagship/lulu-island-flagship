@@ -25,7 +25,7 @@ import {
 // ─── requireSupervisor ─────────────────────────────────────────────────
 
 export async function requireSupervisor() {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return { error: "Unauthorized", status: 401, supabase: null, user: null };
@@ -49,7 +49,7 @@ export async function requireAdminRole(
   resource: AdminResource,
   _request?: { method?: string; url?: string },
 ) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return { error: "Unauthorized", status: 401 as const, supabase: null, user: null, roles: [] as AdminRole[] };
@@ -83,7 +83,7 @@ export async function requireAdminRole(
 // ─── logAdminAction (solo escribe audit log — NUNCA verifica) ──────────
 
 export interface LogAdminActionParams {
-  supabase: ReturnType<typeof getSupabaseClient>;
+  supabase: Awaited<ReturnType<typeof getSupabaseClient>>;
   user: User;
   roles: AdminRole[];
   resource: AdminResource;

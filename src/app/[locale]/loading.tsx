@@ -16,7 +16,7 @@
 import { getTranslations } from "next-intl/server";
 
 export default async function Loading() {
-  const t = await getTranslations({ namespace: "common" });
+  const t = await getTranslations("common");
   return (
     <div
       className="min-h-screen bg-white flex items-center justify-center"

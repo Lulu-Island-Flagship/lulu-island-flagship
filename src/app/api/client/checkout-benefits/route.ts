@@ -23,7 +23,7 @@ import { requireClientCaller } from "@/lib/require-client-caller";
  * de precios/Hold, que se evita deliberadamente aquí.
  */
 export async function GET() {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

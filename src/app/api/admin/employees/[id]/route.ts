@@ -30,8 +30,9 @@ const MIN_DAY_RATE_DOLLARS = BC_MIN_WAGE_HOURLY * (DEFAULT_SERVICE_MINUTES / 60)
 // communication_log que el resto del sistema.
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+  { params: paramsPromise }: { params: Promise<{ id: string }> })
+{
+  const params = await paramsPromise;
   const auth = await requireAdminRole("employees_admin", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase || !auth.user) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });

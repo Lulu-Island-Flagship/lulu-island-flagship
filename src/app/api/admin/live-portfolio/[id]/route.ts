@@ -11,7 +11,9 @@ import { isValidUuid } from "@/lib/validation";
  * (juicio humano, ver nota honesta en src/lib/live-portfolio.ts). Aprobar
  * arranca el reloj del derecho de retiro (<24h) del cliente.
  */
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> })
+{
+  const params = await paramsPromise;
   const auth = await requireAdminRole("live_portfolio_publish", { method: request.method, url: request.url });
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });

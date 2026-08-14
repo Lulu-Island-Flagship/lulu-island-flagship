@@ -33,8 +33,9 @@ function hoursUntilService(serviceDatetime: string): number {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
-) {
+  { params: paramsPromise }: { params: Promise<{ orderId: string }> })
+{
+  const params = await paramsPromise;
   try {
     const { orderId } = params;
     if (!orderId) {

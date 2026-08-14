@@ -24,7 +24,7 @@ export async function getCurrentAdminRoles(): Promise<{
   user: User | null;
   roles: AdminRole[];
 }> {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

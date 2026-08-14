@@ -314,7 +314,7 @@ export default function WarrantyClaimsPage() {
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h3 className="text-sm font-semibold text-brand-ink mb-2">{t("resolveModal.closurePhotoHeading", { zone: claimZone })}</h3>
+                    <h3 className="text-sm font-semibold text-brand-ink mb-2">{t("resolveModal.closurePhotoHeading", { zone: claimZone ?? "" })}</h3>
                     {matchedZone?.hasClosurePhoto ? (
                       <div className="grid grid-cols-2 gap-2">
                         {matchedZone.closurePhotoUrls.map((url) => (

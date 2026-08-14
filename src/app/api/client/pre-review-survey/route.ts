@@ -29,7 +29,7 @@ const PRE_REVIEW_SURVEY_RESPONSE_WINDOW_MS = 72 * 60 * 60 * 1000;
  * (SLA 4h documentado) ANTES de que el cliente publique algo negativo.
  */
 export async function POST(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

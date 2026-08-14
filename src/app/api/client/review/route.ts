@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
     }
 
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
 
     // Verificar orden por review_token (no por orderId directo)
     const { data: order, error: orderError } = await supabase

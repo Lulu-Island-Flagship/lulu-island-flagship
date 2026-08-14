@@ -61,7 +61,7 @@ export async function GET(_request: NextRequest) {
     }
 
     // 2. Autenticación de empleado
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Autenticación de empleado
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });

@@ -28,7 +28,7 @@ function getClientIp(request: NextRequest): string {
  * (para el anti-fraude "3 códigos distintos") y crea el vínculo pendiente.
  */
 export async function POST(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

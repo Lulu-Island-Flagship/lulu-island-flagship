@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = await getSupabaseClient();
     const now = new Date();
 
     const { data: pendingAppeals, error } = await supabase

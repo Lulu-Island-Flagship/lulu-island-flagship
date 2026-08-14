@@ -28,7 +28,7 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const supabase = createServerClient(
     getSupabaseUrl(),
     getSupabaseAnonKey(),
@@ -65,7 +65,7 @@ export default async function AdminLayout({
   );
 
   // Detect locale from request headers early (needed for both auth error and nav)
-  const headersList = headers();
+  const headersList = await headers();
   // Fix (auditoría 2026-07-31, hallazgo confirmado): "x-pathname" es el único
   // de estos dos headers que un lugar CONFIABLE del pipeline realmente setea
   // -- src/middleware.ts, línea ~192, lo escribe en la response justo antes

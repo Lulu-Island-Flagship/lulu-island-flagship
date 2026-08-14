@@ -7,7 +7,7 @@ import { safeErrorResponse } from "@/lib/api-errors";
 // POST /api/employee/chemical-alert — v8.3 E8 regla dura: mal estado + tarea
 // de riesgo quimico hoy => crea la alerta que el cron de reasignacion vigila.
 export async function POST(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

@@ -6,7 +6,9 @@ import { safeErrorResponse } from "@/lib/api-errors";
 import { isValidUuid } from "@/lib/validation";
 // PATCH /api/employee/safety-abort/[id] — actualizar GPS vivo mientras el SOS
 // sigue activo. v8.3 E7 (D.10 #7): "SOS con GPS vivo".
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> })
+{
+  const params = await paramsPromise;
   try {
     if (!isValidUuid(params.id)) {
       return NextResponse.json({ error: "ID inválido" }, { status: 400 });
@@ -19,7 +21,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: "gpsLat and gpsLng (numbers) are required" }, { status: 400 });
     }
 
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

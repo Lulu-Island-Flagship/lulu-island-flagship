@@ -3,8 +3,9 @@ import { requireAdminRole, getServiceRoleClient } from "@/lib/admin";
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { applicantId: string } }
-) {
+  { params: paramsPromise }: { params: Promise<{ applicantId: string }> })
+{
+  const params = await paramsPromise;
   const auth = await requireAdminRole("applicants", _request);
   if (auth.error || !auth.supabase) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });

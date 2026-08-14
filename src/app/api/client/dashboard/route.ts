@@ -12,7 +12,7 @@ import { ensureClientForAuthUser } from "@/lib/client-module/client-service";
  * wallet balance, y alertas. Evita que el cliente haga 3-4 requests paralelos.
  */
 export async function GET() {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

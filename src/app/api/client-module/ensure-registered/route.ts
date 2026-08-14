@@ -24,7 +24,7 @@ function _getSupabaseAnonKey(): string {
   return key;
 }
 
-// Mismo patrón exacto que createRouteSupabaseClient() en src/lib/admin.ts: cliente
+// Mismo patrón exacto que await createRouteSupabaseClient() en src/lib/admin.ts: cliente
 // anon + cookies de la request vía @supabase/ssr, para leer la sesión ya
 // establecida por el flujo de auth existente (AuthModal.tsx / auth/callback
 // route.ts) SIN tocar ni reimplementar esa lógica -- este endpoint solo
@@ -36,7 +36,7 @@ function _getSupabaseAnonKey(): string {
 // EnsureClientRegistration.tsx tras SIGNED_IN, en segundo plano, sin
 // impacto en el flujo de login/checkout ya en producción.
 export async function POST() {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

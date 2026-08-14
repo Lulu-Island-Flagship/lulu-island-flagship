@@ -9,7 +9,7 @@ const VALID_STAGES = ["clean", "in_use", "dirty", "washing", "warehouse", "vehic
 
 // GET /api/employee/cloths — ultimo conteo registrado por color+etapa (hoy)
 export async function GET() {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -32,7 +32,7 @@ export async function GET() {
 
 // POST /api/employee/cloths — v8.3 D.7.3: conteo simple por COLOR, nunca por unidad.
 export async function POST(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

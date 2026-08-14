@@ -260,11 +260,11 @@ export default function VehiclesPage() {
                 <div className="flex items-center justify-between pt-1 border-t">
                   {isVehicleInsuranceExpired(v.insurance_expiry_date, todayIso()) ? (
                     <span className="flex items-center gap-1 text-xs text-state-danger font-medium">
-                      <ShieldAlert className="w-3.5 h-3.5" /> {t("insuranceExpired", { date: v.insurance_expiry_date })}
+                      <ShieldAlert className="w-3.5 h-3.5" /> {t("insuranceExpired", { date: v.insurance_expiry_date ?? "" })}
                     </span>
                   ) : isVehicleInsuranceExpiringSoon(v.insurance_expiry_date, todayIso()) ? (
                     <span className="flex items-center gap-1 text-xs text-state-warning font-medium">
-                      <AlertTriangle className="w-3.5 h-3.5" /> {t("insuranceExpiringSoon", { date: v.insurance_expiry_date })}
+                      <AlertTriangle className="w-3.5 h-3.5" /> {t("insuranceExpiringSoon", { date: v.insurance_expiry_date ?? "" })}
                     </span>
                   ) : (
                     <span className="text-xs text-gray-400">

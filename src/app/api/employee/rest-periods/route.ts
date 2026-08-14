@@ -12,7 +12,7 @@ import { createRouteSupabaseClient } from "@/lib/supabase-server";
  */
 export async function GET(_request: NextRequest) {
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

@@ -15,7 +15,7 @@ import { createRouteSupabaseClient } from "@/lib/supabase-server";
  *   "consent" crea el registro si no existe (o re-consiente si nunca hubo fila).
  */
 export async function GET() {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -46,7 +46,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

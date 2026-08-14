@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
-function getClientIp(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    return forwarded.split(",")[0].trim();
-  }
-  return request.ip || "unknown";
-}
+import { getClientIp } from "@/lib/request-ip";
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +13,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
 
     // Rate limit: max 30 events per IP per day (generous for legitimate tracking)
     const ip = getClientIp(request);

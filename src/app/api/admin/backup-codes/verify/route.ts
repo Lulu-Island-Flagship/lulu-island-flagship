@@ -31,7 +31,7 @@ import { getClientIp } from "@/lib/request-ip";
  * `supabase.auth.verifyOtp({ token_hash, type: "magiclink" })`. Eso exponía
  * innecesariamente un secreto de un solo uso al cliente. Ahora el canje se
  * hace aquí mismo, server-side, con un cliente @supabase/ssr atado a las
- * cookies de esta respuesta (mismo patrón que getSupabaseClient() en este
+ * cookies de esta respuesta (mismo patrón que await getSupabaseClient() en este
  * mismo módulo): `authClient.auth.verifyOtp({ token_hash, type: "magiclink" })`
  * establece la sesión directamente vía Set-Cookie en la respuesta de este
  * endpoint. El cliente nunca ve el token_hash -- solo recibe un booleano de
@@ -214,10 +214,10 @@ export async function POST(request: NextRequest) {
   }
 
   // Canjea el token_hash aquí mismo (server-side) en vez de devolverlo al
-  // cliente -- ver Fix BUG-2 arriba. getSupabaseClient() usa cookies() de
+  // cliente -- ver Fix BUG-2 arriba. await getSupabaseClient() usa cookies() de
   // next/headers, así que verifyOtp aquí escribe la cookie de sesión
   // directamente en la respuesta HTTP de este Route Handler.
-  const authClient = getSupabaseClient();
+  const authClient = await getSupabaseClient();
   const { error: sessionError } = await authClient.auth.verifyOtp({
     token_hash: linkData.properties.hashed_token,
     type: "magiclink",

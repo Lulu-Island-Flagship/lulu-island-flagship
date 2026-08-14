@@ -13,8 +13,10 @@ import { requireClientCaller } from "@/lib/require-client-caller";
  * administrativo distinto (no cubierto aquí), documentado como límite
  * explícito en vez de simularlo.
  */
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createRouteSupabaseClient();
+export async function POST(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> })
+{
+  const params = await paramsPromise;
+  const supabase = await createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

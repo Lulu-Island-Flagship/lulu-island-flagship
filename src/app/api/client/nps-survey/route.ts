@@ -26,7 +26,7 @@ const NPS_SURVEY_RESPONSE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
  * NPS sesgaría el puntaje.
  */
 export async function POST(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

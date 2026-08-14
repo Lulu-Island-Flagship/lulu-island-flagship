@@ -10,7 +10,7 @@ import { requireClientCaller } from "@/lib/require-client-caller";
 // GET /api/client/wallet — saldo disponible (ya descontando créditos
 // vencidos y no usados) + historial propio. v8.3 E2.10.
 export async function GET() {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

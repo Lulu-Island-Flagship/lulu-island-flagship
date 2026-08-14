@@ -18,8 +18,9 @@ const VALID_ACTIONS = ["revealed", "copied"] as const;
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { action: string } }
-) {
+  { params: paramsPromise }: { params: Promise<{ action: string }> })
+{
+  const params = await paramsPromise;
   if (!VALID_ACTIONS.includes(params.action as (typeof VALID_ACTIONS)[number])) {
     return NextResponse.json({ error: "Invalid audit action" }, { status: 400 });
   }

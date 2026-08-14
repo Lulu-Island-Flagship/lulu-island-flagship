@@ -3,14 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { safeErrorResponse } from "@/lib/api-errors";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireClientCaller } from "@/lib/require-client-caller";
-async function getCurrentUser(supabase: ReturnType<typeof createRouteSupabaseClient>) {
+async function getCurrentUser(supabase: Awaited<ReturnType<typeof createRouteSupabaseClient>>) {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
   return data.user;
 }
 
 async function getOrCreateClientProfile(
-  supabase: ReturnType<typeof createRouteSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createRouteSupabaseClient>>,
   userId: string
 ): Promise<{ id: string } | null> {
   const { data: existing, error: selectError } = await supabase
@@ -122,7 +122,7 @@ function validateOptionalPropertyFields(
 // real de conversión (enviar cotización), antes de que el usuario pueda
 // llegar a una pantalla de cuenta con propiedades que listar.
 export async function GET() {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const user = await getCurrentUser(supabase);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -162,7 +162,7 @@ export async function GET() {
 
 // POST /api/client/properties — crear propiedad
 export async function POST(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const user = await getCurrentUser(supabase);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -250,7 +250,7 @@ export async function POST(request: NextRequest) {
 
 // PATCH /api/client/properties — actualizar propiedad propia
 export async function PATCH(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const user = await getCurrentUser(supabase);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -342,7 +342,7 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE /api/client/properties — desactivar (soft delete) propiedad propia
 export async function DELETE(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const user = await getCurrentUser(supabase);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

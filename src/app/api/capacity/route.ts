@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid serviceType" }, { status: 400 });
     }
 
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
 
     // Validar corte de reserva a las 5 PM del día anterior
     const vancouverNowStr = new Date().toLocaleString("en-CA", {

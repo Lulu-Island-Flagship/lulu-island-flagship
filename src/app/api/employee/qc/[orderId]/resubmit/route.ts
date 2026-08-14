@@ -19,7 +19,7 @@ export async function POST(
   { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

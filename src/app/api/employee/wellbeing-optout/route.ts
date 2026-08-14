@@ -9,7 +9,7 @@ import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/employee/wellbeing-optout — estado actual
 export async function GET() {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -27,7 +27,7 @@ export async function GET() {
 
 // PATCH /api/employee/wellbeing-optout — { optOut: boolean }
 export async function PATCH(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

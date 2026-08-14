@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
         ? paymentOption
         : "card";
 
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

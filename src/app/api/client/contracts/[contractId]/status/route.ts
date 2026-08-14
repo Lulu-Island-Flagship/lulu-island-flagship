@@ -31,9 +31,10 @@ type Action = (typeof VALID_ACTIONS)[number];
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { contractId: string } }
-) {
-  const supabase = createRouteSupabaseClient();
+  { params: paramsPromise }: { params: Promise<{ contractId: string }> })
+{
+  const params = await paramsPromise;
+  const supabase = await createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

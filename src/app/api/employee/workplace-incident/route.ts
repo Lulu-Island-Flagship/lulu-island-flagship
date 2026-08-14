@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       ? medicalAttentionType
       : "none";
 
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

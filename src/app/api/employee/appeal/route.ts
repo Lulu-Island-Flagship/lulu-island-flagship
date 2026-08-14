@@ -6,7 +6,7 @@ import { safeErrorResponse } from "@/lib/api-errors";
 // POST /api/employee/appeal — enviar apelación de una evaluación de auditor
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

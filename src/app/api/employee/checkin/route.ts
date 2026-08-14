@@ -7,7 +7,7 @@ import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
 // GET /api/employee/checkin — mi checkin de hoy (si ya lo hice)
 export async function GET() {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -61,7 +61,7 @@ export async function GET() {
 // POST /api/employee/checkin — checklist matutino (opcional, incentivado).
 // v8.3 E8: NUNCA se lee individualmente por el admin — solo vía agregado.
 export async function POST(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

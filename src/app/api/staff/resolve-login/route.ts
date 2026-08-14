@@ -26,7 +26,7 @@ const AREA_TO_PATH: Record<StaffArea, string> = {
 };
 
 export async function POST(request: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {

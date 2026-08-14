@@ -30,7 +30,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

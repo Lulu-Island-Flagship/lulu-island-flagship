@@ -30,7 +30,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

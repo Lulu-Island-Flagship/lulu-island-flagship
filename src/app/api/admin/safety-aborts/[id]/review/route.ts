@@ -8,7 +8,9 @@ import { isValidUuid } from "@/lib/validation";
 // (punto #5 de B.3: uno de los 6 únicos puntos de intervención humana
 // obligatoria). Se exige para TODO aborto seguro, sin excepción, sin importar
 // si se auto-aprobó por el fallback de 10 min.
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> })
+{
+  const params = await paramsPromise;
   const auth = await requireAdminRole("tickets", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase || !auth.user) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });

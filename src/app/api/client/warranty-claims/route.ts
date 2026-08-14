@@ -12,7 +12,7 @@ import { requireClientCaller } from "@/lib/require-client-caller";
  * se traduce a un mensaje legible (el enum interno es vocabulario de admin).
  */
 export async function GET() {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -62,7 +62,7 @@ export async function GET() {
  * fije sería reabrir el vector de abuso que ese diseño previene).
  */
 export async function POST(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

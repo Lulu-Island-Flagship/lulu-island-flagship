@@ -7,7 +7,9 @@ import { isValidUuid } from "@/lib/validation";
 // v8.3 E7: el bloqueo REAL de asignación con seguro vencido vive en el trigger
 // SQL prevent_expired_vehicle_assignment (migración 047). Esta ruta solo
 // administra el dato; no duplica la validación de bloqueo.
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> })
+{
+  const params = await paramsPromise;
   const auth = await requireAdminRole("vehicles", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });

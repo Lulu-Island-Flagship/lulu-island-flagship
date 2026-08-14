@@ -14,8 +14,10 @@ import { requireClientCaller } from "@/lib/require-client-caller";
  * POST /api/quote -- el único camino que recalcula precio en servidor. No
  * se reimplementa el motor de precios aquí (ver comentario en src/lib/rebook.ts).
  */
-export async function GET(request: NextRequest, { params }: { params: { orderId: string } }) {
-  const supabase = createRouteSupabaseClient();
+export async function GET(request: NextRequest, { params: paramsPromise }: { params: Promise<{ orderId: string }> })
+{
+  const params = await paramsPromise;
+  const supabase = await createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

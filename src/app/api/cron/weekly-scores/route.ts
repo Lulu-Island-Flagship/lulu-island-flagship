@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
 
     // v8.3 auditoría 2026-07-21 (D-P0-6): "el lunes de esta semana" se
     // calculaba tomando la fecha de HOY directamente -- si el cron corre

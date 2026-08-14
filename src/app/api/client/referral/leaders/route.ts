@@ -9,7 +9,7 @@ import { requireClientCaller } from "@/lib/require-client-caller";
  * id/name -- nunca datos sensibles de nómina/score del empleado.
  */
 export async function GET(_request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

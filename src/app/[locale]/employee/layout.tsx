@@ -49,12 +49,13 @@ export const metadata: Metadata = {
 // -- not_registered / pending_activation -- termina cerrando sesión).
 export default async function EmpleadoLayout({
   children,
-  params,
+  params: paramsPromise,
 }: {
   children: ReactNode;
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
-  const headersList = headers();
+  const params = await paramsPromise;
+  const headersList = await headers();
   // Fix (auditoría 2026-07-31, hallazgo confirmado -- mismo problema y mismo
   // arreglo que src/app/[locale]/admin/layout.tsx): "x-pathname" es el único
   // header que src/middleware.ts realmente setea (línea ~192); "x-invoke-path"
@@ -75,7 +76,7 @@ export default async function EmpleadoLayout({
   const safePathname = pathname && pathname.startsWith("/") && !pathname.startsWith("//") ? pathname : `/${safeLocale}/employee`;
   const portalUrl = `/${safeLocale}/portal?next=${encodeURIComponent(safePathname)}`;
 
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

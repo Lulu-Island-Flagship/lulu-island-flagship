@@ -21,7 +21,7 @@ function mostRecentMonday(d: Date): string {
  * empleados autenticados (cualquier rol, no requiere admin).
  */
 export async function GET() {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

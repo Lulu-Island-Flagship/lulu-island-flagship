@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 // GET /api/employee/services — lista de servicios del día para el empleado autenticado
 export async function GET() {
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

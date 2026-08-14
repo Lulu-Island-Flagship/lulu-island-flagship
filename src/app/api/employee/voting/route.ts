@@ -15,7 +15,7 @@ const RECENT_TEAMMATE_DAYS = 14;
  * a compañeros con los que de verdad se trabajó recientemente.
  */
 async function getRecentTeammateIds(
-  supabase: ReturnType<typeof createRouteSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createRouteSupabaseClient>>,
   employeeId: string
 ): Promise<Set<string>> {
   const todayStr = getVancouverTodayString();
@@ -55,7 +55,7 @@ async function getRecentTeammateIds(
 // GET /api/employee/voting — compañeros para votar esta semana
 export async function GET() {
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -137,7 +137,7 @@ export async function GET() {
 // POST /api/employee/voting — enviar voto
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

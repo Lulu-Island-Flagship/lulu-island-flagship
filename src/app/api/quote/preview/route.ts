@@ -142,7 +142,7 @@ function deriveOrganicLoad(
   if (hasLongHair || residents >= 3) return "medium";
   return "low";
 }
-async function getClientProfile(supabase: ReturnType<typeof createRouteSupabaseClient>, userId: string) {
+async function getClientProfile(supabase: Awaited<ReturnType<typeof createRouteSupabaseClient>>, userId: string) {
   const { data: existing } = await supabase
     .from("client_profiles")
     .select("score, services_count, account_type")
@@ -163,7 +163,7 @@ async function getClientProfile(supabase: ReturnType<typeof createRouteSupabaseC
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const { data: authData } = await supabase.auth.getUser();
     const user = authData.user;
 

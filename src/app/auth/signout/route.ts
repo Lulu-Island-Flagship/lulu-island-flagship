@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
   // (mismo destino que el caso exitoso) en vez de mostrarle una pantalla de
   // error por un problema que no puede resolver desde ahí.
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createServerClient(
       getSupabaseUrl(),
       getSupabaseAnonKey(),

@@ -10,7 +10,9 @@ import { isValidUuid } from "@/lib/validation";
  * podía escribir -- todo regalo con requires_manual_approval=true se
  * quedaba sin forma de aprobarse.
  */
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> })
+{
+  const params = await paramsPromise;
   const auth = await requireAdminRole("finance", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase || !auth.user) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });

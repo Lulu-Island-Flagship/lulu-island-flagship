@@ -207,7 +207,7 @@ function deriveOrganicLoad(
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const clientIp = getClientIp(request);
 
     // Solo aceptamos los inputs brutos del cotizador. NUNCA precios calculados.
@@ -745,7 +745,7 @@ export async function GET(_request: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   void _request;
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -779,7 +779,7 @@ export async function GET(_request: NextRequest) {
  * bloquear por defecto).
  */
 async function findPropertyRiskForAddress(
-  supabase: ReturnType<typeof createRouteSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof createRouteSupabaseClient>>,
   clientProfileId: string,
   address: string
 ): Promise<{ propertyId: string; tier: RiskTier; hardBlocked: boolean } | null> {
@@ -820,7 +820,7 @@ async function findPropertyRiskForAddress(
   };
 }
 
-async function getOrCreateClientProfile(supabase: ReturnType<typeof createRouteSupabaseClient>, userId: string) {
+async function getOrCreateClientProfile(supabase: Awaited<ReturnType<typeof createRouteSupabaseClient>>, userId: string) {
   const { data: existing, error: selectError } = await supabase
     .from("client_profiles")
     .select("*")

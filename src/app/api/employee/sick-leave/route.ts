@@ -31,7 +31,7 @@ function getServiceClient() {
  * la nómina) -- no un promedio distinto.
  */
 export async function POST(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
 
 /** GET: historial propio del empleado, este año calendario. */
 export async function GET() {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

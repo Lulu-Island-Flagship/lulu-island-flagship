@@ -14,7 +14,7 @@ const MAX_CODE_GENERATION_ATTEMPTS = 5;
  * en caso de colisión de UNIQUE (baja probabilidad, pero real).
  */
 export async function GET(_request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

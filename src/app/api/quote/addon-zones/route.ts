@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Missing serviceSubtype" }, { status: 400 });
     }
 
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const zones = await fetchAddonZoneOptions(supabase, serviceSubtype);
 
     return NextResponse.json({ zones }, { status: 200 });

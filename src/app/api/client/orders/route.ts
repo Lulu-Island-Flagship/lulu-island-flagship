@@ -16,7 +16,7 @@ interface ChecklistZoneRow {
  * usado en una ruta real hasta ahora.
  */
 export async function GET() {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

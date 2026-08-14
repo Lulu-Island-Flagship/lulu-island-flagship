@@ -51,7 +51,7 @@ type SelfServiceRequestType = (typeof SELF_SERVICE_REQUEST_TYPES)[number];
 const OPEN_STATUSES = ["pending", "processing"];
 
 export async function GET() {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -96,7 +96,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

@@ -11,7 +11,9 @@ import { isValidUuid } from "@/lib/validation";
 // validated_at IS NULL), en vez de leer/chequear/actualizar/insertar en
 // llamadas HTTP separadas -- eso permitía que dos PATCH concurrentes pagaran
 // el bono dos veces por el mismo atajo.
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> })
+{
+  const params = await paramsPromise;
   const auth = await requireAdminRole("wellbeing", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase || !auth.user) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });

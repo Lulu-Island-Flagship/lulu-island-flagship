@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = await getSupabaseClient();
     const nowIso = new Date().toISOString();
 
     const { data: expired, error } = await supabase

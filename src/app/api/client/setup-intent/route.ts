@@ -10,7 +10,7 @@ import { createRouteSupabaseClient } from "@/lib/supabase-server";
  */
 export async function POST() {
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -76,7 +76,7 @@ export async function POST() {
   }
 }
 
-async function createCustomer(stripe: ReturnType<typeof assertStripe>, supabase: ReturnType<typeof createRouteSupabaseClient>, user: { id: string; email?: string | undefined }): Promise<string> {
+async function createCustomer(stripe: ReturnType<typeof assertStripe>, supabase: Awaited<ReturnType<typeof createRouteSupabaseClient>>, user: { id: string; email?: string | undefined }): Promise<string> {
   const customer = await stripe.customers.create({
     ...(user.email ? { email: user.email } : {}),
     metadata: { supabase_user_id: user.id },

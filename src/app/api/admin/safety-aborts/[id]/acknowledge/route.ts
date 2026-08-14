@@ -5,7 +5,9 @@ import { safeErrorResponse } from "@/lib/api-errors";
 // POST /api/admin/safety-aborts/[id]/acknowledge — un admin (cualquier nivel)
 // confirma que está atendiendo el SOS. Detiene la escalación automática
 // hacia adelante (no revierte el reloj, solo lo congela).
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> })
+{
+  const params = await paramsPromise;
   const auth = await requireAdminRole("tickets", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase || !auth.user) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });

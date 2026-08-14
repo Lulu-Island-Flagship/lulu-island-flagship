@@ -14,7 +14,7 @@ import { requireClientCaller } from "@/lib/require-client-caller";
  * sin más interacción. No se reimplementa el motor de precios aquí.
  */
 export async function GET(_request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

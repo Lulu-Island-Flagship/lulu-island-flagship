@@ -36,7 +36,7 @@ import { resolveStaffLogin } from "@/lib/staff-login";
  * del flujo de login de staff).
  */
 export async function GET() {
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

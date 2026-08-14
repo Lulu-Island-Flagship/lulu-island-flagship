@@ -49,7 +49,8 @@ const playfair = Playfair_Display({
   display: "swap",
 });
 
-export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
+export async function generateMetadata({ params: paramsPromise }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const params = await paramsPromise;
   const t = await getTranslations({ locale: params.locale, namespace: 'meta' });
   // v8.3 P0-4 fix (auditoría Fable5, B.4/B.2.25): el meta description NUNCA
   // debe afirmar "insured" hasta que las 3 pólizas reales estén contratadas
@@ -139,11 +140,12 @@ export async function generateStaticParams() {
 
 export default async function LocaleLayout({
   children,
-  params: { locale },
+  params,
 }: Readonly<{
   children: React.ReactNode;
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }>) {
+  const { locale } = await params;
   // Fix (auditoría transversal 2026-07-25, item 3): next-intl requiere
   // llamar setRequestLocale(locale) temprano en cada layout/página estática
   // para que su optimización de renderizado estático (generateStaticParams

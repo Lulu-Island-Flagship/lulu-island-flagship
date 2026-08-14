@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   if (authError) return authError;
 
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = await createRouteSupabaseClient();
 
     const { data: allActiveCompetitors, error: allCompError } = await supabase
       .from("competitors")

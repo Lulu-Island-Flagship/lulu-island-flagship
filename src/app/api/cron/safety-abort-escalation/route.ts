@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
 
   try {
     const { data: activeAborts, error } = await supabase

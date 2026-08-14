@@ -101,7 +101,7 @@ interface ProposedOrder {
   proposedEmployeeIds: string[];
 }
 
-async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, targetDate: string) {
+async function buildProposals(supabase: Awaited<ReturnType<typeof getSupabaseClient>>, targetDate: string) {
   const { data: orders, error: ordersError } = await supabase
     .from("orders")
     .select("id, quote_id, user_id, service_time")
@@ -434,7 +434,7 @@ async function buildProposals(supabase: ReturnType<typeof getSupabaseClient>, ta
  * el admin", no "asigna a ciegas".
  */
 async function recordAndEscalateDispatchDiscrepancies(
-  supabase: ReturnType<typeof getSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof getSupabaseClient>>,
   discrepancies: { orderId: string; reason: DispatchDiscrepancyReason }[]
 ): Promise<{ recorded: number; escalated: number }> {
   const nowIso = new Date().toISOString();
@@ -505,7 +505,7 @@ async function recordAndEscalateDispatchDiscrepancies(
 }
 
 async function persistAssignments(
-  supabase: ReturnType<typeof getSupabaseClient>,
+  supabase: Awaited<ReturnType<typeof getSupabaseClient>>,
   proposals: ProposedOrder[],
   autoApproved: boolean
 ) {
@@ -581,7 +581,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const phase = detectPhase();
   const targetDate = getTomorrowDate();
 

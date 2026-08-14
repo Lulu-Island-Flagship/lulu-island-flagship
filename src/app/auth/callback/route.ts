@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     try {
-      const cookieStore = cookies();
+      const cookieStore = await cookies();
       const supabase = createServerClient(
         getSupabaseUrl(),
         getSupabaseAnonKey(),

@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole, logAdminAction } from "@/lib/admin";
 
 /** PATCH /api/admin/retention-gifts/building-benefits/[id] — marca entregado. */
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> })
+{
+  const params = await paramsPromise;
   const auth = await requireAdminRole("finance", { method: request.method, url: request.url });
   if (auth.error || !auth.supabase) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: auth.status || 401 });

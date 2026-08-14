@@ -9,7 +9,7 @@ import { safeErrorResponse } from "@/lib/api-errors";
 
 // GET /api/employee/route-shortcuts — mis atajos reportados
 export async function GET() {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -30,7 +30,7 @@ export async function GET() {
 
 // POST /api/employee/route-shortcuts — { description: string }
 export async function POST(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

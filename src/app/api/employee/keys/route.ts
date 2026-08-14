@@ -6,7 +6,7 @@ import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
 // GET /api/employee/keys?orderId=... — historial de manejo de llaves de una orden
 export async function GET(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/employee/keys — registrar manejo de llaves (v8.3 D.7.5)
 export async function POST(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

@@ -29,7 +29,7 @@ function getQuarterRange(dateStr: string): { start: string; end: string } {
 
 // POST /api/employee/readiness — modo "No estoy listo" (v8.3 E8 D.8.6).
 export async function POST(request: NextRequest) {
-  const supabase = createRouteSupabaseClient();
+  const supabase = await createRouteSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

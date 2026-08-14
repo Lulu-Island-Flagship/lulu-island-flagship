@@ -45,11 +45,11 @@ export function getSupabaseServiceKey(): string {
 
 // ─── Cliente Supabase para Route Handlers ───────────────────────────────
 //
-// Reemplaza las ~78 copias de getSupabaseClient() distribuidas por todas
+// Reemplaza las ~78 copias de await getSupabaseClient() distribuidas por todas
 // las rutas API. Uso canónico dentro de un handler:
 //
 //   import { createRouteSupabaseClient } from "@/lib/supabase-server";
-//   const supabase = createRouteSupabaseClient();
+//   const supabase = await createRouteSupabaseClient();
 
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -57,8 +57,8 @@ import { cookies } from "next/headers";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createRouteSupabaseClient(): SupabaseClient<any, "public", any> {
-  const cookieStore = cookies();
+export async function createRouteSupabaseClient(): Promise<SupabaseClient<any, "public", any>> {
+  const cookieStore = await cookies();
   return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       get(name: string) {
