@@ -295,8 +295,8 @@ describe("Multi-empleador — CPP/EI con múltiples fuentes de ingreso", () => {
   });
 
   it("CPP: si el YTD de Lulu ya excede el YMPE, no hay más contribución CPP", () => {
-    // El empleado ya ganó $70,000 en Lulu Island este año (> $68,500 YMPE)
-    const ytdLulu = 7_000_000; // $70,000
+    // El empleado ya ganó $75,000 en Lulu Island este año (> $74,600 YMPE 2026)
+    const ytdLulu = 7_500_000; // $75,000
 
     const cppResult = calculateCPP({
       grossPayCents: 200_000, // $2,000 más
@@ -306,11 +306,11 @@ describe("Multi-empleador — CPP/EI con múltiples fuentes de ingreso", () => {
 
     // CPP debe ser 0 porque ya se excedió el YMPE
     assert.strictEqual(cppResult.employeeCents, 0,
-      "CPP debe ser 0 cuando YTD ya excede el YMPE ($68,500)");
+      "CPP debe ser 0 cuando YTD ya excede el YMPE ($74,600)");
   });
 
   it("EI: si el YTD de Lulu ya excede el tope asegurable, no hay más contribución EI", () => {
-    const ytdLulu = 7_000_000; // $70,000 > $66,000 tope EI
+    const ytdLulu = 7_000_000; // $70,000 > $68,900 tope EI 2026
 
     const eiResult = calculateEI({
       grossPayCents: 200_000,
@@ -319,7 +319,7 @@ describe("Multi-empleador — CPP/EI con múltiples fuentes de ingreso", () => {
     });
 
     assert.strictEqual(eiResult.employeeCents, 0,
-      "EI debe ser 0 cuando YTD ya excede el máximo asegurable ($66,000)");
+      "EI debe ser 0 cuando YTD ya excede el máximo asegurable ($68,900)");
   });
 
   it("escenario multi-empleador documentado: sobre-contribución es responsabilidad del empleado en T1", () => {

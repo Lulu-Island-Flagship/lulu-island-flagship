@@ -52,6 +52,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get("date");
     const zone = searchParams.get("zone") || undefined;
+    // Fix (auditoría MANIFEST v4.2 · C.1 "sin inyección"): `zone` se interpola
+    // en un filtro .or() de PostgREST más abajo. Un valor con comillas/comas
+    // rompería la gramática del filtro. Allow-list estricto (letras/dígitos,
+    // espacio, apóstrofo, guion, ampersand) — sin `"`, `,`, `.`, `(`, `)`, `%`, `_`.
+    if (zone && !/^[A-Za-zÀ-ÖØ-öø-ÿ0-9 '&-]{1,64}$/.test(zone)) {
+      return NextResponse.json({ error: "Invalid zone" }, { status: 400 });
+    }
     const serviceType = searchParams.get("serviceType") as ServiceType | null;
     const squareFeetParam = searchParams.get("squareFeet");
 

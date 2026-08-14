@@ -244,12 +244,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     console.error("t4/route: error generating T4 submission:", err);
+    // Fix (auditoría MANIFEST v4.2 · F.1): no exponer err.message crudo al
+    // cliente; el detalle técnico queda en el log de servidor de arriba.
     return NextResponse.json(
-      {
-        error:
-          "Error interno al generar T4 submission: " +
-          (err instanceof Error ? err.message : "unknown error"),
-      },
+      { error: "Error interno al generar T4 submission" },
       { status: 500 },
     );
   }

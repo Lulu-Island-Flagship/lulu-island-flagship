@@ -566,12 +566,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
     let slotRow;
+    // Fix (auditoría MANIFEST v4.2 · C.1 "sin inyección"): quoteRow.zone se
+    // interpola en el filtro .or() de PostgREST. Allow-list estricto; si la
+    // zona almacenada no lo cumple, se degrada a "solo slots sin zona".
+    const safeZone =
+      quoteRow.zone && /^[A-Za-zÀ-ÖØ-öø-ÿ0-9 '&-]{1,64}$/.test(quoteRow.zone)
+        ? quoteRow.zone
+        : null;
     const { data: slotData, error: slotError } = await capacityClient
       .from("capacity_slots")
       .select("id, max_teams, committed_teams, slot_type")
       .eq("service_date", serviceDate)
       .eq("start_time", serviceTime)
-      .or(`zone.eq."${quoteRow.zone}",zone.is.null`)
+      .or(safeZone ? `zone.eq."${safeZone}",zone.is.null` : "zone.is.null")
       .eq("is_published", true)
       .order("zone", { ascending: false }) // preferir slot específico de zona
       .limit(1)

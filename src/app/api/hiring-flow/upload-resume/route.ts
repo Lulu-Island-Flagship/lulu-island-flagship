@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { ALLOWED_MIME_TYPES, detectMimeTypeFromBytes } from "@/lib/hiring-flow/document-service";
 import { checkRateLimit } from "@/lib/hiring-flow/rate-limiter";
+import { getClientIp } from "@/lib/request-ip";
 
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -22,10 +23,10 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const BUCKET_NAME = "candidate-documents";
 
 export async function POST(request: NextRequest) {
-  const ipAddress =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
+  // Fix (auditoría MANIFEST v4.2 · C.1 rate limiting): antes se leía
+  // x-forwarded-for directamente (spoofeable). getClientIp prioriza
+  // x-vercel-forwarded-for, que el edge de Vercel sobrescribe con la IP real.
+  const ipAddress = getClientIp(request);
   const rateLimitResult = await checkRateLimit(`upload_resume:ip:${ipAddress}`, "hiring_flow_upload_resume_ip_max_requests");
   if (!rateLimitResult.allowed) {
     return NextResponse.json(

@@ -80,11 +80,11 @@ describe("calculatePayrollForEmployee", () => {
     assert.ok(result.neto_pagar_cents > 0, "neto_pagar_cents debe ser positivo");
   });
 
-  it("CPP no excede el tope anual ($68,500)", () => {
-    // Empleado ya cerca del tope YMPE: ytd_gross = $67,000 (6,700,000 cents)
+  it("CPP no excede el tope anual ($74,600)", () => {
+    // Empleado ya cerca del tope YMPE: ytd_gross = $73,000 (7,300,000 cents)
     const highYtd = {
       ytd_previous: {
-        ytd_gross: 6_700_000,
+        ytd_gross: 7_300_000,
         ytd_cpp: 300_000,
         ytd_ei: 0,
         ytd_tax: 0,
@@ -93,30 +93,30 @@ describe("calculatePayrollForEmployee", () => {
       period_start: new Date("2026-08-01"),
     };
 
-    // Este período paga $5,000 → debería exceder YMPE y solo contribuir CPP sobre el espacio restante
+    // Este período paga $5,000 → excede el YMPE y solo contribuye CPP sobre el espacio restante
     const events: LaborEvent[] = [
-      dayRateEvent(500_000, "2026-08-01"), // $5,000 — excede el YMPE ($68,500)
+      dayRateEvent(500_000, "2026-08-01"), // $5,000 — excede el YMPE ($74,600)
     ];
 
     const result = calculatePayrollForEmployee("emp-002", "ciclo-001", events, highYtd);
 
-    // Después de este ciclo: ytd_gross = 67,000 + 5,000 = 72,000 > 68,500
-    // CPP solo sobre el espacio hasta YMPE: 68,500 - 67,000 = 1,500 = 150,000 cents
+    // Después de este ciclo: ytd_gross = 73,000 + 5,000 = 78,000 > 74,600
+    // CPP solo sobre el espacio hasta YMPE: 74,600 - 73,000 = 1,600 = 160,000 cents
     // Fórmula: min(gross - exemptionPerPeriod, roomToYmpe) × rate
-    //   roomToYmpe = 150,000, grossLessExemption = 500,000 - 14,583 = 485,417
-    //   pensionableThisPeriod = min(485,417, 150,000) = 150,000
-    //   expectedCpp = round(150,000 × 0.0595) = round(8,925) = 8,925
-    const expectedCpp = Math.round(150_000 * 0.0595);
+    //   roomToYmpe = 160,000, grossLessExemption = 500,000 - 14,583 = 485,417
+    //   pensionableThisPeriod = min(485,417, 160,000) = 160,000
+    //   expectedCpp = round(160,000 × 0.0595) = round(9,520) = 9,520
+    const expectedCpp = Math.round(160_000 * 0.0595);
     assert.strictEqual(result.cpp_employee_cents, expectedCpp,
       `CPP debe ser ${expectedCpp} (solo sobre el espacio hasta YMPE), no sobre el gross completo`);
     assert.ok(result.cpp_employee_cents < 30_000, "CPP debe ser mucho menor que $300 (5% de $5,000)");
   });
 
-  it("EI no excede el tope anual ($66,000)", () => {
-    // Empleado ya cerca del tope EI
+  it("EI no excede el tope anual ($68,900)", () => {
+    // Empleado ya cerca del tope EI (MIE 2026 = $68,900)
     const highYtd = {
       ytd_previous: {
-        ytd_gross: 6_500_000, // $65,000
+        ytd_gross: 6_800_000, // $68,000
         ytd_cpp: 0,
         ytd_ei: 900_00,
         ytd_tax: 0,
@@ -126,13 +126,13 @@ describe("calculatePayrollForEmployee", () => {
     };
 
     const events: LaborEvent[] = [
-      dayRateEvent(200_000, "2026-08-01"), // $2,000 — excede el tope EI ($66,000)
+      dayRateEvent(200_000, "2026-08-01"), // $2,000 — excede el tope EI ($68,900)
     ];
 
     const result = calculatePayrollForEmployee("emp-003", "ciclo-001", events, highYtd);
 
-    // EI solo sobre espacio hasta $66,000: 66,000 - 65,000 = 1,000
-    const maxEiThisPeriod = Math.round(1_000_00 * 0.0163);
+    // EI solo sobre espacio hasta $68,900: 68,900 - 68,000 = 900
+    const maxEiThisPeriod = Math.round(90_000 * 0.0163);
     assert.ok(result.ei_employee_cents <= maxEiThisPeriod + 100, "EI no debe exceder el espacio hasta el tope asegurable");
   });
 
@@ -360,7 +360,7 @@ describe("Payroll edge cases", () => {
     // Simulamos estar en julio (mitad de año fiscal) con YTD ya alto
     const midYearYtd = {
       ytd_previous: {
-        ytd_gross: 6_700_000, // $67,000 — casi en el tope YMPE de $68,500
+        ytd_gross: 7_300_000, // $73,000 — casi en el tope YMPE de $74,600
         ytd_cpp: 350_000,
         ytd_ei: 100_000,
         ytd_tax: 600_000,
@@ -375,11 +375,11 @@ describe("Payroll edge cases", () => {
 
     const result = calculatePayrollForEmployee("emp-101", "ciclo-101", events, midYearYtd);
 
-    // CPP solo sobre el espacio hasta $68,500 = 150,000 cents
+    // CPP solo sobre el espacio hasta $74,600 = 160,000 cents
     // pensionableThisPeriod = min(gross - exemption, roomToYmpe)
-    //   = min(300,000 - 14,583, 150,000) = 150,000
-    // expectedCpp = round(150,000 × 0.0595) = 8,925
-    const expectedCpp = Math.round(150_000 * 0.0595);
+    //   = min(300,000 - 14,583, 160,000) = 160,000
+    // expectedCpp = round(160,000 × 0.0595) = 9,520
+    const expectedCpp = Math.round(160_000 * 0.0595);
     assert.strictEqual(result.cpp_employee_cents, expectedCpp,
       `CPP ${result.cpp_employee_cents} should be ${expectedCpp}`);
 
@@ -388,7 +388,7 @@ describe("Payroll edge cases", () => {
 
     // Después de este período, el empleado ya no contribuye más CPP en el año
     // porque alcanzó el YMPE (o está muy cerca)
-    assert.ok(result.ytd_gross >= 6_700_000 + 300_000);
+    assert.ok(result.ytd_gross >= 7_300_000 + 300_000);
   });
 
   it("empleado con eventos de hora extra múltiples en un ciclo", () => {
@@ -426,7 +426,7 @@ describe("compliance-resolver (CPP/EI/Vacation/WorkSafeBC)", () => {
 
     assert.strictEqual(result.employeeCents, expectedEmployeeCents);
     assert.strictEqual(result.rate, 0.0595);
-    assert.strictEqual(result.ympEcents, 6_850_000);
+    assert.strictEqual(result.ympEcents, 7_460_000);
   });
 
   it("calculateEI con YTD cero devuelve contribución estándar", () => {
@@ -439,7 +439,7 @@ describe("compliance-resolver (CPP/EI/Vacation/WorkSafeBC)", () => {
     const expectedEmployeeCents = Math.round(200_000 * 0.0163);
     assert.strictEqual(result.employeeCents, expectedEmployeeCents);
     assert.strictEqual(result.rate, 0.0163);
-    assert.strictEqual(result.maxInsurableCents, 6_600_000);
+    assert.strictEqual(result.maxInsurableCents, 6_890_000);
   });
 
   it("calculateVacationAccrual: 4% para <5 años, 6% para ≥5 años", () => {

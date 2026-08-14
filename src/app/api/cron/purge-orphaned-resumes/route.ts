@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireCronAuth } from "@/lib/cron-auth";
 import { getServiceRoleClient } from "@/lib/admin";
 
 // GET /api/cron/purge-orphaned-resumes
@@ -12,7 +13,12 @@ import { getServiceRoleClient } from "@/lib/admin";
 const BUCKET = "candidate-documents";
 const MAX_AGE_HOURS = 24;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Fix (auditoría MANIFEST v4.2 · C.1 Authz): este cron eliminaba archivos de
+  // storage con service_role SIN autenticación, expuesto a cualquier llamador.
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
+
   const serviceClient = getServiceRoleClient();
   if (!serviceClient) {
     return NextResponse.json({ error: "Service client unavailable" }, { status: 500 });

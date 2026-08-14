@@ -51,16 +51,16 @@ describe("generateJournalEntry", () => {
     assert.strictEqual(rows[0].monto, 0);
   });
 
-  it("hold_captured: debito=1-1000, credito=1-1100", () => {
+  it("hold_captured: debito=1010 (EFECTIVO), credito=1100 (CxC)", () => {
     const rows = generateJournalEntry(makeEvent({ event_type: "hold_captured" }));
-    assert.strictEqual(rows.find(r => r.cuenta_debito)?.cuenta_debito, "1-1000");
-    assert.strictEqual(rows.find(r => r.cuenta_credito)?.cuenta_credito, "1-1100");
+    assert.strictEqual(rows.find(r => r.cuenta_debito)?.cuenta_debito, "1010");
+    assert.strictEqual(rows.find(r => r.cuenta_credito)?.cuenta_credito, "1100");
   });
 
-  it("payroll_disbursement: debito=5-2000, credito=1-1000", () => {
+  it("payroll_disbursement: debito=2080 (NÓMINA), credito=1010 (EFECTIVO)", () => {
     const rows = generateJournalEntry(makeEvent({ event_type: "payroll_disbursement", processor: "internal" }));
-    assert.strictEqual(rows.find(r => r.cuenta_debito)?.cuenta_debito, "5-2000");
-    assert.strictEqual(rows.find(r => r.cuenta_credito)?.cuenta_credito, "1-1000");
+    assert.strictEqual(rows.find(r => r.cuenta_debito)?.cuenta_debito, "2080");
+    assert.strictEqual(rows.find(r => r.cuenta_credito)?.cuenta_credito, "1010");
   });
 
   it("estado por defecto es confirmado", () => {

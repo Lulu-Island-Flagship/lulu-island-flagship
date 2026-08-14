@@ -1,3 +1,7 @@
+// Fix (auditoría MANIFEST v4.2 · E.5): estos crons hacen dump/cifrado/upload y
+// superan el timeout serverless por defecto (10s). Se da margen explícito.
+export const maxDuration = 300;
+
 import type Stripe from "stripe";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";

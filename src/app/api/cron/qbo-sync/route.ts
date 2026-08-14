@@ -1,3 +1,7 @@
+// Fix (auditoría MANIFEST v4.2 · E.5): I/O externa que puede superar el
+// timeout serverless por defecto (10s).
+export const maxDuration = 60;
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { pushSalesReceipt } from "@/lib/qbo-adapter";

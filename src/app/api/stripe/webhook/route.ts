@@ -186,7 +186,11 @@ async function handleDisputeCreated(
   dispute: Stripe.Dispute
 ) {
   const paymentIntentId = dispute.payment_intent as string | undefined;
-  if (!paymentIntentId) return;
+  // Fix (auditoría MANIFEST v4.2 · C.1 "sin inyección"): se interpola
+  // paymentIntentId en un filtro .or() de PostgREST sin validar su forma.
+  // Stripe garantiza "pi_<alphanum>"; rechazar cualquier otro valor evita que
+  // un payload malicioso inyecte gramática de filtro.
+  if (!paymentIntentId || !/^pi_[A-Za-z0-9]+$/.test(paymentIntentId)) return;
 
   const { data: orders } = await supabase
     .from("orders")
@@ -215,7 +219,10 @@ async function handleDisputeClosed(
   dispute: Stripe.Dispute
 ) {
   const paymentIntentId = dispute.payment_intent as string | undefined;
-  if (!paymentIntentId) return;
+  // Fix (auditoría MANIFEST v4.2 · C.1 "sin inyección"): mismo guard que en
+  // handleDisputeCreated; este paymentIntentId también se interpola en un
+  // filtro .or() de PostgREST más abajo.
+  if (!paymentIntentId || !/^pi_[A-Za-z0-9]+$/.test(paymentIntentId)) return;
 
   // v8.3 AUDITORÍA RESERVA→DINERO→RESEÑA: hallazgo real. chargeback_reserves
   // (migración 024, reserva de 1-3% del cobro) nunca se tocaba desde este

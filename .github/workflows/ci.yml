@@ -28,16 +28,17 @@ jobs:
         run: npx tsc --noEmit
       - name: Lint
         timeout-minutes: 10
-        run: npm run lint || true
+        run: npm run lint
       - name: Build
         timeout-minutes: 30
-        continue-on-error: true
         run: npm run build
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
       - name: Tests
         timeout-minutes: 10
         run: npm test
+      - name: Auditoría de dependencias (bloquea solo crítico)
+        run: npm audit --audit-level=critical
       - name: Tokens de diseño — cero hex de marca fuera de la fuente única
         run: |
           if grep -rln -iE "#2E5C8A|#3E6D9E|#3A6E9E|#E3AAB8|#8A3A46|#1F2E3D" src/ tailwind.config.ts \

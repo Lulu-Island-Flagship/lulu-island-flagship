@@ -147,7 +147,10 @@ export async function GET(request: NextRequest) {
     .single();
   const disputeExclusionEnabled = !!disputeExclusionFlag?.activo;
 
-  const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.luluisland.com";
+  // Fix (auditoría MANIFEST v4.2 · E.1): el fallback apuntaba a un dominio .com
+  // distinto de los canónicos (luluislandflagship.ca / app.luluisland.ca),
+  // probable typo y potencialmente no controlado. Se alinea con app.luluisland.ca.
+  const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.luluisland.ca";
 
   try {
     const { data: orders, error } = await supabase

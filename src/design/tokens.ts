@@ -26,13 +26,11 @@ export const BRAND = {
   navyLight: "#14315C",   // hover / estados activos
   waveBlue: "#2E6E96",    // secundario, links, iconografía
   gold: "#C9A961",        // dorado — SOLO acentos e insignias, nunca fondos grandes ni texto de cuerpo
-  // Fix (2026-08-01, a petición del usuario: "que el color no tenga negro en
-  // él"): el valor anterior (#8A3A46) técnicamente no tenía negro mezclado,
-  // pero leía como un marrón apagado. #772238 es el MISMO matiz rosa/blush
-  // de `gold` (~345° de tono) llevado a saturación alta (~63%) y luminosidad
-  // baja (~30%) -- un vino/burdeos puro, sin desaturar hacia gris/negro --
-  // y da 10.1:1 de contraste sobre blanco (mejor que el 7.57:1 anterior).
-  goldDark: "#A8863F",    // dorado oscuro — hover, bordes activos
+  // Fix (auditoría MANIFEST v4.2, 2026-08-14 · D.1/a11y): #A8863F daba 3.42:1
+  // de contraste sobre blanco (< 4.5:1 AA). Se restaura #93712A (~4.53:1),
+  // valor ya establecido en el commit a11y y exigido por el guard en
+  // tests/lib/a11y-audit.test.ts.
+  goldDark: "#93712A",    // dorado oscuro AA — hover, bordes activos
   ink: "#10192B",         // texto principal
   ice: "#F5F5F5",         // fondo secundario — gris muy pálido
   white: "#FFFFFF",       // fondo primario

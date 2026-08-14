@@ -1,0 +1,9 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    # next@14 → 16 y next-intl@3 → 4 son upgrades MAYORES (breaking): Dependabot
+    # los abre como PR de revisión explícita, nunca como merge automático.

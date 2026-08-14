@@ -171,7 +171,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https://*.supabase.co",
               "font-src 'self' data:",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://*.ingest.sentry.io",
               // Fix (2026-07-25, auditoría UX cliente, item 2 -- tracking de
               // servicio): se agrega www.google.com para el iframe de
               // Google Maps embebido en /cuenta/servicios/[orderId]/tracking
