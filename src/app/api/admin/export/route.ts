@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
+import { vancouverDayRangeUtc, toVancouverDateString } from "@/lib/date-utils";
 import {
   buildUniversalExportJson,
   buildUniversalExportCsv,
@@ -48,6 +49,16 @@ export async function GET(request: NextRequest) {
   const rangeStart = `${month}-01`;
   const lastDay = new Date(Date.UTC(year, monthNum, 0)).getUTCDate();
   const rangeEnd = `${month}-${String(lastDay).padStart(2, "0")}`;
+
+  // Fix (auditoría 2026-08-14): las columnas `created_at` de payroll_entries,
+  // retention_gifts y cash_tax_reserve_ledger son TIMESTAMPTZ. Filtrarlas con
+  // `rangeStart` / `${rangeEnd}T23:59:59` (sin offset) hacía que Postgres las
+  // leyera en UTC y no en Vancouver: el mes exportado quedaba corrido 7-8 horas
+  // en ambos extremos, así que movimientos de las últimas horas del último día
+  // del mes se iban al mes siguiente y el export contable no cuadraba.
+  // OJO: `service_date` (l. 76) y `credit_date` (l. 145) son columnas DATE, no
+  // timestamptz — esas NO llevan conversión de huso y se dejan como estaban.
+  const monthRange = vancouverDayRangeUtc(rangeStart, rangeEnd);
 
   const records: UniversalExportRecord[] = [];
 
@@ -118,8 +129,8 @@ export async function GET(request: NextRequest) {
   const { data: payrollRows, error: payrollError } = await supabase
     .from("payroll_entries")
     .select("employee_id, order_id, gross_amount, created_at, employees(name)")
-    .gte("created_at", rangeStart)
-    .lte("created_at", `${rangeEnd}T23:59:59`)
+    .gte("created_at", monthRange.startUtc)
+    .lt("created_at", monthRange.endUtcExclusive)
     .is("deleted_at", null);
   if (payrollError) {
     console.error("admin/export error:", payrollError);
@@ -134,7 +145,7 @@ export async function GET(request: NextRequest) {
       category: "payroll_gross",
       description: `Nómina bruta ${emp?.name || p.employee_id} — orden ${p.order_id}`,
       amountCents: p.gross_amount,
-      date: String(p.created_at).slice(0, 10),
+      date: toVancouverDateString(p.created_at as string),
       metadata: { employee_id: p.employee_id, order_id: p.order_id },
     });
   }
@@ -180,7 +191,7 @@ export async function GET(request: NextRequest) {
     const empJoin = d.employees as EmpJoin;
     const emp = Array.isArray(empJoin) ? empJoin[0] : empJoin;
     const empName = emp?.name || d.employee_id;
-    const date = String(d.created_at).slice(0, 10);
+    const date = toVancouverDateString(d.created_at as string);
     const employeeDeductions = d.cpp_cents + d.cpp2_cents + d.ei_employee_cents;
     if (employeeDeductions > 0) {
       records.push({
@@ -209,8 +220,8 @@ export async function GET(request: NextRequest) {
   const { data: giftRows, error: giftError } = await supabase
     .from("retention_gifts")
     .select("client_user_id, tier, suggested_gift_cents, created_at, requires_manual_approval, approved_at")
-    .gte("created_at", rangeStart)
-    .lte("created_at", `${rangeEnd}T23:59:59`)
+    .gte("created_at", monthRange.startUtc)
+    .lt("created_at", monthRange.endUtcExclusive)
     .is("deleted_at", null);
   if (giftError) {
     console.error("admin/export error:", giftError);
@@ -222,7 +233,7 @@ export async function GET(request: NextRequest) {
       category: "retention_gift",
       description: `Regalo de retención ${g.tier} — cliente ${g.client_user_id}`,
       amountCents: g.suggested_gift_cents,
-      date: String(g.created_at).slice(0, 10),
+      date: toVancouverDateString(g.created_at as string),
       metadata: {
         client_user_id: g.client_user_id,
         requires_manual_approval: String(g.requires_manual_approval),
@@ -237,8 +248,8 @@ export async function GET(request: NextRequest) {
   const { data: reserveRows, error: reserveErr } = await supabase
     .from("cash_tax_reserve_ledger")
     .select("order_id, tax_reserve_cents, created_at")
-    .gte("created_at", rangeStart)
-    .lte("created_at", `${rangeEnd}T23:59:59`);
+    .gte("created_at", monthRange.startUtc)
+    .lt("created_at", monthRange.endUtcExclusive);
   if (reserveErr) {
     console.error("admin/export error:", reserveErr);
     return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
@@ -249,7 +260,7 @@ export async function GET(request: NextRequest) {
       category: "tax_reserve",
       description: `Reserva de impuestos GST+PST 12% — orden ${t.order_id}`,
       amountCents: t.tax_reserve_cents,
-      date: String(t.created_at).slice(0, 10),
+      date: toVancouverDateString(t.created_at as string),
       metadata: { order_id: t.order_id },
     });
   }

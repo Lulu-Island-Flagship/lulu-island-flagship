@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { safeErrorResponse } from "@/lib/api-errors";
 import { computeClosingEarnings } from "@/lib/shift-ritual";
+import { getVancouverTodayString, vancouverDayRangeUtc } from "@/lib/date-utils";
 import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 /**
@@ -24,21 +25,23 @@ export async function GET() {
     }>(supabase, user.id, "id, name, day_rate");
     if (!employee) return NextResponse.json({ error: empError }, { status: empStatus });
 
-    const vancouverDate = new Date().toLocaleString("en-CA", {
-      timeZone: "America/Vancouver",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-    const today = vancouverDate.split(",")[0];
+    // Fix (auditoría 2026-08-14): el rango del día se construía con strings sin
+    // offset (`${today}T00:00:00` / `T23:59:59.999`). `service_upsells.created_at`
+    // es TIMESTAMPTZ, así que Postgres interpretaba esos strings en UTC y no en
+    // Vancouver: la ventana quedaba corrida 7-8 horas y todo upsell aprobado
+    // después de las ~17:00 hora local caía en el día UTC siguiente. Como este
+    // endpoint es precisamente el cierre de jornada, se comía las comisiones de
+    // la última parte del turno y el empleado veía menos plata de la que ganó.
+    const today = getVancouverTodayString();
+    const { startUtc, endUtcExclusive } = vancouverDayRangeUtc(today);
 
     const { data: upsells } = await supabase
       .from("service_upsells")
       .select("amount, created_at")
       .eq("employee_id", employee.id)
       .eq("client_approved", true)
-      .gte("created_at", `${today}T00:00:00`)
-      .lt("created_at", `${today}T23:59:59.999`);
+      .gte("created_at", startUtc)
+      .lt("created_at", endUtcExclusive);
 
     const approvedUpsellAmountsDollars = (upsells ?? []).map((u) => Number(u.amount));
 

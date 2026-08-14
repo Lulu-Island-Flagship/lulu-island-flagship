@@ -7,7 +7,7 @@ import {
   attachSinToLines,
   totalCycleDeductions,
 } from "@/lib/payroll-export";
-import { getVancouverTodayString } from "@/lib/date-utils";
+import { getVancouverTodayString, vancouverDayRangeUtc } from "@/lib/date-utils";
 
 // GET /api/admin/payroll-export?date=YYYY-MM-DD&format=json&cycle=current|previous
 // POST /api/admin/payroll-export?date=YYYY-MM-DD&format=csv|json&cycle=current|previous
@@ -51,14 +51,21 @@ async function handlePayrollExport(request: NextRequest, mutate: boolean) {
 
   const cycle = which === "current" ? getCycleForDate(dateParam) : getPreviousCycle(dateParam);
   const calendarYear = Number(cycle.start.slice(0, 4));
+  const payrollRange = vancouverDayRangeUtc(cycle.start, cycle.end);
 
   const { data: entries, error: entriesError } = await supabase
     .from("payroll_entries")
     .select(
       "employee_id, gross_amount, base_amount, qc_bonus_amount, qc_penalty_amount, rework_amount, rework_paid_minutes, minimum_wage_adjustment, created_at, employees(name, hire_date)"
     )
-    .gte("created_at", cycle.start)
-    .lte("created_at", `${cycle.end}T23:59:59`)
+    // Fix (auditoría 2026-08-14): `payroll_entries.created_at` es TIMESTAMPTZ y
+    // el rango se pasaba como fecha suelta / `${cycle.end}T23:59:59`, sin offset.
+    // Postgres los leía en UTC, no en Vancouver, corriendo el ciclo 7-8 horas:
+    // toda entrada creada después de las ~17:00 hora local del último día del
+    // ciclo caía fuera y NO se pagaba en esa nómina (se arrastraba al siguiente
+    // ciclo o se perdía si el rango siguiente empezaba después).
+    .gte("created_at", payrollRange.startUtc)
+    .lt("created_at", payrollRange.endUtcExclusive)
     .is("deleted_at", null);
 
   if (entriesError) {
