@@ -141,15 +141,20 @@ src/
 | 4 | PWA del empleado | 🔒 |
 | 5 | Marketing in-situ | 🔒 |
 
-## Despliegue — requisito de plan Vercel (Pro, no Hobby)
+## Despliegue — crons (Vercel + GitHub Actions)
 
-**Este proyecto requiere Vercel Pro (o equivalente) para desplegarse.** El
-plan Hobby de Vercel solo permite crons con cadencia diaria (una vez al
-día); `vercel.json` define ~14 crons con cadencia sub-diaria (cada hora o más
-frecuente), que fallarán a desplegar en Hobby. Esto no es un descuido — cada
-uno existe por una razón de negocio/seguridad real y se revisó explícitamente
-en la auditoría m-2 (2026-07-20b) para relajar los que se podían relajar sin
-romper su propósito:
+**Actualización (auditoría MANIFEST v4.2, 2026-08-14):** los crons sub-diarios
+críticos ya NO viven en `vercel.json`. Se migraron a
+`.github/workflows/critical-crons.yml` (GitHub Actions) en 2026-08-06, así que
+hoy `vercel.json` solo programa crons diarios/semanales (compatibles con el
+plan Hobby de Vercel) y los sub-diarios de seguridad/dinero corren vía GitHub
+Actions con `Authorization: Bearer ${CRON_SECRET}`.
+
+El detalle de cadencia y justificación de cada cron se conserva abajo como
+referencia de negocio/seguridad; para la programación REAL actual, ver
+`vercel.json` (diarios/semanales) y `.github/workflows/critical-crons.yml`
+(sub-diarios). Cada cron existe por una razón real y se revisó en la
+auditoría m-2 (2026-07-20b):
 
 **Relajados en esta auditoría** (ya no corren más seguido de lo necesario,
 pero siguen siendo sub-diarios):
@@ -186,7 +191,8 @@ Si el dueño del proyecto decide en algún momento operar sin Vercel Pro, la
 única vía honesta es migrar estos crons a un scheduler externo (ej. GitHub
 Actions, un cron de un VPS pequeño, o un servicio como cron-job.org) que
 llame a estos mismos endpoints con el header `Authorization: Bearer
-${CRON_SECRET}` — el código de cada ruta ya es agnóstico de quién lo invoca.
+${CRON_SECRET}` — el código de cada ruta ya es agnóstico de quién lo invoca
+(esto ya está hecho para los sub-diarios en `critical-crons.yml`).
 
 ## Licencia
 

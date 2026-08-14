@@ -37,11 +37,11 @@ import {
 // Tax Rates (BC)
 // =========================================================================
 
-/** GST federal rate: 5% */
-export const GST_RATE = 0.05;
-
-/** PST provincial rate (BC): 7% */
-export const PST_RATE = 0.07;
+// Fix (auditoría MANIFEST v4.2 · B.1): fuente única de tasas en pricing/taxes.ts
+// (evita divergencia financiera si una tasa cambia). Re-export para no romper
+// la API pública de tax-engine.
+import { GST_RATE, PST_RATE } from "@/lib/pricing/taxes";
+export { GST_RATE, PST_RATE };
 
 /** Small supplier threshold: below this, GST registration is voluntary */
 export const SMALL_SUPPLIER_THRESHOLD_CAD = 30_000;

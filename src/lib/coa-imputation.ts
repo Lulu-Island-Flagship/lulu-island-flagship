@@ -65,11 +65,8 @@ export interface ImputationResult {
 // Tasas impositivas por defecto (BC, 2026)
 // ---------------------------------------------------------------------------
 
-/** GST federal rate — 5% (2026). */
-const GST_RATE = 0.05;
-
-/** PST provincial rate — BC 7% (2026). */
-const PST_RATE = 0.07;
+// Fix (auditoría MANIFEST v4.2 · B.1): fuente única de tasas en pricing/taxes.ts.
+import { GST_RATE, PST_RATE } from "@/lib/pricing/taxes";
 
 // ---------------------------------------------------------------------------
 // Catálogo de reglas de imputación

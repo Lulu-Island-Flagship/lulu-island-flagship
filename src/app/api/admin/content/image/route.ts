@@ -42,8 +42,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing file" }, { status: 400 });
   }
 
-  // Generate unique filename: slot_timestamp.extension
-  const ext = file.name.split(".").pop() || "jpg";
+  // Fix (auditoría MANIFEST v4.2 · C.1 sanitización de subida): tamaño y MIME
+  // validados en servidor (file.type/file.name son controlados por el cliente).
+  const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+  if (file.size > MAX_SIZE_BYTES) {
+    return NextResponse.json({ error: "Image too large (max 5 MB)" }, { status: 413 });
+  }
+  const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
+  if (!ALLOWED_MIME.includes(file.type)) {
+    return NextResponse.json({ error: "Invalid image type" }, { status: 415 });
+  }
+
+  // Extensión derivada del MIME validado, no del nombre del archivo.
+  const EXT_BY_MIME: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "image/avif": "avif",
+  };
+  const ext = EXT_BY_MIME[file.type] || "jpg";
   const filename = `${slot}_${Date.now()}.${ext}`;
 
   const { error: uploadError } = await auth.supabase.storage
