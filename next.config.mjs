@@ -1,4 +1,5 @@
 import createNextIntlPlugin from 'next-intl/plugin';
+import { withSentryConfig } from "@sentry/nextjs";
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
@@ -192,4 +193,10 @@ const nextConfig = {
   },
 };
 
-export default withNextIntl(nextConfig);
+export default withSentryConfig(withNextIntl(nextConfig), {
+  // Fix (auditoría MANIFEST v4.2 · F.2): habilitar captura de errores de
+  // cliente/React. sourcemaps deshabilitados para no requerir SENTRY_AUTH_TOKEN;
+  // silent para no ensuciar la salida del build.
+  silent: true,
+  sourcemaps: { disable: true },
+});
