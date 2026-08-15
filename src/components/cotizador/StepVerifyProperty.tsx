@@ -44,8 +44,7 @@ export function StepVerifyProperty({ rawAddress, initial, onChange }: StepVerify
       squareFeet: initial?.squareFeet ?? 1000,
       squareFeetDeclared: initial?.squareFeetDeclared ?? (initial?.squareFeet ?? 1000),
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address]);
+  }, [address, initial?.bathrooms, initial?.bedrooms, initial?.postalCode, initial?.serviceCategory, initial?.squareFeet, initial?.squareFeetDeclared, initial?.zone]);
 
   const displayAddress = address.trim() || (initial?.zone ? `${initial.zone}, BC` : "");
 

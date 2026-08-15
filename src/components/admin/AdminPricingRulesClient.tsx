@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import {
   Loader2,
@@ -240,12 +240,7 @@ export default function AdminPricingRulesClient() {
   const [maxApplicable, setMaxApplicable] = useState(true);
   const [reason, setReason] = useState("");
 
-  useEffect(() => {
-    loadRules();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function loadRules() {
+  const loadRules = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -262,7 +257,11 @@ export default function AdminPricingRulesClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    loadRules();
+  }, [loadRules]);
 
   async function loadAuditLogs(ruleId: string) {
     try {

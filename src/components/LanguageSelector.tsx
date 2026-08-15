@@ -38,8 +38,7 @@ export function LanguageSelector({ variant = "default" }: LanguageSelectorProps)
     if (pathLocale && pathLocale[1] !== currentLocale) {
       setCurrentLocale(pathLocale[1]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [pathname, currentLocale, pathLocale]);
 
   const switchLanguage = (locale: string) => {
     setCurrentLocale(locale);

@@ -290,7 +290,7 @@ export async function PATCH(
         }
       }
       return NextResponse.json(
-        { error: `Stripe charge failed: ${(stripeErr as Error).message || String(stripeErr)}` },
+        { error: "Stripe charge failed" },
         { status: 500 }
       );
     }
@@ -357,7 +357,7 @@ export async function PATCH(
     if (updateError) {
       console.error("force-full-capture order update error:", updateError);
       return NextResponse.json(
-        { error: `Captured ${capturedNowDollars} but failed to update order record: ${updateError.message}` },
+        { error: `Captured ${capturedNowDollars} but failed to update order record` },
         { status: 500 }
       );
     }

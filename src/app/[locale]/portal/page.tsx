@@ -180,11 +180,10 @@ function PortalContent() {
     // de nuevo) el efecto no se re-evaluaba porque React nunca lo veía como
     // "cambiado". searchParams sí cambia de referencia cuando cambia la
     // query string, así que agregarlo como dep hace que un nuevo
-    // auth_error se procese sin necesitar un full reload. router/locale no
-    // se agregan: son estables entre renders de esta página y agregarlos no
-    // cambia el comportamiento, solo ruido en el array.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+    // auth_error se procese sin necesitar un full reload. t/router/locale
+    // son estables entre renders de esta página y agregarlos no cambia el
+    // comportamiento, solo completan el array que exige exhaustive-deps.
+  }, [searchParams, t, router, locale]);
 
   if (phase === "checking" || phase === "resolving") {
     return (

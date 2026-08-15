@@ -205,7 +205,7 @@ export async function GET(request: NextRequest) {
       } catch (err: Error | unknown) {
         results.reauthFailed++;
         const message = err instanceof Error ? err.message : "Unknown re-auth error";
-        results.errors.push({ orderId: order.id, error: message });
+        results.errors.push({ orderId: order.id, error: "Re-authorization failed" });
         console.error(`Hold preauth-check: re-auth failed for order ${order.id}:`, err);
 
         const attemptsAfter = reauthAttempts + 1;

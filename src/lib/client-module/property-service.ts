@@ -37,8 +37,7 @@ import {
 //     assigned_employee_id UUID NULL, status TEXT, start_date DATE,
 //     end_date DATE, created_at, updated_at)
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type PropertiesClient = SupabaseClient<any, "public", any>;
+type PropertiesClient = SupabaseClient;
 
 function resolveClient(client?: PropertiesClient): PropertiesClient {
   const resolved = client ?? getHiringFlowServiceClient();

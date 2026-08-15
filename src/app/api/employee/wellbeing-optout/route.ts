@@ -55,7 +55,11 @@ export async function PATCH(request: NextRequest) {
       .single();
 
     if (error || !data) {
-      return NextResponse.json({ error: error?.message || "Employee profile not found" }, { status: 403 });
+      if (error) {
+        console.error("employee/wellbeing-optout update error:", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      }
+      return NextResponse.json({ error: "Employee profile not found" }, { status: 403 });
     }
 
     return NextResponse.json({ wellbeingOptOut: data.wellbeing_opt_out === true }, { status: 200 });

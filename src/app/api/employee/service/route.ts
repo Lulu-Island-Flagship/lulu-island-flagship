@@ -14,14 +14,14 @@ import { getVancouverOffset } from "@/lib/date-utils";
 import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
+import type { SupabaseClient } from "@supabase/supabase-js";
 /**
  * v8.3 E4.11 — Protocolo de Cierre Externo. Junta checklist + implementos +
  * confirmación externa desde Supabase y delega la decisión a la función
  * pura src/lib/closure-protocol.ts. T_out se rechaza si no está completo.
  */
 async function checkClosureProtocol(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseClient,
   orderId: string,
   employeeId: string
 ): Promise<{ complete: boolean; missing: string[] }> {
@@ -132,8 +132,7 @@ async function checkClosureProtocol(
  * (hasOpenCriticalDispute, src/lib/review-delivery.ts).
  */
 async function sendClosureCommunications(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseClient,
   orderId: string,
   userId: string
 ): Promise<void> {

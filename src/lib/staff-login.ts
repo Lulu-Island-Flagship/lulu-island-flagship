@@ -29,8 +29,7 @@
 // completo de schema (seguiría requiriendo los tipos generados de Supabase),
 // pero sí reconoce la forma real del cliente en vez de aceptar cualquier cosa.
 import type { SupabaseClient } from "@supabase/supabase-js";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ServiceClient = SupabaseClient<any, "public", any>;
+type ServiceClient = SupabaseClient;
 
 export type StaffArea = "employee" | "admin" | "qc";
 

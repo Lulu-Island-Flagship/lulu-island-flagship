@@ -24,8 +24,7 @@ import { getHiringFlowServiceClient } from "@/lib/supabase-service-client";
 // mes/año de expiración). Si en el futuro sientes la tentación de agregar
 // un campo como `cardNumber`, `cvv`, `cvc` o similar -- NO lo hagas.
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type PaymentMethodsClient = SupabaseClient<any, "public", any>;
+type PaymentMethodsClient = SupabaseClient;
 
 export type PaymentMethodType =
   | "credit_card"

@@ -85,7 +85,7 @@ export function ChecklistCierre({
   // recarga con loadChecklist().
   const localStorageKey = `lulu_checklist_cierre_${employeeAuthId ?? "anon"}_${orderId}`;
 
-  function loadLocalSnapshot(): ChecklistZoneProgress[] | null {
+  const loadLocalSnapshot = useCallback((): ChecklistZoneProgress[] | null => {
     if (typeof window === "undefined") return null;
     try {
       const raw = window.localStorage.getItem(localStorageKey);
@@ -95,7 +95,7 @@ export function ChecklistCierre({
     } catch {
       return null;
     }
-  }
+  }, [localStorageKey]);
 
   const saveLocalSnapshot = useCallback((nextZones: ChecklistZoneProgress[]) => {
     if (typeof window === "undefined") return;
@@ -133,22 +133,9 @@ export function ChecklistCierre({
     };
   }, []);
 
-  useEffect(() => {
-    loadChecklist();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId, serviceSubtype, employeeAuthId]);
-
-  // Respaldo local: cualquier cambio en `zones` (toggle, foto) se guarda de
-  // inmediato, así un refresh o pérdida de conexión antes del POST no borra
-  // lo ya marcado -- se restaura al volver a montar (ver loadChecklist).
-  useEffect(() => {
-    if (zones.length > 0) saveLocalSnapshot(zones);
-  }, [zones, saveLocalSnapshot]);
-
-  /** Aplica sobre `serverZones` cualquier item que localStorage tenga marcado como completado y el servidor no. */
-  function mergeLocalSnapshotOntoServerZones(
+  const mergeLocalSnapshotOntoServerZones = useCallback((
     serverZones: ChecklistZoneProgress[]
-  ): ChecklistZoneProgress[] {
+  ): ChecklistZoneProgress[] => {
     const local = loadLocalSnapshot();
     if (!local) return serverZones;
     const localById = new Map<string, { isCompleted: boolean; photoUrl?: string }>();
@@ -172,9 +159,9 @@ export function ChecklistCierre({
       const requiredCompleted = items.filter((i) => i.required && i.isCompleted).length;
       return { ...z, items, completedItems, requiredCompleted };
     });
-  }
+  }, [loadLocalSnapshot]);
 
-  function recomputeOverallProgress(zonesList: ChecklistZoneProgress[]) {
+  const recomputeOverallProgress = useCallback((zonesList: ChecklistZoneProgress[]) => {
     const totalItems = zonesList.reduce((sum, z) => sum + z.totalItems, 0);
     const completedItems = zonesList.reduce((sum, z) => sum + z.completedItems, 0);
     const requiredItems = zonesList.reduce((sum, z) => sum + z.requiredItems, 0);
@@ -187,9 +174,9 @@ export function ChecklistCierre({
       percentComplete: totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0,
       percentRequired: requiredItems > 0 ? Math.round((requiredCompleted / requiredItems) * 100) : 100,
     });
-  }
+  }, []);
 
-  async function loadChecklist() {
+  const loadChecklist = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(
@@ -245,7 +232,21 @@ export function ChecklistCierre({
     } finally {
       setLoading(false);
     }
-  }
+  }, [orderId, serviceSubtype, loadLocalSnapshot, mergeLocalSnapshotOntoServerZones, recomputeOverallProgress]);
+
+  useEffect(() => {
+    loadChecklist();
+  }, [orderId, serviceSubtype, employeeAuthId, loadChecklist]);
+
+  // Respaldo local: cualquier cambio en `zones` (toggle, foto) se guarda de
+  // inmediato, así un refresh o pérdida de conexión antes del POST no borra
+  // lo ya marcado -- se restaura al volver a montar (ver loadChecklist).
+  useEffect(() => {
+    if (zones.length > 0) saveLocalSnapshot(zones);
+  }, [zones, saveLocalSnapshot]);
+
+  /** Aplica sobre `serverZones` cualquier item que localStorage tenga marcado como completado y el servidor no. */
+
 
   const toggleZone = (zone: string) => {
     setExpandedZones((prev) => {

@@ -412,8 +412,7 @@ export async function POST(request: NextRequest) {
  */
 async function handleGstSubmit(
   serviceClient: NonNullable<ReturnType<typeof getServiceRoleClient>>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseClient,
   adminId: string,
   periodo: string,
   anio: number,
@@ -486,8 +485,7 @@ async function handleGstSubmit(
  */
 async function handleT4Submit(
   serviceClient: NonNullable<ReturnType<typeof getServiceRoleClient>>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseClient,
   adminId: string,
   anio: number,
   _clientIp: string,
@@ -586,8 +584,7 @@ async function handleT4Submit(
  */
 async function handleT4ASubmit(
   serviceClient: NonNullable<ReturnType<typeof getServiceRoleClient>>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseClient,
   adminId: string,
   anio: number,
   _clientIp: string,

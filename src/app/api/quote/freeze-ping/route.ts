@@ -83,7 +83,11 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (updateError || !updated) {
-      return NextResponse.json({ error: updateError?.message || "Failed to extend price hold" }, { status: 500 });
+      if (updateError) {
+        console.error("quote/freeze-ping update error:", updateError);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      }
+      return NextResponse.json({ error: "Failed to extend price hold" }, { status: 500 });
     }
 
     return NextResponse.json(

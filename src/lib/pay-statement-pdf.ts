@@ -618,8 +618,16 @@ export async function generatePayStatementPdf(statement: PayStatement): Promise<
   };
 
   try {
-    // @ts-expect-error — puppeteer is optional; not installed at compile time.
-    // Runtime error is handled by the catch block below.
+    // puppeteer es una dependencia OPCIONAL (no está en package.json): sin el
+    // paquete instalado, TypeScript no resuelve el módulo "puppeteer" y marca
+    // "Cannot find module". Se usa @ts-expect-error (no @ts-ignore) a propósito:
+    //   - Es autocontrolado: si alguien instala puppeteer, el build falla con
+    //     "Unused '@ts-expect-error' directive" y obliga a quitar esta línea.
+    //   - NO se usa un stub `declare module "puppeteer"` (.d.ts) porque sería una
+    //     "ficción" de tipos que puede desincronizarse del API real y, si algún
+    //     día se instala puppeteer, chocaría con sus tipos reales.
+    // El fallo en runtime lo maneja el catch de abajo (mensaje con instrucciones).
+    // @ts-expect-error — módulo opcional no instalado en compile-time.
     puppeteer = await import("puppeteer");
   } catch {
     throw new Error(

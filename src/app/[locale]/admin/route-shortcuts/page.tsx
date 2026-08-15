@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, MapPinned, Check } from "lucide-react";
 
@@ -28,12 +28,7 @@ export default function AdminRouteShortcutsPage() {
   const [pendingOnly, setPendingOnly] = useState(true);
   const [validatingId, setValidatingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingOnly]);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -52,7 +47,11 @@ export default function AdminRouteShortcutsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [pendingOnly, t]);
+
+  useEffect(() => {
+    load();
+  }, [pendingOnly, load]);
 
   async function validate(id: string) {
     setValidatingId(id);

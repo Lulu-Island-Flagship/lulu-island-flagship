@@ -28,11 +28,9 @@
 // ambos casos, para no filtrar detalles internos de rol a un llamador no
 // autorizado.
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { captureError } from "@/lib/observability";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseLike = SupabaseClient<any, "public", any>;
+type SupabaseLike = SupabaseClient;
 
 export interface RequireClientCallerResult {
   ok: boolean;

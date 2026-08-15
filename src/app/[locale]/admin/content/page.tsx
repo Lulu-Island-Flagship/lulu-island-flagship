@@ -9,6 +9,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Loader2, Check, AlertTriangle, Upload, Trash2 } from "lucide-react";
 import { useAdminRoles } from "@/lib/useAdminRoles";
+import Image from "next/image";
 
 const CONTENT_KEYS: { key: string; label: string; multiline?: boolean }[] = [
   { key: "hero.title", label: "Hero — Title" },
@@ -294,8 +295,7 @@ export default function ContentAdminPage() {
                   {url ? (
                     <div>
                       <div className="relative w-full h-32 mb-3 bg-brand-ice rounded overflow-hidden">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={url} alt={label} className="w-full h-full object-cover" />
+                        <Image src={url} alt={label} fill sizes="100vw" className="object-cover" />
                       </div>
                       <button
                         onClick={() => removeImage(key)}

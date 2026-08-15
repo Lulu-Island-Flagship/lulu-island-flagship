@@ -44,7 +44,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       .eq("id", id)
       .maybeSingle();
     if (reviewError || !review) {
-      return NextResponse.json({ error: reviewError?.message || "Review not found" }, { status: 404 });
+      if (reviewError) {
+        console.error("admin/contract-reviews/[id] select error:", reviewError);
+        return NextResponse.json({ error: "Ocurrió un error interno" }, { status: 500 });
+      }
+      return NextResponse.json({ error: "Review not found" }, { status: 404 });
     }
 
     if (action === "dismiss") {

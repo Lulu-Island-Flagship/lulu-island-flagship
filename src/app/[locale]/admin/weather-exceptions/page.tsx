@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, CloudRain, Plus, X, Clock, ShieldAlert } from "lucide-react";
 
@@ -44,11 +44,6 @@ export default function WeatherExceptionsPage() {
     t(resolution === "reschedule_no_penalty" ? "resolutions.rescheduleNoPenalty" : "resolutions.safeAbortDayRateDiscount");
 
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
     const leadTime = form.hasAlert ? Number(form.alertLeadTimeHours) : null;
     if (leadTime !== null && leadTime >= 2) {
       setPreview("reschedule_no_penalty");
@@ -57,7 +52,7 @@ export default function WeatherExceptionsPage() {
     }
   }, [form.hasAlert, form.alertLeadTimeHours]);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -74,7 +69,11 @@ export default function WeatherExceptionsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();

@@ -138,7 +138,30 @@ export default function ServicioPage() {
   const [manualReviewEvents, setManualReviewEvents] = useState<QueuedServiceEvent[]>([]);
   const [retryingSync, setRetryingSync] = useState(false);
 
-  async function refreshQueueStatus() {
+  // v8.3 E4 fix (auditoría 2026-07-18): el candado químico ahora persiste
+  // server-side (chemical_zone_confirmations, migración 185) — antes vivía
+  // solo en este useState y se perdía al refrescar la página, dejando la
+  // UI marcando zonas como bloqueadas otra vez aunque el servidor ya las
+  // tenía confirmadas (o viceversa, nunca coincidía con lo que el servidor
+  // realmente exige en POST /api/employee/checklist).
+  const loadLogs = useCallback(async () => {
+    if (!orderId) return;
+    try {
+      const { data, error } = await supabase
+        .from("service_logs")
+        .select("id, event_type, timestamp, photo_url, notes, location_lat, location_lng")
+        .eq("order_id", orderId)
+        .order("timestamp", { ascending: true });
+
+      if (!error && data) {
+        setLogs(data);
+      }
+    } catch (e) {
+      console.error("Load logs error:", e);
+    }
+  }, [orderId]);
+
+  const refreshQueueStatus = useCallback(async () => {
     if (!orderId || typeof indexedDB === "undefined") return;
     try {
       const all = await getAllQueuedEvents();
@@ -165,37 +188,13 @@ export default function ServicioPage() {
     } catch (e) {
       console.error("Queue status check error:", e);
     }
-  }
+  }, [orderId, loadLogs]);
 
   useEffect(() => {
     refreshQueueStatus();
     const interval = setInterval(refreshQueueStatus, 5000);
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId]);
-
-  // v8.3 E4 fix (auditoría 2026-07-18): el candado químico ahora persiste
-  // server-side (chemical_zone_confirmations, migración 185) — antes vivía
-  // solo en este useState y se perdía al refrescar la página, dejando la
-  // UI marcando zonas como bloqueadas otra vez aunque el servidor ya las
-  // tenía confirmadas (o viceversa, nunca coincidía con lo que el servidor
-  // realmente exige en POST /api/employee/checklist).
-  const loadLogs = useCallback(async () => {
-    if (!orderId) return;
-    try {
-      const { data, error } = await supabase
-        .from("service_logs")
-        .select("id, event_type, timestamp, photo_url, notes, location_lat, location_lng")
-        .eq("order_id", orderId)
-        .order("timestamp", { ascending: true });
-
-      if (!error && data) {
-        setLogs(data);
-      }
-    } catch (e) {
-      console.error("Load logs error:", e);
-    }
-  }, [orderId]);
+  }, [orderId, refreshQueueStatus]);
 
   const loadConfirmedColors = useCallback(async () => {
     try {
@@ -253,8 +252,7 @@ export default function ServicioPage() {
       void loadService({ background: true });
     }, 20000);
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId]);
+  }, [orderId, loadService]);
 
 
   const getCurrentLocation = (): Promise<{ lat: number; lng: number } | null> => {

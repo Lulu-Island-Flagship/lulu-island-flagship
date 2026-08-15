@@ -43,8 +43,7 @@ import { issueAccessCode, type AccessCodePurpose } from "./access-code-service";
 // consent-service (ver seed de legal_texts, key "pipa_step1").
 const PIPA_STEP1_LEGAL_TEXT_KEY = "pipa_step1";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type CandidateStep1Client = SupabaseClient<any, "public", any>;
+type CandidateStep1Client = SupabaseClient;
 
 // ---------------------------------------------------------------------------
 // Errores

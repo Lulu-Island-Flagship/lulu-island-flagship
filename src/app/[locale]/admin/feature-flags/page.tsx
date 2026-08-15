@@ -7,7 +7,7 @@
  * Acceso: solo rol owner_admin (la API lo exige; esta página solo renderiza).
  */
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Loader2, ChevronDown, ChevronRight, Info, AlertTriangle, Lock } from "lucide-react";
@@ -46,13 +46,7 @@ export default function FeatureFlagsPage() {
   const [saving, setSaving] = useState(false);
   const [infoOpen, setInfoOpen] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (rolesLoading || !hasAccess) return;
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rolesLoading, hasAccess]);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -65,7 +59,12 @@ export default function FeatureFlagsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    if (rolesLoading || !hasAccess) return;
+    load();
+  }, [rolesLoading, hasAccess, load]);
 
   async function applyToggle(flag: Flag) {
     setSaving(true);

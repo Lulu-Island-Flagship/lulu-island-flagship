@@ -68,10 +68,11 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (cicloError || !cicloRow) {
-      return NextResponse.json(
-        { error: `Payroll cycle not found: ${cicloError?.message ?? "no data"}` },
-        { status: 404 },
-      );
+      if (cicloError) {
+        console.error("payroll/execute: failed to load payroll cycle:", cicloError);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      }
+      return NextResponse.json({ error: "Payroll cycle not found" }, { status: 404 });
     }
 
     const ciclo = cicloRow as PayrollCiclo;
@@ -91,10 +92,8 @@ export async function POST(request: NextRequest) {
       .eq("ciclo_id", ciclo_id);
 
     if (lineasError) {
-      return NextResponse.json(
-        { error: `Failed to fetch payroll lines: ${lineasError.message}` },
-        { status: 500 },
-      );
+      console.error("payroll/execute: failed to fetch payroll lines:", lineasError);
+      return NextResponse.json({ error: "Failed to fetch payroll lines" }, { status: 500 });
     }
 
     if (!lineas || lineas.length === 0) {
@@ -168,7 +167,7 @@ export async function POST(request: NextRequest) {
     if (updateError) {
       console.error("payroll/execute: failed to update cycle:", updateError);
       return NextResponse.json(
-        { error: `Failed to update cycle: ${updateError.message}` },
+        { error: "Failed to update cycle" },
         { status: 500 },
       );
     }
@@ -187,10 +186,7 @@ export async function POST(request: NextRequest) {
 
     if (ledgerError) {
       console.error("payroll/execute: failed to insert journal entries:", ledgerError);
-      return NextResponse.json(
-        { error: `Failed to insert journal entries: ${ledgerError.message}` },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: "Failed to insert journal entries" }, { status: 500 });
     }
 
     return NextResponse.json(

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdminRole, getServiceRoleClient } from "@/lib/admin";
 import { safeErrorResponse } from "@/lib/api-errors";
 import {
@@ -70,8 +71,7 @@ import {
  */
 
 async function findPropertyRiskForAddress(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseClient,
   clientProfileId: string,
   address: string
 ): Promise<{ propertyId: string; tier: RiskTier; hardBlocked: boolean } | null> {
@@ -282,10 +282,10 @@ export async function POST(request: NextRequest) {
         user_metadata: { full_name: clientFullName || undefined, created_via: "phone_booking" },
       });
       if (createErr || !created?.user) {
-        return NextResponse.json(
-          { error: `Could not create client account: ${createErr?.message || "unknown error"}` },
-          { status: 500 }
-        );
+        if (createErr) {
+          console.error("admin/phone-booking createUser error:", createErr);
+        }
+        return NextResponse.json({ error: "Could not create client account" }, { status: 500 });
       }
       userId = created.user.id;
       // El trigger sync_profile_email (migración 135) ya insertó la fila de
@@ -346,7 +346,10 @@ export async function POST(request: NextRequest) {
         .select()
         .single();
       if (profileErr || !createdProfile) {
-        return NextResponse.json({ error: `Could not create client profile: ${profileErr?.message}` }, { status: 500 });
+        if (profileErr) {
+          console.error("admin/phone-booking create client profile error:", profileErr);
+        }
+        return NextResponse.json({ error: "Could not create client profile" }, { status: 500 });
       }
       clientProfile = createdProfile;
     }

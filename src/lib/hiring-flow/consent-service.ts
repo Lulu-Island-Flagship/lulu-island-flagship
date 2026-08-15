@@ -27,8 +27,7 @@ import { getHiringFlowServiceClient } from "./settings-service";
 // pudo renderizar completo (el error de renderLegalText se propaga tal
 // cual, sin atrapar).
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ConsentsClient = SupabaseClient<any, "public", any>;
+type ConsentsClient = SupabaseClient;
 
 export interface ConsentRecord {
   candidateId: string;

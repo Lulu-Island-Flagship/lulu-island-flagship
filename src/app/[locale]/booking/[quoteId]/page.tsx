@@ -151,7 +151,6 @@ export default function ReservaPage() {
     window.history.replaceState({}, "", window.location.pathname);
   }, []);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [paypalEnabled, setPaypalEnabled] = useState(false);
   // v8.3 fix (auditoría E2 2026-07-18): PayPal "solo primera reserva" debe
   // basarse en el historial REAL del cliente (client_profiles.services_count,

@@ -63,6 +63,7 @@ async function getAccessToken(): Promise<string> {
 
   const res = await fetch(`${getPayPalBaseUrl()}/v1/oauth2/token`, {
     method: "POST",
+    signal: AbortSignal.timeout(15_000),
     headers: {
       Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
       "Content-Type": "application/x-www-form-urlencoded",
@@ -84,6 +85,7 @@ async function fetchCapture(
   transactionId: string
 ): Promise<PayPalVerificationResult | null> {
   const res = await fetch(`${getPayPalBaseUrl()}/v2/payments/captures/${transactionId}`, {
+    signal: AbortSignal.timeout(15_000),
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -115,6 +117,7 @@ async function fetchOrder(
   transactionId: string
 ): Promise<PayPalVerificationResult | null> {
   const res = await fetch(`${getPayPalBaseUrl()}/v2/checkout/orders/${transactionId}`, {
+    signal: AbortSignal.timeout(15_000),
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -232,6 +235,7 @@ export async function refundPayPalCapture(
 
     const res = await fetch(`${getPayPalBaseUrl()}/v2/payments/captures/${captureId}/refund`, {
       method: "POST",
+      signal: AbortSignal.timeout(15_000),
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
@@ -338,11 +342,11 @@ export async function verifyPayPalTransaction(
 
     return result;
   } catch (err: Error | unknown) {
-    const message = err instanceof Error ? err.message : "Unknown PayPal error";
+    console.error("verifyPayPalTransaction error:", err);
     return {
       valid: false,
       transactionId,
-      error: message,
+      error: "PayPal transaction could not be verified",
     };
   }
 }

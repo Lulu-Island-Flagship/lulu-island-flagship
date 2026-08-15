@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, Landmark, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
@@ -45,12 +45,7 @@ export default function CraRemittancesPage() {
   // por un único ConfirmActionModal con dos campos.
   const [filingId, setFilingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    load(year);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year]);
-
-  async function load(y: number) {
+  const load = useCallback(async (y: number) => {
     setLoading(true);
     setError("");
     try {
@@ -64,7 +59,11 @@ export default function CraRemittancesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    load(year);
+  }, [year, load]);
 
   async function markFiled(id: string, confirmationReference: string, amountStr: string) {
     const amountCents = amountStr ? Math.round(parseFloat(amountStr) * 100) : undefined;

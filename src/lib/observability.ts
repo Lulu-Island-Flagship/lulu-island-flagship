@@ -104,8 +104,7 @@ export function captureError(error: unknown, context?: Record<string, unknown>):
   // eventual versión async de esta función que sí pueda esperar el
   // resultado real antes de responder.
   import(/* webpackIgnore: true */ "@sentry/node")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .then((Sentry: any) => {
+    .then((Sentry) => {
       Sentry.captureException(error, { extra: context });
     })
     .catch((sentryErr) => {

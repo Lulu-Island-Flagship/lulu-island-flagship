@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { AlertCircle, TrendingUp, HelpCircle } from "lucide-react";
 import { SkeletonMetricsGrid } from "@/components/ui/Skeleton";
@@ -108,7 +108,7 @@ export default function DashboardMetricsPanel() {
   const [savingFixedCosts, setSavingFixedCosts] = useState(false);
   const [fixedCostsError, setFixedCostsError] = useState("");
 
-  async function loadMetrics() {
+  const loadMetrics = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -124,12 +124,11 @@ export default function DashboardMetricsPanel() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
 
   useEffect(() => {
     loadMetrics();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadMetrics]);
 
   async function saveFixedCosts() {
     const dollars = Number(fixedCostsInput);

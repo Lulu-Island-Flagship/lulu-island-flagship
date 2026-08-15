@@ -69,7 +69,7 @@ async function fetchOpenWeatherMapCurrent(zone: string): Promise<
   const url = `https://api.openweathermap.org/data/2.5/weather?q=${query}&units=metric&appid=${apiKey}`;
 
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     const data = (await res.json()) as OpenWeatherMapCurrentResponse;
 
     if (!res.ok) {

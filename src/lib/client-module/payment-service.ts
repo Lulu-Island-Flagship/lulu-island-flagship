@@ -40,8 +40,7 @@ import {
 // esos otros dos servicios si Postgres puede exponer una RPC equivalente
 // para sus casos.
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type PaymentsClient = SupabaseClient<any, "public", any>;
+type PaymentsClient = SupabaseClient;
 
 export interface RecordPaymentParams {
   invoiceId: string;

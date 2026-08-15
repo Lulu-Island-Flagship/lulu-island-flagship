@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Check, Loader2, Plus } from "lucide-react";
 
@@ -42,6 +42,10 @@ export function StepAddonZones({ serviceSubtype, targetHourlyRate, selected, onC
   const t = useTranslations("cotizador.addonZones");
   const [options, setOptions] = useState<AddonZoneOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const onEmptyRef = useRef(onEmpty);
+  useEffect(() => {
+    onEmptyRef.current = onEmpty;
+  }, [onEmpty]);
 
   useEffect(() => {
     if (!serviceSubtype) {
@@ -57,7 +61,7 @@ export function StepAddonZones({ serviceSubtype, targetHourlyRate, selected, onC
         if (cancelled) return;
         const zones = data.zones || [];
         setOptions(zones);
-        if (zones.length === 0) onEmpty?.();
+        if (zones.length === 0) onEmptyRef.current?.();
       })
       .catch(() => {
         if (!cancelled) setOptions([]);
@@ -68,7 +72,6 @@ export function StepAddonZones({ serviceSubtype, targetHourlyRate, selected, onC
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- onEmpty es estable por render (definido inline en page.tsx con setStepIndex), incluirlo re-dispararía el efecto en cada render del padre
   }, [serviceSubtype]);
 
   const toggle = (zone: string) => {

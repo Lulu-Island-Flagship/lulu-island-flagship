@@ -48,6 +48,24 @@ export default function ServiceGalleryPage() {
   // sin crear una dependencia nueva de librería de lightbox.
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
+  // Navegación por teclado del lightbox (Escape para cerrar, flechas para
+  // anterior/siguiente). Se escucha a nivel de documento para que funcione sin
+  // depender del foco del contenedor del diálogo.
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setLightboxIndex(null);
+      } else if (e.key === "ArrowLeft" && data?.photos) {
+        setLightboxIndex((prev) => (prev === null ? prev : (prev - 1 + data.photos!.length) % data.photos!.length));
+      } else if (e.key === "ArrowRight" && data?.photos) {
+        setLightboxIndex((prev) => (prev === null ? prev : (prev + 1) % data.photos!.length));
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [lightboxIndex, data?.photos]);
+
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -151,83 +169,62 @@ export default function ServiceGalleryPage() {
       {/* Fix (2026-07-25, auditoría UX, item 16): lightbox simple para ver
           la foto completa -- mismo patrón de overlay que AuthModal.tsx. */}
       {lightboxIndex !== null && data.photos && (
-        // Backdrop click-to-close + Escape-to-close on the dialog container is the standard
-        // accessible modal dismiss pattern (WCAG 2.1.1 compliant); the rule flags role="dialog"
-        // as non-interactive even though this handler only closes on direct backdrop clicks.
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
         <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={t("photoLightboxAriaLabel")}
+          role="presentation"
           className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
           onClick={(e) => {
-            // Fix (auditoría a11y 2026-07-30, E6-C7): cerrar solo si el clic
-            // fue directamente en el fondo (no en el contenido), y aceptar
-            // Escape para cerrar por teclado (WCAG 2.1.1) -- reemplaza el
-            // patrón anterior de un onClick+stopPropagation anidado en el
-            // div de contenido, que el escáner marcaba como no operable por
-            // teclado sin una alternativa real.
             if (e.target === e.currentTarget) setLightboxIndex(null);
           }}
-          onKeyDown={(e) => {
-            // Fix (auditoría 2026-07-31, hallazgo #11): el lightbox solo
-            // mostraba una foto sin forma de navegar a la siguiente/anterior
-            // -- con varias fotos por servicio, el cliente tenía que cerrar
-            // y reabrir el lightbox para cada una. Se agregan flechas de
-            // teclado (ArrowLeft/ArrowRight) con wraparound, igual criterio
-            // que los botones de abajo.
-            if (e.key === "Escape") setLightboxIndex(null);
-            else if (e.key === "ArrowLeft" && data.photos) {
-              setLightboxIndex((prev) => (prev === null ? prev : (prev - 1 + data.photos!.length) % data.photos!.length));
-            } else if (e.key === "ArrowRight" && data.photos) {
-              setLightboxIndex((prev) => (prev === null ? prev : (prev + 1) % data.photos!.length));
-            }
-          }}
-          tabIndex={-1}
         >
-          <button
-            aria-label={t("closeAriaLabel")}
-            onClick={() => setLightboxIndex(null)}
-            className="absolute top-4 right-4 text-white/80 hover:text-white text-3xl leading-none"
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("photoLightboxAriaLabel")}
+            tabIndex={-1}
+            className="relative w-full h-full max-w-3xl max-h-[80vh]"
           >
-            &times;
-          </button>
-          {/* Fix (auditoría 2026-07-31, hallazgo #11): botones prev/next,
-              solo cuando hay más de una foto. */}
-          {data.photos.length > 1 && (
-            <>
-              <button
-                type="button"
-                aria-label={t("previousPhotoAriaLabel")}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLightboxIndex((prev) => (prev === null ? prev : (prev - 1 + data.photos!.length) % data.photos!.length));
-                }}
-                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-black/30 hover:bg-black/50 rounded-full p-2"
-              >
-                <ChevronLeft className="w-6 h-6" />
-              </button>
-              <button
-                type="button"
-                aria-label={t("nextPhotoAriaLabel")}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLightboxIndex((prev) => (prev === null ? prev : (prev + 1) % data.photos!.length));
-                }}
-                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-black/30 hover:bg-black/50 rounded-full p-2"
-              >
-                <ChevronRight className="w-6 h-6" />
-              </button>
-            </>
-          )}
-          <div className="relative w-full h-full max-w-3xl max-h-[80vh]">
-            <Image
-              src={data.photos[lightboxIndex]}
-              alt={t("servicePhotoAlt", { index: lightboxIndex + 1 })}
-              fill
-              sizes="100vw"
-              className="object-contain"
-            />
+            <button
+              aria-label={t("closeAriaLabel")}
+              onClick={() => setLightboxIndex(null)}
+              className="absolute top-4 right-4 text-white/80 hover:text-white text-3xl leading-none"
+            >
+              &times;
+            </button>
+            {data.photos.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  aria-label={t("previousPhotoAriaLabel")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightboxIndex((prev) => (prev === null ? prev : (prev - 1 + data.photos!.length) % data.photos!.length));
+                  }}
+                  className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-black/30 hover:bg-black/50 rounded-full p-2"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={t("nextPhotoAriaLabel")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightboxIndex((prev) => (prev === null ? prev : (prev + 1) % data.photos!.length));
+                  }}
+                  className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-black/30 hover:bg-black/50 rounded-full p-2"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </>
+            )}
+            <div className="relative w-full h-full">
+              <Image
+                src={data.photos[lightboxIndex]}
+                alt={t("servicePhotoAlt", { index: lightboxIndex + 1 })}
+                fill
+                sizes="100vw"
+                className="object-contain"
+              />
+            </div>
           </div>
         </div>
       )}

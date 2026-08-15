@@ -28,13 +28,11 @@
 
 import { calculatePayroll, DEFAULT_SERVICE_MINUTES } from "./payroll";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface InsertPayrollEntryInput {
   /** Cliente Supabase autenticado (sesión del empleado o service_role). */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: SupabaseClient<any, "public", any>;
+  supabase: SupabaseClient;
   /** UUID del empleado (employees.id). */
   employeeId: string;
   /** UUID de la orden de servicio (orders.id). */
@@ -158,8 +156,7 @@ export async function computeAndInsertPayrollEntry(
  */
 export interface InsertPayrollEntryComputedInput {
   /** Cliente Supabase autenticado. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: SupabaseClient<any, "public", any>;
+  supabase: SupabaseClient;
   /** UUID del empleado (employees.id). */
   employeeId: string;
   /** UUID de la orden de servicio (orders.id). */

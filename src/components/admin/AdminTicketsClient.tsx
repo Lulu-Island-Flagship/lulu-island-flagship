@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { useTranslations } from "next-intl";
 import {
@@ -90,14 +90,7 @@ export default function AdminTicketsClient() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [selectedTicket]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    loadTickets(controller.signal);
-    return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
-
-  async function loadTickets(signal?: AbortSignal) {
+  const loadTickets = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError("");
     try {
@@ -124,7 +117,13 @@ export default function AdminTicketsClient() {
         setLoading(false);
       }
     }
-  }
+  }, [statusFilter, t]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadTickets(controller.signal);
+    return () => controller.abort();
+  }, [statusFilter, loadTickets]);
 
   async function resolveTicket(ticketId: string) {
     if (!resolutionNote.trim()) {

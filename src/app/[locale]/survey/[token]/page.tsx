@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
@@ -43,12 +43,7 @@ export default function PreReviewSurveyPage() {
   // recién al enviar el cliente descubra que expiró.
   const PRE_REVIEW_SURVEY_RESPONSE_WINDOW_MS = 72 * 60 * 60 * 1000;
 
-  useEffect(() => {
-    verifyToken();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-  async function verifyToken() {
+  const verifyToken = useCallback(async () => {
     setLoading(true);
     try {
       const {
@@ -98,7 +93,11 @@ export default function PreReviewSurveyPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [token, t, PRE_REVIEW_SURVEY_RESPONSE_WINDOW_MS]);
+
+  useEffect(() => {
+    verifyToken();
+  }, [token, verifyToken]);
 
   async function submit() {
     if (satisfied === null) return;

@@ -97,8 +97,7 @@ export default function DashboardClient() {
     }
     load();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [retryKey]);
+  }, [retryKey, tCommon]);
 
   // ── Loading ───────────────────────────────────────────────────────────
   if (loading) {

@@ -111,28 +111,9 @@ export default function ExportAccountingPanel() {
   const [historyError, setHistoryError] = useState("");
   const [showHistory, setShowHistory] = useState(false);
 
-  // ── Load preview when period or format changes ────────────────────────────
-  useEffect(() => {
-    loadPreview();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period.year, period.month, format]);
-
-  // ── Load history on mount ─────────────────────────────────────────────────
-  useEffect(() => {
-    loadHistory();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ── Auto-dismiss success message ──────────────────────────────────────────
-  useEffect(() => {
-    if (!successMsg) return;
-    const id = setTimeout(() => setSuccessMsg(""), 4000);
-    return () => clearTimeout(id);
-  }, [successMsg]);
-
   // ── Loaders ───────────────────────────────────────────────────────────────
 
-  async function loadPreview() {
+  const loadPreview = useCallback(async () => {
     setPreviewLoading(true);
     setPreviewLoaded(false);
     setError("");
@@ -157,7 +138,7 @@ export default function ExportAccountingPanel() {
     } finally {
       setPreviewLoading(false);
     }
-  }
+  }, [period.year, period.month, format, t]);
 
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -175,6 +156,23 @@ export default function ExportAccountingPanel() {
       setHistoryLoading(false);
     }
   }, [t]);
+
+  // ── Load preview when period or format changes ────────────────────────────
+  useEffect(() => {
+    loadPreview();
+  }, [period.year, period.month, format, loadPreview]);
+
+  // ── Load history on mount ─────────────────────────────────────────────────
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  // ── Auto-dismiss success message ──────────────────────────────────────────
+  useEffect(() => {
+    if (!successMsg) return;
+    const id = setTimeout(() => setSuccessMsg(""), 4000);
+    return () => clearTimeout(id);
+  }, [successMsg]);
 
   // ── Export ────────────────────────────────────────────────────────────────
 

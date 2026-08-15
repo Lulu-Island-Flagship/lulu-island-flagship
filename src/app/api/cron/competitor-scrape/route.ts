@@ -136,7 +136,8 @@ export async function GET(request: NextRequest) {
         review_count: current.reviewCount,
       });
       if (insertError) {
-        skipped.push({ competitorId: competitor.id, name: competitor.name, reason: `Insert falló: ${insertError.message}` });
+        console.error(`competitor-scrape: insert failed for competitor ${competitor.id}:`, insertError);
+        skipped.push({ competitorId: competitor.id, name: competitor.name, reason: "Insert falló" });
         continue;
       }
 

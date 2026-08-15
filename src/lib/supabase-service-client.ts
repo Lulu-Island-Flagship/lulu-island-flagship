@@ -25,8 +25,7 @@ function getSupabaseUrl(): string {
 
 // Replica EXACTAMENTE el patrón de getServiceRoleClient() en src/lib/admin.ts:
 // misma env var, mismo manejo de ausencia -> null.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getHiringFlowServiceClient(): SupabaseClient<any, "public", any> | null {
+export function getHiringFlowServiceClient(): SupabaseClient | null {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceKey) return null;
   return createClient(getSupabaseUrl(), serviceKey);

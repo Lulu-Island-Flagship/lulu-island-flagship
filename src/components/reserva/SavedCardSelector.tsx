@@ -33,6 +33,10 @@ export function SavedCardSelector({
   const [error, setError] = useState("");
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const hasManuallySelected = useRef(false);
+  const onSelectSavedCardRef = useRef(onSelectSavedCard);
+  useEffect(() => {
+    onSelectSavedCardRef.current = onSelectSavedCard;
+  }, [onSelectSavedCard]);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,7 +54,7 @@ export function SavedCardSelector({
             if (defaultCard) {
               setSelectedCardId(defaultCard.id);
               if (!hasManuallySelected.current) {
-                onSelectSavedCard(defaultCard.id);
+                onSelectSavedCardRef.current(defaultCard.id);
               }
             }
           }
@@ -63,8 +67,7 @@ export function SavedCardSelector({
     }
     load();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedCardId, t]);
 
   // Reset selection when switching to new card
   const handleUseNewCard = useCallback(() => {

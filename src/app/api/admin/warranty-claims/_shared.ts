@@ -11,6 +11,7 @@ import {
   type ClientClaimInput,
   type WarrantyDisputeResolutionResult,
 } from "@/lib/warranty-dispute-resolution";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 interface ChecklistItemRow {
   photo_url: string | null;
@@ -25,8 +26,7 @@ interface ClaimRow {
   status: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function loadDisputeResolutionContext(supabase: any, claimId: string) {
+export async function loadDisputeResolutionContext(supabase: SupabaseClient, claimId: string) {
   const { data: claim, error: claimError } = await supabase
     .from("warranty_claims")
     .select("id, order_id, claim_zone, reason, status")

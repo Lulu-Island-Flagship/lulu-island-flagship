@@ -112,9 +112,10 @@ export async function GET(request: NextRequest) {
       if (storagePath) {
         const { error: removeError } = await supabase.storage.from(PHOTO_BUCKET).remove([storagePath]);
         if (removeError) {
+          console.error("photo-retention-purge: failed to remove checklist photo:", removeError);
           storageDeleteSucceeded = false;
-          storageDeleteError = removeError.message;
-          errors.push(`checklist item ${photo.id}: ${removeError.message}`);
+          storageDeleteError = "storage_delete_failed";
+          errors.push(`checklist item ${photo.id}: storage delete failed`);
         }
       } else {
         storageDeleteSucceeded = false;
@@ -183,9 +184,10 @@ export async function GET(request: NextRequest) {
       if (storagePath) {
         const { error: removeError } = await supabase.storage.from(PHOTO_BUCKET).remove([storagePath]);
         if (removeError) {
+          console.error("photo-retention-purge: failed to remove warranty evidence photo:", removeError);
           storageDeleteSucceeded = false;
-          storageDeleteError = removeError.message;
-          errors.push(`warranty evidence ${evidence.id}: ${removeError.message}`);
+          storageDeleteError = "storage_delete_failed";
+          errors.push(`warranty evidence ${evidence.id}: storage delete failed`);
         }
       } else {
         storageDeleteSucceeded = false;

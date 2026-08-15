@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, HeartPulse, Clock, ShieldAlert, ShieldCheck, ClipboardCopy } from "lucide-react";
 
@@ -50,12 +50,7 @@ export default function WorkplaceIncidentsPage() {
 
   const statusLabel = (status: ReportStatus) => t(`status.${status}`);
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -72,7 +67,11 @@ export default function WorkplaceIncidentsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function markFiled(id: string) {
     setSaving(id);

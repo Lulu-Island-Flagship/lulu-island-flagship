@@ -30,8 +30,7 @@ import { getSetting } from "./settings-service";
 // Decimal para dinero -- regla dura del proyecto, mismo patrón usado en el
 // resto del repo para montos monetarios).
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Td1Client = SupabaseClient<any, "public", any>;
+type Td1Client = SupabaseClient;
 
 export interface Td1CalculationInput {
   candidateId: string;

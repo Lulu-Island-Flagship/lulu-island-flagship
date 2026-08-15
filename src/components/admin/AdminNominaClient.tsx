@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Wallet, Download } from "lucide-react";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
@@ -51,12 +51,7 @@ export default function AdminNominaClient() {
   // antes del POST, y el label del botón deja de decir solo "CSV".
   const [showCloseCycleConfirm, setShowCloseCycleConfirm] = useState(false);
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [which]);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -73,7 +68,11 @@ export default function AdminNominaClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [which, t]);
+
+  useEffect(() => {
+    load();
+  }, [which, load]);
 
   // Fix (auditoría externa 2026-07-30): el GET de payroll-export ya no muta
   // datos (ver route.ts) -- el CSV oficial (el que aplica la deducción del

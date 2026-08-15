@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
@@ -67,12 +67,7 @@ export default function EvaluarPage() {
   const [loading, setLoading] = useState(true);
   const [orderInfo, setOrderInfo] = useState<{ serviceDate: string; address: string } | null>(null);
 
-  useEffect(() => {
-    verifyToken();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-  async function verifyToken() {
+  const verifyToken = useCallback(async () => {
     setLoading(true);
     try {
       // El token es review_token — buscar orden por ese token
@@ -161,7 +156,11 @@ export default function EvaluarPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [token, t]);
+
+  useEffect(() => {
+    verifyToken();
+  }, [token, verifyToken]);
 
   async function submitReview() {
     if (rating === 0) {

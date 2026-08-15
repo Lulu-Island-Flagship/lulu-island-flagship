@@ -484,7 +484,7 @@ export async function GET(request: NextRequest) {
       } catch (err: Error | unknown) {
         results.failed++;
         const message = err instanceof Error ? err.message : "Unknown retry capture error";
-        results.errors.push({ orderId: order.id, error: message });
+        results.errors.push({ orderId: order.id, error: "Retry capture failed" });
         console.error(`Batch capture retry failed for order ${order.id}:`, err);
 
         const newAttempts = (order.capture_attempts ?? 0) + 1;

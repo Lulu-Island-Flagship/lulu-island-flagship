@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Moon, Smile, Meh, Frown, Calendar } from "lucide-react";
 
@@ -31,12 +31,7 @@ export default function WellbeingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    load(date);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date]);
-
-  async function load(d: string) {
+  const load = useCallback(async (d: string) => {
     setLoading(true);
     setError("");
     try {
@@ -53,7 +48,11 @@ export default function WellbeingPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    load(date);
+  }, [date, load]);
 
   return (
     <div className="space-y-6 max-w-2xl">

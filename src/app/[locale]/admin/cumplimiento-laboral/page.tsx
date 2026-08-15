@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, Clock, AlertTriangle, HeartPulse, CalendarDays, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -64,12 +64,7 @@ export default function CumplimientoLaboralPage() {
   const [weeklyRows, setWeeklyRows] = useState<WeeklyViolationRow[]>([]);
   const [holidayRecords, setHolidayRecords] = useState<HolidayRecord[]>([]);
 
-  useEffect(() => {
-    load(tab);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab]);
-
-  async function load(tabId: Tab) {
+  const load = useCallback(async (tabId: Tab) => {
     setLoading(true);
     setError("");
     try {
@@ -99,7 +94,11 @@ export default function CumplimientoLaboralPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    load(tab);
+  }, [tab, load]);
 
   const tabs: { id: Tab; labelKey: string; icon: React.ElementType }[] = [
     { id: "rest", labelKey: "tabs.rest", icon: Clock },

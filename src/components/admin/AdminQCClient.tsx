@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useFocusTrap } from "@/lib/useFocusTrap";
@@ -80,12 +80,7 @@ export default function AdminQCClient() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [selectedReview]);
 
-  useEffect(() => {
-    loadReviews();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
-
-  async function loadReviews() {
+  const loadReviews = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -103,7 +98,11 @@ export default function AdminQCClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [statusFilter, t]);
+
+  useEffect(() => {
+    loadReviews();
+  }, [statusFilter, loadReviews]);
 
   async function submitReview(orderId: string) {
     if (!reviewNote.trim()) {

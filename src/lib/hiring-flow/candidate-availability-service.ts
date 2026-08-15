@@ -21,8 +21,7 @@ import { getHiringFlowServiceClient } from "./settings-service";
 // elige esta convención porque es la que ya usa la migración y evita un
 // mapeo adicional en el servicio.
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AvailabilityClient = SupabaseClient<any, "public", any>;
+type AvailabilityClient = SupabaseClient;
 
 export interface AvailabilityBlockInput {
   // 0=domingo..6=sábado (ver nota de convención arriba).

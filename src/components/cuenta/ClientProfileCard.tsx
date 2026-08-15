@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Pencil, Check, X, Loader2 } from "lucide-react";
+import Image from "next/image";
 
 // Card compacta al tope de /cuenta/servicios (el destino canónico de "Sign
 // In / Sign Up", ver header del home) que muestra nombre + foto del cliente
@@ -104,8 +105,7 @@ export function ClientProfileCard() {
   return (
     <div className="flex items-center gap-3 bg-white rounded-xl border p-3 mb-2">
       {avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- foto externa de Google, no un asset local optimizable por next/image sin configurar remotePatterns.
-        <img src={avatarUrl} alt={t("avatarAlt")} className="w-10 h-10 rounded-full object-cover shrink-0" />
+        <Image src={avatarUrl} alt={t("avatarAlt")} width={40} height={40} className="rounded-full object-cover shrink-0" />
       ) : (
         <div className="w-10 h-10 rounded-full bg-brand-ice shrink-0" aria-hidden="true" />
       )}

@@ -55,13 +55,16 @@ export function WalletPayButton({
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollDeadlineRef = useRef<number>(0);
+  const onPaymentConfirmedRef = useRef(onPaymentConfirmed);
+  useEffect(() => {
+    onPaymentConfirmedRef.current = onPaymentConfirmed;
+  }, [onPaymentConfirmed]);
 
   useEffect(() => {
     if (confirmedPaymentIntentId) {
       setStatus("succeeded");
-      onPaymentConfirmed(confirmedPaymentIntentId);
+      onPaymentConfirmedRef.current(confirmedPaymentIntentId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [confirmedPaymentIntentId]);
 
   useEffect(() => {

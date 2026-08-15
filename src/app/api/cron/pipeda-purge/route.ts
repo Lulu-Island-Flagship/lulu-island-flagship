@@ -83,7 +83,8 @@ export async function GET(request: NextRequest) {
         .maybeSingle();
 
       if (profileError) {
-        errors.push(`request ${reqRow.id}: ${profileError.message}`);
+        console.error(`pipeda-purge: failed to fetch client profile for request ${reqRow.id}:`, profileError);
+        errors.push(`request ${reqRow.id}: failed to fetch client profile`);
         continue;
       }
 
@@ -104,7 +105,8 @@ export async function GET(request: NextRequest) {
         .is("purged_at", null);
 
       if (updateError) {
-        errors.push(`request ${reqRow.id}: ${updateError.message}`);
+        console.error(`pipeda-purge: failed to purge request ${reqRow.id}:`, updateError);
+        errors.push(`request ${reqRow.id}: failed to purge`);
         continue;
       }
       purged++;

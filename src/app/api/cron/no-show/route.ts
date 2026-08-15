@@ -7,8 +7,7 @@ import { requireCronAuth } from "@/lib/cron-auth";
 import { getVancouverTodayMidnight } from "@/lib/date-utils";
 import { safeErrorResponse } from "@/lib/api-errors";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseAdmin = SupabaseClient<any, "public", any>;
+type SupabaseAdmin = SupabaseClient;
 
 /**
  * GET /api/cron/no-show
@@ -407,8 +406,7 @@ export async function GET(request: NextRequest) {
 
           penalized.push(order.id);
         } catch (err: Error | unknown) {
-          const message = err instanceof Error ? err.message : "Unknown penalty error";
-          errors.push({ orderId: order.id, error: message });
+          errors.push({ orderId: order.id, error: "No-show penalty failed" });
           console.error(`No-show penalty failed for order ${order.id}:`, err);
         }
       } else if (existingNoShow.status === "unrecovered") {

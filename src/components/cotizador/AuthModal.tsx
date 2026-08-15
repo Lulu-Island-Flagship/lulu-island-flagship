@@ -189,7 +189,6 @@ export function AuthModal({ onClose, onSuccess, initialError, forcePhoneVerifica
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, otpSent]);
 
   // Fix (auditoría externa 2026-07-24, accesibilidad): el modal no se podía

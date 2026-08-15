@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { ShieldAlert, Loader2, Plus, AlertOctagon } from "lucide-react";
 
@@ -53,12 +53,7 @@ export default function RiesgoPage() {
   const [assessments, setAssessments] = useState<RiskAssessment[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadAssessments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function loadAssessments(propId?: string) {
+  const loadAssessments = useCallback(async (propId?: string) => {
     setLoading(true);
     try {
       const url = propId
@@ -72,7 +67,11 @@ export default function RiesgoPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    loadAssessments();
+  }, [loadAssessments]);
 
   function toggleFlag(flag: RiskFlagType) {
     setSelectedFlags((prev) =>

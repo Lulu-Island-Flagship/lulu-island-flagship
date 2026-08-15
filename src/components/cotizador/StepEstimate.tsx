@@ -57,8 +57,7 @@ export function StepEstimate({ initial, onChange }: StepEstimateProps) {
       zone,
       address,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, subtype, squareFeet, zone, address]);
+  }, [category, subtype, squareFeet, zone, address, subtypes]);
 
   function handleCategory(cat: ServiceCategory) {
     setCategory(cat);

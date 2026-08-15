@@ -538,7 +538,8 @@ async function persistAssignments(
       .limit(1);
 
     if (lockedError) {
-      errors.push(`order ${p.orderId}: failed to check locked_by_admin: ${lockedError.message}`);
+      console.error(`dispatch-scheduler: failed to check locked_by_admin for order ${p.orderId}:`, lockedError);
+      errors.push(`order ${p.orderId}: failed to check locked_by_admin`);
       continue;
     }
 
@@ -549,7 +550,8 @@ async function persistAssignments(
 
     const { error: deleteError } = await supabase.from("assignments").delete().eq("order_id", p.orderId);
     if (deleteError) {
-      errors.push(`order ${p.orderId}: failed to clear previous assignments: ${deleteError.message}`);
+      console.error(`dispatch-scheduler: failed to clear previous assignments for order ${p.orderId}:`, deleteError);
+      errors.push(`order ${p.orderId}: failed to clear previous assignments`);
       continue;
     }
 
@@ -564,7 +566,8 @@ async function persistAssignments(
     if (!error) {
       assigned += assignments.length;
     } else {
-      errors.push(`order ${p.orderId}: failed to insert assignments: ${error.message}`);
+      console.error(`dispatch-scheduler: failed to insert assignments for order ${p.orderId}:`, error);
+      errors.push(`order ${p.orderId}: failed to insert assignments`);
     }
   }
   return { assigned, skippedLocked, errors };

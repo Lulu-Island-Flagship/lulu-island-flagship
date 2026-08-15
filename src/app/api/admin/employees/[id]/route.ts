@@ -8,6 +8,7 @@ import { renderTemplate, MissingVariableError } from "@/lib/communications";
 import { sendEmail } from "@/lib/email";
 import { isValidUuid } from "@/lib/validation";
 import { safeErrorResponse } from "@/lib/api-errors";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const MIN_DAY_RATE_DOLLARS = BC_MIN_WAGE_HOURLY * (DEFAULT_SERVICE_MINUTES / 60);
 
@@ -277,8 +278,7 @@ export async function PATCH(
  * sin reusar esa función porque asume destinatarios en `profiles`.
  */
 async function sendEmployeeInvitation(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseClient,
   employee: { id: string; name: string; email: string; languages: string[] | null }
 ): Promise<{ status: string; detail?: string }> {
   // v8.3 fix G-6: esta lista usaba ["en","es","zh"], pero src/i18n/config.ts
@@ -357,8 +357,7 @@ async function sendEmployeeInvitation(
   return { status };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getCurrentLanguages(supabase: any, employeeId: string): Promise<string[]> {
+async function getCurrentLanguages(supabase: SupabaseClient, employeeId: string): Promise<string[]> {
   const { data } = await supabase
     .from("employees")
     .select("languages")

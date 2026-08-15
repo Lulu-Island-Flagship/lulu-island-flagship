@@ -58,8 +58,7 @@ interface ServiceContractRow {
   last_ipc_adjustment_year: number | null;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseAdmin = SupabaseClient<any, "public", any>;
+type SupabaseAdmin = SupabaseClient;
 
 async function notifyClient(
   supabase: SupabaseAdmin,
@@ -259,8 +258,7 @@ export async function GET(request: NextRequest) {
           results.adjustmentsApplied++;
         }
       } catch (err: Error | unknown) {
-        const message = err instanceof Error ? err.message : "Unknown IPC adjustment error";
-        results.errors.push({ contractId: contract.id, error: message });
+        results.errors.push({ contractId: contract.id, error: "IPC adjustment failed" });
         console.error(`Contract IPC adjustment failed for contract ${contract.id}:`, err);
       }
     }

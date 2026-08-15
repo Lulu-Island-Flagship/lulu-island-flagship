@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import {
   Loader2,
@@ -70,12 +70,7 @@ export default function AdminPricingRulesSandboxClient() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<SimulationResponse | null>(null);
 
-  useEffect(() => {
-    loadRules();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function loadRules() {
+  const loadRules = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -94,7 +89,11 @@ export default function AdminPricingRulesSandboxClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    loadRules();
+  }, [loadRules]);
 
   async function runSimulation() {
     setRunning(true);

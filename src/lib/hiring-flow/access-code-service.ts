@@ -23,8 +23,7 @@ import { checkRateLimit } from "./rate-limiter";
 // valor de retorno de issueAccessCode(), para poder enviarlo por SMS/email
 // una sola vez. No se loguea, no se persiste.
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AccessCodesClient = SupabaseClient<any, "public", any>;
+type AccessCodesClient = SupabaseClient;
 
 // ---------------------------------------------------------------------------
 // generateRawCode — pura, testeable sin DB

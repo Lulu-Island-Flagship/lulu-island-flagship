@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, StickyNote, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ConfirmActionModal from "@/components/admin/ConfirmActionModal";
@@ -48,18 +48,7 @@ export default function EntityNotesPage() {
   // que puede no ser fácil de reconstruir (p.ej. "no emparejar con Pedro").
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadOptions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entityType]);
-
-  useEffect(() => {
-    if (entityId) loadNotes();
-    else setNotes([]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entityId]);
-
-  async function loadOptions() {
+  const loadOptions = useCallback(async () => {
     setLoadingOptions(true);
     setEntityId("");
     try {
@@ -72,9 +61,9 @@ export default function EntityNotesPage() {
     } finally {
       setLoadingOptions(false);
     }
-  }
+  }, [entityType]);
 
-  async function loadNotes() {
+  const loadNotes = useCallback(async () => {
     setLoadingNotes(true);
     setError("");
     try {
@@ -100,7 +89,16 @@ export default function EntityNotesPage() {
     } finally {
       setLoadingNotes(false);
     }
-  }
+  }, [entityType, entityId, t]);
+
+  useEffect(() => {
+    loadOptions();
+  }, [entityType, loadOptions]);
+
+  useEffect(() => {
+    if (entityId) loadNotes();
+    else setNotes([]);
+  }, [entityId, loadNotes]);
 
   async function addNote() {
     if (!newNote.trim() || !entityId) return;

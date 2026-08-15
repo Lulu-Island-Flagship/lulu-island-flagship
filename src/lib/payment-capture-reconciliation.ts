@@ -4,8 +4,7 @@ import { generateJournalEntry } from "@/lib/journal-entry";
 import type { BusinessEvent } from "@/lib/ledger-types";
 import { captureError } from "@/lib/observability";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseAdmin = SupabaseClient<any, "public", any>;
+type SupabaseAdmin = SupabaseClient;
 
 /**
  * v8.3 M-2 (auditoría implacable 2026-07-20b) — reconciliación de capturas.

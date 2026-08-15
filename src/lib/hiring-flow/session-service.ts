@@ -30,8 +30,7 @@ import { generateSessionToken, hashCode } from "./access-code-service";
 // mano), pero reutilizar la función es preferible a introducir una segunda
 // implementación de generación aleatoria a mantener en paralelo.
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SessionsClient = SupabaseClient<any, "public", any>;
+type SessionsClient = SupabaseClient;
 
 // ---------------------------------------------------------------------------
 // Errores

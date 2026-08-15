@@ -24,8 +24,7 @@
 // src/lib/staff-login.ts).
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { captureError } from "@/lib/observability";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseLike = SupabaseClient<any, "public", any>;
+type SupabaseLike = SupabaseClient;
 
 export interface RequireActiveEmployeeResult<T> {
   employee: T | null;

@@ -10,7 +10,7 @@
 // (src/components/cotizador/AuthModal.tsx, ya usado en el flujo de
 // cotización/reserva) en vez de dejar que cada página golpee el API sin
 // sesión.
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
@@ -37,7 +37,7 @@ export default function CuentaLayout({ children }: { children: React.ReactNode }
   const t = useTranslations("cuenta.layout");
   const [status, setStatus] = useState<AccountStatus>("loading");
 
-  async function checkStaffStatus() {
+  const checkStaffStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/account/access-check", { credentials: "include" });
       if (!res.ok) {
@@ -69,7 +69,7 @@ export default function CuentaLayout({ children }: { children: React.ReactNode }
       // cliente legítimo -- mismo criterio que ya usa el endpoint.
       return false;
     }
-  }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,8 +107,7 @@ export default function CuentaLayout({ children }: { children: React.ReactNode }
       cancelled = true;
       listener.subscription.unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [checkStaffStatus]);
 
   const handleAuthSuccess = () => {
     // Volver a verificar sesión real (getUser, no solo el evento) antes de

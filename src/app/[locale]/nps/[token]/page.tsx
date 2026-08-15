@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
@@ -39,12 +39,7 @@ export default function NpsSurveyPage() {
   // un formulario completo para que recién al enviar descubra que expiró.
   const NPS_SURVEY_RESPONSE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
-  useEffect(() => {
-    verifyToken();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-  async function verifyToken() {
+  const verifyToken = useCallback(async () => {
     setLoading(true);
     try {
       const {
@@ -83,7 +78,11 @@ export default function NpsSurveyPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [token, t, NPS_SURVEY_RESPONSE_WINDOW_MS]);
+
+  useEffect(() => {
+    verifyToken();
+  }, [token, verifyToken]);
 
   async function submit() {
     if (score === null) return;

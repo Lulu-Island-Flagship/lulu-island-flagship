@@ -29,6 +29,7 @@
  */
 
 import { addDaysToDateString, getVancouverTodayString } from "@/lib/date-utils";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface CapacitySlotAggregate {
   maxTeams: number;
@@ -64,8 +65,7 @@ export function computeZoneDemandScore(slots: CapacitySlotAggregate[]): number {
  * solo para esta consulta secundaria de solo-lectura).
  */
 export async function getZoneDemand(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseClient,
   zone: string,
   serviceDate: string | null
 ): Promise<number> {

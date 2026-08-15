@@ -66,8 +66,7 @@ export async function GET() {
       .maybeSingle();
 
     if (assignment) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const emp = (assignment as any).employees;
+      const emp = (assignment as { employees?: unknown }).employees;
       const empData = Array.isArray(emp) ? emp[0] : emp;
       if (empData) {
         assignedCleaner = {
@@ -207,9 +206,8 @@ export async function GET() {
 }
 
 /** Extrae un campo del join `quotes` que puede venir como objeto o array. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractQuoteField(order: any, field: string): unknown {
-  const q = order.quotes;
+function extractQuoteField(order: unknown, field: string): unknown {
+  const q = (order as { quotes?: unknown }).quotes;
   if (!q) return null;
   if (Array.isArray(q)) return q[0]?.[field] ?? null;
   return (q as Record<string, unknown>)[field] ?? null;

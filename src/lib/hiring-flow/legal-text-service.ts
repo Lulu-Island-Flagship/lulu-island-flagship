@@ -19,8 +19,7 @@ import { getSetting, getHiringFlowServiceClient } from "./settings-service";
 //   UNIQUE(key, version); a lo sumo 1 fila activa por key (índice único
 //   parcial WHERE is_active).
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type LegalTextsClient = SupabaseClient<any, "public", any>;
+type LegalTextsClient = SupabaseClient;
 
 interface LegalTextRow {
   id: string;

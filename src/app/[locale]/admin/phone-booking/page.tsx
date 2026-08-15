@@ -11,6 +11,21 @@ import {
 } from "@/lib/pricing";
 import { useTranslations } from "next-intl";
 
+interface PhoneBookingResult {
+  quoteId: string;
+  adminReviewRequired: boolean;
+  nextStep: string;
+  breakdownForCoordinatorToRead: {
+    basePrice: number;
+    printedInvoiceCharge: number;
+    subtotal: number;
+    gst: number;
+    pst: number;
+    total: number;
+    holdAmount: number;
+  };
+}
+
 /**
  * v8.3 E6.6 — Reserva por teléfono (herramienta del coordinador).
  *
@@ -52,8 +67,7 @@ export default function PhoneBookingPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<PhoneBookingResult | null>(null);
 
   // Item 9 (auditoría 2026-07-25): antes no se validaba formato de email,
   // teléfono ni código postal canadiense antes de enviar -- errores tipográficos

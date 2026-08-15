@@ -6,7 +6,7 @@
  * Solo owner_admin (la API lo exige).
  */
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, Undo2, History } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -51,12 +51,7 @@ function ConfigHistoryContent() {
   // v8.3 E6 — permite llegar pre-filtrado desde /admin/comunicaciones (?table=...)
   const [tableFilter, setTableFilter] = useState(() => searchParams?.get("table") ?? "");
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tableFilter]);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -72,7 +67,11 @@ function ConfigHistoryContent() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [tableFilter, t]);
+
+  useEffect(() => {
+    load();
+  }, [tableFilter, load]);
 
   async function undo(id: string) {
     setUndoing(id);

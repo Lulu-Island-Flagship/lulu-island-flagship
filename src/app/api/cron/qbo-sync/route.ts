@@ -249,7 +249,7 @@ export async function GET(request: NextRequest) {
 
       if (lineError) {
         console.error("QBO export line insert error:", lineError);
-        results.push({ orderId: order.id, status: "failed", error: lineError.message });
+        results.push({ orderId: order.id, status: "failed", error: "Line insert failed" });
         await supabase
           .from("orders")
           .update({

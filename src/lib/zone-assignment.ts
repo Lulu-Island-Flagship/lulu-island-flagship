@@ -12,6 +12,7 @@
  */
 
 import { assignZonesToOperators, type ZoneWeight } from "./zone-reparto";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface AssignmentRow {
   id: string;
@@ -56,9 +57,6 @@ export function computeZonePlan(
   });
   return { plan, wasSplit: true };
 }
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseClient = any;
 
 /**
  * Asegura que la orden tenga su reparto de zonas calculado y persistido.

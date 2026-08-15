@@ -210,8 +210,7 @@ function mostAdvancedStatus(statuses: AssignmentStatus[]): AssignmentStatus {
   return statuses[0] ?? "pending";
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseAdmin = SupabaseClient<any, "public", any>;
+type SupabaseAdmin = SupabaseClient;
 
 async function buildTodayDispatchMatrix(supabase: SupabaseAdmin): Promise<DispatchMatrixEntry[]> {
   const todayStr = getVancouverTodayString();

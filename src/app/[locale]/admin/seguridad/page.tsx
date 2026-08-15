@@ -11,7 +11,7 @@
  * todavía tiene acceso normal -- no un "olvidé mi contraseña" público.
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -74,15 +74,7 @@ export default function SeguridadPage() {
   // nunca "revelar todos a la vez".
   const [revealedIndices, setRevealedIndices] = useState<Set<number>>(new Set());
 
-  useEffect(() => {
-    // No dispara el fetch real hasta confirmar que el usuario tiene el rol
-    // -- evita la carrera "loader -> 403 crudo" para un no-owner.
-    if (rolesLoading || !hasAccess) return;
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rolesLoading, hasAccess]);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -95,7 +87,14 @@ export default function SeguridadPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    // No dispara el fetch real hasta confirmar que el usuario tiene el rol
+    // -- evita la carrera "loader -> 403 crudo" para un no-owner.
+    if (rolesLoading || !hasAccess) return;
+    load();
+  }, [rolesLoading, hasAccess, load]);
 
   async function generate() {
     setGenerating(true);

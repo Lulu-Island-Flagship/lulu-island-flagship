@@ -133,8 +133,7 @@ export async function GET(request: NextRequest) {
           results.stillPending++;
         }
       } catch (err: Error | unknown) {
-        const message = err instanceof Error ? err.message : "Unknown reconciliation error";
-        results.errors.push({ orderId: order.id, error: message });
+        results.errors.push({ orderId: order.id, error: "Reconciliation failed" });
         console.error(`reconcile-payments: failed for order ${order.id}:`, err);
       }
     }

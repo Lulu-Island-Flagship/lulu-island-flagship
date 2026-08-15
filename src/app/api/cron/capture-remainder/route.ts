@@ -182,7 +182,7 @@ export async function GET(request: NextRequest) {
         results.failed++;
         results.errors.push({
           orderId: order.id,
-          error: `Payment succeeded but local update failed: ${rpcError?.message || applied?.reason}`,
+          error: "Payment succeeded but local update failed",
         });
         continue;
       }
@@ -191,7 +191,7 @@ export async function GET(request: NextRequest) {
     } catch (err: Error | unknown) {
       results.failed++;
       const message = err instanceof Error ? err.message : "Unknown remainder capture error";
-      results.errors.push({ orderId: order.id, error: message });
+      results.errors.push({ orderId: order.id, error: "Remainder capture failed" });
       console.error(`Remainder capture failed for order ${order.id}:`, err);
 
       await supabase.from("shadow_ledger_entries").insert(

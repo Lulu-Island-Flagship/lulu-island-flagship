@@ -21,6 +21,10 @@ export function StepAddressInput({ address, onChange, onBcResult, hideHeader = f
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [bcLoading, setBcLoading] = useState(false);
   const suggestionsRequestId = React.useRef(0);
+  const onBcResultRef = React.useRef(onBcResult);
+  useEffect(() => {
+    onBcResultRef.current = onBcResult;
+  }, [onBcResult]);
 
   // ── BC Assessment: consulta debounced al escribir dirección ──
   useEffect(() => {
@@ -39,7 +43,7 @@ export function StepAddressInput({ address, onChange, onBcResult, hideHeader = f
         if (cancelled) return;
         const data = await res.json();
         if (res.ok) {
-          onBcResult?.(data as BcAssessmentResult);
+          onBcResultRef.current?.(data as BcAssessmentResult);
         }
       } catch {
         // Silencioso: BC Assessment es opcional
@@ -51,7 +55,7 @@ export function StepAddressInput({ address, onChange, onBcResult, hideHeader = f
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [address]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [address]);
 
   // ── Google Places autocompletado ──
   useEffect(() => {

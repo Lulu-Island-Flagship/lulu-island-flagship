@@ -79,15 +79,17 @@ export async function GET(request: NextRequest) {
           .eq("id", reserve.id);
 
         if (updateError) {
-          errors.push({ reserveId: reserve.id, error: updateError.message });
+          console.error("chargeback-reserve-release: failed to update reserve:", updateError);
+          errors.push({ reserveId: reserve.id, error: "Failed to update reserve" });
           continue;
         }
 
         released++;
       } catch (err: Error | unknown) {
+        console.error("chargeback-reserve-release: failed for reserve:", err);
         errors.push({
           reserveId: reserve.id,
-          error: err instanceof Error ? err.message : "Unknown error",
+          error: "Release failed",
         });
       }
     }

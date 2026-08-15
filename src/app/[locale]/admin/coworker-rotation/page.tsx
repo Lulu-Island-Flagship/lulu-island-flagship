@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, Users, AlertTriangle, CheckCircle2, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -43,12 +43,7 @@ export default function CoworkerRotationPage() {
   const [form, setForm] = useState({ employeeAId: "", employeeBId: "", reason: "" });
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [month]);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -67,7 +62,11 @@ export default function CoworkerRotationPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [month, t]);
+
+  useEffect(() => {
+    load();
+  }, [month, load]);
 
   async function addException(e: React.FormEvent) {
     e.preventDefault();

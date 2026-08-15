@@ -106,7 +106,11 @@ export async function PATCH(request: NextRequest) {
       .single();
 
     if (error || !feed) {
-      return NextResponse.json({ error: error?.message || "Feed not found" }, { status: 404 });
+      if (error) {
+        console.error("admin/legal-monitoring update error:", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      }
+      return NextResponse.json({ error: "Feed not found" }, { status: 404 });
     }
 
     // Resolver cualquier alerta de ceguera abierta para este feed -- ya se

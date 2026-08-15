@@ -178,8 +178,7 @@ export default function AdminDispatchClient() {
     return () => {
       supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadDispatch]);
+  }, [loadDispatch, t]);
 
   const formatMinutes = (min: number) => `${(min / 60).toFixed(1)}h`;
 

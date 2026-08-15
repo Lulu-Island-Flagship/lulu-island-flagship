@@ -38,8 +38,7 @@ import { getSetting } from "./settings-service";
 // fuera de alcance mientras el volumen de tráfico de este flujo no lo
 // justifique (sin dependencia de Redis configurada en este repo hoy).
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type RateLimiterClient = SupabaseClient<any, "public", any>;
+type RateLimiterClient = SupabaseClient;
 
 interface RateLimitEntry {
   count: number;

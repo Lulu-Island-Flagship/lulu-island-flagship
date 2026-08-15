@@ -53,11 +53,9 @@ export function getSupabaseServiceKey(): string {
 
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function createRouteSupabaseClient(): Promise<SupabaseClient<any, "public", any>> {
+export async function createRouteSupabaseClient(): Promise<SupabaseClient> {
   const cookieStore = await cookies();
   return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {

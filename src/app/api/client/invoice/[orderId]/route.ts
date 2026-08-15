@@ -27,8 +27,7 @@ export async function GET(
 
   if (error || !order) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const q = (order as any).quotes;
+  const q = (order as { quotes?: unknown }).quotes;
   const quote = Array.isArray(q) ? q[0] : q;
   const subtotal = Number(quote?.subtotal ?? 0);
   const gst = Number(quote?.gst ?? Math.round(subtotal * 0.05 * 100) / 100);

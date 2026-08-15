@@ -40,8 +40,7 @@ interface RtoTarget {
 
 // 2026-07-23: RTO consolidada en formato legible (antes en /admin/recuperacion-desastres,
 // eliminada por duplicar esta página — ver comentario más abajo y en AdminNav.tsx).
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function formatRto(hours: number, t: (key: string, values?: any) => string): string {
+function formatRto(hours: number, t: (key: string, values?: Record<string, string | number>) => string): string {
   if (hours === 0) return t("rto.immediate");
   if (hours < 1) return t("rto.minutes", { count: Math.round(hours * 60) });
   if (hours < 24) return t("rto.hours", { count: hours });

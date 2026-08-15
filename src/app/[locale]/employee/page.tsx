@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -129,39 +129,38 @@ export default function EmpleadoPage() {
   // /api/staff/resolve-login. loadEmployeeData() igual maneja un 401/403
   // (p.ej. sesión que expiró justo entre el layout y este render) mandando
   // al Portal, así que sigue habiendo una red de seguridad.
-  useEffect(() => {
-    loadEmployeeData();
+  const checkJornadaStatus = useCallback(async (currentEmployeeId: string | null) => {
+    if (!currentEmployeeId) {
+      // Sin id de empleado todavía (no debería pasar si loadEmployeeData
+      // tuvo éxito, pero se evita una query sin filtro por las dudas -- ver
+      // el bug que esto reemplaza en el comentario de arriba).
+      return;
+    }
+    try {
+      // Timestamp en Vancouver con offset explícito para comparar correctamente con TIMESTAMPTZ.
+      // v8.3 ROUND 4 fix (#2): antes parseaba "PDT"/"PST" de toLocaleString(), que puede
+      // devolver "GMT-7" en vez de la abreviatura según navegador/runtime. Usamos el offset
+      // numérico real vía Intl (getVancouverOffset), robusto en cualquier entorno.
+      const today = getVancouverTodayString();
+      const offset = getVancouverOffset(today);
+      const { data: logs } = await supabase
+        .from("service_logs")
+        .select("event_type")
+        .eq("event_type", "jornada_start")
+        .eq("employee_id", currentEmployeeId)
+        .gte("timestamp", `${today}T00:00:00${offset}`)
+        .order("timestamp", { ascending: false })
+        .limit(1);
 
-    // Reacciona a un signOut que ocurra mientras la pestaña sigue abierta
-    // (ej. otra pestaña cerró sesión, o el token expiró y el propio SDK de
-    // Supabase lo detecta) -- no repite la verificación de autorización,
-    // solo saca al usuario si ya no hay sesión.
-    // Fix (auditoría de autenticación 2026-07-25/26, item 3): el callback de
-    // onAuthStateChange recibe `session` del SDK, que viene del JWT local sin
-    // validar contra el servidor. Antes de tomar una decisión de seguridad
-    // (sacar o no al usuario), se confirma con una llamada explícita a
-    // getUser() en vez de confiar ciegamente en session?.user.
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session?.user) {
-        setServices([]);
-        setLoadingServices(false);
-        router.replace(portalUrl);
-        return;
+      if (logs && logs.length > 0) {
+        setJornadaStatus("started");
       }
-      supabase.auth.getUser().then(({ data }) => {
-        if (!data.user) {
-          setServices([]);
-          setLoadingServices(false);
-          router.replace(portalUrl);
-        }
-      });
-    });
-
-    return () => listener.subscription.unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    } catch (e) {
+      console.error("Check jornada error:", e);
+    }
   }, []);
 
-  async function loadEmployeeData() {
+  const loadEmployeeData = useCallback(async () => {
     setLoadingServices(true);
     setServicesError("");
     try {
@@ -196,38 +195,38 @@ export default function EmpleadoPage() {
     } finally {
       setLoadingServices(false);
     }
-  }
+  }, [router, portalUrl, t, checkJornadaStatus]);
 
-  async function checkJornadaStatus(currentEmployeeId: string | null) {
-    if (!currentEmployeeId) {
-      // Sin id de empleado todavía (no debería pasar si loadEmployeeData
-      // tuvo éxito, pero se evita una query sin filtro por las dudas -- ver
-      // el bug que esto reemplaza en el comentario de arriba).
-      return;
-    }
-    try {
-      // Timestamp en Vancouver con offset explícito para comparar correctamente con TIMESTAMPTZ.
-      // v8.3 ROUND 4 fix (#2): antes parseaba "PDT"/"PST" de toLocaleString(), que puede
-      // devolver "GMT-7" en vez de la abreviatura según navegador/runtime. Usamos el offset
-      // numérico real vía Intl (getVancouverOffset), robusto en cualquier entorno.
-      const today = getVancouverTodayString();
-      const offset = getVancouverOffset(today);
-      const { data: logs } = await supabase
-        .from("service_logs")
-        .select("event_type")
-        .eq("event_type", "jornada_start")
-        .eq("employee_id", currentEmployeeId)
-        .gte("timestamp", `${today}T00:00:00${offset}`)
-        .order("timestamp", { ascending: false })
-        .limit(1);
+  useEffect(() => {
+    loadEmployeeData();
 
-      if (logs && logs.length > 0) {
-        setJornadaStatus("started");
+    // Reacciona a un signOut que ocurra mientras la pestaña sigue abierta
+    // (ej. otra pestaña cerró sesión, o el token expiró y el propio SDK de
+    // Supabase lo detecta) -- no repite la verificación de autorización,
+    // solo saca al usuario si ya no hay sesión.
+    // Fix (auditoría de autenticación 2026-07-25/26, item 3): el callback de
+    // onAuthStateChange recibe `session` del SDK, que viene del JWT local sin
+    // validar contra el servidor. Antes de tomar una decisión de seguridad
+    // (sacar o no al usuario), se confirma con una llamada explícita a
+    // getUser() en vez de confiar ciegamente en session?.user.
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
+        setServices([]);
+        setLoadingServices(false);
+        router.replace(portalUrl);
+        return;
       }
-    } catch (e) {
-      console.error("Check jornada error:", e);
-    }
-  }
+      supabase.auth.getUser().then(({ data }) => {
+        if (!data.user) {
+          setServices([]);
+          setLoadingServices(false);
+          router.replace(portalUrl);
+        }
+      });
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, [loadEmployeeData, portalUrl, router]);
 
   // #7: antes handleLogout llamaba directo a supabase.auth.signOut() sin
   // tocar la cola offline (src/lib/offline-queue.ts) -- si un empleado

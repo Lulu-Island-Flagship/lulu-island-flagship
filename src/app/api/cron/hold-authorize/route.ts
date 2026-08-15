@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
       } catch (err: Error | unknown) {
         results.failed++;
         const message = err instanceof Error ? err.message : "Unknown hold error";
-        results.errors.push({ orderId: order.id, error: message });
+        results.errors.push({ orderId: order.id, error: "Hold authorization failed" });
         console.error(`Hold authorize failed for order ${order.id}:`, err);
 
         await supabase

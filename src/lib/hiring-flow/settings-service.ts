@@ -16,7 +16,7 @@ import { getHiringFlowServiceClient } from "@/lib/supabase-service-client";
 //     updated_by UUID
 //   )
 
-type SettingsAdmin = SupabaseClient<any, "public", any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+type SettingsAdmin = SupabaseClient;
 
 export type SettingValueType = "string" | "number" | "boolean" | "json";
 

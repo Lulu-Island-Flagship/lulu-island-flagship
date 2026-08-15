@@ -42,8 +42,7 @@ import { getHiringFlowServiceClient } from "./settings-service";
 // (ej. hashCode necesitando cambiar de algoritmo por rendimiento de
 // códigos cortos) arriesgue romper al otro sin relación real entre ambos.
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SignaturesClient = SupabaseClient<any, "public", any>;
+type SignaturesClient = SupabaseClient;
 
 // ---------------------------------------------------------------------------
 // hashDocumentContent -- pura, testeable sin DB

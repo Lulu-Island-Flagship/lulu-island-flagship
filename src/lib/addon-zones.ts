@@ -7,9 +7,7 @@
  */
 
 import type { AddonZoneOption } from "./pricing";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseClient = any;
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export async function fetchAddonZoneOptions(
   supabase: SupabaseClient,

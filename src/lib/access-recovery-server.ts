@@ -15,8 +15,7 @@
 // generados (ver src/lib/client-module/*.ts, src/lib/send-communication.ts) --
 // se alinea este módulo al mismo patrón.
 import type { SupabaseClient } from "@supabase/supabase-js";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ServiceClient = SupabaseClient<any, "public", any>;
+type ServiceClient = SupabaseClient;
 
 import { renderTemplate } from "./communications";
 import { sendSms, maskPhoneNumber } from "./sms";

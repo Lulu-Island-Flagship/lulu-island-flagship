@@ -5,8 +5,7 @@ import Stripe from "stripe";
 import { reconcileCapturedPaymentIntent } from "@/lib/payment-capture-reconciliation";
 import { safeErrorResponse } from "@/lib/api-errors";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseAdmin = SupabaseClient<any, "public", any>;
+type SupabaseAdmin = SupabaseClient;
 
 /**
  * POST /api/stripe/webhook

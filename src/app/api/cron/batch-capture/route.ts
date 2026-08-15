@@ -335,9 +335,10 @@ export async function GET(request: NextRequest) {
             .eq("id", order.id);
 
           if (withholdError) {
+            console.error("batch-capture: failed to mark order as capture-withheld (QC gate):", withholdError);
             results.errors.push({
               orderId: order.id,
-              error: `Failed to mark order as capture-withheld (QC gate): ${withholdError.message}`,
+              error: "Failed to mark order as capture-withheld (QC gate)",
             });
           }
 
@@ -354,9 +355,10 @@ export async function GET(request: NextRequest) {
           });
 
           if (ticketError) {
+            console.error("batch-capture: failed to create tickets_disputas ticket for QC-withheld capture:", ticketError);
             results.errors.push({
               orderId: order.id,
-              error: `Failed to create tickets_disputas ticket for QC-withheld capture: ${ticketError.message}`,
+              error: "Failed to create tickets_disputas ticket for QC-withheld capture",
             });
           }
 
@@ -460,9 +462,9 @@ export async function GET(request: NextRequest) {
 
             results.captured++;
           } catch (err: Error | unknown) {
-            const message = err instanceof Error ? err.message : "Unknown partial capture error";
             results.failed++;
-            results.errors.push({ orderId: order.id, error: `PARTIAL_CAPTURE_FAILED: ${message}` });
+            const message = err instanceof Error ? err.message : "Unknown partial capture error";
+            results.errors.push({ orderId: order.id, error: "Partial capture failed" });
 
             await supabase.from("shadow_ledger_entries").insert(
               buildShadowLedgerEntry({
@@ -796,7 +798,7 @@ export async function GET(request: NextRequest) {
       } catch (err: Error | unknown) {
         results.failed++;
         const message = err instanceof Error ? err.message : "Unknown capture error";
-        results.errors.push({ orderId: order.id, error: message });
+        results.errors.push({ orderId: order.id, error: "Capture failed" });
         console.error(`Batch capture failed for order ${order.id}:`, err);
 
         await supabase.from("shadow_ledger_entries").insert(

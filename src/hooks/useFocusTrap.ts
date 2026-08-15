@@ -17,9 +17,8 @@ import type { RefObject } from "react";
 export function useFocusTrap<T extends HTMLElement>(
   active: boolean,
   onClose?: () => void
-): RefObject<T> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ref = useRef<T>(null as any);
+): RefObject<T | null> {
+  const ref = useRef<T | null>(null);
 
   // Fix (auditoría 2026-07-31, item 16): el efecto de abajo depende solo de
   // `active` (a propósito -- ver comentario en el array de dependencias),
@@ -83,7 +82,6 @@ export function useFocusTrap<T extends HTMLElement>(
       document.removeEventListener("keydown", handleKeyDown);
       previouslyFocused?.focus?.();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
   return ref;

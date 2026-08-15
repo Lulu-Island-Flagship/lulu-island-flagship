@@ -22,8 +22,7 @@ import type { ClientConsentType } from "./types";
 // encontrado o placeholder sin resolver), el error se propaga tal cual y
 // NUNCA se inserta un consentimiento sobre un texto a medio renderizar.
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ClientConsentsClient = SupabaseClient<any, "public", any>;
+type ClientConsentsClient = SupabaseClient;
 
 // Firma de renderLegalText extraída como tipo para poder inyectarla como
 // dependencia opcional (mismo patrón de inyección de dependencia explícita

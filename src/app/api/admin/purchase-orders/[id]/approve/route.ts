@@ -159,9 +159,10 @@ export async function POST(
           return NextResponse.json({ error: "Orden de compra no encontrada" }, { status: 404 });
         }
         if (rpcError.code === "P0001") {
+          console.error("admin/purchase-orders/[id]/approve receive_purchase_order business rule error:", rpcError);
           return NextResponse.json(
             {
-              error: `No se puede aplicar 'receive': ${rpcError.message}`,
+              error: "No se puede aplicar 'receive' a esta orden de compra",
             },
             { status: 409 }
           );

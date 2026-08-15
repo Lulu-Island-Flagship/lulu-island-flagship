@@ -34,7 +34,7 @@ export async function requireSupervisor() {
   const { data: isSupervisor, error } = await supabase.rpc("is_supervisor", { user_uuid: user.id });
   if (error) {
     captureError(error, { rpc: "is_supervisor" });
-    return { error: `Auth check failed: ${error.message}`, status: 500, supabase: null, user: null };
+    return { error: "Auth check failed", status: 500, supabase: null, user: null };
   }
   if (!isSupervisor) {
     return { error: "Forbidden — supervisor only", status: 403, supabase: null, user: null };
@@ -63,7 +63,7 @@ export async function requireAdminRole(
 
   if (error) {
     captureError(error, { query: "admin_roles" });
-    return { error: `Auth check failed: ${error.message}`, status: 500 as const, supabase: null, user: null, roles: [] as AdminRole[] };
+    return { error: "Auth check failed", status: 500 as const, supabase: null, user: null, roles: [] as AdminRole[] };
   }
 
   const roles = (roleRows ?? []).map((r) => r.role as AdminRole);

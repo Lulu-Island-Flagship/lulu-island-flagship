@@ -74,6 +74,18 @@ export default function TeamChatPage() {
   const [pendingCount, setPendingCount] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/employee/team-chat?orderId=${orderId}`, { credentials: "include" });
+      if (res.ok) {
+        const d = await res.json();
+        setMessages(d.messages || []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [orderId]);
+
   const retryPending = useCallback(async () => {
     if (!orderId) return;
     const queue = loadPendingQueue(orderId);
@@ -102,8 +114,7 @@ export default function TeamChatPage() {
     if (stillPending.length < queue.length) {
       await load();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId]);
+  }, [orderId, load]);
 
   useEffect(() => {
     load();
@@ -115,24 +126,11 @@ export default function TeamChatPage() {
       clearInterval(interval);
       window.removeEventListener("online", retryPending);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId]);
+  }, [orderId, load, retryPending]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  async function load() {
-    try {
-      const res = await fetch(`/api/employee/team-chat?orderId=${orderId}`, { credentials: "include" });
-      if (res.ok) {
-        const d = await res.json();
-        setMessages(d.messages || []);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function send() {
     if (!draft.trim()) return;
