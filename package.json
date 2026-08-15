@@ -18,7 +18,7 @@
     "audit:a11y": "node scripts/audit-accessibility.mjs"
   },
   "dependencies": {
-    "@sentry/nextjs": "^10.67.0",
+    "@sentry/nextjs": "^10.70.0",
     "@sentry/node": "^10.67.0",
     "@stripe/react-stripe-js": "^6.7.0",
     "@stripe/stripe-js": "^9.9.0",
