@@ -16,7 +16,7 @@ const FOCUSABLE_SELECTOR =
  * force focus anywhere — callers that open the trap from a trigger button
  * should return focus to that button themselves if desired.
  */
-export function useFocusTrap(containerRef: RefObject<HTMLElement>, active: boolean) {
+export function useFocusTrap(containerRef: RefObject<HTMLElement | null>, active: boolean) {
   useEffect(() => {
     if (!active) return;
     const container = containerRef.current;
