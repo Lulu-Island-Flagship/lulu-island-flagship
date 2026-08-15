@@ -1,5 +1,11 @@
 # Project Instructions — Lulu Island Flagship
 
+> **Protocolo técnico:** antes de escribir código, lee
+> [`docs/PROTOCOLO-DESARROLLO.md`](../docs/PROTOCOLO-DESARROLLO.md) (canónico)
+> y [`AGENTS.md`](../AGENTS.md) (resumen para agentes). Son de cumplimiento
+> obligatorio: seguridad RLS, Zod en los límites, fuente única de verdad,
+> tests de módulos financieros, timeouts en I/O externa, CI sin escape hatches.
+
 ## Communication rules
 
 1. **Never go silent after finishing.** Every time a goal, task, or milestone
