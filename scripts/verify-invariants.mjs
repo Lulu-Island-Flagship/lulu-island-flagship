@@ -24,6 +24,8 @@
  *      bloquea (núcleo, Parte 2.4). Imprime la cota superior de riesgo.
  *   6. (v5.0) Evidencia mínima: en .governance/rules.yaml, toda regla con
  *      una dimensión CRITICAL debe declarar evidence_level ≥ E3 (Parte 3.2).
+ *   7. (v5.0) Migraciones: numeración secuencial sin colisiones (sin
+ *      números duplicados) en supabase/migrations/.
  */
 
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
@@ -399,6 +401,31 @@ function checkEvidence() {
   return { violations, note };
 }
 
+function checkMigrations() {
+  const dir = join(REPO_ROOT, "supabase/migrations");
+  if (!existsSync(dir)) {
+    return { violations: ["directorio supabase/migrations no existe"], note: null };
+  }
+  const names = readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isFile() && e.name.endsWith(".sql"))
+    .map((e) => e.name);
+  const seen = new Map();
+  const violations = [];
+  for (const name of names) {
+    const m = name.match(/^(\d+)_/);
+    if (!m) {
+      violations.push(`${name}: nombre de migración sin prefijo numérico secuencial`);
+      continue;
+    }
+    const num = m[1];
+    if (seen.has(num)) {
+      violations.push(`${name}: número de migración duplicado (${num}) — colisión con ${seen.get(num)}`);
+    }
+    seen.set(num, name);
+  }
+  return { violations, note: `${names.length} migraciones escaneadas, sin números duplicados` };
+}
+
 // ---------------------------------------------------------------------------
 // Orquestación
 // ---------------------------------------------------------------------------
@@ -421,6 +448,10 @@ const results = {
   })(),
   "Evidencia mínima por regla (v5.0)": (() => {
     const { violations, note } = checkEvidence();
+    return { violations, note };
+  })(),
+  "Migraciones — numeración secuencial sin colisiones (v5.0)": (() => {
+    const { violations, note } = checkMigrations();
     return { violations, note };
   })(),
 };

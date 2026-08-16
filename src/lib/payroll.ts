@@ -11,6 +11,8 @@
  *  - El rework excedente requiere aprobación de supervisor (no se incluye automáticamente).
  */
 
+import { roundHalfUp, dollarsToCentsExact, decimalToRational } from "./money";
+
 export const BC_MIN_WAGE_HOURLY = 18.25;
 export const DEFAULT_SERVICE_MINUTES = 480; // 8 horas
 
@@ -68,13 +70,16 @@ export function calculatePayroll(
     }
   }
 
-  // 3. Rework pagado con tope
+  // 3. Rework pagado con tope — aritmética exacta (sin float).
+  // effectiveHourlyRate = max(dayRate→hour, minWage×100); como round es
+  // monótono, round(min×max(a,b)/60) == max(round(min×a/60), round(min×b/60)).
   const reworkPaidMinutes = Math.max(0, Math.min(reworkMinutes, maxReworkMinutes));
-  const hourlyRateFromDayRate = estimatedServiceMinutes > 0
-    ? (baseAmount / estimatedServiceMinutes) * 60
+  const minWageHourlyCents = dollarsToCentsExact(minWageHourly);
+  const reworkByDayRate = estimatedServiceMinutes > 0
+    ? Number(roundHalfUp(BigInt(reworkPaidMinutes) * BigInt(baseAmount), BigInt(estimatedServiceMinutes)))
     : 0;
-  const effectiveHourlyRate = Math.max(hourlyRateFromDayRate, minWageHourly * 100);
-  const reworkAmount = Math.round((reworkPaidMinutes / 60) * effectiveHourlyRate);
+  const reworkByMinWage = Number(roundHalfUp(BigInt(reworkPaidMinutes) * minWageHourlyCents, 60n));
+  const reworkAmount = Math.max(reworkByDayRate, reworkByMinWage);
 
   // 4. Equivalente horario inicial
   const subtotalBeforeMinWage = baseAmount + qcBonusAmount - qcPenaltyAmount + reworkAmount;
@@ -82,8 +87,8 @@ export function calculatePayroll(
     ? subtotalBeforeMinWage / (estimatedServiceMinutes / 60)
     : 0;
 
-  // 5. Protección salarial mínima
-  const minRequiredAmount = Math.round((estimatedServiceMinutes / 60) * minWageHourly * 100);
+  // 5. Protección salarial mínima — exacta: minutos × centavos-hora / 60.
+  const minRequiredAmount = Number(roundHalfUp(BigInt(estimatedServiceMinutes) * minWageHourlyCents, 60n));
   const minimumWageAdjustment = Math.max(0, minRequiredAmount - subtotalBeforeMinWage);
 
   // 6. Monto bruto final
@@ -152,9 +157,17 @@ export function calculateOvertimePay(input: OvertimePayInput): OvertimePayResult
   // ya no alimenta el cálculo de dinero real.
   const overtimePayCents =
     standardDayMinutes > 0
-      ? Math.round((overtimeMinutes * dayRateCents * overtimeMultiplier) / standardDayMinutes)
+      ? Number(
+          roundHalfUp(
+            BigInt(overtimeMinutes) * BigInt(dayRateCents) * decimalToRational(overtimeMultiplier).num,
+            BigInt(standardDayMinutes) * decimalToRational(overtimeMultiplier).den
+          )
+        )
       : 0;
-  const hourlyRateCents = standardDayMinutes > 0 ? Math.round((dayRateCents * 60) / standardDayMinutes) : 0;
+  const hourlyRateCents =
+    standardDayMinutes > 0
+      ? Number(roundHalfUp(BigInt(dayRateCents) * 60n, BigInt(standardDayMinutes)))
+      : 0;
 
   return { overtimeMinutes, hourlyRateCents, overtimePayCents };
 }

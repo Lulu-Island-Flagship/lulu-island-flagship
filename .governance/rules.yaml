@@ -56,7 +56,7 @@ rules:
     risk_if_violated: { severity: CRITICAL, dimensions: { integrity: CRITICAL, financial_exposure: CRITICAL } }
     mechanism: ["src/lib/money.ts (bigint + tasas racionales)", "tests exactos", "barrido de rutas v5.0"]
     evidence_level: "E3"
-    evidence_status: "PARTIAL"
+    evidence_status: "VERIFIED"
     exceptions_allowed: false
     source: "docs/PROTOCOLO-DESARROLLO.md §4"
   - rule_id: "INST-FIN-002"
@@ -65,7 +65,7 @@ rules:
     risk_if_violated: { severity: CRITICAL, dimensions: { integrity: CRITICAL, financial_exposure: CRITICAL } }
     mechanism: ["import central en pricing/taxes", "cash-reserve corregido en v5.0"]
     evidence_level: "E3"
-    evidence_status: "PARTIAL"
+    evidence_status: "VERIFIED"
     exceptions_allowed: false
     source: "docs/PROTOCOLO-DESARROLLO.md §5"
   - rule_id: "INST-FIN-003"

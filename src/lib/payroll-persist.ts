@@ -1,3 +1,5 @@
+import { dollarsToCents } from "./currency";
+
 /**
  * payroll-persist.ts — Persistencia de payroll_entries
  *
@@ -96,7 +98,7 @@ export async function computeAndInsertPayrollEntry(
   }
 
   // 2. Convertir day_rate de dólares a centavos
-  const dayRateCents = Math.round(input.dayRateDollars * 100);
+  const dayRateCents = dollarsToCents(input.dayRateDollars);
 
   // 3. Calcular nómina con los datos disponibles
   const estMinutes = input.estimatedServiceMinutes ?? DEFAULT_SERVICE_MINUTES;

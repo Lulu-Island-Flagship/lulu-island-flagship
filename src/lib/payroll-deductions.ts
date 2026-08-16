@@ -1,3 +1,5 @@
+import { applyPercentRoundHalfUp } from "./money";
+
 /**
  * DEPRECATED: este módulo es un wrapper de compatibilidad. Todo cálculo nuevo
  * debe ir en payroll-calculator.ts + compliance-resolver.ts.
@@ -114,7 +116,7 @@ export function calculateCppContribution(input: CppInput): CppResult {
   const cpp2PensionableThisPeriod =
     cumulativeInBand(ytdAfter, ympeCents, yampeCents) -
     cumulativeInBand(ytdBefore, ympeCents, yampeCents);
-  const cpp2ContributionCents = Math.round(Math.max(0, cpp2PensionableThisPeriod) * CPP2_RATE_2026);
+  const cpp2ContributionCents = Number(applyPercentRoundHalfUp(BigInt(Math.max(0, cpp2PensionableThisPeriod)), CPP2_RATE_2026 * 100));
 
   return {
     baseContributionCents: baseResult.employeeCents,
@@ -205,7 +207,7 @@ export function calculateWorkSafeBcPremium(input: WorkSafeBcInput): WorkSafeBcRe
     cumulativeInBand(ytdAfter, 0, maxAssessableCents) -
     cumulativeInBand(ytdBefore, 0, maxAssessableCents);
 
-  const employerCents = Math.round(Math.max(0, assessableThisPeriod) * rate);
+  const employerCents = Number(applyPercentRoundHalfUp(BigInt(Math.max(0, assessableThisPeriod)), rate * 100));
 
   return { employerCents, ytdAssessableAfterCents: ytdAfter };
 }

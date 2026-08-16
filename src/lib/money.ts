@@ -107,19 +107,24 @@ export function applyPercentRoundHalfUp(baseCents: Cents, percent: number): bigi
   return roundHalfUp(baseCents * num, den);
 }
 
-/** Convierte un porcentaje decimal (number) a racional entero (ej. 2.9 → 29/1000). */
-function percentToRational(percent: number): { num: bigint; den: bigint } {
-  if (!Number.isFinite(percent)) {
-    throw new Error(`Porcentaje inválido: ${percent}`);
+/** Convierte un decimal (number) a racional entero: 1.5 → 15/10, 0.0205 → 205/10000. */
+export function decimalToRational(value: number): { num: bigint; den: bigint } {
+  if (!Number.isFinite(value)) {
+    throw new Error(`Decimal inválido: ${value}`);
   }
-  const s = percent.toString(); // decimal más corto (round-trip)
+  const s = value.toString(); // decimal más corto (round-trip)
   const negative = s.startsWith("-");
   const unsigned = negative ? s.slice(1) : s;
   const [intPart, fracPart = ""] = unsigned.split(".");
-  const decimals = fracPart.length;
   const digits = (intPart || "0") + fracPart || "0";
   return {
     num: BigInt(digits) * (negative ? -1n : 1n),
-    den: 10n ** BigInt(decimals + 2),
+    den: 10n ** BigInt(fracPart.length),
   };
+}
+
+/** Convierte un porcentaje decimal (number) a racional entero (ej. 2.9 → 29/1000). */
+function percentToRational(percent: number): { num: bigint; den: bigint } {
+  const { num, den } = decimalToRational(percent);
+  return { num, den: den * 100n };
 }

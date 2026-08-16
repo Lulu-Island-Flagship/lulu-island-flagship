@@ -1,3 +1,5 @@
+import { applyPercentRoundHalfUp } from "./money";
+
 /**
  * v8.4 Capa 4 del Financial Core — Payroll Calculator.
  *
@@ -310,12 +312,12 @@ interface TaxResult {
  *   - T4 slips oficiales.
  */
 function calcTax(gross_cents: number, period_start: Date): TaxResult {
-  const federal_cents = Math.round(gross_cents * FEDERAL_TAX_RATE_FIRST_BRACKET);
+  const federal_cents = Number(applyPercentRoundHalfUp(BigInt(gross_cents), FEDERAL_TAX_RATE_FIRST_BRACKET * 100));
 
   // Obtener tasa provincial BC desde compliance-resolver
   const bcTaxParams = getCurrentRate("Tax", period_start);
   const provincial_rate = (bcTaxParams as { tasa_base?: number } | null)?.tasa_base ?? 0.0506;
-  const provincial_cents = Math.round(gross_cents * provincial_rate);
+  const provincial_cents = Number(applyPercentRoundHalfUp(BigInt(gross_cents), provincial_rate * 100));
 
   return { federal_cents, provincial_cents };
 }

@@ -1,3 +1,5 @@
+import { roundHalfUp } from "./money";
+
 /**
  * v8.4 Capa 4 del Financial Core — Year-to-Date Tracking.
  *
@@ -687,17 +689,14 @@ export function projectYtdToYearEnd(
     };
   }
 
-  const avgGross = ytd.grossCents / ytd.cicloCount;
-  const avgCpp = ytd.cppEmployeeCents / ytd.cicloCount;
-  const avgEi = ytd.eiEmployeeCents / ytd.cicloCount;
-  const avgTax = ytd.taxTotalCents / ytd.cicloCount;
-  const avgNet = ytd.netoCents / ytd.cicloCount;
-
+  // Proyección exacta: ytd + (ytd/count)×cycles = ytd×(count+cycles)/count.
+  const count = BigInt(ytd.cicloCount);
+  const total = BigInt(ytd.cicloCount + ciclosRestantes);
   return {
-    grossCents: Math.round(ytd.grossCents + avgGross * ciclosRestantes),
-    cppEmployeeCents: Math.round(ytd.cppEmployeeCents + avgCpp * ciclosRestantes),
-    eiEmployeeCents: Math.round(ytd.eiEmployeeCents + avgEi * ciclosRestantes),
-    taxTotalCents: Math.round(ytd.taxTotalCents + avgTax * ciclosRestantes),
-    netoCents: Math.round(ytd.netoCents + avgNet * ciclosRestantes),
+    grossCents: Number(roundHalfUp(BigInt(ytd.grossCents) * total, count)),
+    cppEmployeeCents: Number(roundHalfUp(BigInt(ytd.cppEmployeeCents) * total, count)),
+    eiEmployeeCents: Number(roundHalfUp(BigInt(ytd.eiEmployeeCents) * total, count)),
+    taxTotalCents: Number(roundHalfUp(BigInt(ytd.taxTotalCents) * total, count)),
+    netoCents: Number(roundHalfUp(BigInt(ytd.netoCents) * total, count)),
   };
 }
