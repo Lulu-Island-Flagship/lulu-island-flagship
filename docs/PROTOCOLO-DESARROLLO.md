@@ -1,14 +1,93 @@
 # Protocolo de Desarrollo — Lulu Island Flagship
 
-> **MANIFEST v4.2** · Fuente canónica de las reglas técnicas del proyecto.
-> Todo código nuevo debe cumplir este documento. Cuando una regla sea
-> verificable automáticamente, debe estar en CI (`.github/workflows/ci.yml`)
-> además de estar escrita aquí: la regla escrita describe el deber, el CI lo
-> garantiza.
+**v5.0 · Instancia del núcleo genérico**
+
+> Este documento **no es el framework**. Es la instancia del
+> [`Manifiesto v5.0`](../../Desktop/Manifiesto-v5.0.md) (núcleo genérico) para
+> este proyecto. No repite el núcleo: lo materializa para este dominio y este
+> stack. Toda regla verificable automáticamente debe estar en CI
+> (`.github/workflows/ci.yml`) además de escrita aquí: la regla describe el
+> deber, el CI lo garantiza.
 
 ---
 
-## 0. Principios rectores
+## 0. Declaración de composición (binding)
+
+```yaml
+instance:
+  name: "lulu-island-flagship"
+  core: "5.0.0"                       # ~/Desktop/Manifiesto-v5.0.md
+  extensions:
+    - ext-financial                   # dinero, ledger, impuestos, nómina
+    - ext-auth                        # RLS, RBAC, segregación de funciones
+    - ext-design                      # tokens, accesibilidad, contraste
+  profile: "ts-next-supabase"         # Next.js + TypeScript + Supabase
+```
+
+### 0.1 Bounded contexts (mapa carpeta → contexto)
+
+El mapa autoritativo y machine-readable vive en `.governance/bounded-contexts.yaml`.
+Aquí, la versión documental:
+
+```yaml
+bounded_contexts:
+  financial:
+    paths: ["src/lib/pricing/**", "src/lib/tax-*", "src/lib/ar-b2b/**",
+            "src/lib/ledger*", "src/lib/journal-*", "src/lib/chart-of-accounts*",
+            "src/lib/coa*", "src/lib/bank-reconciliation*",
+            "src/lib/cash-flow-predictive*", "src/lib/financial-reports*",
+            "src/lib/payment-capture-reconciliation*", "src/lib/billing-to-ledger*",
+            "src/lib/qbo*", "src/lib/accounting-*", "src/lib/wallet*",
+            "src/lib/currency*", "src/lib/installment-payment*",
+            "src/lib/stripe*", "src/lib/paypal*", "src/lib/operational-accounting*",
+            "src/lib/economic-params*", "src/lib/close-period*", "src/lib/period-guard*",
+            "src/lib/shadow-ledger*", "src/lib/ledger-hash*", "src/lib/batch-capture-*"]
+  payroll:
+    paths: ["src/lib/payroll*/**", "src/lib/payroll*", "src/lib/t4*", "src/lib/t4a*",
+            "src/lib/roe*", "src/lib/cra-*", "src/lib/service-canada-client*",
+            "src/lib/pay-statement*", "src/lib/statutory-holidays*", "src/lib/sick-leave*",
+            "src/lib/employee-financial-dashboard*"]
+  identity:
+    paths: ["src/lib/admin-*", "src/lib/useAdminRoles*", "src/lib/access-recovery*",
+            "src/lib/backup-codes*", "src/lib/crypto*", "src/lib/staff-login*",
+            "src/lib/require-*", "src/lib/supabase*"]
+  privacy_compliance:
+    paths: ["src/lib/pipeda*", "src/lib/pipa-*", "src/lib/compliance-*",
+            "src/lib/legal-*", "src/lib/esignature-provider*", "src/lib/photo-retention*"]
+  operations:
+    paths: ["src/lib/dispatch-*", "src/lib/zone-*", "src/lib/schedule-*",
+            "src/lib/weather-*", "src/lib/inventory-*", "src/lib/equipment-*",
+            "src/lib/shift-*", "src/lib/kitchen-timer*", "src/lib/campaign-*"]
+  communications:
+    paths: ["src/lib/sms*", "src/lib/email*", "src/lib/notification-*",
+            "src/lib/communication*", "src/lib/telephony-router*", "src/lib/send-communication*"]
+  infra:
+    paths: ["src/lib/observability*", "src/lib/api-errors*", "src/lib/date-utils*",
+            "src/lib/format*", "src/lib/validation*", "src/lib/feature-flags*",
+            "src/lib/request-ip*", "src/lib/safe-redirect*", "src/lib/template-engine*",
+            "src/lib/export-*", "src/lib/image-compress*"]
+```
+
+- **Cota superior:** un cambio que toca varios contextos rige por el más estricto.
+- **Sin clasificar:** una ruta fuera del mapa se trata como `UNCLASSIFIED` y
+  **bloquea el gate** hasta clasificarse. No hay agujero silencioso.
+
+### 0.2 Perfil de riesgo por contexto (riesgo multidimensional)
+
+```yaml
+context_risk:
+  financial:          { integrity: CRITICAL, financial_exposure: CRITICAL, reversibility: CRITICAL, privacy: HIGH }
+  payroll:            { integrity: CRITICAL, financial_exposure: CRITICAL, privacy: CRITICAL, regulatory: HIGH }
+  identity:           { confidentiality: CRITICAL, integrity: HIGH }
+  privacy_compliance: { regulatory: CRITICAL, privacy: CRITICAL }
+  operations:         { availability: HIGH, integrity: MEDIUM }
+  communications:     { privacy: HIGH, confidentiality: MEDIUM }
+  infra:              { integrity: MEDIUM, availability: MEDIUM }
+```
+
+---
+
+## 1. Principios rectores
 
 1. **Excelencia sin excepciones.** Cero bugs, cero errores, cero warnings.
 2. **Seguridad por diseño, no por validación del cliente.** Un cliente
@@ -21,7 +100,7 @@
 
 ---
 
-## 1. Base de datos · RLS y autorización
+## 2. Base de datos · RLS y autorización (ext-auth)
 
 - **Toda tabla con datos sensibles** (financieros, nómina, contenido, empleados)
   debe tener `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`.
@@ -43,7 +122,7 @@
 
 ---
 
-## 2. Validación de entrada (límites HTTP)
+## 3. Validación de entrada (límites HTTP)
 
 - Usar **Zod** en los límites de `src/app/api/**` para todo lo que persista datos.
 - **Prohibido** `z.any()` + cast para objetos sensibles (nómina, contabilidad,
@@ -56,7 +135,25 @@
 
 ---
 
-## 3. Fuente única de verdad
+## 4. Dinero exacto (ext-financial activada)
+
+- **Prohibido** `number`/`float`/`double` y `Math.round` para valores
+  monetarios en los contextos `financial` y `payroll`. Usar **unidades enteras
+  mínimas** (la divisa y su escala definen la unidad).
+- Ningún asiento financiero se edita ni borra: solo asiento compensatorio
+  tipificado y balanceado.
+- Toda mutación monetaria es idempotente (clave + `UNIQUE`).
+- El detalle completo del tipo Money, el redondeo y la máquina de estados de
+  pago vive en `ext-financial` (referencia: Manifiesto v5.0, Parte 8.1).
+
+> **Deuda conocida:** `src/lib/pricing/taxes.ts` usa hoy `number` +
+> `Math.round(amount * 100)`, lo que viola esta regla. Marcado
+> `[INTEGRITY_FIX]` pendiente: migrar a unidades enteras es el primer paso de
+> adopción de esta instancia.
+
+---
+
+## 5. Fuente única de verdad
 
 - **Constantes fiscales** (GST/PST) solo en `src/lib/pricing/taxes.ts`. Los
   demás módulos (`tax-engine`, `coa-imputation`, `compliance-feed`, `ar-b2b`)
@@ -70,7 +167,7 @@
 
 ---
 
-## 4. Testing
+## 6. Testing
 
 - **Todo módulo financiero/fiscal crítico con tests**: AR B2B
   (`ar-b2b/*`, `dunning`, `aging`), `tax-engine`, generadores
@@ -80,10 +177,13 @@
   documentar por qué y dejar un `console.error`/`captureError`.
 - Los tests usan `node:assert` y fakes de frontera I/O; no mockear lógica
   interna.
+- **Idempotencia** (ext-financial): los endpoints de mutación financiera se
+  prueban con *double-execution replay* (misma `Idempotency-Key` dos veces:
+  el ledger no duplica filas y la respuesta es idéntica).
 
 ---
 
-## 5. Resiliencia · I/O externa
+## 7. Resiliencia · I/O externa
 
 - **Toda llamada externa** (Twilio, Resend, PayPal, BC Assessment, Nominatim,
   Google Places, OpenWeatherMap, Stripe) con **timeout explícito**
@@ -100,7 +200,7 @@
 
 ---
 
-## 6. CI / Deploy (mecanismo)
+## 8. CI / Deploy (mecanismo)
 
 - **CI bloquea merge** si falla cualquiera de: typecheck, lint, build, tests,
   `npm audit --audit-level=critical`, y las invariantes grep (tokens de diseño,
@@ -111,13 +211,16 @@
   deshabilitar el check.
 - **Migraciones**: numeración secuencial sin colisiones (un solo archivo por
   número). Al renombrar/renumerar, actualizar cualquier referencia.
-- **Secretos**: nunca en el código ni en logs ni en commits. En
-  `supabase/config.toml` usar `env(...)`. `.env*` solo con placeholders.
-  Nunca imprimir un secret generado en la terminal.
+- **Secretos**: nunca en claro, nunca en logs/commits/terminal. `.env*` solo
+  con placeholders. Nunca imprimir un secret generado en la terminal.
+- **Waivers** (válvula de escape del núcleo, Parte 5): cualquier excepción a
+  una regla se registra en `.governance/waivers/*.yaml` con `rule_id`, motivo,
+  control compensatorio y `expires_at`. El CI rompe el build si un waiver
+  expira. Un waiver **nunca** aplica a una regla de Nivel 1.
 
 ---
 
-## 7. Verificación antes de "hecho" / "live"
+## 9. Verificación antes de "hecho" / "live"
 
 Correr siempre, en este orden, y con **cero** errores:
 
@@ -134,13 +237,25 @@ declarar "live" hasta confirmar las 5 plataformas.
 
 ---
 
-## 8. Reglas de comunicación (agentes)
+## 10. Reglas de comunicación (agentes)
 
 1. Nunca quedarse en silencio al terminar un objetivo o milestone.
 2. Avisar cuando un sub-agente termina (qué hizo y si tuvo éxito).
 3. Verificar antes de declarar "hecho".
 4. No hacer push/deploy sin confirmación explícita del usuario.
 5. No rotar secrets sin autorización explícita.
+
+---
+
+## Estado de adopción (gap núcleo → instancia)
+
+Pendiente de materializar (no bloquea el código existente, se cierra al tocarlo):
+
+- [ ] Migrar `src/lib/pricing/taxes.ts` de `number` a unidades enteras (`[INTEGRITY_FIX]`).
+- [ ] Crear `docs/LEARNINGS.md` (núcleo, Parte 6.3) y enlazar incidentes.
+- [ ] Crear `.governance/bounded-contexts.yaml` (mapa machine-readable).
+- [ ] Crear `.governance/waivers/` (válvula de escape, núcleo Parte 5).
+- [ ] Empaquetar los checks de CI en un comando local `verify:invariants`.
 
 ---
 
