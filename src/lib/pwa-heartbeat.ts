@@ -157,6 +157,7 @@ export async function sendHeartbeat(equipoId: string): Promise<{ sent: boolean; 
   try {
     const res = await fetch("/api/employee/heartbeat", {
       method: "POST",
+      signal: AbortSignal.timeout(15_000),
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify(payload),

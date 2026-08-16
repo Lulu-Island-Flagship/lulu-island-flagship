@@ -26,6 +26,13 @@
  *      una dimensión CRITICAL debe declarar evidence_level ≥ E3 (Parte 3.2).
  *   7. (v5.0) Migraciones: numeración secuencial sin colisiones (sin
  *      números duplicados) en supabase/migrations/.
+ *   8. (v5.0) RLS en migraciones nuevas (INST-GOV-002): una migración
+ *      añadida/modificada con CREATE TABLE debe habilitar ENABLE ROW LEVEL
+ *      SECURITY para esa tabla en el mismo archivo (chequeo diff-aware).
+ *   9. (v5.0) Break-glass: schema de .governance/break-glass/log.yaml,
+ *      ttl_horas ≤ 24, ids únicos/inmutables y activaciones vencidas revocadas.
+ *  10. (v5.0) CHANGE: un diff que toca un contexto protegido (CRITICAL) exige
+ *      un objeto CHANGE válido en .governance/changes/*.yaml.
  */
 
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
@@ -324,27 +331,41 @@ function gitChangedFiles() {
   return { base, files: [...changed].filter((f) => !/^(node_modules|\.next|\.git)(\/|$)/.test(f)) };
 }
 
-function checkUnclassified() {
-  let map;
-  try {
-    map = loadYaml(".governance/bounded-contexts.yaml");
-  } catch (err) {
-    return { violations: [`No se pudo cargar .governance/bounded-contexts.yaml: ${err.message}`], note: null };
-  }
+function loadBoundedContexts() {
+  const map = loadYaml(".governance/bounded-contexts.yaml");
   const contexts = map.bounded_contexts || {};
   const compiled = Object.fromEntries(
     Object.entries(contexts).map(([ctx, def]) => [ctx, (def.paths || []).map(patternToRegex)])
   );
+  return { map, contexts, compiled };
+}
+
+/** Clasifica cada archivo del diff en el primer bounded context que coincide. */
+function classifyChangedFiles() {
+  const { map, compiled } = loadBoundedContexts();
   const { base, files } = gitChangedFiles();
-  if (!base) {
-    return { violations: [], note: "gate UNCLASSIFIED omitido: no hay base git (origin/main ni main) para calcular el diff" };
-  }
   const touched = new Set();
   const unclassified = [];
-  for (const f of files) {
-    const entry = Object.entries(compiled).find(([, res]) => res.some((r) => r.test(f)));
-    if (entry) touched.add(entry[0]);
-    else unclassified.push(f);
+  if (base) {
+    for (const f of files) {
+      const entry = Object.entries(compiled).find(([, res]) => res.some((r) => r.test(f)));
+      if (entry) touched.add(entry[0]);
+      else unclassified.push(f);
+    }
+  }
+  return { map, base, files, touched, unclassified };
+}
+
+function checkUnclassified() {
+  let classified;
+  try {
+    classified = classifyChangedFiles();
+  } catch (err) {
+    return { violations: [`No se pudo cargar .governance/bounded-contexts.yaml: ${err.message}`], note: null };
+  }
+  const { map, base, files, touched, unclassified } = classified;
+  if (!base) {
+    return { violations: [], note: "gate UNCLASSIFIED omitido: no hay base git (origin/main ni main) para calcular el diff" };
   }
   // Cota superior de riesgo (informativo, núcleo Parte 3.4).
   const risk = map.context_risk || {};
@@ -401,10 +422,97 @@ function checkEvidence() {
   return { violations, note };
 }
 
+/** Archivos de migración (.sql) del diff actual: origin/main...HEAD + working tree. */
+function gitMigrationDiffFiles() {
+  const run = (args) => {
+    try {
+      return execSync(`git ${args}`, { cwd: REPO_ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    } catch {
+      return "";
+    }
+  };
+  const files = new Set();
+  for (const f of run("diff --name-only origin/main...HEAD").split("\n")) {
+    if (f) files.add(f);
+  }
+  for (const line of run("status --short").split("\n")) {
+    if (!line) continue;
+    let path = line.slice(3);
+    if (line.includes(" -> ")) path = line.split(" -> ").pop();
+    path = path.trim();
+    if (path) files.add(path);
+  }
+  return [...files].filter((f) => /^supabase\/migrations\/[^/]+\.sql$/.test(f));
+}
+
+function tableNameFromHead(head) {
+  const m = head.match(/^(?:(?:"[^"]*"|[A-Za-z_][A-Za-z0-9_$]*)\s*\.\s*)*(?:"[^"]*"|[A-Za-z_][A-Za-z0-9_$]*)/);
+  if (!m) return null;
+  const parts = m[0].split(".").map((p) => p.trim());
+  return parts[parts.length - 1].replace(/^"|"$/g, "").toLowerCase();
+}
+
+function createdTables(sql) {
+  const names = new Set();
+  const re = /\bcreate\s+table\b/gi;
+  let m;
+  while ((m = re.exec(sql)) !== null) {
+    const head = sql
+      .slice(m.index + m[0].length)
+      .split("(")[0]
+      .replace(/\bif\s+not\s+exists\b/gi, "")
+      .replace(/\bonly\b/gi, "")
+      .trim();
+    const name = tableNameFromHead(head);
+    if (name) names.add(name);
+  }
+  return names;
+}
+
+function rlsEnabledTables(sql) {
+  const names = new Set();
+  const re = /\balter\s+table\b[^;]*?\benable\s+row\s+level\s+security\b/gi;
+  let m;
+  while ((m = re.exec(sql)) !== null) {
+    const stmt = m[0];
+    const idx = stmt.toLowerCase().indexOf("enable row level security");
+    const head = stmt
+      .slice(0, idx)
+      .replace(/\balter\s+table\b/gi, "")
+      .replace(/\bif\s+exists\b/gi, "")
+      .replace(/\bonly\b/gi, "")
+      .trim();
+    const name = tableNameFromHead(head);
+    if (name) names.add(name);
+  }
+  return names;
+}
+
+function checkMigrationRls() {
+  const files = gitMigrationDiffFiles();
+  if (files.length === 0) {
+    return { violations: [], note: "sin migraciones añadidas/modificadas en el diff — RLS no evaluado (migraciones legacy fuera de alcance)" };
+  }
+  const violations = [];
+  for (const rel of files) {
+    const content = readText(rel);
+    if (content === null) continue;
+    const created = createdTables(content);
+    if (created.size === 0) continue;
+    const enabled = rlsEnabledTables(content);
+    for (const t of created) {
+      if (!enabled.has(t)) {
+        violations.push(`${rel}: tabla "${t}" creada con CREATE TABLE sin ENABLE ROW LEVEL SECURITY en el mismo archivo (INST-GOV-002)`);
+      }
+    }
+  }
+  return { violations, note: `${files.length} migración(es) añadida(s)/modificada(s) escaneada(s) para RLS` };
+}
+
 function checkMigrations() {
   const dir = join(REPO_ROOT, "supabase/migrations");
   if (!existsSync(dir)) {
-    return { violations: ["directorio supabase/migrations no existe"], note: null };
+    return { violations: ["directorio supabase/migrations no existe"], note: null, rlsViolations: [], rlsNote: null };
   }
   const names = readdirSync(dir, { withFileTypes: true })
     .filter((e) => e.isFile() && e.name.endsWith(".sql"))
@@ -423,12 +531,162 @@ function checkMigrations() {
     }
     seen.set(num, name);
   }
-  return { violations, note: `${names.length} migraciones escaneadas, sin números duplicados` };
+  const rls = checkMigrationRls();
+  return {
+    violations,
+    note: `${names.length} migraciones escaneadas, sin números duplicados`,
+    rlsViolations: rls.violations,
+    rlsNote: rls.note,
+  };
+}
+
+/** Devuelve true si una activación break-glass está marcada como revocada. */
+function isBreakGlassRevoked(entry) {
+  if (entry == null || typeof entry !== "object") return false;
+  if (entry.revocado_en != null && entry.revocado_en !== "") return true;
+  if (entry.revocada === true) return true;
+  if (typeof entry.estado === "string" && entry.estado.toUpperCase() === "REVOCADA") return true;
+  return false;
+}
+
+function checkBreakGlass() {
+  let doc;
+  try {
+    doc = loadYaml(".governance/break-glass/log.yaml");
+  } catch (err) {
+    return { violations: [`No se pudo cargar .governance/break-glass/log.yaml: ${err.message}`], note: null };
+  }
+  if (doc == null || typeof doc !== "object") {
+    return { violations: [".governance/break-glass/log.yaml: falta el mapa raíz con clave `activaciones`"], note: null };
+  }
+  if (!Array.isArray(doc.activaciones)) {
+    return { violations: [".governance/break-glass/log.yaml: `activaciones` debe ser un array"], note: null };
+  }
+  const acts = doc.activaciones;
+  const now = Date.now();
+  const seen = new Map();
+  const violations = [];
+  for (let i = 0; i < acts.length; i++) {
+    const a = acts[i];
+    const label = `activaciones[${i}]`;
+    if (a === null || typeof a !== "object" || Array.isArray(a)) {
+      violations.push(`${label}: asiento break-glass debe ser un objeto`);
+      continue;
+    }
+    const id = a.activacion_id;
+    if (typeof id !== "string" || id.trim() === "") {
+      violations.push(`${label}: falta \`activacion_id\` (string no vacío)`);
+    } else if (seen.has(id)) {
+      violations.push(`${label}: \`activacion_id\` duplicado (${id}) — el log es append-only e inmutable`);
+    } else {
+      seen.set(id, label);
+    }
+    const ttl = a.ttl_horas;
+    if (typeof ttl !== "number" || !Number.isFinite(ttl)) {
+      violations.push(`${label}: \`ttl_horas\` debe ser numérico`);
+    } else if (ttl > 24) {
+      violations.push(`${label}: \`ttl_horas\` = ${ttl} excede el máximo de 24`);
+    }
+    const expira = a.expira_en;
+    const expiraMs = typeof expira === "string" ? Date.parse(expira) : NaN;
+    if (typeof expira !== "string" || Number.isNaN(expiraMs)) {
+      violations.push(`${label}: \`expira_en\` debe ser una fecha ISO 8601 válida`);
+    } else if (expiraMs < now && !isBreakGlassRevoked(a)) {
+      violations.push(`${label}: activación expirada (${expira}) no marcada como revocada`);
+    }
+  }
+  const note = acts.length === 0
+    ? "log break-glass vacío (activaciones: []) — sin asientos que validar"
+    : `${acts.length} activación(es) break-glass validadas`;
+  return { violations, note };
+}
+
+function loadChanges() {
+  const dir = join(REPO_ROOT, ".governance/changes");
+  if (!existsSync(dir)) return [];
+  const out = [];
+  for (const name of readdirSync(dir, { withFileTypes: true })) {
+    if (!name.isFile() || !name.name.endsWith(".yaml")) continue;
+    if (name.name.endsWith(".template.yaml") || name.name.endsWith(".example.yaml")) continue;
+    const rel = join(".governance/changes", name.name);
+    const content = readText(rel);
+    if (content === null) continue;
+    let doc;
+    try {
+      doc = yaml.load(content);
+    } catch (err) {
+      out.push({ file: rel, error: `YAML inválido: ${err.message}`, change: null });
+      continue;
+    }
+    if (doc == null || typeof doc !== "object") continue; // vacío / solo comentarios
+    const change = doc.change && typeof doc.change === "object" ? doc.change : doc;
+    out.push({ file: rel, error: null, change });
+  }
+  return out;
+}
+
+function validateChange(change, label) {
+  if (change == null || typeof change !== "object" || Array.isArray(change)) {
+    return [`${label}: objeto CHANGE debe ser un mapa`];
+  }
+  const violations = [];
+  if (typeof change.id !== "string" || change.id.trim() === "") violations.push(`${label}: falta \`id\` (string no vacío)`);
+  if (typeof change.intent !== "string" || change.intent.trim() === "") violations.push(`${label}: falta \`intent\` (string no vacío)`);
+  if (!Array.isArray(change.invariants_affected) || change.invariants_affected.length === 0 || !change.invariants_affected.every((x) => typeof x === "string" && x.trim() !== "")) {
+    violations.push(`${label}: \`invariants_affected\` debe ser un array no vacío de strings`);
+  }
+  if (!Array.isArray(change.verification_plan) || change.verification_plan.length === 0 || !change.verification_plan.every((x) => typeof x === "string" && x.trim() !== "")) {
+    violations.push(`${label}: \`verification_plan\` debe ser un array no vacío de strings`);
+  }
+  return violations;
+}
+
+function checkChanges() {
+  let classified;
+  try {
+    classified = classifyChangedFiles();
+  } catch (err) {
+    return { violations: [`No se pudo cargar .governance/bounded-contexts.yaml: ${err.message}`], note: null };
+  }
+  const { map, base, touched } = classified;
+  if (!base) {
+    return { violations: [], note: "gate CHANGE omitido: no hay base git (origin/main ni main) para calcular el diff" };
+  }
+  const risk = map.context_risk || {};
+  const protectedCtx = new Set(
+    Object.entries(risk)
+      .filter(([, dims]) => Object.values(dims || {}).some((l) => String(l).toUpperCase() === "CRITICAL"))
+      .map(([ctx]) => ctx)
+  );
+  const touchedProtected = [...touched].filter((c) => protectedCtx.has(c));
+  if (touchedProtected.length === 0) {
+    return { violations: [], note: `sin contextos protegidos tocados (contextos del diff: ${[...touched].join(", ") || "ninguno"}) — objeto CHANGE no requerido` };
+  }
+  const changes = loadChanges();
+  const violations = [];
+  let valid = 0;
+  for (const c of changes) {
+    if (c.error) {
+      violations.push(`${c.file}: ${c.error}`);
+      continue;
+    }
+    const v = validateChange(c.change, c.file);
+    if (v.length === 0) valid++;
+    else violations.push(...v);
+  }
+  if (valid === 0) {
+    violations.push(
+      `diff toca contexto(s) protegido(s) [${touchedProtected.join(", ")}] sin objeto CHANGE válido en .governance/changes/*.yaml (id, intent, invariants_affected[], verification_plan[])`
+    );
+  }
+  return { violations, note: `contextos protegidos tocados: ${touchedProtected.join(", ")} · ${valid} objeto(s) CHANGE válido(s) de ${changes.length}` };
 }
 
 // ---------------------------------------------------------------------------
 // Orquestación
 // ---------------------------------------------------------------------------
+const migrations = checkMigrations();
+
 const results = {
   "Tokens de diseño (cero hex de marca fuera de la fuente única)": { violations: checkTokens() },
   "Contraste (text-brand-gold nunca como texto; usar text-brand-gold-dark)": {
@@ -450,8 +708,20 @@ const results = {
     const { violations, note } = checkEvidence();
     return { violations, note };
   })(),
-  "Migraciones — numeración secuencial sin colisiones (v5.0)": (() => {
-    const { violations, note } = checkMigrations();
+  "Migraciones — numeración secuencial sin colisiones (v5.0)": {
+    violations: migrations.violations,
+    note: migrations.note,
+  },
+  "RLS en migraciones nuevas — CREATE TABLE sin ENABLE ROW LEVEL SECURITY (INST-GOV-002)": {
+    violations: migrations.rlsViolations,
+    note: migrations.rlsNote,
+  },
+  "Break-glass — log.yaml (v5.0)": (() => {
+    const { violations, note } = checkBreakGlass();
+    return { violations, note };
+  })(),
+  "CHANGE — contexto protegido sin objeto CHANGE (v5.0)": (() => {
+    const { violations, note } = checkChanges();
     return { violations, note };
   })(),
 };

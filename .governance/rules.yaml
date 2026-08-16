@@ -45,7 +45,7 @@ rules:
     statement: "Zod en los límites HTTP; prohibido z.any()+cast para objetos sensibles; invariantes cruzadas con superRefine."
     property_protected: "integrity"
     risk_if_violated: { severity: CRITICAL, dimensions: { integrity: CRITICAL } }
-    mechanism: ["schemas Zod en src/app/api/**", "typecheck"]
+    mechanism: ["schemas Zod en src/app/api/**", "typecheck", "tests/lib/zod-invariants.test.ts"]
     evidence_level: "E3"
     evidence_status: "PARTIAL"
     exceptions_allowed: false
@@ -72,7 +72,7 @@ rules:
     statement: "Toda mutación monetaria es idempotente (clave + UNIQUE); los asientos publicados no se editan ni borran (solo compensación tipificada)."
     property_protected: "integrity"
     risk_if_violated: { severity: CRITICAL, dimensions: { integrity: CRITICAL, financial_exposure: CRITICAL } }
-    mechanism: ["UNIQUE + Idempotency-Key", "ledger append-only"]
+    mechanism: ["UNIQUE + Idempotency-Key", "ledger append-only", "tests/lib/idempotency-replay.test.ts"]
     evidence_level: "E3"
     evidence_status: "PARTIAL"
     exceptions_allowed: false
@@ -108,7 +108,7 @@ rules:
     statement: "Migraciones con numeración secuencial sin colisiones; toda tabla nueva con RLS y políticas explícitas."
     property_protected: "integrity"
     risk_if_violated: { severity: CRITICAL, dimensions: { integrity: CRITICAL } }
-    mechanism: ["convención supabase/migrations", "revisión en PR"]
+    mechanism: ["verify:invariants (duplicados + RLS-on-CREATE-TABLE)", "convención supabase/migrations"]
     evidence_level: "E3"
     evidence_status: "PARTIAL"
     exceptions_allowed: false

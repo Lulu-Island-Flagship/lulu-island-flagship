@@ -20,7 +20,7 @@ export function useAdminRoles(): { roles: AdminRole[]; loading: boolean } {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/admin/my-roles", { credentials: "include" })
+    fetch("/api/admin/my-roles", { credentials: "include", signal: AbortSignal.timeout(10_000) })
       .then((res) => (res.ok ? res.json() : { roles: [] }))
       .then((data) => {
         if (cancelled) return;

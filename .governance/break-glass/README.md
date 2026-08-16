@@ -65,3 +65,21 @@ expira sola.
 reconstruirse solo con el log: quién firmó, qué se desbloqueó, cuándo expiró y
 qué test de regresión lo cerró. Una entrada editada invalida el evento; las
 enmiendas se registran como asientos nuevos.
+
+## Simulacro (drill)
+
+El protocolo se ejercita con **tabletop drills** para detectar huecos sin
+contaminar el log real. El **primer simulacro** se documenta en
+[`docs/break-glass-drill.md`](../../docs/break-glass-drill.md)
+(2026-08-15) y dejó una lección registrada como `@incident LEARNING-005`:
+
+- El gate de `verify:invariants` debe validar el **TTL real derivado**
+  (`expira_en == activado_en + ttl_horas` y `ttl_horas <= 24`), no solo el
+  campo `ttl_horas` declarado. Un asiento con `ttl_horas: 24` pero
+  `expira_en` lejano queda **rechazado**.
+- Regla derivada tras el drill: el gate rechaza cualquier asiento con
+  `expira_en != activado_en + ttl_horas`, con `ttl_horas > 24`, o activo con
+  `expira_en < now` sin `revocado_en`.
+
+En un drill **no** se escribe en el `log.yaml` real: el asiento de ejemplo se
+ejercita con un fixture de test.

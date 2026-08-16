@@ -1,4 +1,4 @@
 # LOG INMUTABLE de activaciones break-glass (append-only).
 # Cada activación se registra como un asiento, no como un mensaje:
 # una entrada escrita NUNCA se edita ni se borra.
-# activaciones: []
+activaciones: []

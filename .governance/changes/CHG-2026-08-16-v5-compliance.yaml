@@ -1,0 +1,20 @@
+# Objeto CHANGE — migración de cumplimiento V5 (consolidación).
+#
+# Documenta el cambio que toca contextos protegidos (financial, identity) para
+# que el gate CHANGE de `verify:invariants` autorice el diff.
+change:
+  id: "CHG-2026-08-16-001"
+  intent: >
+    Migración de cumplimiento al Manifiesto v5.0: endurecer el gate de
+    invariantes (RLS-on-CREATE-TABLE, break-glass, CHANGE), añadir timeouts
+    defensivos a fetches internos, materializar los artefactos de composición
+    ext-*/profile, documentar el primer drill break-glass, y aportar evidencia
+    E3 (tests) para las reglas INST-DATA-001 e INST-FIN-003.
+  scope:
+    contexts: ["financial", "identity", "governance", "tooling", "tests"]
+    modules: ["verify-invariants", "offline-sync-client", "ar-b2b", "ledger-types", "shadow-ledger"]
+  invariants_affected: ["INST-GOV-002", "INST-RES-001", "INST-DATA-001", "INST-FIN-003"]
+  verification_plan: ["unit", "typecheck", "lint", "invariants"]
+  rollback_plan: "Revertir los archivos del diff; los artefactos de gobernanza son aditivos y no cambian comportamiento en runtime."
+  evidence:
+    status: "VERIFIED"

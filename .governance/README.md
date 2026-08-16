@@ -17,18 +17,35 @@ waiver registrado y vigente.
 
 ## Cómo lo hace cumplir el gate `verify:invariants`
 
-1. **Parse y schema.** Carga cada YAML (rules, bounded-contexts, waivers, log
-   break-glass) y valida contra el schema correspondiente.
-2. **Consistencia de evidencia.** Para cada regla con `evidence_status:
-   VERIFIED` exige evidencia real (E3/E2 según `evidence_level`); una regla
-   solo puede bajar de VERIFIED a PARTIAL a través de un waiver.
-3. **Waivers.** Verifica schema, expiración y umbrales; rechaza cualquier
-   waiver sobre una regla con `exceptions_allowed: false` (Nivel 1).
-4. **Break-glass.** Verifica que `log.yaml` siga siendo append-only, que ningún
-   asiento exceda `ttl_horas: 24`, y que las activaciones vencidas estén
-   revocadas.
-5. **Changes.** Exige que un cambio que toque un contexto protegido lleve su
-   objeto CHANGE con `invariants_affected` y un `verification_plan` coherente
-   con el riesgo declarado.
+El gate ejecuta 10 invariantes y sale con código 1 si alguna viola. Todas son
+bloqueantes salvo nota explícita:
+
+1. **Tokens de diseño.** Cero hex de marca fuera de `src/design/tokens.ts` y
+   `src/app/tokens.css`.
+2. **Contraste.** `text-brand-gold` nunca se usa como texto/icono; debe usarse
+   `text-brand-gold-dark`.
+3. **Privacidad.** Sin `select("*")` sobre `quotes`/`orders` en páginas de
+   cliente (`src/app/[locale]/`).
+4. **Waivers.** `expires_at` en el futuro, máximo 5 activos, antigüedad ≤ 30
+   días y `approver` como commit firmado (40 hex).
+5. **UNCLASSIFIED.** Cada archivo del diff debe clasificar en un bounded
+   context de `.governance/bounded-contexts.yaml`; imprime la cota superior de
+   riesgo.
+6. **Evidencia mínima.** Toda regla con una dimensión CRITICAL en
+   `.governance/rules.yaml` declara `evidence_level ≥ E3`.
+7. **Migraciones.** Numeración secuencial sin colisiones en
+   `supabase/migrations/`.
+8. **RLS en migraciones nuevas (INST-GOV-002).** Chequeo diff-aware: una
+   migración añadida/modificada con `CREATE TABLE` debe habilitar
+   `ENABLE ROW LEVEL SECURITY` para esa tabla en el mismo archivo. Las
+   migraciones legacy no se escanean.
+9. **Break-glass.** Valida el schema de `.governance/break-glass/log.yaml`,
+   `ttl_horas ≤ 24`, `activacion_id` único/inmutable, y que toda activación
+   vencida esté marcada como revocada.
+10. **CHANGE.** Si el diff toca un contexto protegido (CRITICAL en
+    `.governance/bounded-contexts.yaml`: `financial`, `payroll`, `identity`,
+    `privacy_compliance`, `db`), exige un objeto CHANGE válido en
+    `.governance/changes/*.yaml` (`id`, `intent`, `invariants_affected[]`,
+    `verification_plan[]`).
 
 El resultado del gate es bloqueante: un fallo impide que el cambio se integre.

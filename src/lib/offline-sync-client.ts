@@ -26,7 +26,7 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 }
 
 async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
-  const res = await fetch(dataUrl);
+  const res = await fetch(dataUrl, { signal: AbortSignal.timeout(15_000) });
   return res.blob();
 }
 
@@ -57,6 +57,7 @@ async function sendServiceEvent(
       const { endpoint, body } = event.payload as { endpoint: string; body: Record<string, unknown> };
       const res = await fetch(endpoint, {
         method: "POST",
+        signal: AbortSignal.timeout(15_000),
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(body),
@@ -81,6 +82,7 @@ async function sendServiceEvent(
 
     const res = await fetch("/api/employee/service", {
       method: "POST",
+      signal: AbortSignal.timeout(15_000),
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({
@@ -112,6 +114,7 @@ export async function submitGenericReportOrQueue(
   try {
     const res = await fetch(endpoint, {
       method: "POST",
+      signal: AbortSignal.timeout(15_000),
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify(body),
@@ -147,6 +150,7 @@ export async function submitServiceEventOrQueue(
   try {
     const res = await fetch("/api/employee/service", {
       method: "POST",
+      signal: AbortSignal.timeout(15_000),
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({ orderId, eventType, ...payload }),

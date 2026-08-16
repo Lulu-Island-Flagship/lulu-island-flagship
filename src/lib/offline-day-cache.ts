@@ -103,7 +103,10 @@ export async function downloadAndCacheDayBundle(): Promise<
   { ok: true; bundle: DayCacheBundle } | { ok: false; error: string }
 > {
   try {
-    const res = await fetch("/api/employee/shift/preload", { credentials: "include" });
+    const res = await fetch("/api/employee/shift/preload", {
+      credentials: "include",
+      signal: AbortSignal.timeout(15_000),
+    });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: "unknown error" }));
       return { ok: false, error: err.error || `HTTP ${res.status}` };
