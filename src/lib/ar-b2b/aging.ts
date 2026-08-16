@@ -20,7 +20,7 @@ export interface AgingBucket {
   /** Día máximo del bucket (inclusive) */
   max_dias: number;
   /** Total de saldo pendiente en este bucket, en centavos */
-  total_cents: number;
+  total_cents: bigint;
   /** Cantidad de facturas en este bucket */
   facturas_count: number;
 }
@@ -34,7 +34,7 @@ export interface AgingReport {
   /** Buckets de aging con sus totales */
   buckets: AgingBucket[];
   /** Total de saldo pendiente sumando todos los buckets, en centavos */
-  total_pendiente_cents: number;
+  total_pendiente_cents: bigint;
 }
 
 // =========================================================================
@@ -83,15 +83,15 @@ export function getAgingReport(
     rango: b.rango,
     min_dias: b.min_dias,
     max_dias: b.max_dias === Number.POSITIVE_INFINITY ? Number.POSITIVE_INFINITY : b.max_dias,
-    total_cents: 0,
+    total_cents: 0n,
     facturas_count: 0,
   }));
 
-  let totalPendiente = 0;
+  let totalPendiente = 0n;
 
   for (const factura of facturas) {
     // Solo facturas no pagadas con saldo pendiente
-    if (factura.estado === "PAGADA" || factura.saldo_pendiente <= 0) continue;
+    if (factura.estado === "PAGADA" || factura.saldo_pendiente <= 0n) continue;
 
     const vencimiento = new Date(`${factura.fecha_vencimiento}T00:00:00.000Z`);
     const diasVencida = Math.floor(

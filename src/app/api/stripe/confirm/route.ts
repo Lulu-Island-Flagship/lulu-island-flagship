@@ -8,6 +8,7 @@ import {
 } from "@/lib/date-utils";
 import { checkBookingDateAllowed, dollarsToCents } from "@/lib/pricing";
 import { roundHalfUp, dollarsToCentsExact } from "@/lib/money";
+import { dollarsToCentsBigInt } from "@/lib/currency";
 import { verifyPayPalTransaction } from "@/lib/paypal";
 import { dispatchCommunication } from "@/lib/send-communication";
 import {
@@ -676,7 +677,7 @@ export async function POST(request: NextRequest) {
     // solo si el cliente lo pidió explícitamente. Ver limitación documentada
     // en src/lib/installment-payment.ts: esto es metadata declarada, el
     // cobro real sigue el flujo Hold+Batch existente sin modificarse aquí.
-    const quoteTotalCents = dollarsToCents(Number(quoteRow.total));
+    const quoteTotalCents = dollarsToCentsBigInt(Number(quoteRow.total));
     const installmentRequested = useInstallmentPlan === true && isEligibleForInstallmentPlan(quoteTotalCents);
     const installmentSplit = installmentRequested ? computeInstallmentSplit(quoteTotalCents) : null;
     const installmentSecondDueAt = installmentRequested
@@ -764,8 +765,8 @@ export async function POST(request: NextRequest) {
         addon_zones: quoteRow.addon_zones ?? [],
         // v8.3 E2.10: pago fraccionado 50/50 (metadata, ver nota arriba).
         installment_plan_selected: installmentRequested,
-        installment_first_amount_cents: installmentSplit?.firstInstallmentCents ?? null,
-        installment_second_amount_cents: installmentSplit?.secondInstallmentCents ?? null,
+        installment_first_amount_cents: installmentSplit ? Number(installmentSplit.firstInstallmentCents) : null,
+        installment_second_amount_cents: installmentSplit ? Number(installmentSplit.secondInstallmentCents) : null,
         installment_second_due_at: installmentSecondDueAt,
       })
       .select()

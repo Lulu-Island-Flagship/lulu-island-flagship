@@ -73,9 +73,10 @@ export function generateInvoiceJournalEntry(
     cliente_id: factura.cliente_id,
     orden_id: factura.orden_id,
     lineas_count: factura.lineas.length,
-    subtotal_cents: factura.subtotal,
-    gst_cents: factura.gst_cents,
-    pst_cents: factura.pst_cents,
+    // referencia se serializa a JSONB (persistencia): número entero de centavos.
+    subtotal_cents: Number(factura.subtotal),
+    gst_cents: Number(factura.gst_cents),
+    pst_cents: Number(factura.pst_cents),
   };
 
   const rows: Omit<JournalEntryRow, "hash_sha256">[] = [
@@ -88,7 +89,8 @@ export function generateInvoiceJournalEntry(
       periodo_contable: periodo,
       cuenta_debito: CHART_OF_ACCOUNTS.CUENTAS_POR_COBRAR_AR as CuentaContable,
       cuenta_credito: null,
-      monto: factura.total,
+      // Borde del ledger (Capa 0): monto sigue tipado number en ledger-types.
+      monto: Number(factura.total),
       moneda: "CAD",
       descripcion: `Factura B2B ${factura.factura_id} — AR [DÉBITO] — ${factura.orden_id ?? "sin orden"}`,
       referencia,
@@ -104,7 +106,7 @@ export function generateInvoiceJournalEntry(
       periodo_contable: periodo,
       cuenta_debito: null,
       cuenta_credito: CHART_OF_ACCOUNTS.INGRESOS_SERVICIOS_4010 as CuentaContable,
-      monto: factura.subtotal,
+      monto: Number(factura.subtotal),
       moneda: "CAD",
       descripcion: `Factura B2B ${factura.factura_id} — Revenue [CRÉDITO] — ${factura.orden_id ?? "sin orden"}`,
       referencia,
@@ -120,7 +122,7 @@ export function generateInvoiceJournalEntry(
       periodo_contable: periodo,
       cuenta_debito: null,
       cuenta_credito: CHART_OF_ACCOUNTS.GST_PAYABLE as CuentaContable,
-      monto: factura.gst_cents,
+      monto: Number(factura.gst_cents),
       moneda: "CAD",
       descripcion: `Factura B2B ${factura.factura_id} — GST 5% [CRÉDITO] — ${factura.orden_id ?? "sin orden"}`,
       referencia,
@@ -136,7 +138,7 @@ export function generateInvoiceJournalEntry(
       periodo_contable: periodo,
       cuenta_debito: null,
       cuenta_credito: CHART_OF_ACCOUNTS.PST_PAYABLE as CuentaContable,
-      monto: factura.pst_cents,
+      monto: Number(factura.pst_cents),
       moneda: "CAD",
       descripcion: `Factura B2B ${factura.factura_id} — PST 7% [CRÉDITO] — ${factura.orden_id ?? "sin orden"}`,
       referencia,
@@ -184,7 +186,7 @@ export function generateInvoiceJournalEntry(
  */
 export function generatePaymentJournalEntry(
   factura: Factura,
-  amountCents: number,
+  amountCents: bigint,
   userId: string,
   paymentReference?: string,
 ): JournalEntryRow[] {
@@ -193,7 +195,8 @@ export function generatePaymentJournalEntry(
     event_type: "ar_payment_received",
     order_id: factura.orden_id,
     user_id: userId,
-    amount_cents: amountCents,
+    // Borde del ledger (Capa 0): amount_cents sigue tipado number.
+    amount_cents: Number(amountCents),
     currency: "CAD",
     processor: "internal",
     external_reference: paymentReference ?? factura.factura_id,
@@ -224,7 +227,7 @@ export function generatePaymentJournalEntry(
  */
 export function recordPayment(
   factura: Factura,
-  monto: number,
+  monto: bigint,
   metodo: string,
   referencia: string,
   userId: string,

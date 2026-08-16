@@ -9,9 +9,9 @@ import {
   ServiceType,
   MARGIN_FLOOR_PERCENT,
   computeTaxBreakdown,
-  dollarsToCents,
   assertCentsReasonable,
 } from "@/lib/pricing";
+import { dollarsToCentsBigInt } from "@/lib/currency";
 import { type RuleContext, type PricingRule } from "@/lib/rules";
 import { calculateAddonZonesCharge } from "@/lib/pricing";
 import { fetchAddonZoneOptions } from "@/lib/addon-zones";
@@ -706,10 +706,16 @@ export async function POST(request: NextRequest) {
     // (elegibilidad + desglose sugerido) — el cliente elige explícitamente
     // useInstallmentPlan al confirmar la reserva (/api/stripe/confirm).
     // quotes.total is in dollars; orders.total_paid_cents must be in cents
-    const totalCents = dollarsToCents(Number(data.total));
-    assertCentsReasonable(totalCents, `quote/${data.id}/total`);
+    const totalCents = dollarsToCentsBigInt(Number(data.total));
+    assertCentsReasonable(Number(totalCents), `quote/${data.id}/total`);
     const installmentEligible = isEligibleForInstallmentPlan(totalCents);
-    const installmentSplitPreview = installmentEligible ? computeInstallmentSplit(totalCents) : null;
+    const installmentSplit = installmentEligible ? computeInstallmentSplit(totalCents) : null;
+    const installmentSplitPreview = installmentSplit
+      ? {
+          firstInstallmentCents: Number(installmentSplit.firstInstallmentCents),
+          secondInstallmentCents: Number(installmentSplit.secondInstallmentCents),
+        }
+      : null;
 
     // v8.3 B.2.3: el cliente ve SOLO el booleano de revisión — el motivo
     // (margen interno, score, etc.) es información interna del negocio.

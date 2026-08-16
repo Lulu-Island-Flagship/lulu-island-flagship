@@ -76,6 +76,36 @@ export function centsToDollarsNumber(cents: Cents | number): number {
   return Number(cents) / 100;
 }
 
+/**
+ * Convierte un valor que YA está en centavos (`number` de persistencia
+ * NUMERIC/Stripe/PayPal, `string` decimal o `bigint`) a `Cents` exacto,
+ * redondeando medio-arriba al centavo más cercano, sin aritmética de punto
+ * flotante ni `Math.round`. Es el parser canónico del BORDE de persistencia
+ * cuando el origen reporta `number`: tolera NUMERIC leídos como float
+ * (ej. 1999.9999999 → 2000) y rechaza no-finitos.
+ */
+export function toCentsBigInt(value: number | string | bigint): Cents {
+  if (typeof value === "bigint") return value;
+  const decimal =
+    typeof value === "number" ? numberToDecimalString(value) : value;
+  const trimmed = decimal.trim();
+  if (!/^-?\d+(\.\d+)?$/.test(trimmed)) {
+    throw new Error(`Centavos inválidos: ${JSON.stringify(value)}`);
+  }
+  const negative = trimmed.startsWith("-");
+  const unsigned = negative ? trimmed.slice(1) : trimmed;
+  const [intPart, fracRaw = ""] = unsigned.split(".");
+
+  let cents = BigInt(intPart || "0");
+  if (fracRaw) {
+    // Redondeo medio-arriba exacto al entero: fracción ≥ 0.5 → +1 centavo.
+    const fracNum = BigInt(fracRaw);
+    const fracDen = 10n ** BigInt(fracRaw.length);
+    if (fracNum * 2n >= fracDen) cents += 1n;
+  }
+  return negative ? -cents : cents;
+}
+
 /** Centavos → cadena decimal exacta "0.00" (sin pérdida, para logging/reportes). */
 export function centsToDollarsString(cents: Cents | number): string {
   const c = BigInt(cents);

@@ -37,12 +37,12 @@ export interface FacturaLinea {
   factura_id: string;
   /** Descripción del bien o servicio facturado */
   descripcion: string;
-  /** Cantidad de unidades */
+  /** Cantidad de unidades (cardinalidad, no dinero) */
   cantidad: number;
-  /** Precio unitario en centavos */
-  precio_unitario: number;
+  /** Precio unitario en centavos (v6.0: bigint) */
+  precio_unitario: bigint;
   /** Total de la línea en centavos (cantidad × precio_unitario) */
-  total: number;
+  total: bigint;
   /** Tipo de línea: servicio base, upsell adicional, o producto */
   tipo: LineItemType;
 }
@@ -52,11 +52,11 @@ export interface FacturaLinea {
  */
 export interface FacturaTaxDetail {
   /** Subtotal antes de impuestos en centavos */
-  subtotal_cents: number;
+  subtotal_cents: bigint;
   /** GST 5% en centavos */
-  gst_cents: number;
+  gst_cents: bigint;
   /** PST 7% (BC) en centavos */
-  pst_cents: number;
+  pst_cents: bigint;
 }
 
 /**
@@ -74,15 +74,15 @@ export interface Factura {
   /** Fecha de vencimiento para el pago (ISO 8601) */
   fecha_vencimiento: string;
   /** Subtotal antes de impuestos en centavos */
-  subtotal: number;
+  subtotal: bigint;
   /** GST 5% en centavos */
-  gst_cents: number;
+  gst_cents: bigint;
   /** PST 7% (BC) en centavos */
-  pst_cents: number;
+  pst_cents: bigint;
   /** Monto total de la factura en centavos (subtotal + GST + PST) */
-  total: number;
+  total: bigint;
   /** Saldo pendiente de pago en centavos (total - pagos recibidos) */
-  saldo_pendiente: number;
+  saldo_pendiente: bigint;
   /** Estado actual de la factura */
   estado: InvoiceStatus;
   /** Líneas de detalle de la factura */
@@ -98,15 +98,15 @@ export const FacturaLineaSchema = z.object({
   factura_id: z.string().min(1),
   descripcion: z.string().min(1),
   cantidad: z.number().int().positive(),
-  precio_unitario: z.number().int().nonnegative(),
-  total: z.number().int().nonnegative(),
+  precio_unitario: z.bigint().nonnegative(),
+  total: z.bigint().nonnegative(),
   tipo: z.enum(["servicio", "upsell", "producto", "descuento"]),
 });
 
 export const FacturaTaxDetailSchema = z.object({
-  subtotal_cents: z.number().int().nonnegative(),
-  gst_cents: z.number().int().nonnegative(),
-  pst_cents: z.number().int().nonnegative(),
+  subtotal_cents: z.bigint().nonnegative(),
+  gst_cents: z.bigint().nonnegative(),
+  pst_cents: z.bigint().nonnegative(),
 });
 
 export const FacturaSchema = z.object({
@@ -115,11 +115,11 @@ export const FacturaSchema = z.object({
   orden_id: z.string().nullable(),
   fecha_emision: z.string().min(1),
   fecha_vencimiento: z.string().min(1),
-  subtotal: z.number().int().nonnegative(),
-  gst_cents: z.number().int().nonnegative(),
-  pst_cents: z.number().int().nonnegative(),
-  total: z.number().int().nonnegative(),
-  saldo_pendiente: z.number().int().nonnegative(),
+  subtotal: z.bigint().nonnegative(),
+  gst_cents: z.bigint().nonnegative(),
+  pst_cents: z.bigint().nonnegative(),
+  total: z.bigint().nonnegative(),
+  saldo_pendiente: z.bigint().nonnegative(),
   estado: z.enum(["PENDIENTE", "PAGADA", "VENCIDA", "COBRANZA", "ANULADA"]),
   lineas: z.array(FacturaLineaSchema),
 });
@@ -155,9 +155,9 @@ export function generateInvoice(
   const vencimiento = new Date(today.getTime() + paymentTermsDays * 24 * 60 * 60 * 1000);
   const fechaVencimiento = vencimiento.toISOString().slice(0, 10);
 
-  // Construir líneas con IDs y totales calculados
+  // Construir líneas con IDs y totales calculados (aritmética bigint exacta)
   const facturaLineas: FacturaLinea[] = lineas.map((l) => {
-    const total = l.cantidad * l.precio_unitario;
+    const total = BigInt(l.cantidad) * l.precio_unitario;
     return FacturaLineaSchema.parse({
       linea_id: crypto.randomUUID(),
       factura_id: facturaId,
@@ -170,11 +170,11 @@ export function generateInvoice(
   });
 
   // Subtotal = suma de líneas (los descuentos ya vienen como líneas negativas o con tipo "descuento")
-  const subtotal = facturaLineas.reduce((sum, l) => sum + l.total, 0);
+  const subtotal = facturaLineas.reduce((sum, l) => sum + l.total, 0n);
 
-  // Calcular GST 5% y PST 7% sobre el subtotal
-  const gstCents = Number(gstFromBaseCents(BigInt(subtotal)));
-  const pstCents = Number(pstFromBaseCents(BigInt(subtotal)));
+  // Calcular GST 5% y PST 7% sobre el subtotal (racionales enteros, sin float)
+  const gstCents = gstFromBaseCents(subtotal);
+  const pstCents = pstFromBaseCents(subtotal);
   const total = subtotal + gstCents + pstCents;
 
   return FacturaSchema.parse({
@@ -216,7 +216,7 @@ export function computeInvoiceStatus(
   factura: Factura,
   fechaReferencia?: string,
 ): InvoiceStatus {
-  if (factura.saldo_pendiente <= 0) return "PAGADA";
+  if (factura.saldo_pendiente <= 0n) return "PAGADA";
 
   const referencia = fechaReferencia
     ? new Date(`${fechaReferencia}T00:00:00.000Z`)
@@ -244,13 +244,13 @@ export function computeInvoiceStatus(
  */
 export function applyPayment(
   factura: Factura,
-  amountCents: number,
+  amountCents: bigint,
 ): Factura {
-  const nuevoSaldo = Math.max(0, factura.saldo_pendiente - amountCents);
+  const nuevoSaldo = factura.saldo_pendiente > amountCents ? factura.saldo_pendiente - amountCents : 0n;
   const nuevaFactura: Factura = {
     ...factura,
     saldo_pendiente: nuevoSaldo,
-    estado: nuevoSaldo <= 0 ? "PAGADA" : computeInvoiceStatus({ ...factura, saldo_pendiente: nuevoSaldo }),
+    estado: nuevoSaldo <= 0n ? "PAGADA" : computeInvoiceStatus({ ...factura, saldo_pendiente: nuevoSaldo }),
   };
 
   return FacturaSchema.parse(nuevaFactura);

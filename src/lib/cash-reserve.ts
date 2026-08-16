@@ -32,21 +32,22 @@ export const TAX_RESERVE_ON_INCLUSIVE_NUMERATOR = 3n;
 export const TAX_RESERVE_ON_INCLUSIVE_DENOMINATOR = 28n;
 
 export interface ChargeReserveInput {
-  /** Monto total cobrado, en cents. */
-  grossAmountCents: number;
+  /** Monto total cobrado, en cents (v6.0: bigint). */
+  grossAmountCents: bigint;
   /** Propina incluida en el cobro, en cents. No es gravable a efectos de esta reserva. */
-  tipAmountCents?: number;
+  tipAmountCents?: bigint;
   /** Partidas no gravables adicionales (si las hay), en cents. */
-  nonTaxableAmountCents?: number;
+  nonTaxableAmountCents?: bigint;
 }
 
 export interface ChargeReserveSplit {
-  grossAmountCents: number;
-  tipAmountCents: number;
-  nonTaxableAmountCents: number;
-  taxableBaseCents: number;
-  taxReserveCents: number;
-  operationalAmountCents: number;
+  grossAmountCents: bigint;
+  tipAmountCents: bigint;
+  nonTaxableAmountCents: bigint;
+  taxableBaseCents: bigint;
+  taxReserveCents: bigint;
+  operationalAmountCents: bigint;
+  /** Tasa display/metadatos (number) — NUNCA se usa en la aritmética. */
   reserveRate: number;
 }
 
@@ -64,21 +65,23 @@ export interface ChargeReserveSplit {
  *    impuestos se aparta).
  */
 export function calculateReserveSplit(input: ChargeReserveInput): ChargeReserveSplit {
-  const grossAmountCents = Math.max(0, Math.round(input.grossAmountCents));
-  const tipAmountCents = Math.max(0, Math.round(input.tipAmountCents ?? 0));
-  const nonTaxableAmountCents = Math.max(0, Math.round(input.nonTaxableAmountCents ?? 0));
+  const grossAmountCents = input.grossAmountCents < 0n ? 0n : input.grossAmountCents;
+  const tip = input.tipAmountCents ?? 0n;
+  const tipAmountCents = tip < 0n ? 0n : tip;
+  const nonTaxable = input.nonTaxableAmountCents ?? 0n;
+  const nonTaxableAmountCents = nonTaxable < 0n ? 0n : nonTaxable;
 
-  const excluded = Math.min(grossAmountCents, tipAmountCents + nonTaxableAmountCents);
+  const excluded = grossAmountCents < tipAmountCents + nonTaxableAmountCents
+    ? grossAmountCents
+    : tipAmountCents + nonTaxableAmountCents;
   const taxableBaseCents = grossAmountCents - excluded;
 
   // taxableBaseCents es tax-inclusive (viene de un total ya cobrado con
   // impuestos adentro), así que se extrae el impuesto con la tasa
   // "de adentro hacia afuera", no la tasa aditiva.
-  const taxReserveCents = Number(
-    roundHalfUp(
-      BigInt(taxableBaseCents) * TAX_RESERVE_ON_INCLUSIVE_NUMERATOR,
-      TAX_RESERVE_ON_INCLUSIVE_DENOMINATOR
-    )
+  const taxReserveCents = roundHalfUp(
+    taxableBaseCents * TAX_RESERVE_ON_INCLUSIVE_NUMERATOR,
+    TAX_RESERVE_ON_INCLUSIVE_DENOMINATOR
   );
   const operationalAmountCents = grossAmountCents - taxReserveCents;
 
@@ -95,14 +98,15 @@ export function calculateReserveSplit(input: ChargeReserveInput): ChargeReserveS
 
 export interface CashExposureInput {
   /** Suma de Holds autorizados y aún no cobrados, en cents. */
-  pendingExposureCents: number;
+  pendingExposureCents: bigint;
   /** Tope configurable (cash_exposure_settings.daily_exposure_cap_cents). */
-  dailyCapCents: number;
+  dailyCapCents: bigint;
 }
 
 export interface CashExposureEvaluation {
-  pendingExposureCents: number;
-  dailyCapCents: number;
+  pendingExposureCents: bigint;
+  dailyCapCents: bigint;
+  /** Ratio display/metadatos (number) — NUNCA se usa en la decisión. */
   exposureRatio: number;
   overCap: boolean;
 }
@@ -114,9 +118,9 @@ export interface CashExposureEvaluation {
  * que no se puede calcular "% de caja" de forma honesta hoy).
  */
 export function evaluateDailyCashExposure(input: CashExposureInput): CashExposureEvaluation {
-  const pendingExposureCents = Math.max(0, Math.round(input.pendingExposureCents));
-  const dailyCapCents = Math.max(1, Math.round(input.dailyCapCents));
-  const exposureRatio = pendingExposureCents / dailyCapCents;
+  const pendingExposureCents = input.pendingExposureCents < 0n ? 0n : input.pendingExposureCents;
+  const dailyCapCents = input.dailyCapCents < 1n ? 1n : input.dailyCapCents;
+  const exposureRatio = Number(pendingExposureCents) / Number(dailyCapCents);
 
   return {
     pendingExposureCents,

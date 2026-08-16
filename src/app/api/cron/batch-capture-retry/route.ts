@@ -4,7 +4,7 @@ import { assertStripe } from "@/lib/stripe";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { buildPaymentUpdateLink } from "@/lib/sms";
 import { calculateReserveSplit } from "@/lib/cash-reserve";
-import { applyPercentRoundHalfUp } from "@/lib/money";
+import { applyPercentRoundHalfUp, toCentsBigInt } from "@/lib/money";
 import { dollarsToCents } from "@/lib/currency";
 import { dispatchCommunication } from "@/lib/send-communication";
 import {
@@ -469,15 +469,15 @@ export async function GET(request: NextRequest) {
         }
 
         if (cashReserveEnabled && amountChargedCents > 0) {
-          const split = calculateReserveSplit({ grossAmountCents: amountChargedCents });
+          const split = calculateReserveSplit({ grossAmountCents: toCentsBigInt(amountChargedCents) });
           await supabase.from("cash_tax_reserve_ledger").insert({
             order_id: order.id,
-            gross_amount_cents: split.grossAmountCents,
-            tip_amount_cents: split.tipAmountCents,
-            non_taxable_amount_cents: split.nonTaxableAmountCents,
-            taxable_base_cents: split.taxableBaseCents,
-            tax_reserve_cents: split.taxReserveCents,
-            operational_amount_cents: split.operationalAmountCents,
+            gross_amount_cents: Number(split.grossAmountCents),
+            tip_amount_cents: Number(split.tipAmountCents),
+            non_taxable_amount_cents: Number(split.nonTaxableAmountCents),
+            taxable_base_cents: Number(split.taxableBaseCents),
+            tax_reserve_cents: Number(split.taxReserveCents),
+            operational_amount_cents: Number(split.operationalAmountCents),
             reserve_rate: split.reserveRate,
           });
         }

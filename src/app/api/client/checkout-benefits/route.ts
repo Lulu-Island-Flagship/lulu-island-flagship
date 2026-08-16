@@ -5,6 +5,7 @@ import {
   computeAvailableWalletBalance,
   type WalletTransactionRecord,
 } from "@/lib/wallet";
+import { toCentsBigInt } from "@/lib/money";
 import { REFERRAL_CREDIT_CENTS } from "@/lib/referrals";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireClientCaller } from "@/lib/require-client-caller";
@@ -40,7 +41,7 @@ export async function GET() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  let availableBalance = 0;
+  let availableBalance = 0n;
   let currency = "CAD";
   if (wallet) {
     currency = wallet.currency;
@@ -53,13 +54,14 @@ export async function GET() {
     const records: WalletTransactionRecord[] = (transactions || []).map((t) => ({
       id: t.id,
       type: t.type,
-      amount: t.amount,
+      // Borde de persistencia: NUMERIC → centavos bigint.
+      amount: toCentsBigInt(t.amount),
       createdAtIso: t.created_at,
       expiresAtIso: t.expires_at,
     }));
     const nowIso = new Date().toISOString();
     const expiredUnusedAmount = computeExpiredUnusedAmount(records, nowIso);
-    availableBalance = computeAvailableWalletBalance(wallet.balance, expiredUnusedAmount);
+    availableBalance = computeAvailableWalletBalance(toCentsBigInt(wallet.balance), expiredUnusedAmount);
   }
 
   const { data: pendingReferral } = await supabase
@@ -71,7 +73,7 @@ export async function GET() {
 
   return NextResponse.json(
     {
-      wallet: { availableBalance, currency },
+      wallet: { availableBalance: Number(availableBalance), currency },
       referral: {
         hasPendingCredit: Boolean(pendingReferral),
         creditCents: REFERRAL_CREDIT_CENTS,

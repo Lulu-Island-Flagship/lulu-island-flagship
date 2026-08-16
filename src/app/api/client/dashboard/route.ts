@@ -4,6 +4,7 @@ import { ORDER_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireClientCaller } from "@/lib/require-client-caller";
 import { computeAvailableWalletBalance, computeExpiredUnusedAmount, type WalletTransactionRecord } from "@/lib/wallet";
+import { toCentsBigInt } from "@/lib/money";
 import { ensureClientForAuthUser } from "@/lib/client-module/client-service";
 /**
  * GET /api/client/dashboard — agregación para el Dashboard de /cuenta.
@@ -97,7 +98,7 @@ export async function GET() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  let walletBalanceCents = 0;
+  let walletBalanceCents = 0n;
   let walletCurrency = "CAD";
 
   if (wallet) {
@@ -110,13 +111,14 @@ export async function GET() {
     const txRecords: WalletTransactionRecord[] = (transactions || []).map((t) => ({
       id: t.id,
       type: t.type as WalletTransactionRecord["type"],
-      amount: t.amount,
+      // Borde de persistencia: NUMERIC → centavos bigint.
+      amount: toCentsBigInt(t.amount),
       createdAtIso: t.created_at,
       expiresAtIso: t.expires_at,
     }));
 
     const expiredUnused = computeExpiredUnusedAmount(txRecords, new Date().toISOString());
-    walletBalanceCents = computeAvailableWalletBalance(wallet.balance, expiredUnused);
+    walletBalanceCents = computeAvailableWalletBalance(toCentsBigInt(wallet.balance), expiredUnused);
     walletCurrency = wallet.currency;
   }
 
@@ -182,7 +184,7 @@ export async function GET() {
           }
         : null,
       wallet: {
-        balanceCents: walletBalanceCents,
+        balanceCents: Number(walletBalanceCents),
         currency: walletCurrency,
       },
       defaultPaymentMethod: defaultPaymentMethod

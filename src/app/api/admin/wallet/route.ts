@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { isValidUuid } from "@/lib/validation";
 import { dollarsToCents } from "@/lib/currency";
+import { toCentsBigInt } from "@/lib/money";
 import {
   computeWalletCreditExpiryDate,
   computeExpiredUnusedAmount,
@@ -103,16 +104,20 @@ export async function GET(request: NextRequest) {
   const records: WalletTransactionRecord[] = (transactions || []).map((t) => ({
     id: t.id,
     type: t.type,
-    amount: t.amount,
+    // Borde de persistencia: wallet_transactions.amount NUMERIC → centavos bigint.
+    amount: toCentsBigInt(t.amount),
     createdAtIso: t.created_at,
     expiresAtIso: t.expires_at,
   }));
   const nowIso = new Date().toISOString();
   const expiredUnusedAmount = computeExpiredUnusedAmount(records, nowIso);
-  const availableBalance = computeAvailableWalletBalance(wallet.balance, expiredUnusedAmount);
+  const availableBalance = computeAvailableWalletBalance(
+    toCentsBigInt(wallet.balance),
+    expiredUnusedAmount,
+  );
 
   return NextResponse.json(
-    { wallet, transactions: transactions || [], availableBalance, expiredUnusedAmount },
+    { wallet, transactions: transactions || [], availableBalance: Number(availableBalance), expiredUnusedAmount: Number(expiredUnusedAmount) },
     { status: 200 }
   );
 }

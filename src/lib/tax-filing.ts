@@ -31,12 +31,12 @@ export type FilingFrequency = "trimestral" | "mensual";
 export interface GstReturnData {
   /** Período contable YYYY-MM */
   periodo: string;
-  /** GST total cobrado en ventas, centavos */
-  gst_collected_cents: number;
+  /** GST total cobrado en ventas, centavos (v6.0: bigint) */
+  gst_collected_cents: bigint;
   /** GST Input Tax Credits (ITCs), centavos */
-  gst_itc_cents: number;
+  gst_itc_cents: bigint;
   /** GST neto a remitir (collected - ITCs), centavos */
-  gst_net_cents: number;
+  gst_net_cents: bigint;
   /** Frecuencia de declaración del contribuyente */
   filing_frequency: FilingFrequency;
   /** Fecha límite de presentación (ISO 8601), ajustada al siguiente día hábil */
@@ -196,7 +196,7 @@ export function getFilingDeadline(
  * @param annualRevenueCents — Revenue anual en centavos (opcional).
  * @returns "trimestral" o "mensual".
  */
-export function getFilingFrequency(annualRevenueCents?: number): FilingFrequency {
+export function getFilingFrequency(annualRevenueCents?: bigint): FilingFrequency {
   if (annualRevenueCents === undefined) return "trimestral";
   return determineFilingFrequency(annualRevenueCents);
 }
@@ -207,7 +207,7 @@ export function getFilingFrequency(annualRevenueCents?: number): FilingFrequency
  * @deprecated Use getFilingFrequency(annualRevenueCents) instead.
  */
 export function getFilingFrequencyFromRevenue(
-  annualRevenueCents: number,
+  annualRevenueCents: bigint,
 ): FilingFrequency {
   return determineFilingFrequency(annualRevenueCents);
 }
@@ -231,9 +231,9 @@ export function getFilingFrequencyFromRevenue(
  */
 export function generateGstReturn(
   periodo: string,
-  gstCollectedCents: number,
-  gstItcCents: number,
-  annualRevenueCents?: number,
+  gstCollectedCents: bigint,
+  gstItcCents: bigint,
+  annualRevenueCents?: bigint,
 ): GstReturnData {
   const gstNetCents = gstCollectedCents - gstItcCents;
   const frequency = getFilingFrequency(annualRevenueCents);

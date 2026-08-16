@@ -6,6 +6,7 @@ import {
   computeAvailableWalletBalance,
   type WalletTransactionRecord,
 } from "@/lib/wallet";
+import { toCentsBigInt } from "@/lib/money";
 import { requireClientCaller } from "@/lib/require-client-caller";
 // GET /api/client/wallet — saldo disponible (ya descontando créditos
 // vencidos y no usados) + historial propio. v8.3 E2.10.
@@ -47,16 +48,17 @@ export async function GET() {
   const records: WalletTransactionRecord[] = (transactions || []).map((t) => ({
     id: t.id,
     type: t.type,
-    amount: t.amount,
+    // Borde de persistencia: NUMERIC → centavos bigint.
+    amount: toCentsBigInt(t.amount),
     createdAtIso: t.created_at,
     expiresAtIso: t.expires_at,
   }));
   const nowIso = new Date().toISOString();
   const expiredUnusedAmount = computeExpiredUnusedAmount(records, nowIso);
-  const availableBalance = computeAvailableWalletBalance(wallet.balance, expiredUnusedAmount);
+  const availableBalance = computeAvailableWalletBalance(toCentsBigInt(wallet.balance), expiredUnusedAmount);
 
   return NextResponse.json(
-    { balance: wallet.balance, availableBalance, currency: wallet.currency, transactions: transactions || [] },
+    { balance: wallet.balance, availableBalance: Number(availableBalance), currency: wallet.currency, transactions: transactions || [] },
     { status: 200 }
   );
 }

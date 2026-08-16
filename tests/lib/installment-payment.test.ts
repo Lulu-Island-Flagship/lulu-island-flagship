@@ -10,31 +10,31 @@ import {
 
 describe("isEligibleForInstallmentPlan", () => {
   it("no elegible en exactamente $500", () => {
-    assert.equal(isEligibleForInstallmentPlan(50000), false);
+    assert.equal(isEligibleForInstallmentPlan(50000n), false);
   });
   it("elegible por encima de $500", () => {
-    assert.equal(isEligibleForInstallmentPlan(50001), true);
+    assert.equal(isEligibleForInstallmentPlan(50001n), true);
   });
   it("no elegible muy por debajo del umbral", () => {
-    assert.equal(isEligibleForInstallmentPlan(10000), false);
+    assert.equal(isEligibleForInstallmentPlan(10000n), false);
   });
   it("el umbral exportado es $500 en centavos", () => {
-    assert.equal(INSTALLMENT_ELIGIBILITY_THRESHOLD_CENTS, 50000);
+    assert.equal(INSTALLMENT_ELIGIBILITY_THRESHOLD_CENTS, 50000n);
   });
 });
 
 describe("computeInstallmentSplit", () => {
   it("divide 50/50 exacto en un total par", () => {
-    const split = computeInstallmentSplit(80000);
-    assert.equal(split.firstInstallmentCents, 40000);
-    assert.equal(split.secondInstallmentCents, 40000);
+    const split = computeInstallmentSplit(80000n);
+    assert.equal(split.firstInstallmentCents, 40000n);
+    assert.equal(split.secondInstallmentCents, 40000n);
   });
 
   it("el primer pago absorbe el centavo extra en un total impar", () => {
-    const split = computeInstallmentSplit(80001);
-    assert.equal(split.firstInstallmentCents, 40001);
-    assert.equal(split.secondInstallmentCents, 40000);
-    assert.equal(split.firstInstallmentCents + split.secondInstallmentCents, 80001);
+    const split = computeInstallmentSplit(80001n);
+    assert.equal(split.firstInstallmentCents, 40001n);
+    assert.equal(split.secondInstallmentCents, 40000n);
+    assert.equal(split.firstInstallmentCents + split.secondInstallmentCents, 80001n);
   });
 });
 

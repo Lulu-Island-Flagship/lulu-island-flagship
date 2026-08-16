@@ -11,21 +11,21 @@
  * de captura para partirlo en dos cargos reales independientes.
  */
 
-export const INSTALLMENT_ELIGIBILITY_THRESHOLD_CENTS = 50000; // $500.00
+export const INSTALLMENT_ELIGIBILITY_THRESHOLD_CENTS = 50000n; // $500.00
 export const INSTALLMENT_SECOND_DUE_DAYS_BEFORE_SERVICE = 7;
 
-export function isEligibleForInstallmentPlan(orderTotalCents: number): boolean {
+export function isEligibleForInstallmentPlan(orderTotalCents: bigint): boolean {
   return orderTotalCents > INSTALLMENT_ELIGIBILITY_THRESHOLD_CENTS;
 }
 
 export interface InstallmentSplit {
-  firstInstallmentCents: number;
-  secondInstallmentCents: number;
+  firstInstallmentCents: bigint;
+  secondInstallmentCents: bigint;
 }
 
 /** 50/50 -- si el total es impar en centavos, el primer pago absorbe el centavo extra (nunca el cliente paga de más en total). */
-export function computeInstallmentSplit(orderTotalCents: number): InstallmentSplit {
-  const secondInstallmentCents = Math.floor(orderTotalCents / 2);
+export function computeInstallmentSplit(orderTotalCents: bigint): InstallmentSplit {
+  const secondInstallmentCents = orderTotalCents / 2n;
   const firstInstallmentCents = orderTotalCents - secondInstallmentCents;
   return { firstInstallmentCents, secondInstallmentCents };
 }

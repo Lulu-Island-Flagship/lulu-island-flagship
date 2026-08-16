@@ -9,7 +9,8 @@ import {
 import { isValidUuid } from "@/lib/validation";
 import { requireClientCaller } from "@/lib/require-client-caller";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
-import { dollarsToCents } from "@/lib/currency";
+import { dollarsToCentsBigInt } from "@/lib/currency";
+import { toCentsBigInt } from "@/lib/money";
 
 // Fix (auditoría externa, verificado 2026-07-31): antes, si faltaban las
 // env vars de Supabase, se usaban placeholders en silencio (ver mismo fix
@@ -129,13 +130,14 @@ export async function POST(request: NextRequest) {
   const records: WalletTransactionRecord[] = (transactions || []).map((t) => ({
     id: t.id,
     type: t.type,
-    amount: t.amount,
+    // Borde de persistencia: NUMERIC → centavos bigint.
+    amount: toCentsBigInt(t.amount),
     createdAtIso: t.created_at,
     expiresAtIso: t.expires_at,
   }));
   const nowIso = new Date().toISOString();
   const expiredUnusedAmount = computeExpiredUnusedAmount(records, nowIso);
-  const availableBalanceCents = computeAvailableWalletBalance(wallet.balance, expiredUnusedAmount);
+  const availableBalanceCents = computeAvailableWalletBalance(toCentsBigInt(wallet.balance), expiredUnusedAmount);
 
   // Fix (auditoría externa, verificado 2026-07-31, hallazgo #21 -- el más
   // crítico y sutil de la lista): antes se asumía SIN VERIFICAR que
@@ -158,10 +160,10 @@ export async function POST(request: NextRequest) {
   // de asumir una de las dos a ciegas.
   const quotesJoin = order.quotes as { total: number | string } | { total: number | string }[] | null;
   const quoteRow = Array.isArray(quotesJoin) ? quotesJoin[0] : quotesJoin;
-  const quoteTotalCents = dollarsToCents(Number(quoteRow?.total ?? 0));
+  const quoteTotalCents = dollarsToCentsBigInt(Number(quoteRow?.total ?? 0));
   const applyCents = computeWalletApplication(availableBalanceCents, quoteTotalCents);
 
-  if (applyCents <= 0) {
+  if (applyCents <= 0n) {
     return NextResponse.json({ error: "No hay saldo disponible para aplicar (puede estar vencido)." }, { status: 400 });
   }
 
@@ -187,7 +189,7 @@ export async function POST(request: NextRequest) {
     p_order_id: order.id,
     p_user_id: user.id,
     p_wallet_id: wallet.id,
-    p_apply_cents: applyCents,
+    p_apply_cents: Number(applyCents),
     p_description: `Aplicado a orden ${order.id}`,
   });
 
@@ -210,8 +212,8 @@ export async function POST(request: NextRequest) {
   }
 
   const result = rpcResult?.[0];
-  const newBalance = result?.new_balance ?? wallet.balance - applyCents;
-  const updatedOrder = { id: result?.order_id ?? order.id, wallet_amount_used_cents: result?.wallet_amount_used_cents ?? applyCents };
+  const newBalance = result?.new_balance ?? Number(wallet.balance) - Number(applyCents);
+  const updatedOrder = { id: result?.order_id ?? order.id, wallet_amount_used_cents: result?.wallet_amount_used_cents ?? Number(applyCents) };
 
-  return NextResponse.json({ appliedCents: applyCents, newWalletBalance: newBalance, order: updatedOrder }, { status: 200 });
+  return NextResponse.json({ appliedCents: Number(applyCents), newWalletBalance: newBalance, order: updatedOrder }, { status: 200 });
 }

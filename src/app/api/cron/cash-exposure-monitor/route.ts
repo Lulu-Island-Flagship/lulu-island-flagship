@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { evaluateDailyCashExposure } from "@/lib/cash-reserve";
+import { toCentsBigInt } from "@/lib/money";
 import { safeErrorResponse } from "@/lib/api-errors";
 import { requireCronAuth } from "@/lib/cron-auth";
 
@@ -81,12 +82,18 @@ export async function GET(request: NextRequest) {
 
     // RAÍZ-3 (2026-07-21, migración 229): hold_authorized_amount_cents/
     // hold_amount_cents ya están en centavos -- sin *100.
-    const pendingExposureCents = (pendingOrders || []).reduce((sum, o) => {
-      const amount = Number(o.hold_authorized_amount_cents || o.hold_amount_cents || 0);
-      return sum + Math.round(amount);
-    }, 0);
+    // v6.0 (ext-financial): suma bigint exacta en el borde de persistencia
+    // (toCentsBigInt parsea el NUMERIC reportado como number sin Math.round).
+    const pendingExposureCents = (pendingOrders || []).reduce(
+      (sum, o) =>
+        sum + toCentsBigInt(o.hold_authorized_amount_cents ?? o.hold_amount_cents ?? 0),
+      0n,
+    );
 
-    const evaluation = evaluateDailyCashExposure({ pendingExposureCents, dailyCapCents });
+    const evaluation = evaluateDailyCashExposure({
+      pendingExposureCents,
+      dailyCapCents: toCentsBigInt(dailyCapCents),
+    });
 
     if (evaluation.overCap) {
       // UNIQUE(alert_date) evita duplicar la alerta si el job corre varias
@@ -96,8 +103,8 @@ export async function GET(request: NextRequest) {
         .upsert(
           {
             alert_date: todayStr,
-            pending_exposure_cents: evaluation.pendingExposureCents,
-            cap_cents: evaluation.dailyCapCents,
+            pending_exposure_cents: Number(evaluation.pendingExposureCents),
+            cap_cents: Number(evaluation.dailyCapCents),
             exposure_ratio: evaluation.exposureRatio,
           },
           { onConflict: "alert_date", ignoreDuplicates: true }

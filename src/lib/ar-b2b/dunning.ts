@@ -65,7 +65,7 @@ export function getDunningStage(
   fechaReferencia?: string,
 ): DunningRecord | null {
   // Solo facturas con saldo pendiente entran en dunning
-  if (factura.saldo_pendiente <= 0) return null;
+  if (factura.saldo_pendiente <= 0n) return null;
 
   const referencia = fechaReferencia
     ? new Date(`${fechaReferencia}T00:00:00.000Z`)
@@ -115,7 +115,7 @@ export function getNextDunningAction(
   factura: Factura,
   fechaReferencia?: string,
 ): DunningRecord | null {
-  if (factura.saldo_pendiente <= 0) return null;
+  if (factura.saldo_pendiente <= 0n) return null;
 
   const referencia = fechaReferencia
     ? new Date(`${fechaReferencia}T00:00:00.000Z`)
@@ -174,7 +174,7 @@ export function getOverdueInvoices(
   return facturas
     .filter((f) => {
       if (f.estado === "PAGADA" || f.estado === "ANULADA") return false;
-      if (f.saldo_pendiente <= 0) return false;
+      if (f.saldo_pendiente <= 0n) return false;
       const vencimiento = new Date(f.fecha_vencimiento + "T00:00:00.000Z");
       return vencimiento < referencia;
     })

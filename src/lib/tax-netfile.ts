@@ -29,6 +29,7 @@ import {
 import {
   PST_RATE,
 } from "@/lib/tax-engine";
+import { toCentsBigInt } from "@/lib/money";
 
 // =========================================================================
 // Re-exports from tax-filing.ts (single source of truth for types)
@@ -237,7 +238,7 @@ export function generateGstReturnXml(input: GstReturnXmlInput): string {
     `    <BusinessNumber>${xmlEscape(data.businessNumber)}</BusinessNumber>`,
     `    <FiscalPeriodStart>${periodStart}-01</FiscalPeriodStart>`,
     `    <FiscalPeriodEnd>${periodEnd}-${lastDayOfPeriod(periodEnd)}</FiscalPeriodEnd>`,
-    `    <FilingFrequency>${getFilingFrequency(data.annualRevenueCents ?? 0)}</FilingFrequency>`,
+    `    <FilingFrequency>${getFilingFrequency(data.annualRevenueCents === undefined ? undefined : toCentsBigInt(data.annualRevenueCents))}</FilingFrequency>`,
     `  </RegistrantInformation>`,
     ``,
     `  <!-- GST/HST Return — Line Items -->`,
@@ -446,7 +447,7 @@ export function generateGstReturnReviewHtml(input: GstReturnXmlInput): string {
   const data = GstReturnXmlInputSchema.parse(input);
   const [periodStart, periodEnd] = quarterToMonthRange(data.periodo);
   const gstNetCents = data.gstCollectedCents - data.gstItcCents;
-  const frequency = getFilingFrequency(data.annualRevenueCents ?? 0);
+  const frequency = getFilingFrequency(data.annualRevenueCents === undefined ? undefined : toCentsBigInt(data.annualRevenueCents));
   const deadline = getFilingDeadline(
     data.periodo.includes("Q") ? periodStart : data.periodo,
     frequency,

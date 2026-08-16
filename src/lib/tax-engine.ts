@@ -45,10 +45,10 @@ import { gstFromBaseCents, pstFromBaseCents } from "@/lib/money";
 export { GST_RATE, PST_RATE };
 
 /** Small supplier threshold: below this, GST registration is voluntary */
-export const SMALL_SUPPLIER_THRESHOLD_CAD = 30_000;
+export const SMALL_SUPPLIER_THRESHOLD_CAD = 30_000n;
 
 /** Annual revenue threshold for monthly filing (vs quarterly) */
-export const MONTHLY_FILING_THRESHOLD_CAD = 3_000_000;
+export const MONTHLY_FILING_THRESHOLD_CAD = 3_000_000n;
 
 // =========================================================================
 // Domain types — obligacion_impuesto
@@ -79,12 +79,12 @@ export interface TaxObligation {
   periodo: string;
   /** Tipo de impuesto: GST o PST */
   tipo: TaxType;
-  /** Total de impuesto cobrado en ventas del período, en centavos */
-  collected: number;
+  /** Total de impuesto cobrado en ventas del período, en centavos (v6.0: bigint) */
+  collected: bigint;
   /** Input credits (solo GST): impuesto pagado en compras/gastos recuperable, en centavos */
-  input_credits: number;
+  input_credits: bigint;
   /** Neto a remitir: collected - input_credits, en centavos */
-  neto: number;
+  neto: bigint;
   /** Fecha de vencimiento de la declaración (ISO 8601) */
   fecha_vencimiento: string;
   /** Estado actual de la obligación */
@@ -99,9 +99,9 @@ export const TaxObligationSchema = z.object({
   obligacion_id: z.string().uuid(),
   periodo: z.string().regex(/^\d{4}-\d{2}$/, "periodo debe ser YYYY-MM"),
   tipo: z.enum(["GST", "PST"]),
-  collected: z.number().int().nonnegative(),
-  input_credits: z.number().int().nonnegative(),
-  neto: z.number().int(),
+  collected: z.bigint().nonnegative(),
+  input_credits: z.bigint().nonnegative(),
+  neto: z.bigint(),
   fecha_vencimiento: z.string().min(1),
   estado: z.enum(["PENDIENTE", "DECLARADO", "PAGADO"]),
   fecha_declaracion: z.string().nullable(),
@@ -122,11 +122,11 @@ export interface TaxableTransaction {
   /** Fecha de la transacción (ISO 8601) */
   fecha: string;
   /** Monto base (antes de impuestos) en centavos */
-  base_cents: number;
+  base_cents: bigint;
   /** GST cobrado/pagado en esta transacción, en centavos */
-  gst_cents: number;
+  gst_cents: bigint;
   /** PST cobrado/pagado en esta transacción, en centavos */
-  pst_cents: number;
+  pst_cents: bigint;
   /** Tipo de transacción: "venta" (cobramos GST/PST) o "compra" (pagamos GST/PST) */
   tipo: "venta" | "compra";
 }
@@ -155,7 +155,10 @@ export interface TaxableTransaction {
 export function calculateGstCollected(
   rows: JournalEntryRow[],
   periodo: string,
-): number {
+): bigint {
+  // Borde del ledger (Capa 0): `r.monto` sigue tipado `number` en
+  // ledger-types.ts (Zod lo valida entero); BigInt(entero) es exacto.
+  // Deuda pendiente: tipar el ledger core en bigint end-to-end.
   return rows
     .filter(
       (r) =>
@@ -163,7 +166,7 @@ export function calculateGstCollected(
         r.cuenta_credito === CHART_OF_ACCOUNTS.GST_PAYABLE &&
         r.estado === "confirmado",
     )
-    .reduce((sum, r) => sum + r.monto, 0);
+    .reduce((sum, r) => sum + BigInt(r.monto), 0n);
 }
 
 /**
@@ -183,7 +186,7 @@ export function calculateGstCollected(
 export function calculateGstInputCredits(
   rows: JournalEntryRow[],
   periodo: string,
-): number {
+): bigint {
   return rows
     .filter(
       (r) =>
@@ -191,7 +194,7 @@ export function calculateGstInputCredits(
         r.cuenta_debito === CHART_OF_ACCOUNTS.GST_ITC_RECEIVABLE &&
         r.estado === "confirmado",
     )
-    .reduce((sum, r) => sum + r.monto, 0);
+    .reduce((sum, r) => sum + BigInt(r.monto), 0n);
 }
 
 /**
@@ -207,7 +210,7 @@ export function calculateGstInputCredits(
 export function calculateGstNet(
   rows: JournalEntryRow[],
   periodo: string,
-): number {
+): bigint {
   return (
     calculateGstCollected(rows, periodo) -
     calculateGstInputCredits(rows, periodo)
@@ -227,7 +230,7 @@ export function calculateGstNet(
 export function calculatePstCollected(
   rows: JournalEntryRow[],
   periodo: string,
-): number {
+): bigint {
   return rows
     .filter(
       (r) =>
@@ -235,7 +238,7 @@ export function calculatePstCollected(
         r.cuenta_credito === CHART_OF_ACCOUNTS.PST_PAYABLE &&
         r.estado === "confirmado",
     )
-    .reduce((sum, r) => sum + r.monto, 0);
+    .reduce((sum, r) => sum + BigInt(r.monto), 0n);
 }
 
 /**
@@ -251,7 +254,7 @@ export function calculatePstCollected(
 export function calculatePstNet(
   rows: JournalEntryRow[],
   periodo: string,
-): number {
+): bigint {
   return calculatePstCollected(rows, periodo);
 }
 
@@ -268,10 +271,10 @@ export function calculatePstNet(
  */
 export function calculateGstCollectedFromTransactions(
   transactions: TaxableTransaction[],
-): number {
+): bigint {
   return transactions
     .filter((t) => t.tipo === "venta")
-    .reduce((sum, t) => sum + t.gst_cents, 0);
+    .reduce((sum, t) => sum + t.gst_cents, 0n);
 }
 
 /**
@@ -282,10 +285,10 @@ export function calculateGstCollectedFromTransactions(
  */
 export function calculateGstInputCreditsFromTransactions(
   transactions: TaxableTransaction[],
-): number {
+): bigint {
   return transactions
     .filter((t) => t.tipo === "compra")
-    .reduce((sum, t) => sum + t.gst_cents, 0);
+    .reduce((sum, t) => sum + t.gst_cents, 0n);
 }
 
 /**
@@ -296,7 +299,7 @@ export function calculateGstInputCreditsFromTransactions(
  */
 export function calculateGstNetFromTransactions(
   transactions: TaxableTransaction[],
-): number {
+): bigint {
   return (
     calculateGstCollectedFromTransactions(transactions) -
     calculateGstInputCreditsFromTransactions(transactions)
@@ -311,10 +314,10 @@ export function calculateGstNetFromTransactions(
  */
 export function calculatePstCollectedFromTransactions(
   transactions: TaxableTransaction[],
-): number {
+): bigint {
   return transactions
     .filter((t) => t.tipo === "venta")
-    .reduce((sum, t) => sum + t.pst_cents, 0);
+    .reduce((sum, t) => sum + t.pst_cents, 0n);
 }
 
 /**
@@ -327,7 +330,7 @@ export function calculatePstCollectedFromTransactions(
  */
 export function calculatePstNetFromTransactions(
   transactions: TaxableTransaction[],
-): number {
+): bigint {
   return calculatePstCollectedFromTransactions(transactions);
 }
 
@@ -341,8 +344,8 @@ export function calculatePstNetFromTransactions(
  * @param baseCents — Monto base en centavos.
  * @returns GST en centavos (redondeado al entero más cercano).
  */
-export function gstFromBase(baseCents: number): number {
-  return Number(gstFromBaseCents(BigInt(baseCents)));
+export function gstFromBase(baseCents: bigint): bigint {
+  return gstFromBaseCents(baseCents);
 }
 
 /**
@@ -351,8 +354,8 @@ export function gstFromBase(baseCents: number): number {
  * @param baseCents — Monto base en centavos.
  * @returns PST en centavos (redondeado al entero más cercano).
  */
-export function pstFromBase(baseCents: number): number {
-  return Number(pstFromBaseCents(BigInt(baseCents)));
+export function pstFromBase(baseCents: bigint): bigint {
+  return pstFromBaseCents(baseCents);
 }
 
 // =========================================================================
@@ -373,8 +376,8 @@ export function pstFromBase(baseCents: number): number {
 export function buildTaxObligation(
   periodo: string,
   tipo: TaxType,
-  collected: number,
-  inputCredits: number,
+  collected: bigint,
+  inputCredits: bigint,
   fechaVencimiento: string,
   adminId: string,
 ): TaxObligation {
@@ -420,43 +423,45 @@ export function buildTaxObligation(
  */
 export function generateTaxAccrualJournalEntry(
   periodo: string,
-  gstNetCents: number,
-  pstNetCents: number,
+  gstNetCents: bigint,
+  pstNetCents: bigint,
   userId: string,
 ): JournalEntryRow[] {
   const rows: JournalEntryRow[] = [];
   const timestamp = new Date().toISOString();
 
   // ── GST Accrual ────────────────────────────────────────────────────
-  if (gstNetCents > 0) {
+  if (gstNetCents > 0n) {
     const gstEvent: BusinessEvent = {
       event_id: crypto.randomUUID(),
       event_type: "tax_gst_accrual",
       order_id: null,
       user_id: userId,
-      amount_cents: gstNetCents,
+      // Borde del ledger (Capa 0): amount_cents sigue tipado number hasta
+      // que ledger-types migre a bigint; la conversión es exacta (entero).
+      amount_cents: Number(gstNetCents),
       currency: "CAD",
       processor: "internal",
       external_reference: `gst-accrual-${periodo}`,
       occurred_at: timestamp,
-      metadata: { periodo, tax_type: "GST", net_cents: gstNetCents },
+      metadata: { periodo, tax_type: "GST", net_cents: Number(gstNetCents) },
     };
     rows.push(...generateJournalEntry(gstEvent));
   }
 
   // ── PST Accrual ────────────────────────────────────────────────────
-  if (pstNetCents > 0) {
+  if (pstNetCents > 0n) {
     const pstEvent: BusinessEvent = {
       event_id: crypto.randomUUID(),
       event_type: "tax_pst_accrual",
       order_id: null,
       user_id: userId,
-      amount_cents: pstNetCents,
+      amount_cents: Number(pstNetCents),
       currency: "CAD",
       processor: "internal",
       external_reference: `pst-accrual-${periodo}`,
       occurred_at: timestamp,
-      metadata: { periodo, tax_type: "PST", net_cents: pstNetCents },
+      metadata: { periodo, tax_type: "PST", net_cents: Number(pstNetCents) },
     };
     rows.push(...generateJournalEntry(pstEvent));
   }
@@ -513,7 +518,7 @@ export function recordTaxObligation(
       : calculatePstCollected(rows, periodo);
 
   const inputCredits =
-    tipo === "GST" ? calculateGstInputCredits(rows, periodo) : 0;
+    tipo === "GST" ? calculateGstInputCredits(rows, periodo) : 0n;
 
   const obligation = buildTaxObligation(
     periodo,
@@ -528,8 +533,8 @@ export function recordTaxObligation(
 
   const journalEntries =
     tipo === "GST"
-      ? generateTaxAccrualJournalEntry(periodo, neto, 0, adminId)
-      : generateTaxAccrualJournalEntry(periodo, 0, neto, adminId);
+      ? generateTaxAccrualJournalEntry(periodo, neto, 0n, adminId)
+      : generateTaxAccrualJournalEntry(periodo, 0n, neto, adminId);
 
   return { obligation, journalEntries };
 }
@@ -549,9 +554,9 @@ export function recordTaxObligation(
  * @returns "trimestral" o "mensual".
  */
 export function getFilingFrequency(
-  annualRevenueCents: number,
+  annualRevenueCents: bigint,
 ): "trimestral" | "mensual" {
-  return annualRevenueCents >= MONTHLY_FILING_THRESHOLD_CAD * 100
+  return annualRevenueCents >= MONTHLY_FILING_THRESHOLD_CAD * 100n
     ? "mensual"
     : "trimestral";
 }
@@ -564,7 +569,7 @@ export function getFilingFrequency(
  * @returns true si está por debajo del umbral de $30,000.
  */
 export function isSmallSupplier(
-  trailingFourQuartersRevenueCents: number,
+  trailingFourQuartersRevenueCents: bigint,
 ): boolean {
-  return trailingFourQuartersRevenueCents < SMALL_SUPPLIER_THRESHOLD_CAD * 100;
+  return trailingFourQuartersRevenueCents < SMALL_SUPPLIER_THRESHOLD_CAD * 100n;
 }

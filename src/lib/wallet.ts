@@ -30,15 +30,15 @@ export function computeWalletCreditExpiryDate(createdAtIso: string): string {
 export interface WalletTransactionRecord {
   id: string;
   type: WalletTransactionType;
-  /** Siempre positivo -- la dirección (suma/resta del saldo) la determina `type`. */
-  amount: number;
+  /** Siempre positivo -- la dirección (suma/resta del saldo) la determina `type`. Centavos bigint. */
+  amount: bigint;
   createdAtIso: string;
   expiresAtIso: string | null;
 }
 
 interface CreditLot {
   id: string;
-  remaining: number;
+  remaining: bigint;
   expiresAtIso: string | null;
 }
 
@@ -67,16 +67,20 @@ function buildRemainingCreditLots(transactions: WalletTransactionRecord[]): Cred
   const deposits = transactions
     .filter((t) => isExpiringWalletCreditType(t.type))
     .sort((a, b) => new Date(a.createdAtIso).getTime() - new Date(b.createdAtIso).getTime())
-    .map((t): CreditLot => ({ id: t.id, remaining: Math.abs(t.amount), expiresAtIso: t.expiresAtIso }));
+    .map((t): CreditLot => ({
+      id: t.id,
+      remaining: t.amount < 0n ? -t.amount : t.amount,
+      expiresAtIso: t.expiresAtIso,
+    }));
 
   const debitAmountTotal = transactions
     .filter((t) => t.type === "debit" || t.type === "payout")
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    .reduce((sum, t) => sum + (t.amount < 0n ? -t.amount : t.amount), 0n);
 
   let toConsume = debitAmountTotal;
   for (const lot of deposits) {
-    if (toConsume <= 0) break;
-    const consumed = Math.min(lot.remaining, toConsume);
+    if (toConsume <= 0n) break;
+    const consumed = lot.remaining < toConsume ? lot.remaining : toConsume;
     lot.remaining -= consumed;
     toConsume -= consumed;
   }
@@ -89,17 +93,18 @@ function buildRemainingCreditLots(transactions: WalletTransactionRecord[]): Cred
  * consumir -- esto es lo que hay que restar del balance corriente para
  * saber cuánto es realmente gastable HOY.
  */
-export function computeExpiredUnusedAmount(transactions: WalletTransactionRecord[], nowIso: string): number {
+export function computeExpiredUnusedAmount(transactions: WalletTransactionRecord[], nowIso: string): bigint {
   const lots = buildRemainingCreditLots(transactions);
   const nowMs = new Date(nowIso).getTime();
   return lots
-    .filter((lot) => lot.expiresAtIso !== null && new Date(lot.expiresAtIso).getTime() < nowMs && lot.remaining > 0)
-    .reduce((sum, lot) => sum + lot.remaining, 0);
+    .filter((lot) => lot.expiresAtIso !== null && new Date(lot.expiresAtIso).getTime() < nowMs && lot.remaining > 0n)
+    .reduce((sum, lot) => sum + lot.remaining, 0n);
 }
 
 /** Saldo real disponible para gastar hoy = balance corriente − créditos vencidos sin usar. Nunca negativo. */
-export function computeAvailableWalletBalance(currentBalance: number, expiredUnusedAmount: number): number {
-  return Math.max(0, currentBalance - expiredUnusedAmount);
+export function computeAvailableWalletBalance(currentBalance: bigint, expiredUnusedAmount: bigint): bigint {
+  const net = currentBalance - expiredUnusedAmount;
+  return net < 0n ? 0n : net;
 }
 
 /**
@@ -107,6 +112,8 @@ export function computeAvailableWalletBalance(currentBalance: number, expiredUnu
  * entre el saldo disponible y el total de la orden (nunca deja balance
  * negativo, nunca "presta" más de lo que hay).
  */
-export function computeWalletApplication(availableBalance: number, orderTotalCents: number): number {
-  return Math.max(0, Math.min(availableBalance, orderTotalCents));
+export function computeWalletApplication(availableBalance: bigint, orderTotalCents: bigint): bigint {
+  const clampedBalance = availableBalance < 0n ? 0n : availableBalance;
+  const clampedTotal = orderTotalCents < 0n ? 0n : orderTotalCents;
+  return clampedBalance < clampedTotal ? clampedBalance : clampedTotal;
 }

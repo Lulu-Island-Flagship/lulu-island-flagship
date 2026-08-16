@@ -29,6 +29,7 @@
 import { z } from "zod";
 import { logEvent } from "@/lib/observability";
 import { calculateReserveSplit, TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL } from "@/lib/cash-reserve";
+import { toCentsBigInt } from "@/lib/money";
 
 // ── Constantes ───────────────────────────────────────────────────────────────
 
@@ -184,12 +185,14 @@ export function projectCashFlow30Days(
     const grossInflow = Math.max(0, validated.historicalDailyInflowAvgCents + inflowAdj);
 
     // Separar reserva fiscal del ingreso del día (solo sobre la porción gravable).
+    // Borde bigint: esta proyección aún opera en number (deuda pendiente); se
+    // convierte con toCentsBigInt y se regresa a number en el resultado.
     const reserveSplit = calculateReserveSplit({
-      grossAmountCents: grossInflow,
-      tipAmountCents: 0, // tips no son gravables, y no se proyectan aquí
-      nonTaxableAmountCents: 0,
+      grossAmountCents: toCentsBigInt(grossInflow),
+      tipAmountCents: 0n, // tips no son gravables, y no se proyectan aquí
+      nonTaxableAmountCents: 0n,
     });
-    const taxReserveCents = reserveSplit.taxReserveCents;
+    const taxReserveCents = Number(reserveSplit.taxReserveCents);
 
     // Ingreso neto operativo del día (después de reserva fiscal).
     const netInflow = grossInflow - taxReserveCents;

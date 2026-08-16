@@ -3,7 +3,7 @@
 // exacta (centavos bigint), sin multiplicar por floats 0.05/0.07.
 // Las tasas `GST_RATE`/`PST_RATE` como `number` se conservan SOLO como
 // metadatos de compatibilidad (coa-imputation, tax-netfile); para calcular
-// dinero usa `computeTaxBreakdown` o `gstFromBaseCents`/`pstFromBaseCents`.
+// dinero usa `computeTaxBreakdownCents` o `gstFromBaseCents`/`pstFromBaseCents`.
 
 import {
   dollarsToCentsExact,
@@ -63,17 +63,20 @@ export function assertCentsReasonable(cents: number, context?: string): boolean 
 }
 
 /**
- * Desglose fiscal exacto. Toda la aritmética (subtotal, GST, PST, total) se
- * hace en centavos enteros `bigint` con tasas racionales; solo al final se
- * convierte a dólares `number` para mostrar/persistir. Garantiza por
- * construcción: subtotal + gst + pst === total.
+ * Desglose fiscal EXACTO en centavos `bigint` (API canónica bigint, v6.0).
+ * Toda la aritmética (subtotal, GST, PST, total) es entera con tasas
+ * racionales; garantiza por construcción subtotal + gst + pst === total.
  */
-export function computeTaxBreakdown(subtotalDollars: number): {
-  subtotal: number;
-  gst: number;
-  pst: number;
-  total: number;
-} {
+export interface TaxBreakdownCents {
+  subtotalCents: bigint;
+  gstCents: bigint;
+  pstCents: bigint;
+  totalCents: bigint;
+}
+
+export function computeTaxBreakdownCents(
+  subtotalDollars: string | number,
+): TaxBreakdownCents {
   let subtotalCents = dollarsToCentsExact(subtotalDollars);
   if (subtotalCents < 0n) subtotalCents = 0n;
 
@@ -81,10 +84,26 @@ export function computeTaxBreakdown(subtotalDollars: number): {
   const pstCents = pstFromBaseCents(subtotalCents);
   const totalCents = subtotalCents + gstCents + pstCents;
 
+  return { subtotalCents, gstCents, pstCents, totalCents };
+}
+
+/**
+ * Desglose fiscal exacto. Toda la aritmética (subtotal, GST, PST, total) se
+ * hace en centavos enteros `bigint` con tasas racionales; solo al final se
+ * convierte a dólares `number` para mostrar/persistir (wrapper de borde).
+ * Garantiza por construcción: subtotal + gst + pst === total.
+ */
+export function computeTaxBreakdown(subtotalDollars: number): {
+  subtotal: number;
+  gst: number;
+  pst: number;
+  total: number;
+} {
+  const breakdown = computeTaxBreakdownCents(subtotalDollars);
   return {
-    subtotal: centsToDollarsNumber(subtotalCents),
-    gst: centsToDollarsNumber(gstCents),
-    pst: centsToDollarsNumber(pstCents),
-    total: centsToDollarsNumber(totalCents),
+    subtotal: centsToDollarsNumber(breakdown.subtotalCents),
+    gst: centsToDollarsNumber(breakdown.gstCents),
+    pst: centsToDollarsNumber(breakdown.pstCents),
+    total: centsToDollarsNumber(breakdown.totalCents),
   };
 }
