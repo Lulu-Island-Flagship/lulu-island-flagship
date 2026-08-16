@@ -3,9 +3,8 @@
 Índice de las piezas normativas de la instancia. Cada pieza es un objeto de
 primera clase con identidad, propiedad protegida, riesgo, mecanismo y evidencia
 exigida. El gate **`verify:invariants`** las hace cumplir: valida la sintaxis y
-el esquema de cada YAML, compara `evidence_status` declarado contra la
-evidencia real, y rechaza cambios que degraden un estado `VERIFIED` sin un
-waiver registrado y vigente.
+el esquema de cada YAML, valida la existencia física de los artefactos declarados,
+y rechaza cambios que violen los invariantes constitucionales.
 
 | Pieza | Contenido | Manifiesto v5.0 |
 | --- | --- | --- |
@@ -17,8 +16,8 @@ waiver registrado y vigente.
 
 ## Cómo lo hace cumplir el gate `verify:invariants`
 
-El gate ejecuta 10 invariantes y sale con código 1 si alguna viola. Todas son
-bloqueantes salvo nota explícita:
+El gate ejecuta 11 invariantes y sale con código 1 si alguna viola. Todas son
+bloqueantes:
 
 1. **Tokens de diseño.** Cero hex de marca fuera de `src/design/tokens.ts` y
    `src/app/tokens.css`.
@@ -29,23 +28,26 @@ bloqueantes salvo nota explícita:
 4. **Waivers.** `expires_at` en el futuro, máximo 5 activos, antigüedad ≤ 30
    días y `approver` como commit firmado (40 hex).
 5. **UNCLASSIFIED.** Cada archivo del diff debe clasificar en un bounded
-   context de `.governance/bounded-contexts.yaml`; imprime la cota superior de
-   riesgo.
-6. **Evidencia mínima.** Toda regla con una dimensión CRITICAL en
-   `.governance/rules.yaml` declara `evidence_level ≥ E3`.
+   context de `.governance/bounded-contexts.yaml`; calcula y muestra la cota
+   superior de riesgo.
+6. **Evidencia mínima y artefactos reales.** Toda regla con una dimensión CRITICAL
+   en `.governance/rules.yaml` exige declarar `evidence_level ≥ E3`. Se verifica
+   la existencia física en disco de los artefactos declarados en `mechanism`.
 7. **Migraciones.** Numeración secuencial sin colisiones en
    `supabase/migrations/`.
 8. **RLS en migraciones nuevas (INST-GOV-002).** Chequeo diff-aware: una
    migración añadida/modificada con `CREATE TABLE` debe habilitar
-   `ENABLE ROW LEVEL SECURITY` para esa tabla en el mismo archivo. Las
-   migraciones legacy no se escanean.
-9. **Break-glass.** Valida el schema de `.governance/break-glass/log.yaml`,
-   `ttl_horas ≤ 24`, `activacion_id` único/inmutable, y que toda activación
-   vencida esté marcada como revocada.
-10. **CHANGE.** Si el diff toca un contexto protegido (CRITICAL en
-    `.governance/bounded-contexts.yaml`: `financial`, `payroll`, `identity`,
-    `privacy_compliance`, `db`), exige un objeto CHANGE válido en
-    `.governance/changes/*.yaml` (`id`, `intent`, `invariants_affected[]`,
-    `verification_plan[]`).
+   `ENABLE ROW LEVEL SECURITY` para esa tabla en el mismo archivo.
+9. **Break-glass (TTL real y fechas).** Valida el schema de
+   `.governance/break-glass/log.yaml`, `ttl_horas ≤ 24`, `activacion_id` único/inmutable,
+   coherencia temporal del TTL derivado (`expira_en == activado_en + ttl_horas`),
+   y que toda activación vencida esté marcada como revocada (`REVOCADO`/`REVOCADA`/`revocado_en`).
+10. **CHANGE (cobertura semántica).** Si el diff toca un contexto protegido
+    (CRITICAL: `financial`, `identity`), exige un objeto CHANGE válido en
+    `.governance/changes/*.yaml` cuyo `scope.contexts` cubra todos los contextos
+    protegidos modificados en el diff.
+11. **LEARNINGS (bidireccionalidad Parte 6.4).** Escanea todo el repositorio
+    buscando referencias `@incident LEARNING-XXX` y verifica que cada una esté
+    formalmente registrada y documentada en `docs/LEARNINGS.md`.
 
 El resultado del gate es bloqueante: un fallo impide que el cambio se integre.

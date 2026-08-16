@@ -9,3 +9,5 @@
 # expira_en: "<ISO 8601>"
 # alerta_p0: true
 # incident_to_test: "<enlace al test de regresión exigido antes de cerrar>"
+# estado: "ACTIVO"             # o "REVOCADO" / "REVOCADA" tras revocar
+# revocado_en: null            # "<ISO 8601>" al momento de revocación anticipada o expiración

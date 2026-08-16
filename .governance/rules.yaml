@@ -9,18 +9,18 @@ rules:
     statement: "Toda tabla con datos sensibles tiene RLS; prohibido USING (true)/WITH CHECK (true) sin TO service_role."
     property_protected: "confidentiality"
     risk_if_violated: { severity: CRITICAL, dimensions: { confidentiality: CRITICAL, integrity: CRITICAL } }
-    mechanism: ["RLS (políticas por rol)", "migraciones 368/369"]
+    mechanism: ["RLS (políticas por rol)", "supabase/migrations/368_fix_financial_ledger_rls_scope.sql", "supabase/migrations/369_fix_site_content_write_rls.sql", "supabase/migrations/371_explicit_policy_to.sql"]
     evidence_level: "E3"
-    evidence_status: "VERIFIED"
+    evidence_status: "PARTIAL"
     exceptions_allowed: false
     source: "docs/PROTOCOLO-DESARROLLO.md §2"
   - rule_id: "INST-AUTH-002"
     statement: "La autorización vive en la base de datos (RLS), nunca delegada a la API; escrituras admin vía requireAdminRole + service role client."
     property_protected: "confidentiality"
     risk_if_violated: { severity: CRITICAL, dimensions: { confidentiality: CRITICAL } }
-    mechanism: ["RLS", "requireAdminRole", "getServiceRoleClient"]
+    mechanism: ["RLS", "src/lib/admin-rbac.ts", "src/lib/supabase-server.ts"]
     evidence_level: "E3"
-    evidence_status: "VERIFIED"
+    evidence_status: "PARTIAL"
     exceptions_allowed: false
     source: "docs/PROTOCOLO-DESARROLLO.md §2"
   - rule_id: "INST-AUTH-003"
@@ -29,7 +29,7 @@ rules:
     risk_if_violated: { severity: CRITICAL, dimensions: { integrity: CRITICAL } }
     mechanism: ["convención en migraciones", "revisión en PR"]
     evidence_level: "E3"
-    evidence_status: "VERIFIED"
+    evidence_status: "PARTIAL"
     exceptions_allowed: false
     source: "docs/PROTOCOLO-DESARROLLO.md §2"
   - rule_id: "INST-AUTH-004"
@@ -38,7 +38,7 @@ rules:
     risk_if_violated: { severity: CRITICAL, dimensions: { integrity: CRITICAL } }
     mechanism: ["whitelist en código", "auditoría v4.2"]
     evidence_level: "E3"
-    evidence_status: "VERIFIED"
+    evidence_status: "PARTIAL"
     exceptions_allowed: false
     source: "docs/PROTOCOLO-DESARROLLO.md §2-§3"
   - rule_id: "INST-DATA-001"
@@ -54,9 +54,9 @@ rules:
     statement: "Dinero en unidades enteras mínimas (centavos bigint); prohibido number/float/Math.round para valores monetarios en financial/payroll."
     property_protected: "integrity"
     risk_if_violated: { severity: CRITICAL, dimensions: { integrity: CRITICAL, financial_exposure: CRITICAL } }
-    mechanism: ["src/lib/money.ts (bigint + tasas racionales)", "tests exactos", "barrido de rutas v5.0"]
+    mechanism: ["src/lib/money.ts (bigint + tasas racionales)", "tests/lib/money.test.ts", "barrido de rutas v5.0"]
     evidence_level: "E3"
-    evidence_status: "VERIFIED"
+    evidence_status: "PARTIAL"
     exceptions_allowed: false
     source: "docs/PROTOCOLO-DESARROLLO.md §4"
   - rule_id: "INST-FIN-002"

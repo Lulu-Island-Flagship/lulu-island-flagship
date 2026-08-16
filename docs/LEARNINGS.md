@@ -4,7 +4,7 @@
 
 > Este archivo materializa el **Parte 6.3 (Bootstrap de sesión)** y el
 > **Parte 6.4 (Incident-to-learnings)** del
-> [`Manifiesto v5.0`](../../Desktop/Manifiesto-v5.0.md). Cada entrada es un
+> [`Manifiesto v5.0`](Manifiesto-v5.0.md). Cada entrada es un
 > defecto crítico convertido en lección: el fallo de ayer es el gate de hoy.
 > No es prosa: cada entrada enlaza a su causa, su reproducción y su mecanismo
 > de regresión. Se lee **antes** de cada sesión (ver §2).
@@ -172,6 +172,28 @@ contener, como mínimo:
 - **Regla / medida que lo evita ahora:** `docs/PROTOCOLO-DESARROLLO.md` §5 —
   las constantes fiscales viven solo en `src/lib/pricing/taxes.ts`; los demás
   módulos las importan, no las re-declaran.
+
+---
+
+### `@incident LEARNING-005` — El gate de break-glass validaba el TTL declarado, no el TTL real
+
+- **Fecha:** 2026-08-15 (simulacro tabletop) · resuelto 2026-08-16
+- **Contexto / riesgo:** `identity`/`operations` · `integrity: HIGH`,
+  `blast_radius: HIGH` (privilegios administrativos temporales)
+- **Causa raíz:** el gate de `verify:invariants` comprobaba el campo
+  `ttl_horas` declarado (≤ 24), pero no la invariante temporal derivada
+  `expira_en == activado_en + ttl_horas`. Un asiento con `ttl_horas: 24` y un
+  `expira_en` lejano pasaba el gate y dejaba el privilegio abierto.
+- **Reproducción mínima:** registrar un asiento con `ttl_horas: 24` y
+  `expira_en: +30 días`; el gate no lo rechazaba.
+- **Test que falla:** `tests/lib/break-glass-gate.test.ts` — test «rechaza asiento con expira_en incoherente con ttl_horas».
+- **Fix:** cálculo del TTL derivado exacto en `scripts/verify-invariants.mjs`
+  (`validateBreakGlassEntry`): exige `Date.parse(expira_en) === Date.parse(activado_en) + ttl_horas * 3600 * 1000`
+  (con tolerancia de 60s por segundos truncados) y `ttl_horas <= 24`.
+- **Test que pasa:** `tests/lib/break-glass-gate.test.ts` (100% pasando).
+- **Enlace a la causa:** `docs/break-glass-drill.md` §7 · `.governance/break-glass/log.yaml`
+- **Regla / medida que lo evita ahora:** `scripts/verify-invariants.mjs` — el gate
+  valida el TTL real derivado y la coherencia de fechas.
 
 ---
 

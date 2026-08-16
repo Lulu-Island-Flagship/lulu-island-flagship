@@ -82,7 +82,6 @@ bounded_contexts:
       - "src/lib/staff-login*"
       - "src/lib/require-*"
       - "src/lib/supabase*"
-      - "src/lib/telephony-router*"
   privacy_compliance:
     paths:
       - "src/lib/pipeda*"
@@ -111,6 +110,7 @@ bounded_contexts:
       - "src/lib/notification-*"
       - "src/lib/communication*"
       - "src/lib/send-communication*"
+      - "src/lib/telephony-router*"
       - "src/adapters/communications.ts"
   infra:
     paths:

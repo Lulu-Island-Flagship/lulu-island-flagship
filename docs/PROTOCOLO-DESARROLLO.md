@@ -3,7 +3,7 @@
 **v5.0 · Instancia del núcleo genérico**
 
 > Este documento **no es el framework**. Es la instancia del
-> [`Manifiesto v5.0`](../../Desktop/Manifiesto-v5.0.md) (núcleo genérico) para
+> [`Manifiesto v5.0`](Manifiesto-v5.0.md) (núcleo genérico) para
 > este proyecto. No repite el núcleo: lo materializa para este dominio y este
 > stack. Toda regla verificable automáticamente debe estar en CI
 > (`.github/workflows/ci.yml`) además de escrita aquí: la regla describe el
@@ -16,7 +16,7 @@
 ```yaml
 instance:
   name: "lulu-island-flagship"
-  core: "5.0.0"                       # ~/Desktop/Manifiesto-v5.0.md
+  core: "5.0.0"                       # docs/Manifiesto-v5.0.md
   extensions:
     - ext-financial                   # dinero, ledger, impuestos, nómina
     - ext-auth                        # RLS, RBAC, segregación de funciones

@@ -388,7 +388,7 @@ function checkUnclassified() {
   return { violations, note };
 }
 
-function checkEvidence() {
+export function checkEvidence() {
   let doc;
   try {
     doc = loadYaml(".governance/rules.yaml");
@@ -413,6 +413,17 @@ function checkEvidence() {
       violations.push(
         `${rule.rule_id}: dimensiones ${critical.join(", ")} CRITICAL exigen evidence_level ≥ E3 (declarado ${rule.evidence_level})`
       );
+    }
+    // Verificar que los artefactos de mechanism que parezcan rutas a archivos existan realmente
+    const mechanisms = Array.isArray(rule.mechanism) ? rule.mechanism : [];
+    for (const m of mechanisms) {
+      const fileMatch = m.match(/\b(tests\/[A-Za-z0-9_./-]+\.ts|src\/[A-Za-z0-9_./-]+\.ts|supabase\/migrations\/[A-Za-z0-9_./-]+\.sql|\.governance\/[A-Za-z0-9_./-]+\.yaml)\b/);
+      if (fileMatch) {
+        const filePath = fileMatch[1];
+        if (!existsSync(join(REPO_ROOT, filePath))) {
+          violations.push(`${rule.rule_id}: artefacto de mecanismo declarado no existe: ${filePath}`);
+        }
+      }
     }
     if (String(rule?.evidence_status).toUpperCase() === "PARTIAL") partial.push(rule.rule_id);
   }
@@ -541,15 +552,58 @@ function checkMigrations() {
 }
 
 /** Devuelve true si una activación break-glass está marcada como revocada. */
-function isBreakGlassRevoked(entry) {
+export function isBreakGlassRevoked(entry) {
   if (entry == null || typeof entry !== "object") return false;
   if (entry.revocado_en != null && entry.revocado_en !== "") return true;
-  if (entry.revocada === true) return true;
-  if (typeof entry.estado === "string" && entry.estado.toUpperCase() === "REVOCADA") return true;
+  if (entry.revocada === true || entry.revocado === true) return true;
+  if (typeof entry.estado === "string" && /^(revocad[oa]|revoked)$/i.test(entry.estado)) return true;
   return false;
 }
 
-function checkBreakGlass() {
+/** Valida un asiento individual de break-glass (invariante de TTL real y fechas). */
+export function validateBreakGlassEntry(a, now = Date.now(), label = "asiento") {
+  const violations = [];
+  if (a === null || typeof a !== "object" || Array.isArray(a)) {
+    return [`${label}: asiento break-glass debe ser un objeto`];
+  }
+  const id = a.activacion_id;
+  if (typeof id !== "string" || id.trim() === "") {
+    violations.push(`${label}: falta \`activacion_id\` (string no vacío)`);
+  }
+  const ttl = a.ttl_horas;
+  if (typeof ttl !== "number" || !Number.isFinite(ttl)) {
+    violations.push(`${label}: \`ttl_horas\` debe ser numérico`);
+  } else if (ttl <= 0 || ttl > 24) {
+    violations.push(`${label}: \`ttl_horas\` = ${ttl} inválido (debe ser > 0 y ≤ 24)`);
+  }
+  const activado = a.activado_en;
+  const activadoMs = typeof activado === "string" ? Date.parse(activado) : NaN;
+  if (typeof activado !== "string" || Number.isNaN(activadoMs)) {
+    violations.push(`${label}: \`activado_en\` debe ser una fecha ISO 8601 válida`);
+  }
+  const expira = a.expira_en;
+  const expiraMs = typeof expira === "string" ? Date.parse(expira) : NaN;
+  if (typeof expira !== "string" || Number.isNaN(expiraMs)) {
+    violations.push(`${label}: \`expira_en\` debe ser una fecha ISO 8601 válida`);
+  }
+  // Validación de TTL real derivado (LEARNING-005):
+  if (!Number.isNaN(activadoMs) && !Number.isNaN(expiraMs) && typeof ttl === "number" && Number.isFinite(ttl)) {
+    const expectedExpiraMs = activadoMs + ttl * 3600 * 1000;
+    const diffMs = Math.abs(expiraMs - expectedExpiraMs);
+    // Tolerancia de 60 segundos para diferencias de redondeo de segundos
+    if (diffMs > 60000) {
+      violations.push(
+        `${label}: TTL real incoherente — expira_en (${expira}) no coincide con activado_en (${activado}) + ttl_horas (${ttl}h)`
+      );
+    }
+  }
+  if (!Number.isNaN(expiraMs) && expiraMs < now && !isBreakGlassRevoked(a)) {
+    violations.push(`${label}: activación expirada (${expira}) no marcada como revocada`);
+  }
+  return violations;
+}
+
+export function checkBreakGlass() {
   let doc;
   try {
     doc = loadYaml(".governance/break-glass/log.yaml");
@@ -569,30 +623,15 @@ function checkBreakGlass() {
   for (let i = 0; i < acts.length; i++) {
     const a = acts[i];
     const label = `activaciones[${i}]`;
-    if (a === null || typeof a !== "object" || Array.isArray(a)) {
-      violations.push(`${label}: asiento break-glass debe ser un objeto`);
-      continue;
-    }
-    const id = a.activacion_id;
-    if (typeof id !== "string" || id.trim() === "") {
-      violations.push(`${label}: falta \`activacion_id\` (string no vacío)`);
-    } else if (seen.has(id)) {
-      violations.push(`${label}: \`activacion_id\` duplicado (${id}) — el log es append-only e inmutable`);
-    } else {
-      seen.set(id, label);
-    }
-    const ttl = a.ttl_horas;
-    if (typeof ttl !== "number" || !Number.isFinite(ttl)) {
-      violations.push(`${label}: \`ttl_horas\` debe ser numérico`);
-    } else if (ttl > 24) {
-      violations.push(`${label}: \`ttl_horas\` = ${ttl} excede el máximo de 24`);
-    }
-    const expira = a.expira_en;
-    const expiraMs = typeof expira === "string" ? Date.parse(expira) : NaN;
-    if (typeof expira !== "string" || Number.isNaN(expiraMs)) {
-      violations.push(`${label}: \`expira_en\` debe ser una fecha ISO 8601 válida`);
-    } else if (expiraMs < now && !isBreakGlassRevoked(a)) {
-      violations.push(`${label}: activación expirada (${expira}) no marcada como revocada`);
+    const v = validateBreakGlassEntry(a, now, label);
+    violations.push(...v);
+    const id = a?.activacion_id;
+    if (typeof id === "string" && id.trim() !== "") {
+      if (seen.has(id)) {
+        violations.push(`${label}: \`activacion_id\` duplicado (${id}) — el log es append-only e inmutable`);
+      } else {
+        seen.set(id, label);
+      }
     }
   }
   const note = acts.length === 0
@@ -601,7 +640,7 @@ function checkBreakGlass() {
   return { violations, note };
 }
 
-function loadChanges() {
+export function loadChanges() {
   const dir = join(REPO_ROOT, ".governance/changes");
   if (!existsSync(dir)) return [];
   const out = [];
@@ -625,7 +664,7 @@ function loadChanges() {
   return out;
 }
 
-function validateChange(change, label) {
+export function validateChange(change, label, touchedProtected = []) {
   if (change == null || typeof change !== "object" || Array.isArray(change)) {
     return [`${label}: objeto CHANGE debe ser un mapa`];
   }
@@ -638,10 +677,26 @@ function validateChange(change, label) {
   if (!Array.isArray(change.verification_plan) || change.verification_plan.length === 0 || !change.verification_plan.every((x) => typeof x === "string" && x.trim() !== "")) {
     violations.push(`${label}: \`verification_plan\` debe ser un array no vacío de strings`);
   }
+  if (typeof change.rollback_plan !== "string" || change.rollback_plan.trim() === "") {
+    violations.push(`${label}: falta \`rollback_plan\` (string no vacío)`);
+  }
+  if (change.evidence == null || typeof change.evidence !== "object" || typeof change.evidence.status !== "string") {
+    violations.push(`${label}: falta \`evidence.status\` (string no vacío)`);
+  }
+  // Cobertura semántica de contextos protegidos tocados (Hallazgo #9)
+  if (touchedProtected.length > 0) {
+    const scopeContexts = Array.isArray(change.scope?.contexts) ? change.scope.contexts : [];
+    const missing = touchedProtected.filter((c) => !scopeContexts.includes(c));
+    if (missing.length > 0) {
+      violations.push(
+        `${label}: \`scope.contexts\` [${scopeContexts.join(", ")}] no cubre los contexto(s) protegido(s) tocados [${missing.join(", ")}]`
+      );
+    }
+  }
   return violations;
 }
 
-function checkChanges() {
+export function checkChanges() {
   let classified;
   try {
     classified = classifyChangedFiles();
@@ -670,84 +725,148 @@ function checkChanges() {
       violations.push(`${c.file}: ${c.error}`);
       continue;
     }
-    const v = validateChange(c.change, c.file);
+    const v = validateChange(c.change, c.file, touchedProtected);
     if (v.length === 0) valid++;
     else violations.push(...v);
   }
   if (valid === 0) {
     violations.push(
-      `diff toca contexto(s) protegido(s) [${touchedProtected.join(", ")}] sin objeto CHANGE válido en .governance/changes/*.yaml (id, intent, invariants_affected[], verification_plan[])`
+      `diff toca contexto(s) protegido(s) [${touchedProtected.join(", ")}] sin objeto CHANGE válido que cubra esos contextos en .governance/changes/*.yaml`
     );
   }
   return { violations, note: `contextos protegidos tocados: ${touchedProtected.join(", ")} · ${valid} objeto(s) CHANGE válido(s) de ${changes.length}` };
 }
 
 // ---------------------------------------------------------------------------
-// Orquestación
+// Invariante 11 (v5.0) — Bidireccionalidad de LEARNINGS (Parte 6.4)
+// Escanea el repo buscando referencias a @incident LEARNING-XXX y verifica
+// que cada una esté formalmente documentada en docs/LEARNINGS.md.
 // ---------------------------------------------------------------------------
-const migrations = checkMigrations();
-
-const results = {
-  "Tokens de diseño (cero hex de marca fuera de la fuente única)": { violations: checkTokens() },
-  "Contraste (text-brand-gold nunca como texto; usar text-brand-gold-dark)": {
-    violations: checkContrast(),
-  },
-  'Privacidad (sin select("*") sobre quotes/orders en páginas de cliente)': (() => {
-    const { violations, note } = checkPrivacy();
-    return { violations, note };
-  })(),
-  "Waivers vencidos (v5.0)": (() => {
-    const { scanned, violations, today, note } = checkWaivers();
-    return { violations, scanned, today, note };
-  })(),
-  "UNCLASSIFIED — rutas sin bounded context (v5.0)": (() => {
-    const { violations, note } = checkUnclassified();
-    return { violations, note };
-  })(),
-  "Evidencia mínima por regla (v5.0)": (() => {
-    const { violations, note } = checkEvidence();
-    return { violations, note };
-  })(),
-  "Migraciones — numeración secuencial sin colisiones (v5.0)": {
-    violations: migrations.violations,
-    note: migrations.note,
-  },
-  "RLS en migraciones nuevas — CREATE TABLE sin ENABLE ROW LEVEL SECURITY (INST-GOV-002)": {
-    violations: migrations.rlsViolations,
-    note: migrations.rlsNote,
-  },
-  "Break-glass — log.yaml (v5.0)": (() => {
-    const { violations, note } = checkBreakGlass();
-    return { violations, note };
-  })(),
-  "CHANGE — contexto protegido sin objeto CHANGE (v5.0)": (() => {
-    const { violations, note } = checkChanges();
-    return { violations, note };
-  })(),
-};
-
-console.log("verify:invariants — Manifiesto de Gobernanza de Desarrollo v5.0\n");
-
-let failed = 0;
-for (const [name, r] of Object.entries(results)) {
-  const ok = (r.violations ?? []).length === 0;
-  if (ok) {
-    console.log(`✓ ${name}`);
-    if (r.note) console.log(`  · ${r.note}`);
-    if (r.scanned && r.scanned.length === 0) console.log(`  · sin waivers activos (hoy: ${r.today})`);
-    if (r.scanned && r.scanned.length > 0) {
-      console.log(`  · ${r.scanned.length} waiver(s) escaneado(s), ninguno vencido (hoy: ${r.today})`);
-    }
-  } else {
-    failed += r.violations.length;
-    console.log(`✗ ${name}`);
-    for (const v of r.violations) console.log(`  - ${v}`);
+export function checkLearningsBidirectionality() {
+  const learningsFile = "docs/LEARNINGS.md";
+  const learningsContent = readText(learningsFile);
+  if (!learningsContent) {
+    return { violations: [`${learningsFile} no existe`], note: null };
   }
+  const definedLearnings = new Set();
+  const defRe = /@incident\s+(LEARNING-\d+)/g;
+  let m;
+  while ((m = defRe.exec(learningsContent)) !== null) {
+    definedLearnings.add(m[1]);
+  }
+
+  const files = [
+    ...walk("src", [".ts", ".tsx"]),
+    ...walk("docs", [".md"]),
+    ...walk(".governance", [".yaml", ".md"]),
+    ...walk("supabase/migrations", [".sql"]),
+    ...walk("tests", [".ts"]),
+  ];
+
+  const violations = [];
+  const referenced = new Set();
+  for (const file of files) {
+    if (file === learningsFile) continue;
+    const content = readText(file);
+    if (!content) continue;
+    let match;
+    const refRe = /@incident\s+(LEARNING-\d+)/g;
+    while ((match = refRe.exec(content)) !== null) {
+      const id = match[1];
+      referenced.add(id);
+      if (!definedLearnings.has(id)) {
+        violations.push(
+          `${file}: referencia a ${id} no está registrada en ${learningsFile} (Manifiesto v5.0, Parte 6.4)`
+        );
+      }
+    }
+  }
+
+  return {
+    violations,
+    note: `${definedLearnings.size} lección(es) en LEARNINGS.md (${[...definedLearnings].sort().join(", ")}) · ${referenced.size} referenciada(s) en el repo`,
+  };
 }
 
-if (failed > 0) {
-  console.log(`\n✗ ${failed} violación(es) de invariantes. Corrige los puntos listados y vuelve a ejecutar \`npm run verify:invariants\`.`);
-  process.exitCode = 1;
-} else {
-  console.log(`\n✓ Las ${Object.keys(results).length} invariantes pasan.`);
+// ---------------------------------------------------------------------------
+// Orquestación
+// ---------------------------------------------------------------------------
+export function runInvariants() {
+  const migrations = checkMigrations();
+
+  const results = {
+    "Tokens de diseño (cero hex de marca fuera de la fuente única)": { violations: checkTokens() },
+    "Contraste (text-brand-gold nunca como texto; usar text-brand-gold-dark)": {
+      violations: checkContrast(),
+    },
+    'Privacidad (sin select("*") sobre quotes/orders en páginas de cliente)': (() => {
+      const { violations, note } = checkPrivacy();
+      return { violations, note };
+    })(),
+    "Waivers vencidos (v5.0)": (() => {
+      const { scanned, violations, today, note } = checkWaivers();
+      return { violations, scanned, today, note };
+    })(),
+    "UNCLASSIFIED — rutas sin bounded context (v5.0)": (() => {
+      const { violations, note } = checkUnclassified();
+      return { violations, note };
+    })(),
+    "Evidencia mínima por regla (v5.0)": (() => {
+      const { violations, note } = checkEvidence();
+      return { violations, note };
+    })(),
+    "Migraciones — numeración secuencial sin colisiones (v5.0)": {
+      violations: migrations.violations,
+      note: migrations.note,
+    },
+    "RLS en migraciones nuevas — CREATE TABLE sin ENABLE ROW LEVEL SECURITY (INST-GOV-002)": {
+      violations: migrations.rlsViolations,
+      note: migrations.rlsNote,
+    },
+    "Break-glass — log.yaml y TTL derivado (v5.0)": (() => {
+      const { violations, note } = checkBreakGlass();
+      return { violations, note };
+    })(),
+    "CHANGE — contexto protegido y cobertura semántica (v5.0)": (() => {
+      const { violations, note } = checkChanges();
+      return { violations, note };
+    })(),
+    "LEARNINGS — bidireccionalidad @incident LEARNING-XXX (v5.0)": (() => {
+      const { violations, note } = checkLearningsBidirectionality();
+      return { violations, note };
+    })(),
+  };
+
+  return results;
+}
+
+// Ejecución directa de CLI
+const isDirectCli = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isDirectCli) {
+  const results = runInvariants();
+  console.log("verify:invariants — Manifiesto de Gobernanza de Desarrollo v5.0\n");
+
+  let failed = 0;
+  for (const [name, r] of Object.entries(results)) {
+    const ok = (r.violations ?? []).length === 0;
+    if (ok) {
+      console.log(`✓ ${name}`);
+      if (r.note) console.log(`  · ${r.note}`);
+      if (r.scanned && r.scanned.length === 0) console.log(`  · sin waivers activos (hoy: ${r.today})`);
+      if (r.scanned && r.scanned.length > 0) {
+        console.log(`  · ${r.scanned.length} waiver(s) escaneado(s), ninguno vencido (hoy: ${r.today})`);
+      }
+    } else {
+      failed += r.violations.length;
+      console.log(`✗ ${name}`);
+      for (const v of r.violations) console.log(`  - ${v}`);
+    }
+  }
+
+  if (failed > 0) {
+    console.log(`\n✗ ${failed} violación(es) de invariantes. Corrige los puntos listados y vuelve a ejecutar \`npm run verify:invariants\`.`);
+    process.exitCode = 1;
+  } else {
+    console.log(`\n✓ Las ${Object.keys(results).length} invariantes pasan.`);
+  }
 }

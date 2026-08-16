@@ -38,17 +38,17 @@ Conteos brutos del grep: **29 líneas** coinciden con `USING (true)` / `WITH CHE
 - Con cláusula `TO` (no son violación): **5**.
 - Sin cláusula `TO` (violación INST-AUTH-001): **15**.
 
-### Políticas CON `TO` (correctas, listadas para completitud)
+### Políticas CON `TO` (listadas para completitud)
 
 - **supabase/migrations/013_analytics_events_table.sql:25** — `FOR INSERT TO anon, authenticated WITH CHECK (true)` (intencional, tracking de eventos).
 - **supabase/migrations/358_site_content.sql:16** — `FOR SELECT TO anon, authenticated USING (true)` (página pública).
-- **supabase/migrations/358_site_content.sql:21-22** — `FOR ALL TO authenticated USING (true) WITH CHECK (true)`.
+- **supabase/migrations/358_site_content.sql:21-22** — `FOR ALL TO authenticated USING (true) WITH CHECK (true)` (vulnerable por sobre-permisividad de escritura para cualquier usuario autenticado; remediada en migración 369 `TO service_role` — ver `@incident LEARNING-002`).
 - **supabase/migrations/368_fix_financial_ledger_rls_scope.sql:16-17** — `FOR ALL TO service_role USING (true) WITH CHECK (true)`.
 - **supabase/migrations/369_fix_site_content_write_rls.sql:12-13** — `FOR ALL TO service_role USING (true) WITH CHECK (true)`.
 
-### Políticas SIN `TO` (violación INST-AUTH-001) — 15
+### Políticas SIN `TO` (violación INST-AUTH-001) — 15 (todas remediadas)
 
-Remediadas en migraciones posteriores (234, 333, 356, 368):
+Remediadas en migraciones posteriores (234, 333, 356, 368, 371):
 
 - **supabase/migrations/021_modulo2_payroll.sql:78** — "System insert payroll" `FOR INSERT WITH CHECK (true)` — remediada en 234 (drop) y 333 (`is_supervisor`).
 - **supabase/migrations/022_modulo2_recurring_contracts.sql:100** — "System insert contract instances" `FOR INSERT WITH CHECK (true)` — tabla eliminada en 184; 333 es no-op.
@@ -63,11 +63,8 @@ Remediadas en migraciones posteriores (234, 333, 356, 368):
 - **supabase/migrations/075_e2_contract_ipc_adjustment.sql:96** — "System insert contract IPC notices" — remediada en 234 (drop).
 - **supabase/migrations/350_communication_attempts.sql:39** — "Service role can insert communication attempts" `FOR INSERT WITH CHECK (true)` — remediada en 356 (`WITH CHECK (false)`).
 - **supabase/migrations/365_create_financial_ledger.sql:97-98** — "Service role full access financial ledger" `FOR ALL USING (true) WITH CHECK (true)` — remediada en 368 (`TO service_role`).
-
-**Pendientes / sin remediación localizada (revisar):**
-
-- **supabase/migrations/026_modulo3_capacity_dispatch.sql:40** — "Employees read vehicles" `FOR SELECT USING (true)` sin `TO` → lectura pública de `vehicles` (aplicaría a `anon`/`authenticated`). No se localizó migración posterior que lo cierre.
-- **supabase/migrations/001_modulo1_base_schema.sql:219** — "Public read feature flags" `FOR SELECT USING (true)` sin `TO` → lectura pública de `feature_flags`. Probablemente intencional (lectura pública de flags), pero técnicamente sin `TO`; confirmar intención.
+- **supabase/migrations/026_modulo3_capacity_dispatch.sql:40** — "Employees read vehicles" `FOR SELECT USING (true)` sin `TO` — remediada en migración 371 (`TO authenticated`).
+- **supabase/migrations/001_modulo1_base_schema.sql:219** — "Public read feature flags" `FOR SELECT USING (true)` sin `TO` — remediada en migración 371 (`TO public`).
 
 ---
 
@@ -150,29 +147,25 @@ Candidatos a revisar (puede haber whitelist/validación válida aguas arriba):
 
 ---
 
-## Hallazgos que SÍ son violaciones confirmadas (inspección estática directa)
-
-- **INST-AUTH-001 (15 políticas sin `TO`)** — listadas en §1. De ellas, **13 ya están remediadas** en migraciones posteriores (234/333/356/368) y **2 permanecen abiertas**:
-  - **supabase/migrations/026_modulo3_capacity_dispatch.sql:40** — `vehicles` lectura pública (falta `TO authenticated` / restricción de rol).
-  - **supabase/migrations/001_modulo1_base_schema.sql:219** — `feature_flags` lectura pública (probablemente intencional; confirmar).
-- **`err.message` crudo al cliente (1 caso claro):**
-  - **src/app/api/admin/tax/submit/route.ts:378** — `err.message` concatenado en la respuesta `NextResponse.json` de estado 500.
+## Hallazgos de inspección estática (estado tras migración 371)
+ 
+- **INST-AUTH-001 (15 políticas sin `TO`):** Las 15 políticas identificadas quedaron **100% remediadas** (13 en migraciones 234/333/356/368 y las 2 últimas en migración 371).
+- **`err.message` crudo al cliente:** Remediado (eliminado de la respuesta HTTP en `src/app/api/admin/tax/submit/route.ts:378`).
 
 ## Candidatos a revisar (requieren revisión humana)
 
 - **§5 Timeouts:** `competitor-scraper.ts` (mecanismo de timeout distinto), y fetches internos sin timeout en `offline-sync-client.ts`, `offline-day-cache.ts`, `useAdminRoles.ts`, `pwa-heartbeat.ts`.
 - **§6 Interpolación PostgREST:** `capacity/route.ts:119`, `stripe/webhook/route.ts:197`, `stripe/webhook/route.ts:270`, `compliance-admin.ts:404`.
 - **§4 persistidos-en-BD:** los 9 casos donde `err.message` se guarda en BD (no expuesto al cliente) podrían ser aceptables, pero conviene confirmar que no exista un endpoint que re-exponga esos campos.
-- **§1 `feature_flags`:** confirmar si la lectura pública es intencional (análogo a `analytics_events`).
 
 ---
 
 ## Conteos finales
 
-- INST-AUTH-001 (RLS sin `TO`): **15** (13 remediadas, 2 abiertas).
+- INST-AUTH-001 (RLS sin `TO`): **15** (15 remediadas, 0 abiertas).
 - Catch vacío: **0**.
 - INST-DATA-001 (`z.any()`): **0**.
-- `err.message` al cliente (claro): **1** (más 1 ya mitigado, 9 no-expuestos).
+- `err.message` al cliente (claro): **0 abiertas** (1 caso remediado, 1 mitigado previamente, 9 persistidos en BD no expuestos).
 - Timeouts externos sin `AbortSignal`: **0 confirmados** (varios candidatos internos).
 - Interpolación PostgREST: **4 candidatos** (`.or`), 0 (`.eq`).
 

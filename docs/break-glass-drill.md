@@ -3,7 +3,7 @@
 **Primer simulacro (tabletop) · 2026-08-15**
 
 > Materializa el **Parte 5.4** del
-> [`Manifiesto v5.0`](../../Desktop/Manifiesto-v5.0.md) y el protocolo de
+> [`Manifiesto v5.0`](Manifiesto-v5.0.md) y el protocolo de
 > [`.governance/break-glass/README.md`](../.governance/break-glass/README.md).
 > Un **tabletop** no toca producción: se recorre el protocolo con un escenario
 > concreto, se detectan huecos y se registra la lección. No es un incidente
