@@ -4,6 +4,8 @@ import { assertStripe } from "@/lib/stripe";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
 import { safeErrorResponse } from "@/lib/api-errors";
 import { isValidUuid } from "@/lib/validation";
+import { dollarsToCents } from "@/lib/currency";
+import { dollarsToCentsExact } from "@/lib/money";
 
 /**
  * PATCH /api/admin/orders/[id]/force-full-capture
@@ -85,8 +87,10 @@ export async function PATCH(
       );
     }
 
-    const quoteTotal = Math.round(Number((order.quotes as unknown as { total: number }[])?.[0]?.total ?? 0));
-    if (quoteTotal <= 0) {
+    // Exacto: centavos del total sin redondeo intermedio (el *100 float
+    // redondeaba a dólares enteros y perdía centavos).
+    const quoteTotalCents = dollarsToCentsExact(Number((order.quotes as unknown as { total: number }[])?.[0]?.total ?? 0));
+    if (quoteTotalCents <= 0n) {
       return NextResponse.json({ error: "Missing quote total" }, { status: 400 });
     }
 
@@ -106,16 +110,16 @@ export async function PATCH(
       // hold_authorized_amount_cents ya están en centavos -- sin *100.
       const holdAmountCents = Math.min(
         Math.round(Math.max(0, order.hold_authorized_amount_cents || order.hold_amount_cents || 0)),
-        quoteTotal * 100
+        Number(quoteTotalCents)
       );
-      const balanceCents = Math.max(0, quoteTotal * 100 - holdAmountCents);
+      const balanceCents = Math.max(0, Number(quoteTotalCents) - holdAmountCents);
       expectedCaptureCents = holdAmountCents + balanceCents;
     } else {
       // Caso B: ya se capturó parcialmente, queda un remanente.
       const totalPaidCents = Number(order.total_paid_cents || 0);
       const remainingCents = Math.min(
-        Math.round(Math.max(0, Number(order.capture_remaining_amount || 0) * 100)),
-        Math.max(0, quoteTotal * 100 - totalPaidCents)
+        Math.max(0, dollarsToCents(Number(order.capture_remaining_amount || 0))),
+        Math.max(0, Number(quoteTotalCents) - totalPaidCents)
       );
       if (remainingCents <= 0) {
         return NextResponse.json({ error: "No remaining amount to force-capture" }, { status: 409 });
@@ -176,9 +180,9 @@ export async function PATCH(
         // Caso A: Hold + balance.
         const holdAmountCents = Math.min(
           Math.round(Math.max(0, order.hold_authorized_amount_cents || order.hold_amount_cents || 0)),
-          quoteTotal * 100
+          Number(quoteTotalCents)
         );
-        const balanceCents = Math.max(0, quoteTotal * 100 - holdAmountCents);
+        const balanceCents = Math.max(0, Number(quoteTotalCents) - holdAmountCents);
 
         if (holdAmountCents > 0) {
           if (!order.stripe_hold_payment_intent_id) {
@@ -233,8 +237,8 @@ export async function PATCH(
         // Caso B: remanente off-session.
         const totalPaidCents = Number(order.total_paid_cents || 0);
         const remainingCents = Math.min(
-          Math.round(Math.max(0, Number(order.capture_remaining_amount || 0) * 100)),
-          Math.max(0, quoteTotal * 100 - totalPaidCents)
+          Math.max(0, dollarsToCents(Number(order.capture_remaining_amount || 0))),
+          Math.max(0, Number(quoteTotalCents) - totalPaidCents)
         );
         if (!order.stripe_customer_id || !order.stripe_payment_method_id) {
           throw new Error("Missing customer or payment method");

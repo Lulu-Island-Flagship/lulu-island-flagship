@@ -1,28 +1,43 @@
-export const GST_RATE = 0.05; // 5%
-export const PST_RATE = 0.07; // 7%
-export const TOTAL_TAX_RATE = GST_RATE + PST_RATE; // 12%
+// ─── Impuestos BC — GST/PST (fuente única de tasas) ─────────────────────
+// Migración v5.0 (ext-financial): la aritmética de impuestos es ENTERA y
+// exacta (centavos bigint), sin multiplicar por floats 0.05/0.07.
+// Las tasas `GST_RATE`/`PST_RATE` como `number` se conservan SOLO como
+// metadatos de compatibilidad (coa-imputation, tax-netfile); para calcular
+// dinero usa `computeTaxBreakdown` o `gstFromBaseCents`/`pstFromBaseCents`.
+
+import {
+  dollarsToCentsExact,
+  centsToDollarsNumber,
+  gstFromBaseCents,
+  pstFromBaseCents,
+  GST_RATE_NUMERATOR,
+  GST_RATE_DENOMINATOR,
+  PST_RATE_NUMERATOR,
+  PST_RATE_DENOMINATOR,
+} from "../money";
+
+// Tasas legacy como `number` (solo lectura/metadatos, NO aritmética).
+export const GST_RATE = Number(GST_RATE_NUMERATOR) / Number(GST_RATE_DENOMINATOR); // 0.05
+export const PST_RATE = Number(PST_RATE_NUMERATOR) / Number(PST_RATE_DENOMINATOR); // 0.07
+export const TOTAL_TAX_RATE = GST_RATE + PST_RATE; // 0.12
 
 /**
- * Convierte dólares (NUMERIC 10,2) a centavos enteros (INTEGER).
- * Usa Math.round para evitar errores de punto flotante (ej. 0.1 + 0.2).
- *
+ * Convierte dólares a centavos enteros, de forma exacta (sin `* 100` float).
  *   dollarsToCents(250.00)  → 25000
  *   dollarsToCents(19.99)   →  1999
  *   dollarsToCents(0)       →     0
  */
 export function dollarsToCents(amount: number): number {
-  return Math.round(amount * 100);
+  return Number(dollarsToCentsExact(amount));
 }
 
 /**
- * Convierte centavos enteros a dólares (NUMERIC 10,2).
- * La división puede producir decimales; el caller decide el redondeo.
- *
- *   centsToDollars(25000) → 250.00
- *   centsToDollars(1999)  →  19.99
+ * Convierte centavos enteros a dólares (display/persistencia NUMERIC).
+ *   centsToDollars(25000) → 250
+ *   centsToDollars(1999)  → 19.99
  */
 export function centsToDollars(cents: number): number {
-  return cents / 100;
+  return centsToDollarsNumber(cents);
 }
 
 /**
@@ -48,16 +63,10 @@ export function assertCentsReasonable(cents: number, context?: string): boolean 
 }
 
 /**
- * Fix (auditoría externa, hallazgo #2): antes el subtotal se manejaba en
- * dólares enteros (Math.round sin decimales) mientras GST/PST se redondeaban
- * por separado a centavos, y algunos call sites volvían a Math.round() el
- * subtotal después de sumarle el ajuste de reglas (perdiendo los centavos que
- * una regla `price_add`/`price_multiplier` pudiera introducir). Eso podía
- * producir subtotal + gst + pst !== total. Este helper hace TODA la
- * aritmética interna en centavos enteros (sin floats fraccionarios) y solo
- * convierte a dólares al final, para el único propósito de mostrar/persistir
- * el valor -- así el cuadre subtotal+gst+pst=total queda garantizado por
- * construcción.
+ * Desglose fiscal exacto. Toda la aritmética (subtotal, GST, PST, total) se
+ * hace en centavos enteros `bigint` con tasas racionales; solo al final se
+ * convierte a dólares `number` para mostrar/persistir. Garantiza por
+ * construcción: subtotal + gst + pst === total.
  */
 export function computeTaxBreakdown(subtotalDollars: number): {
   subtotal: number;
@@ -65,15 +74,17 @@ export function computeTaxBreakdown(subtotalDollars: number): {
   pst: number;
   total: number;
 } {
-  const subtotalCents = Math.round(Math.max(0, subtotalDollars) * 100);
-  const gstCents = Math.round(subtotalCents * GST_RATE);
-  const pstCents = Math.round(subtotalCents * PST_RATE);
+  let subtotalCents = dollarsToCentsExact(subtotalDollars);
+  if (subtotalCents < 0n) subtotalCents = 0n;
+
+  const gstCents = gstFromBaseCents(subtotalCents);
+  const pstCents = pstFromBaseCents(subtotalCents);
   const totalCents = subtotalCents + gstCents + pstCents;
 
   return {
-    subtotal: subtotalCents / 100,
-    gst: gstCents / 100,
-    pst: pstCents / 100,
-    total: totalCents / 100,
+    subtotal: centsToDollarsNumber(subtotalCents),
+    gst: centsToDollarsNumber(gstCents),
+    pst: centsToDollarsNumber(pstCents),
+    total: centsToDollarsNumber(totalCents),
   };
 }

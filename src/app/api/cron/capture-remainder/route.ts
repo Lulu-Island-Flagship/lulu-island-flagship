@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { assertStripe } from "@/lib/stripe";
+import { dollarsToCents } from "@/lib/currency";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
 import { requireCronAuth } from "@/lib/cron-auth";
 
@@ -105,7 +106,7 @@ export async function GET(request: NextRequest) {
 
   for (const order of candidates) {
     results.processed++;
-    const remainingCents = Math.round((order.capture_remaining_amount || 0) * 100);
+    const remainingCents = dollarsToCents(order.capture_remaining_amount || 0);
 
     if (remainingCents <= 0) {
       continue;

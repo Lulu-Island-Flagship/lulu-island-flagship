@@ -1,3 +1,5 @@
+import { dollarsToCentsExact } from "./money";
+
 /**
  * v8.3 E10 (D.10.10) — Sesión O: motor de scraping REAL de competencia.
  *
@@ -162,7 +164,7 @@ export function parsePriceToCents(raw: string): number | null {
 
   const value = Number(normalized);
   if (!Number.isFinite(value) || value < 0) return null;
-  return Math.round(value * 100);
+  return Number(dollarsToCentsExact(value));
 }
 
 /** Pura. Devuelve null (no 0) si no se puede parsear — no inventa un rating. */

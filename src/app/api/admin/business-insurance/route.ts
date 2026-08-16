@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole, logAdminAction } from "@/lib/admin";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { dollarsToCents } from "@/lib/currency";
 import {
   computePolicyStatus,
   meetsRequiredCoverage,
@@ -119,7 +120,7 @@ export async function POST(request: NextRequest) {
         policy_type: policyType,
         provider: provider.trim(),
         policy_number: policyNumber ? String(policyNumber).trim() : null,
-        coverage_amount_cents: Math.round(coverageAmountDollars * 100),
+        coverage_amount_cents: dollarsToCents(coverageAmountDollars),
         effective_from: effectiveFrom,
         expiry_date: expiryDate,
         document_url: documentUrl ? String(documentUrl).trim() : null,

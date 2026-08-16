@@ -6,6 +6,7 @@ import { calculateTeamRequirements, getHHEForRange, type ServiceType } from "@/l
 import { evaluateWorkday, type WorkBlock } from "@/lib/workday";
 import { evaluateScheduleChange, classifySchedule, calculateContingencyGuaranteedPay, type ScheduleBlock } from "@/lib/schedule-7030";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { roundHalfUp, dollarsToCentsExact } from "@/lib/money";
 
 /**
  * POST /api/admin/dispatch
@@ -457,7 +458,7 @@ export async function GET(request: NextRequest) {
         ? null
         : calculateContingencyGuaranteedPay(
             classification.contingencyMinutes,
-            Math.round((dayRate * 100) / 8)
+            Number(roundHalfUp(dollarsToCentsExact(dayRate), 8n))
           );
       return {
         employeeId,

@@ -9,6 +9,7 @@ import {
 import { isValidUuid } from "@/lib/validation";
 import { requireClientCaller } from "@/lib/require-client-caller";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
+import { dollarsToCents } from "@/lib/currency";
 
 // Fix (auditoría externa, verificado 2026-07-31): antes, si faltaban las
 // env vars de Supabase, se usaban placeholders en silencio (ver mismo fix
@@ -157,7 +158,7 @@ export async function POST(request: NextRequest) {
   // de asumir una de las dos a ciegas.
   const quotesJoin = order.quotes as { total: number | string } | { total: number | string }[] | null;
   const quoteRow = Array.isArray(quotesJoin) ? quotesJoin[0] : quotesJoin;
-  const quoteTotalCents = Math.round(Number(quoteRow?.total ?? 0) * 100);
+  const quoteTotalCents = dollarsToCents(Number(quoteRow?.total ?? 0));
   const applyCents = computeWalletApplication(availableBalanceCents, quoteTotalCents);
 
   if (applyCents <= 0) {

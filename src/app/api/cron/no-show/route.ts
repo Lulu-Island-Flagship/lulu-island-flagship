@@ -6,6 +6,8 @@ import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { requireCronAuth } from "@/lib/cron-auth";
 import { getVancouverTodayMidnight } from "@/lib/date-utils";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { applyPercentRoundHalfUp } from "@/lib/money";
+import { dollarsToCents } from "@/lib/currency";
 
 type SupabaseAdmin = SupabaseClient;
 
@@ -79,7 +81,7 @@ async function captureNoShowPenalty(
     // hasta el hold completo. paypal_advance_amount sigue en dólares -- se
     // escala x100 para operar en centavos junto al resto.
     const paypalAdvanceCents = Math.min(
-      Math.max(0, Math.round((order.paypal_advance_amount || 0) * 100) || Math.round(order.hold_amount_cents * 0.5)),
+      Math.max(0, dollarsToCents(order.paypal_advance_amount || 0) || Number(applyPercentRoundHalfUp(BigInt(order.hold_amount_cents || 0), 50))),
       quoteTotalCents
     );
     const penaltyDueCents = Math.max(0, order.hold_amount_cents - paypalAdvanceCents);
@@ -228,7 +230,7 @@ export async function GET(request: NextRequest) {
       // RAÍZ-3 (2026-07-21, migración 229): quotes.total sigue en dólares
       // (fuera de alcance) -- se escala x100 una vez para operar en
       // centavos junto a hold_amount_cents/hold_authorized_amount_cents.
-      const quoteTotalCents = Math.round(Number((order.quotes as unknown as { total: number }[] | null)?.[0]?.total ?? 0) * 100);
+      const quoteTotalCents = dollarsToCents(Number((order.quotes as unknown as { total: number }[] | null)?.[0]?.total ?? 0));
 
       if (!existingNoShow) {
         // Obtener assignment original
@@ -386,7 +388,7 @@ export async function GET(request: NextRequest) {
               status: "no_show",
               hold_captured_at: captureResult.payments.hold ? now.toISOString() : null,
               total_paid_cents:
-                Math.round((order.paypal_advance_amount || 0) * 100) +
+                dollarsToCents(order.paypal_advance_amount || 0) +
                 captureResult.amountChargedCents +
                 (order.wallet_amount_collected_cents || 0),
               card_amount_charged_cents: captureResult.amountChargedCents,

@@ -1,3 +1,5 @@
+import { applyPercentRoundHalfUp } from "./money";
+
 /**
  * v8.3 E10 (D.10.6) — Comisiones de partners. Función pura.
  * Todos los tipos requieren T4A (formulario CRA para pagos a no-empleados).
@@ -28,14 +30,14 @@ export function calculatePartnerCommission(input: CommissionInput): CommissionRe
         };
       }
       return {
-        amountCents: Math.round(input.orderValueCents * 0.1),
+        amountCents: Number(applyPercentRoundHalfUp(BigInt(input.orderValueCents), 10)),
         requiresT4A: true,
         description: "Agente inmobiliario: 10% de la primera reserva.",
       };
     }
     case "property_manager":
       return {
-        amountCents: Math.round(input.orderValueCents * 0.05),
+        amountCents: Number(applyPercentRoundHalfUp(BigInt(input.orderValueCents), 5)),
         requiresT4A: true,
         description: "Property manager: 5% mensual (recurrente, no solo primera reserva).",
       };

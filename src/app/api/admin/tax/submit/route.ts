@@ -384,7 +384,7 @@ export async function POST(request: NextRequest) {
       userId: user.id,
     });
     return NextResponse.json(
-      { error: "Error interno al procesar el envío: " + message },
+      { error: "Error interno al procesar el envío. El equipo fue notificado." },
       { status: 500 },
     );
   }

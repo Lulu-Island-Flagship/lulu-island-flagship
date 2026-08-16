@@ -13,6 +13,7 @@ import { z } from "zod";
 export const DEFAULT_PAYMENT_TERMS_DAYS = 30;
 
 /** Tasas impositivas canadienses — fuente canónica en @/lib/pricing/taxes (auditoría 2026-08-07). */
+import { gstFromBaseCents, pstFromBaseCents } from "@/lib/money";
 import { GST_RATE, PST_RATE } from "@/lib/pricing/taxes";
 export { GST_RATE, PST_RATE };
 
@@ -172,8 +173,8 @@ export function generateInvoice(
   const subtotal = facturaLineas.reduce((sum, l) => sum + l.total, 0);
 
   // Calcular GST 5% y PST 7% sobre el subtotal
-  const gstCents = Math.round(subtotal * GST_RATE);
-  const pstCents = Math.round(subtotal * PST_RATE);
+  const gstCents = Number(gstFromBaseCents(BigInt(subtotal)));
+  const pstCents = Number(pstFromBaseCents(BigInt(subtotal)));
   const total = subtotal + gstCents + pstCents;
 
   return FacturaSchema.parse({

@@ -1,0 +1,11 @@
+# Template de activación break-glass (copiar a una entrada en log.yaml).
+# activacion_id: "BG-<fecha>-<secuencia>"
+# motivo: "..."                # SEV-0 que bloquea la vía normal
+# firmas: ["<firma on-call 1>", "<firma on-call 2>"]   # M/N definido por la instancia
+# contrafirma_diferida: null   # si aplica (equipo de una persona)
+# privilegios: ["<qué se desbloquea, acotado>"]
+# activado_en: "<ISO 8601>"
+# ttl_horas: 24
+# expira_en: "<ISO 8601>"
+# alerta_p0: true
+# incident_to_test: "<enlace al test de regresión exigido antes de cerrar>"

@@ -7,6 +7,7 @@ import {
   getVancouverTodayMidnight,
 } from "@/lib/date-utils";
 import { checkBookingDateAllowed, dollarsToCents } from "@/lib/pricing";
+import { roundHalfUp, dollarsToCentsExact } from "@/lib/money";
 import { verifyPayPalTransaction } from "@/lib/paypal";
 import { dispatchCommunication } from "@/lib/send-communication";
 import {
@@ -470,7 +471,7 @@ export async function POST(request: NextRequest) {
     // Use the server-calculated amounts from the quote; ignore client-provided values.
     // The quote was recalculated server-side, so this prevents price manipulation.
     const holdAmount = quoteRow.hold_amount ?? Math.round(Number(quoteRow.total) * 0.4);
-    const paypalAdvanceAmount = Math.round(holdAmount * 0.5);
+    const paypalAdvanceAmount = Number(roundHalfUp(dollarsToCentsExact(holdAmount), 200n));
 
     // Verificar transacción de PayPal contra la API real (si está configurada).
     // El anticipo PayPal debe ser igual al 50% del Hold (spec v8.2).

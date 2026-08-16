@@ -1,0 +1,115 @@
+# Registro de reglas normativas de la instancia (Manifiesto v5.0, Parte 2):
+# toda regla normativa es un objeto de primera clase con identidad, propiedad
+# protegida, riesgo, mecanismo y evidencia exigida.
+# evidence_level  = nivel MÍNIMO exigido por el riesgo (Parte 3.2/4.2).
+# evidence_status = estado real actual: VERIFIED | PARTIAL.
+version: 1
+rules:
+  - rule_id: "INST-AUTH-001"
+    statement: "Toda tabla con datos sensibles tiene RLS; prohibido USING (true)/WITH CHECK (true) sin TO service_role."
+    property_protected: "confidentiality"
+    risk_if_violated: { severity: CRITICAL, dimensions: { confidentiality: CRITICAL, integrity: CRITICAL } }
+    mechanism: ["RLS (políticas por rol)", "migraciones 368/369"]
+    evidence_level: "E3"
+    evidence_status: "VERIFIED"
+    exceptions_allowed: false
+    source: "docs/PROTOCOLO-DESARROLLO.md §2"
+  - rule_id: "INST-AUTH-002"
+    statement: "La autorización vive en la base de datos (RLS), nunca delegada a la API; escrituras admin vía requireAdminRole + service role client."
+    property_protected: "confidentiality"
+    risk_if_violated: { severity: CRITICAL, dimensions: { confidentiality: CRITICAL } }
+    mechanism: ["RLS", "requireAdminRole", "getServiceRoleClient"]
+    evidence_level: "E3"
+    evidence_status: "VERIFIED"
+    exceptions_allowed: false
+    source: "docs/PROTOCOLO-DESARROLLO.md §2"
+  - rule_id: "INST-AUTH-003"
+    statement: "SECURITY DEFINER siempre con SET search_path = public (+ STABLE si es de solo lectura)."
+    property_protected: "integrity"
+    risk_if_violated: { severity: CRITICAL, dimensions: { integrity: CRITICAL } }
+    mechanism: ["convención en migraciones", "revisión en PR"]
+    evidence_level: "E3"
+    evidence_status: "VERIFIED"
+    exceptions_allowed: false
+    source: "docs/PROTOCOLO-DESARROLLO.md §2"
+  - rule_id: "INST-AUTH-004"
+    statement: "SQL dinámico solo con %I/%L/parámetros y whitelist; filtros PostgREST nunca interpolan input del usuario."
+    property_protected: "integrity"
+    risk_if_violated: { severity: CRITICAL, dimensions: { integrity: CRITICAL } }
+    mechanism: ["whitelist en código", "auditoría v4.2"]
+    evidence_level: "E3"
+    evidence_status: "VERIFIED"
+    exceptions_allowed: false
+    source: "docs/PROTOCOLO-DESARROLLO.md §2-§3"
+  - rule_id: "INST-DATA-001"
+    statement: "Zod en los límites HTTP; prohibido z.any()+cast para objetos sensibles; invariantes cruzadas con superRefine."
+    property_protected: "integrity"
+    risk_if_violated: { severity: CRITICAL, dimensions: { integrity: CRITICAL } }
+    mechanism: ["schemas Zod en src/app/api/**", "typecheck"]
+    evidence_level: "E3"
+    evidence_status: "PARTIAL"
+    exceptions_allowed: false
+    source: "docs/PROTOCOLO-DESARROLLO.md §3"
+  - rule_id: "INST-FIN-001"
+    statement: "Dinero en unidades enteras mínimas (centavos bigint); prohibido number/float/Math.round para valores monetarios en financial/payroll."
+    property_protected: "integrity"
+    risk_if_violated: { severity: CRITICAL, dimensions: { integrity: CRITICAL, financial_exposure: CRITICAL } }
+    mechanism: ["src/lib/money.ts (bigint + tasas racionales)", "tests exactos", "barrido de rutas v5.0"]
+    evidence_level: "E3"
+    evidence_status: "PARTIAL"
+    exceptions_allowed: false
+    source: "docs/PROTOCOLO-DESARROLLO.md §4"
+  - rule_id: "INST-FIN-002"
+    statement: "Fuente única de tasas GST/PST (src/lib/pricing/taxes.ts); ningún módulo las re-declara."
+    property_protected: "integrity"
+    risk_if_violated: { severity: CRITICAL, dimensions: { integrity: CRITICAL, financial_exposure: CRITICAL } }
+    mechanism: ["import central en pricing/taxes", "cash-reserve corregido en v5.0"]
+    evidence_level: "E3"
+    evidence_status: "PARTIAL"
+    exceptions_allowed: false
+    source: "docs/PROTOCOLO-DESARROLLO.md §5"
+  - rule_id: "INST-FIN-003"
+    statement: "Toda mutación monetaria es idempotente (clave + UNIQUE); los asientos publicados no se editan ni borran (solo compensación tipificada)."
+    property_protected: "integrity"
+    risk_if_violated: { severity: CRITICAL, dimensions: { integrity: CRITICAL, financial_exposure: CRITICAL } }
+    mechanism: ["UNIQUE + Idempotency-Key", "ledger append-only"]
+    evidence_level: "E3"
+    evidence_status: "PARTIAL"
+    exceptions_allowed: false
+    source: "docs/PROTOCOLO-DESARROLLO.md §4/§6"
+  - rule_id: "INST-TEST-001"
+    statement: "Todo módulo financiero/fiscal crítico tiene tests; prohibido catch {} vacío sin log."
+    property_protected: "integrity"
+    risk_if_violated: { severity: HIGH, dimensions: { integrity: HIGH } }
+    mechanism: ["suite tests/lib", "lint"]
+    evidence_level: "E2"
+    evidence_status: "VERIFIED"
+    exceptions_allowed: false
+    source: "docs/PROTOCOLO-DESARROLLO.md §6"
+  - rule_id: "INST-RES-001"
+    statement: "Toda I/O externa con AbortSignal.timeout; nunca err.message crudo al cliente (safeErrorResponse); PII enmascarada en logs."
+    property_protected: "availability"
+    risk_if_violated: { severity: CRITICAL, dimensions: { availability: CRITICAL, privacy: CRITICAL } }
+    mechanism: ["AbortSignal.timeout", "safeErrorResponse", "maskPhoneNumber/maskEmail"]
+    evidence_level: "E3"
+    evidence_status: "VERIFIED"
+    exceptions_allowed: false
+    source: "docs/PROTOCOLO-DESARROLLO.md §7"
+  - rule_id: "INST-GOV-001"
+    statement: "Las excepciones se registran como waivers con schema y expiración; un waiver nunca aplica a una regla de Nivel 1."
+    property_protected: "integrity"
+    risk_if_violated: { severity: HIGH, dimensions: { integrity: HIGH, regulatory: HIGH } }
+    mechanism: [".governance/waivers + gate de expiración/umbrales en verify:invariants"]
+    evidence_level: "E2"
+    evidence_status: "VERIFIED"
+    exceptions_allowed: false
+    source: "Manifiesto v5.0 Parte 5 · PROTOCOLO §8"
+  - rule_id: "INST-GOV-002"
+    statement: "Migraciones con numeración secuencial sin colisiones; toda tabla nueva con RLS y políticas explícitas."
+    property_protected: "integrity"
+    risk_if_violated: { severity: CRITICAL, dimensions: { integrity: CRITICAL } }
+    mechanism: ["convención supabase/migrations", "revisión en PR"]
+    evidence_level: "E3"
+    evidence_status: "PARTIAL"
+    exceptions_allowed: false
+    source: "docs/PROTOCOLO-DESARROLLO.md §8"

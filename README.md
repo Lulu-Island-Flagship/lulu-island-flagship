@@ -4,7 +4,7 @@ Sistema de cotización premium para servicios de limpieza residencial en Richmon
 
 ## Stack
 
-- Next.js 14 + Tailwind CSS + TypeScript
+- Next.js 16 + Tailwind CSS + TypeScript
 - Supabase (Auth + PostgreSQL)
 - Stripe (Módulo 2 — no activo aún)
 
@@ -143,7 +143,7 @@ src/
 
 ## Despliegue — crons (Vercel + GitHub Actions)
 
-**Actualización (auditoría MANIFEST v4.2, 2026-08-14):** los crons sub-diarios
+**Actualización (migración MANIFEST v5.0, 2026-08-15):** los crons sub-diarios
 críticos ya NO viven en `vercel.json`. Se migraron a
 `.github/workflows/critical-crons.yml` (GitHub Actions) en 2026-08-06, así que
 hoy `vercel.json` solo programa crons diarios/semanales (compatibles con el

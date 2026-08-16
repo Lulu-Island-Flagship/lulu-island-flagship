@@ -41,6 +41,7 @@ import {
 // (evita divergencia financiera si una tasa cambia). Re-export para no romper
 // la API pública de tax-engine.
 import { GST_RATE, PST_RATE } from "@/lib/pricing/taxes";
+import { gstFromBaseCents, pstFromBaseCents } from "@/lib/money";
 export { GST_RATE, PST_RATE };
 
 /** Small supplier threshold: below this, GST registration is voluntary */
@@ -341,7 +342,7 @@ export function calculatePstNetFromTransactions(
  * @returns GST en centavos (redondeado al entero más cercano).
  */
 export function gstFromBase(baseCents: number): number {
-  return Math.round(baseCents * GST_RATE);
+  return Number(gstFromBaseCents(BigInt(baseCents)));
 }
 
 /**
@@ -351,7 +352,7 @@ export function gstFromBase(baseCents: number): number {
  * @returns PST en centavos (redondeado al entero más cercano).
  */
 export function pstFromBase(baseCents: number): number {
-  return Math.round(baseCents * PST_RATE);
+  return Number(pstFromBaseCents(BigInt(baseCents)));
 }
 
 // =========================================================================

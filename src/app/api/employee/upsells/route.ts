@@ -4,6 +4,7 @@ import { requireActiveEmployee } from "@/lib/require-active-employee";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { safeErrorResponse } from "@/lib/api-errors";
 import { isValidUuid } from "@/lib/validation";
+import { dollarsToCentsExact, applyPercentRoundHalfUp } from "@/lib/money";
 // GET /api/employee/upsells?orderId=...
 export async function GET(request: NextRequest) {
   try {
@@ -136,13 +137,13 @@ export async function POST(request: NextRequest) {
       .eq("order_id", orderId)
       .neq("approval_status", "admin_rejected");
 
-    const alreadyRegisteredTotal = (existingUpsells || []).reduce(
-      (sum, u) => sum + (Number(u.amount) || 0),
-      0
+    const alreadyRegisteredCents = (existingUpsells || []).reduce(
+      (sum, u) => sum + dollarsToCentsExact(Number(u.amount) || 0),
+      0n
     );
-    const cumulativeTotal = alreadyRegisteredTotal + amount;
-    const cap = baseValue * 0.5;
-    const requiresAdminApproval = baseValue > 0 && cumulativeTotal > cap;
+    const cumulativeCents = alreadyRegisteredCents + dollarsToCentsExact(amount);
+    const capCents = applyPercentRoundHalfUp(dollarsToCentsExact(baseValue), 50);
+    const requiresAdminApproval = baseValue > 0 && cumulativeCents > capCents;
 
     const { data: upsell, error } = await supabase
       .from("service_upsells")
@@ -177,9 +178,9 @@ export async function POST(request: NextRequest) {
           order_id: orderId,
           upsell_id: upsell.id,
           amount,
-          cumulative_total: cumulativeTotal,
+          cumulative_total: Number(cumulativeCents) / 100,
           base_value: baseValue,
-          cap,
+          cap: Number(capCents) / 100,
           source: "upsell_cap",
         },
       });

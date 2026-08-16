@@ -38,7 +38,7 @@ bounded_contexts:
             "src/lib/cash-flow-predictive*", "src/lib/financial-reports*",
             "src/lib/payment-capture-reconciliation*", "src/lib/billing-to-ledger*",
             "src/lib/qbo*", "src/lib/accounting-*", "src/lib/wallet*",
-            "src/lib/currency*", "src/lib/installment-payment*",
+            "src/lib/currency*", "src/lib/money*", "src/lib/installment-payment*",
             "src/lib/stripe*", "src/lib/paypal*", "src/lib/operational-accounting*",
             "src/lib/economic-params*", "src/lib/close-period*", "src/lib/period-guard*",
             "src/lib/shadow-ledger*", "src/lib/ledger-hash*", "src/lib/batch-capture-*"]
@@ -146,10 +146,14 @@ context_risk:
 - El detalle completo del tipo Money, el redondeo y la máquina de estados de
   pago vive en `ext-financial` (referencia: Manifiesto v5.0, Parte 8.1).
 
-> **Deuda conocida:** `src/lib/pricing/taxes.ts` usa hoy `number` +
-> `Math.round(amount * 100)`, lo que viola esta regla. Marcado
-> `[INTEGRITY_FIX]` pendiente: migrar a unidades enteras es el primer paso de
-> adopción de esta instancia.
+> **Estado (v5.0):** el núcleo de dinero ya migró a unidades enteras —
+> `src/lib/money.ts` (centavos `bigint`, tasas fiscales como racionales
+> enteros) y `src/lib/pricing/taxes.ts` (aritmética fiscal exacta);
+> `currency.ts`, `tax-engine.ts` y `ar-b2b/invoice.ts` delegan en él. Los
+> wrappers `dollarsToCents`/`centsToDollars` conservan firma `number` como
+> límite de display/persistencia. **Deuda restante:** tipado `bigint`
+> end-to-end (vs `number`-entero) en los módulos que ya operan en centavos;
+> el barrido de aritmética en `float` ya está hecho.
 
 ---
 
@@ -249,13 +253,23 @@ declarar "live" hasta confirmar las 5 plataformas.
 
 ## Estado de adopción (gap núcleo → instancia)
 
-Pendiente de materializar (no bloquea el código existente, se cierra al tocarlo):
+Materializado en la migración v5.0 (2026-08-15):
 
-- [ ] Migrar `src/lib/pricing/taxes.ts` de `number` a unidades enteras (`[INTEGRITY_FIX]`).
-- [ ] Crear `docs/LEARNINGS.md` (núcleo, Parte 6.3) y enlazar incidentes.
-- [ ] Crear `.governance/bounded-contexts.yaml` (mapa machine-readable).
-- [ ] Crear `.governance/waivers/` (válvula de escape, núcleo Parte 5).
-- [ ] Empaquetar los checks de CI en un comando local `verify:invariants`.
+- [x] Migrar `src/lib/pricing/taxes.ts` de `number` a unidades enteras (`[INTEGRITY_FIX]`) — `src/lib/money.ts` + `taxes.ts`.
+- [x] Crear `docs/LEARNINGS.md` (núcleo, Parte 6.3) y enlazar incidentes.
+- [x] Crear `.governance/bounded-contexts.yaml` (mapa machine-readable).
+- [x] Crear `.governance/waivers/` (válvula de escape, núcleo Parte 5).
+- [x] Empaquetar los checks de CI en un comando local `verify:invariants`, ahora con gates de: tokens/contraste/privacidad, waivers (expiración + máx. 5 + antigüedad 30 d + aprobador 40-hex), `UNCLASSIFIED` diff-aware con cota superior de riesgo por contexto, y niveles de evidencia mínimos.
+
+Seguimiento pendiente (no bloquea):
+
+- [ ] Evidencia E3 real (integración) para las reglas marcadas `PARTIAL` en
+  `.governance/rules.yaml`.
+- [ ] Tipado `bigint` end-to-end (vs `number`-entero) en los módulos que ya
+  operan en centavos.
+- [ ] El hábito de clasificar archivos nuevos en
+  `.governance/bounded-contexts.yaml` (evitar que caigan por omisión en
+  `src/lib/**` → `infra`).
 
 ---
 

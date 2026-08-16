@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole, logAdminAction } from "@/lib/admin";
 import { evaluateResidentialGiftEligibility } from "@/lib/gift-program";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { dollarsToCents } from "@/lib/currency";
 
 // GET /api/admin/retention-gifts — listar regalos registrados
 export async function GET(request: NextRequest) {
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
         months_active: monthsActive,
         first_year_value_cents: firstYearValueCents,
         tier: evaluation.tier!.tier,
-        suggested_gift_cents: Math.round(evaluation.suggestedGiftDollars! * 100),
+        suggested_gift_cents: dollarsToCents(evaluation.suggestedGiftDollars!),
         requires_manual_approval: evaluation.requiresManualApproval ?? false,
       })
       .select()

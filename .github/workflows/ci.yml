@@ -1,7 +1,7 @@
-# v8.3 E0 — CI mínimo: nada entra a main sin typecheck y tests verdes.
+# v5.0 — CI mínimo: nada entra a main sin typecheck, tests e invariantes verdes.
 name: CI
 on:
-  # v8.5: push a main lo build-ea Vercel (typecheck + build + deploy).
+  # v5.0: push a main lo build-ea Vercel (typecheck + build + deploy).
   # GitHub Actions CI solo corre en PRs y bajo demanda (workflow_dispatch)
   # para no consumir minutos del plan gratuito en cada push.
   pull_request:
@@ -18,6 +18,10 @@ jobs:
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-dummy-anon-key
     steps:
       - uses: actions/checkout@v4
+        with:
+          # fetch-depth 0: necesario para el gate UNCLASSIFIED (git merge-base
+          # y diff contra origin/main) dentro de verify:invariants.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -39,26 +43,8 @@ jobs:
         run: npm test
       - name: Auditoría de dependencias (bloquea solo crítico)
         run: npm audit --audit-level=critical
-      - name: Tokens de diseño — cero hex de marca fuera de la fuente única
-        run: |
-          if grep -rln -iE "#2E5C8A|#3E6D9E|#3A6E9E|#E3AAB8|#8A3A46|#1F2E3D" src/ tailwind.config.ts \
-            --include="*.ts" --include="*.tsx" --include="*.css" \
-            | grep -v "src/design/tokens.ts" | grep -v "src/app/tokens.css"; then
-            echo "::error::Hex de marca fuera de src/design/tokens.ts (invariante E0-C5)"; exit 1
-          fi
-      - name: Contraste — dorado claro nunca como texto (invariante a11y)
-        run: |
-          if grep -rnE 'text-brand-gold([^-]|$)' src/ --include="*.tsx" --include="*.ts" \
-            | grep -v "src/design/tokens.ts"; then
-            echo "::error::text-brand-gold (dorado claro) no cumple AA; usar text-brand-gold-dark"; exit 1
-          fi
-      - name: Privacidad — sin select(*) en páginas del cliente sobre quotes/orders
-        run: |
-          if grep -rn 'from("quotes")' src/app/\[locale\]/ -A2 | grep 'select("\*")'; then
-            echo "::error::select(*) sobre quotes en página de cliente (invariante B.2.3)"; exit 1
-          fi
-          if grep -rn 'from("orders")' src/app/\[locale\]/ -A2 | grep 'select("\*")'; then
-            echo "::error::select(*) sobre orders en página de cliente (invariante B.2.3)"; exit 1
-          fi
+      - name: Invariantes v5.0 (tokens, contraste, privacidad, waivers vencidos)
+        timeout-minutes: 5
+        run: npm run verify:invariants
       - name: Accesibilidad — sin regresiones de WCAG 2.1 AA en las 3 superficies (E6-C7)
         run: npm run audit:a11y

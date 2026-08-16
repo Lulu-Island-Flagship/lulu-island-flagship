@@ -15,7 +15,7 @@ describe("calculateReserveSplit", () => {
   it("reserva ~10.714% (12% tax-inclusive) de un cobro sin propina ni no-gravable", () => {
     const r = calculateReserveSplit({ grossAmountCents: 10000 }); // $100.00
     assert.equal(r.taxableBaseCents, 10000);
-    assert.equal(r.taxReserveCents, Math.round(10000 * TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL)); // 1071
+    assert.equal(r.taxReserveCents, 1071); // exacto: 10000 × 3/28 → 1071.43 → 1071
     assert.equal(r.operationalAmountCents, 10000 - r.taxReserveCents);
     assert.equal(r.reserveRate, TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL);
   });
@@ -23,7 +23,7 @@ describe("calculateReserveSplit", () => {
   it("excluye propina de la base gravable antes de reservar", () => {
     const r = calculateReserveSplit({ grossAmountCents: 11000, tipAmountCents: 1000 }); // $110 con $10 propina
     assert.equal(r.taxableBaseCents, 10000);
-    assert.equal(r.taxReserveCents, Math.round(10000 * TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL));
+    assert.equal(r.taxReserveCents, 1071);
     // operativo = bruto - reserva (la propina queda en operativo, no se reserva)
     assert.equal(r.operationalAmountCents, 11000 - r.taxReserveCents);
   });
@@ -35,7 +35,7 @@ describe("calculateReserveSplit", () => {
       nonTaxableAmountCents: 1000,
     });
     assert.equal(r.taxableBaseCents, 10000);
-    assert.equal(r.taxReserveCents, Math.round(10000 * TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL));
+    assert.equal(r.taxReserveCents, 1071);
   });
 
   it("nunca excede el bruto aunque propina+no-gravable superen el total (guard defensivo)", () => {
@@ -51,7 +51,13 @@ describe("calculateReserveSplit", () => {
 
   it("redondea al centavo", () => {
     const r = calculateReserveSplit({ grossAmountCents: 9999 });
-    assert.equal(r.taxReserveCents, Math.round(9999 * TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL));
+    assert.equal(r.taxReserveCents, 1071); // exacto: 9999 × 3/28 → 1071.32 → 1071
+  });
+
+  it("redondea medio-arriba en el límite .5 (exacto, sin float)", () => {
+    // 14¢ × 3/28 = 1.5¢ → redondeo medio-arriba → 2¢ (el float 0.107142... daría 1¢)
+    const r = calculateReserveSplit({ grossAmountCents: 14 });
+    assert.equal(r.taxReserveCents, 2);
   });
 });
 

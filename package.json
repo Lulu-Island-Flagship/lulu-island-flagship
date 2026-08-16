@@ -18,6 +18,7 @@
     "db:status": "supabase status",
     "tokens": "node scripts/generate-tokens-css.mjs",
     "prebuild": "npm run tokens",
+    "verify:invariants": "node scripts/verify-invariants.mjs",
     "audit:a11y": "node scripts/audit-accessibility.mjs"
   },
   "dependencies": {

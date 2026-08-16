@@ -4,12 +4,14 @@
 // no lógica de nómina. Cualquier módulo que necesite convertir
 // dólares ↔ centavos debe importar desde aquí.
 
+import { dollarsToCentsExact } from "./money";
+
 /**
- * Convierte un monto en dólares a centavos enteros.
+ * Convierte un monto en dólares a centavos enteros (exacto, sin float).
  * Ejemplo: dollarsToCents(18.25) → 1825
  */
 export function dollarsToCents(dollars: number): number {
-  return Math.round(dollars * 100);
+  return Number(dollarsToCentsExact(dollars));
 }
 
 /**

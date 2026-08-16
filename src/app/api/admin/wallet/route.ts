@@ -2,6 +2,7 @@ import { createHash } from "@/lib/crypto.server";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole } from "@/lib/admin";
 import { isValidUuid } from "@/lib/validation";
+import { dollarsToCents } from "@/lib/currency";
 import {
   computeWalletCreditExpiryDate,
   computeExpiredUnusedAmount,
@@ -154,7 +155,7 @@ export async function POST(request: NextRequest) {
   if (!Number.isFinite(amountDollars) || amountDollars <= 0) {
     return NextResponse.json({ error: "amountDollars debe ser > 0" }, { status: 400 });
   }
-  const amountCents = Math.round(amountDollars * 100);
+  const amountCents = dollarsToCents(amountDollars);
 
   // Fix auditoría externa 2026-07-24 (ver comentario junto a
   // MAX_GRANT_AMOUNT_CENTS arriba): límite máximo por operación individual.

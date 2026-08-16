@@ -8,6 +8,8 @@ import { createClient } from "@supabase/supabase-js";
 import { assertStripe } from "@/lib/stripe";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { calculateReserveSplit } from "@/lib/cash-reserve";
+import { applyPercentRoundHalfUp } from "@/lib/money";
+import { dollarsToCents } from "@/lib/currency";
 import {
   evaluateCaptureEligibility,
   evaluateQcGate,
@@ -260,7 +262,7 @@ export async function GET(request: NextRequest) {
       // RAÍZ-3: quotes.total sigue en DÓLARES (fuera de alcance de la
       // migración 229) -- todo el cálculo de esta función se hace en
       // CENTAVOS a partir de aquí, escalando quotes.total x100 una sola vez.
-      const quoteTotalBeforeWalletCents = Math.round(Number(order.quotes?.[0]?.total ?? 0) * 100);
+      const quoteTotalBeforeWalletCents = dollarsToCents(Number(order.quotes?.[0]?.total ?? 0));
       const walletAppliedCents = Math.max(0, order.wallet_amount_used_cents || 0);
       const quoteTotalCents = Math.max(0, quoteTotalBeforeWalletCents - walletAppliedCents);
       if (quoteTotalBeforeWalletCents <= 0) {
@@ -609,7 +611,7 @@ export async function GET(request: NextRequest) {
           // en DÓLARES (columna fuera de alcance de la migración 229) --
           // se escala x100 aquí para operar en centavos junto al resto.
           const paypalAdvanceCents = Math.min(
-            Math.max(0, Math.round((order.paypal_advance_amount || order.hold_amount_cents * 0.5 / 100) * 100)),
+            Math.max(0, dollarsToCents(order.paypal_advance_amount || 0) || Number(applyPercentRoundHalfUp(BigInt(order.hold_amount_cents || 0), 50))),
             quoteTotalCents
           );
           const balanceAmountCents = Math.max(0, quoteTotalCents - paypalAdvanceCents);
@@ -669,8 +671,8 @@ export async function GET(request: NextRequest) {
           // /api/stripe/confirm, no aquí.
         }
 
-        // Stripe fee aproximada para QBO (2.9% + 0.30 CAD)
-        const stripeFeeCents = Math.round(amountChargedCents * 0.029 + 30);
+        // Stripe fee aproximada para QBO (2.9% + 0.30 CAD) — aritmética exacta
+        const stripeFeeCents = Number(applyPercentRoundHalfUp(BigInt(amountChargedCents), 2.9) + 30n);
 
         // v8.3 E2.5/C.2.4 (2026-07-13): Shadow Ledger -- registrar el cobro
         // real ANTES/en paralelo a QBO, independiente de si QBO responde.
@@ -712,7 +714,7 @@ export async function GET(request: NextRequest) {
         // es 0 y total_paid_cents queda intacto, como corresponde.
         const paypalAdvanceDeltaCents =
           order.payment_option === "paypal_first_time"
-            ? Math.round((order.paypal_advance_amount || 0) * 100)
+            ? dollarsToCents(order.paypal_advance_amount || 0)
             : 0;
         const { error: applyCaptureError } = await supabase.rpc("apply_batch_capture_result", {
           p_order_id: order.id,
@@ -737,7 +739,7 @@ export async function GET(request: NextRequest) {
 
           const reservePercentage = settings?.reserve_percentage ? Number(settings.reserve_percentage) : 2.0;
           const reserveCap = settings?.reserve_cap_amount ? Number(settings.reserve_cap_amount) : null;
-          let reserveAmount = Math.round(amountChargedCents * (reservePercentage / 100));
+          let reserveAmount = Number(applyPercentRoundHalfUp(BigInt(amountChargedCents), reservePercentage));
           if (reserveCap !== null && reserveCap > 0) {
             reserveAmount = Math.min(reserveAmount, reserveCap);
           }

@@ -5,6 +5,7 @@ import { publishUnifiedAlert } from "@/lib/unified-alerts";
 import { requireCronAuth } from "@/lib/cron-auth";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { dollarsToCents } from "@/lib/currency";
 
 /**
  * POST /api/cron/paypal-refunds
@@ -106,7 +107,7 @@ export async function GET(request: NextRequest) {
             eventType: "warranty_refund",
             orderId: order.id,
             userId: order.user_id,
-            amountCents: Math.round(Number(order.paypal_advance_amount) * 100),
+            amountCents: dollarsToCents(Number(order.paypal_advance_amount)),
             processor: "paypal",
             externalReference: refundResult.refundId ?? order.paypal_transaction_id,
             occurredAt: new Date(),

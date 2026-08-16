@@ -4,6 +4,7 @@ import { assertStripe } from "@/lib/stripe";
 import { computeCancellationDecision } from "@/lib/order-cancellation";
 import { buildShadowLedgerEntry } from "@/lib/shadow-ledger";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { dollarsToCents } from "@/lib/currency";
 
 /**
  * POST /api/orders/[orderId]/cancel
@@ -147,7 +148,7 @@ export async function POST(
     // hold_amount_cents/hold_authorized_amount_cents. computeCancellationDecision
     // es agnóstica a la unidad (solo hace min/max/round), así que basta con
     // pasarle todo en la misma unidad -- centavos, de aquí en adelante.
-    const quoteTotalCents = Math.round(Number(quoteRow?.total ?? 0) * 100);
+    const quoteTotalCents = dollarsToCents(Number(quoteRow?.total ?? 0));
     const orderZone = quoteRow?.zone ?? null;
     const hoursLeft = hoursUntilService(order.service_datetime);
 
@@ -157,7 +158,7 @@ export async function POST(
       holdAuthorizedAmount: order.hold_authorized_amount_cents || 0,
       holdAmount: order.hold_amount_cents || 0,
       paymentOption: order.payment_option,
-      paypalAdvanceAmount: Math.round((order.paypal_advance_amount || 0) * 100),
+      paypalAdvanceAmount: dollarsToCents(order.paypal_advance_amount || 0),
       walletAmountCollected: order.wallet_amount_collected_cents || 0,
     });
 
@@ -347,7 +348,7 @@ export async function POST(
       p_card_amount_charged_cents: isWalletOrder
         ? 0
         : order.payment_option === "paypal_first_time"
-          ? Math.max(0, penaltyChargedCents - Math.round((order.paypal_advance_amount || 0) * 100))
+          ? Math.max(0, penaltyChargedCents - dollarsToCents(order.paypal_advance_amount || 0))
           : penaltyChargedCents,
       p_wallet_refunded_amount_cents: walletRefundedCents,
       p_paypal_refund_required: paypalRefundRequired,

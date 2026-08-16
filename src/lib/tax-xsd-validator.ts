@@ -1,3 +1,5 @@
+import { dollarsToCentsExact } from "./money";
+
 /**
  * Capa 6 — Tax XSD Validator: validación estructural de XMLs fiscales
  * canadienses contra los schemas de CRA y Service Canada.
@@ -474,7 +476,7 @@ export function validateGstXml(xml: string): TaxXmlValidationResult {
     const collectedNum = parseFloat(gstCollected);
     const itcsNum = parseFloat(itcs);
     const netNum = parseFloat(netTax);
-    const expectedNet = Math.round((collectedNum - itcsNum) * 100) / 100;
+    const expectedNet = Number(dollarsToCentsExact(collectedNum) - dollarsToCentsExact(itcsNum)) / 100;
 
     if (Math.abs(netNum - expectedNet) > 0.02) {
       base.errors.push(

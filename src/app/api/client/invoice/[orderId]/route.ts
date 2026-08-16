@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { QUOTE_CLIENT_COLUMNS } from "@/lib/client-visible-columns";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireClientCaller } from "@/lib/require-client-caller";
+import { computeTaxBreakdown } from "@/lib/pricing";
 /**
  * GET /api/client/invoice/[orderId] — datos JSON del invoice.
  */
@@ -30,8 +31,10 @@ export async function GET(
   const q = (order as { quotes?: unknown }).quotes;
   const quote = Array.isArray(q) ? q[0] : q;
   const subtotal = Number(quote?.subtotal ?? 0);
-  const gst = Number(quote?.gst ?? Math.round(subtotal * 0.05 * 100) / 100);
-  const pst = Number(quote?.pst ?? Math.round(subtotal * 0.07 * 100) / 100);
+  // Fallback exacto (sin float): recomputa GST/PST con aritmética entera.
+  const fallbackTax = computeTaxBreakdown(subtotal);
+  const gst = Number(quote?.gst ?? fallbackTax.gst);
+  const pst = Number(quote?.pst ?? fallbackTax.pst);
   const total = Number(quote?.total ?? subtotal + gst + pst);
   const serviceDate = (order as { service_date: string }).service_date;
 

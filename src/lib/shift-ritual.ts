@@ -1,3 +1,5 @@
+import { applyPercentRoundHalfUp, dollarsToCentsExact } from "./money";
+
 /**
  * v8.3 E8.13 — Rituales de inicio y fin de jornada.
  * "Inicio (equipo, clima, ranking) y fin de jornada (ganancias visibles:
@@ -31,8 +33,9 @@ export interface ClosingEarningsResult {
 export function computeClosingEarnings(input: ClosingEarningsInput): ClosingEarningsResult {
   const rate = input.commissionRate ?? DEFAULT_UPSELL_COMMISSION_RATE;
   const upsellTotal = input.approvedUpsellAmountsDollars.reduce((sum, a) => sum + a, 0);
-  const commissionDollars = Math.round(upsellTotal * rate * 100) / 100;
-  const totalDollars = Math.round((input.dayRateDollars + commissionDollars) * 100) / 100;
+  const commissionCents = applyPercentRoundHalfUp(dollarsToCentsExact(upsellTotal), rate * 100);
+  const commissionDollars = Number(commissionCents) / 100;
+  const totalDollars = (Number(dollarsToCentsExact(input.dayRateDollars)) + Number(commissionCents)) / 100;
 
   return {
     dayRateDollars: input.dayRateDollars,

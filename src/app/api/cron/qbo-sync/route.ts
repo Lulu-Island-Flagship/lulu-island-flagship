@@ -5,6 +5,8 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { pushSalesReceipt } from "@/lib/qbo-adapter";
+import { dollarsToCents } from "@/lib/currency";
+import { applyPercentRoundHalfUp } from "@/lib/money";
 import { decideQboSyncAction, evaluateQboDivergence, type QboSyncRetryState } from "@/lib/qbo-sync";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { requireCronAuth } from "@/lib/cron-auth";
@@ -199,8 +201,8 @@ export async function GET(request: NextRequest) {
       // de arriba (fix F2) y se escalan x100.
       const quoteForTax = (order.quotes as unknown as { gst: number; pst: number }[] | null)?.[0];
       const gross = Math.round(order.total_paid_cents || 0);
-      const gst = Math.round((quoteForTax?.gst || 0) * 100);
-      const pst = Math.round((quoteForTax?.pst || 0) * 100);
+      const gst = dollarsToCents(quoteForTax?.gst || 0);
+      const pst = dollarsToCents(quoteForTax?.pst || 0);
       // Fix (auditoría externa 2026-07-31): fee real de Stripe cuando está
       // disponible (ver getRealStripeFeeCents arriba); estimación 2.9% +
       // $0.30 CAD solo como respaldo si Stripe no está configurado o el
@@ -209,7 +211,7 @@ export async function GET(request: NextRequest) {
         order.stripe_hold_payment_intent_id,
         order.stripe_capture_payment_intent_id,
       ]);
-      const fee = realFeeCents !== null ? realFeeCents : Math.round(gross * 0.029 + 30);
+      const fee = realFeeCents !== null ? realFeeCents : Number(applyPercentRoundHalfUp(BigInt(gross), 2.9) + 30n);
       const net = gross - fee;
 
       const pushResult = await pushSalesReceipt({

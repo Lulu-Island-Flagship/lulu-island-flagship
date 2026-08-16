@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole, logAdminAction } from "@/lib/admin";
 import { evaluateVehicleFineRisk } from "@/lib/property-risk";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { dollarsToCents } from "@/lib/currency";
 
 /**
  * GET/POST /api/admin/vehicle-fines — v8.3 E7 fix de auditoría (migración
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
         vehicle_id: vehicleId,
         driver_employee_id: driverEmployeeId || null,
         address: address ? String(address).trim() : null,
-        amount_cents: Math.round(amountDollars * 100),
+        amount_cents: dollarsToCents(amountDollars),
         fine_date: fineDate,
         notes: notes ? String(notes).trim() : null,
         created_by: auth.user.id,

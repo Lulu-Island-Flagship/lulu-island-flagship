@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRole, logAdminAction } from "@/lib/admin";
 import { getVancouverTodayString } from "@/lib/date-utils";
 import { safeErrorResponse } from "@/lib/api-errors";
+import { dollarsToCents } from "@/lib/currency";
 
 /**
  * GET/PATCH /api/admin/fixed-costs-settings
@@ -60,7 +61,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const todayIso = getVancouverTodayString();
-    const monthlyFixedCostsCents = Math.round(monthlyFixedCostsDollars * 100);
+    const monthlyFixedCostsCents = dollarsToCents(monthlyFixedCostsDollars);
 
     // Auditoría 2026-07-30 (Bug #3): antes esto era un update (cerrar la
     // fila vigente) seguido de un insert (fila nueva) en dos pasos

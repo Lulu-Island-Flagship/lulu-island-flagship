@@ -1,0 +1,10 @@
+# change:
+#   id: "CHG-<fecha>-<secuencia>"
+#   intent: "..."
+#   scope: { contexts: ["financial"], modules: ["billing"] }
+#   risk_profile: { ... }          # multidimensional, calculado del diff
+#   decisions_required: ["política_de_redondeo"]
+#   invariants_affected: ["INST-FIN-001"]
+#   verification_plan: ["unit", "integration", "property"]
+#   rollback_plan: "..."
+#   evidence: { status: "PENDING" }

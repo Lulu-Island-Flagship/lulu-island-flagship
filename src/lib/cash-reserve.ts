@@ -7,8 +7,12 @@
  *   Propinas y partidas no gravables se separan ANTES de calcular la reserva.
  */
 
-export const GST_RATE = 0.05;
-export const PST_RATE = 0.07;
+// Fuente única (PROTOCOLO §5): las tasas viven en @/lib/pricing/taxes.
+// Re-export para no romper la API pública de cash-reserve.
+import { roundHalfUp } from "./money";
+import { GST_RATE, PST_RATE } from "@/lib/pricing/taxes";
+export { GST_RATE, PST_RATE };
+
 export const TAX_RESERVE_RATE = GST_RATE + PST_RATE; // 0.12
 
 // B-P1-3 fix (auditoría 2026-07-21): TAX_RESERVE_RATE (12%) es la tasa
@@ -20,7 +24,12 @@ export const TAX_RESERVE_RATE = GST_RATE + PST_RATE; // 0.12
 // 1.12, el impuesto real es T × (0.12 / 1.12) ≈ 10.714% de T, no 12% de T.
 // Ejemplo: T=$100 (base $89.29 + $10.71 de impuesto) reservaba $12.00 en
 // vez de los $10.71 reales -- $1.29 de más por cada $100 cobrados.
-export const TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL = TAX_RESERVE_RATE / (1 + TAX_RESERVE_RATE); // ≈ 0.10714
+export const TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL = TAX_RESERVE_RATE / (1 + TAX_RESERVE_RATE); // ≈ 0.10714 (float, solo display/metadatos)
+
+// Forma EXACTA de la misma tasa como racional entero: 12% / 112% = 3/28.
+// La aritmética de reserva usa esta forma (nunca el float).
+export const TAX_RESERVE_ON_INCLUSIVE_NUMERATOR = 3n;
+export const TAX_RESERVE_ON_INCLUSIVE_DENOMINATOR = 28n;
 
 export interface ChargeReserveInput {
   /** Monto total cobrado, en cents. */
@@ -65,7 +74,12 @@ export function calculateReserveSplit(input: ChargeReserveInput): ChargeReserveS
   // taxableBaseCents es tax-inclusive (viene de un total ya cobrado con
   // impuestos adentro), así que se extrae el impuesto con la tasa
   // "de adentro hacia afuera", no la tasa aditiva.
-  const taxReserveCents = Math.round(taxableBaseCents * TAX_RESERVE_RATE_ON_INCLUSIVE_TOTAL);
+  const taxReserveCents = Number(
+    roundHalfUp(
+      BigInt(taxableBaseCents) * TAX_RESERVE_ON_INCLUSIVE_NUMERATOR,
+      TAX_RESERVE_ON_INCLUSIVE_DENOMINATOR
+    )
+  );
   const operationalAmountCents = grossAmountCents - taxReserveCents;
 
   return {

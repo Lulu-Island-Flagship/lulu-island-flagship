@@ -1,3 +1,5 @@
+import { applyPercentRoundHalfUp } from "./money";
+
 /**
  * v8.3 D.3 / E2 — Contrato Hold → captura → cancelación.
  *
@@ -126,7 +128,7 @@ export function computeCancellationDecision(
   }
 
   if (window === "partial_penalty") {
-    const penaltyAmount = Math.round(effectiveHoldAmount * 0.5);
+    const penaltyAmount = Number(applyPercentRoundHalfUp(BigInt(effectiveHoldAmount), 50));
 
     if (isWallet) {
       return {
@@ -187,7 +189,7 @@ export function computeCancellationDecision(
 
   if (input.paymentOption === "paypal_first_time") {
     const paypalAmountRetained = Math.min(
-      input.paypalAdvanceAmount || Math.round(input.holdAmount * 0.5),
+      input.paypalAdvanceAmount || Number(applyPercentRoundHalfUp(BigInt(input.holdAmount), 50)),
       quoteTotal
     );
     const stripeAdditionalChargeAmount = Math.max(0, effectiveHoldAmount - paypalAmountRetained);

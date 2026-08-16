@@ -1,0 +1,202 @@
+# Mapa autoritativo bounded contexts → rutas (fuente: docs/PROTOCOLO-DESARROLLO.md §0.1)
+# El gate UNCLASSIFIED (scripts/verify-invariants.mjs) clasifica cada archivo
+# del diff contra estos patrones, EN ORDEN: el primer contexto que coincide
+# gana. Semántica de patrones:
+#   `*`   no cruza `/` (un segmento)
+#   `**`  cruza `/` (cualquier profundidad)
+#   `dir/**` cubre el directorio y todo su contenido
+# Un archivo que no coincide con ningún patrón se trata como UNCLASSIFIED y
+# BLOQUEA el gate hasta clasificarse. Nota: `src/lib/**` cae en `infra` como
+# red de seguridad; al tocar un archivo nuevo de dinero/nómina/auth,
+# clasifícalo explícitamente en su dominio.
+version: 2
+bounded_contexts:
+  financial:
+    paths:
+      - "src/lib/pricing/**"
+      - "src/lib/tax-*"
+      - "src/lib/ar-b2b/**"
+      - "src/lib/ledger*"
+      - "src/lib/financial-*"
+      - "src/lib/journal-*"
+      - "src/lib/chart-of-accounts*"
+      - "src/lib/coa*"
+      - "src/lib/bank-reconciliation*"
+      - "src/lib/cash-flow-predictive*"
+      - "src/lib/payment-capture-reconciliation*"
+      - "src/lib/billing-to-ledger*"
+      - "src/lib/qbo*"
+      - "src/lib/accounting-*"
+      - "src/lib/wallet*"
+      - "src/lib/currency*"
+      - "src/lib/money*"
+      - "src/lib/installment-payment*"
+      - "src/lib/stripe*"
+      - "src/lib/paypal*"
+      - "src/lib/operational-accounting*"
+      - "src/lib/economic-params*"
+      - "src/lib/close-period*"
+      - "src/lib/period-guard*"
+      - "src/lib/shadow-ledger*"
+      - "src/lib/ledger-hash*"
+      - "src/lib/batch-capture-*"
+      - "src/lib/cash-reserve*"
+      - "src/lib/chargeback*"
+      - "src/lib/dunning*"
+      - "src/lib/aging*"
+      - "src/app/api/quote/**"
+      - "src/app/api/stripe/**"
+      - "src/app/api/admin/wallet/**"
+      - "src/app/api/admin/tax/**"
+      - "src/app/api/admin/vehicle-fines/**"
+      - "src/app/api/admin/cra-remittances/**"
+      - "src/app/api/admin/fixed-costs-settings/**"
+      - "src/app/api/admin/business-insurance/**"
+      - "src/app/api/client/wallet/**"
+      - "src/app/api/client/invoice/**"
+      - "src/app/api/cron/**"
+      - "src/adapters/accounting.ts"
+      - "src/adapters/accounting/**"
+      - "src/adapters/payments.ts"
+  payroll:
+    paths:
+      - "src/lib/payroll*/**"
+      - "src/lib/payroll*"
+      - "src/lib/t4*"
+      - "src/lib/t4a*"
+      - "src/lib/roe*"
+      - "src/lib/cra-*"
+      - "src/lib/service-canada-client*"
+      - "src/lib/pay-statement*"
+      - "src/lib/statutory-holidays*"
+      - "src/lib/sick-leave*"
+      - "src/lib/employee-financial-dashboard*"
+      - "src/app/api/admin/payroll/**"
+  identity:
+    paths:
+      - "src/lib/admin-*"
+      - "src/lib/useAdminRoles*"
+      - "src/lib/access-recovery*"
+      - "src/lib/backup-codes*"
+      - "src/lib/crypto*"
+      - "src/lib/staff-login*"
+      - "src/lib/require-*"
+      - "src/lib/supabase*"
+      - "src/lib/telephony-router*"
+  privacy_compliance:
+    paths:
+      - "src/lib/pipeda*"
+      - "src/lib/pipa-*"
+      - "src/lib/compliance-*"
+      - "src/lib/legal-*"
+      - "src/lib/esignature-provider*"
+      - "src/lib/photo-retention*"
+      - "src/adapters/esignature.ts"
+  operations:
+    paths:
+      - "src/lib/dispatch-*"
+      - "src/lib/zone-*"
+      - "src/lib/schedule-*"
+      - "src/lib/weather-*"
+      - "src/lib/inventory-*"
+      - "src/lib/equipment-*"
+      - "src/lib/shift-*"
+      - "src/lib/kitchen-timer*"
+      - "src/lib/campaign-*"
+      - "src/adapters/maps.ts"
+  communications:
+    paths:
+      - "src/lib/sms*"
+      - "src/lib/email*"
+      - "src/lib/notification-*"
+      - "src/lib/communication*"
+      - "src/lib/send-communication*"
+      - "src/adapters/communications.ts"
+  infra:
+    paths:
+      - "src/lib/observability*"
+      - "src/lib/api-errors*"
+      - "src/lib/date-utils*"
+      - "src/lib/format*"
+      - "src/lib/validation*"
+      - "src/lib/feature-flags*"
+      - "src/lib/request-ip*"
+      - "src/lib/safe-redirect*"
+      - "src/lib/template-engine*"
+      - "src/lib/export-*"
+      - "src/lib/image-compress*"
+      - "src/lib/**"
+  db:
+    paths:
+      - "supabase/**"
+  api:
+    paths:
+      - "src/app/api/**"
+      - "src/adapters/**"
+  ui:
+    paths:
+      - "src/app/**"
+      - "src/components/**"
+      - "src/hooks/**"
+      - "src/i18n/**"
+      - "src/middleware.ts"
+      - "public/**"
+      - "messages/**"
+  design:
+    paths:
+      - "src/design/**"
+  types:
+    paths:
+      - "src/types/**"
+  tests:
+    paths:
+      - "tests/**"
+  governance:
+    paths:
+      - ".governance/**"
+      - "AGENTS.md"
+      - "CHANGELOG.md"
+  documentation:
+    paths:
+      - "docs/**"
+      - "archivo/**"
+      - "backups/**"
+      - "*.md"
+      - "*.png"
+      - "*.jpg"
+      - "*.jpeg"
+  tooling:
+    paths:
+      - ".github/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - "*.json"
+      - "*.config.*"
+      - "next-env.d.ts"
+      - "instrumentation.ts"
+      - "tsconfig*"
+      - ".eslintrc*"
+      - ".gitignore"
+      - ".env*"
+      - "vercel.json"
+      - ".agents/**"
+      - ".codewhale/**"
+      - ".tscout*"
+context_risk:
+  financial:          { integrity: CRITICAL, financial_exposure: CRITICAL, reversibility: CRITICAL, privacy: HIGH }
+  payroll:            { integrity: CRITICAL, financial_exposure: CRITICAL, privacy: CRITICAL, regulatory: HIGH }
+  identity:           { confidentiality: CRITICAL, integrity: HIGH }
+  privacy_compliance: { regulatory: CRITICAL, privacy: CRITICAL }
+  operations:         { availability: HIGH, integrity: MEDIUM }
+  communications:     { privacy: HIGH, confidentiality: MEDIUM }
+  infra:              { integrity: MEDIUM, availability: MEDIUM }
+  db:                 { integrity: CRITICAL, financial_exposure: HIGH, privacy: CRITICAL, regulatory: HIGH }
+  api:                { integrity: HIGH, privacy: HIGH, availability: HIGH }
+  ui:                 { integrity: MEDIUM, privacy: MEDIUM, availability: MEDIUM }
+  design:             { integrity: LOW, availability: LOW }
+  types:              { integrity: MEDIUM }
+  tests:              { integrity: MEDIUM }
+  governance:         { integrity: HIGH, regulatory: HIGH }
+  documentation:      { integrity: LOW }
+  tooling:            { integrity: HIGH, availability: HIGH }
